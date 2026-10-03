@@ -1,5 +1,25 @@
 # Devil Hub
 
+## Ride a Pet
+
+```lua
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/ride-a-pet.lua"))()
+```
+
+This separate Ride a Pet release adapts Chilli Hub with the DEVIL HUB name,
+a crimson community card, the supplied logo, and
+[DEVIL HUB Discord](https://discord.gg/ZY7PRcVJe2). The original gameplay VM is
+retained. Its captured outer layer was decoded; complete devirtualization was
+not required for these UI changes. Existing dependencies and settings remain
+compatible. Teleport auto-load points to this release.
+
+Validated with Luau compilation, branding checks, an isolated VM loader test
+up to a stub gameplay entry point, and an exact packed-payload comparison.
+Actual Roblox gameplay and visual layout have not been tested in this environment.
+The release is packed for distribution; packing is reversible.
+
+## Anime Legacy
+
 Anime Legacy hub with a dark crimson UI, category sidebar, collapsible cards,
 search, configurable themes, and the supplied black-and-white logo.
 
