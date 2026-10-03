@@ -14,9 +14,286 @@ local stopped = false
 local function keep(connection)
     links[#links + 1] = connection
 end
-local function branded(text)
+-- Live DEVIL HUB layout; original controls and their event connections survive.
+local function DevilSkin(keep)
+    local UIS = game:GetService("UserInputService")
+    local roots, styled, locked, logoTargets = {}, {}, {}, {}
+    local logo, logoStarted = "", false
+    local stopped = false
+    local colors = {
+        bg=Color3.fromRGB(16,11,16), sidebar=Color3.fromRGB(22,14,21),
+        card=Color3.fromRGB(27,18,26), field=Color3.fromRGB(36,24,34),
+        line=Color3.fromRGB(59,35,48), text=Color3.fromRGB(238,228,235),
+        muted=Color3.fromRGB(149,126,142), accent=Color3.fromRGB(247,48,75),
+    }
+    local function make(class,parent,props)
+        local item=Instance.new(class)
+        item:SetAttribute("DevilSkinOwned",true)
+        for key,value in pairs(props or {}) do item[key]=value end
+        item.Parent=parent
+        return item
+    end
+    local function round(item,radius)
+        local corner=item:FindFirstChildOfClass("UICorner") or make("UICorner",item)
+        corner.CornerRadius=UDim.new(0,radius or 8)
+    end
+    local function fixed(item,key,value)
+        local keyset=locked[item]
+        if not keyset then keyset={} locked[item]=keyset end
+        if keyset[key] then return end
+        keyset[key]=true
+        item[key]=value
+        local pending=false
+        keep(item:GetPropertyChangedSignal(key):Connect(function()
+            if stopped or pending or item[key]==value then return end
+            pending=true
+            task.defer(function()
+                pending=false
+                if not stopped and item.Parent and item[key]~=value then item[key]=value end
+            end)
+        end))
+    end
+    local function withinSkin(item)
+        local gui=item:FindFirstAncestorOfClass("ScreenGui")
+        if not gui then return end
+        return roots[gui],gui
+    end
+    local function style(item)
+        if stopped or styled[item] or item:GetAttribute("DevilSkinOwned") or not withinSkin(item) then return end
+        styled[item]=true
+        if item:IsA("UIGradient") then
+            item.Enabled=false
+        elseif item:IsA("UIStroke") then
+            item.Color=colors.line item.Thickness=1 item.Transparency=0.25
+            pcall(function() item.StrokeSizingMode=Enum.StrokeSizingMode.FixedSize end)
+            if item.Parent and (item.Parent:IsA("TextLabel") or item.Parent:IsA("TextBox")) then item.Enabled=false end
+        elseif item:IsA("TextLabel") or item:IsA("TextButton") or item:IsA("TextBox") then
+            item.Font=Enum.Font.Gotham
+            item.TextStrokeTransparency=1
+            item.TextColor3=colors.text
+            if item:IsA("TextBox") then item.PlaceholderColor3=colors.muted end
+            if item.BackgroundTransparency<0.8 then
+                item.BackgroundColor3=colors.field
+                round(item,6)
+            end
+        elseif item:IsA("Frame") or item:IsA("ImageButton") then
+            if item.BackgroundTransparency<0.8 then
+                item.BackgroundColor3=item.Name=="Main" and colors.card or colors.field
+                item.BackgroundTransparency=0
+                round(item,7)
+            end
+        elseif item:IsA("ScrollingFrame") then
+            item.ScrollBarThickness=3 item.ScrollBarImageColor3=colors.accent
+        end
+        if item:IsA("ImageLabel") and item.Image=="rbxassetid://128961717706452" then
+            logoTargets[item]=true
+            item:SetAttribute("DevilReplaceLogo",true)
+            if logo~="" then fixed(item,"Image",logo) end
+        end
+    end
+    local function beginLogo()
+        if logoStarted then return end
+        logoStarted=true
+        task.spawn(function()
+            local asset=getcustomasset or getsynasset
+            if type(asset)~="function" or type(writefile)~="function" then return end
+            local ok,result=pcall(function()
+                local path="devil-hub-logo-daceb9cac221.png"
+                if type(isfile)~="function" or not isfile(path) then
+                    writefile(path,game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png"))
+                end
+                return asset(path)
+            end)
+            if not ok or stopped then return end
+            logo=result
+            for item in pairs(logoTargets) do
+                if item.Parent then fixed(item,"Image",logo) end
+            end
+            for gui,data in pairs(roots) do
+                if data.logo and data.logo.Parent then data.logo.Image=logo data.fallback.Visible=false end
+                for _,item in ipairs(gui:GetDescendants()) do
+                    if item:GetAttribute("DevilReplaceLogo") then fixed(item,"Image",logo) end
+                end
+            end
+        end)
+    end
+    local function rootFor(item)
+        if item:IsA("ScreenGui") then return item end
+        return item:FindFirstAncestorOfClass("ScreenGui")
+    end
+    local function addIcon(button,index)
+        if button:FindFirstChild("DevilTabIcon") then return end
+        local icon=make("Frame",button,{Name="DevilTabIcon",BackgroundTransparency=1,
+            Position=UDim2.new(0,11,0.5,-7),Size=UDim2.fromOffset(14,14),ZIndex=110})
+        local label=button:FindFirstChildWhichIsA("TextLabel",true)
+        local name=string.lower(label and label.Text or button.Name)
+        local paths={{{2,2},{6,2},{6,6},{2,6},{2,2}},{{9,2},{13,2},{13,6},{9,6},{9,2}},{{2,9},{6,9},{6,13},{2,13},{2,9}},{{9,9},{13,9},{13,13},{9,13},{9,9}}}
+        if name:find("main",1,true)or name:find("farm",1,true)then
+            paths={{{1,6},{7,1},{13,6}},{{3,5},{3,13},{11,13},{11,5}},{{6,13},{6,9},{8,9},{8,13}}}
+        elseif name:find("player",1,true)or name:find("movement",1,true)then
+            paths={{{5,1},{9,1},{10,4},{8,6},{6,6},{4,4},{5,1}},{{2,13},{3,9},{6,8},{9,8},{12,10},{13,13}}}
+        elseif name:find("discord",1,true)then
+            paths={{{2,3},{12,3},{14,11},{10,13},{9,11},{5,11},{4,13},{0,11},{2,3}},{{4,7},{5,7}},{{9,7},{10,7}}}
+        elseif name:find("auto",1,true)then
+            paths={{{8,0},{2,8},{7,8},{6,14},{13,5},{8,5},{8,0}}}
+        elseif name:find("predict",1,true)then
+            paths={{{7,0},{9,5},{14,5},{10,9},{11,14},{7,11},{3,14},{4,9},{0,5},{5,5},{7,0}}}
+        end
+        for _,path in ipairs(paths)do for n=1,#path-1 do
+            local a,b=path[n],path[n+1]
+            local dx,dy=b[1]-a[1],b[2]-a[2]
+            local length=math.sqrt(dx*dx+dy*dy)
+            make("Frame",icon,{BackgroundColor3=colors.accent,BorderSizePixel=0,
+                AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromOffset((a[1]+b[1])/2,(a[2]+b[2])/2),
+                Size=UDim2.fromOffset(length,1.2),Rotation=math.deg(math.atan2(dy,dx)),ZIndex=111})
+        end end
+    end
+    local function attach(gui)
+        if roots[gui] then return roots[gui] end
+        local main=gui:FindFirstChild("Frame")
+        if not main then return end
+        local top=main:FindFirstChild("Top")
+        local left=main:FindFirstChild("SideButtons")
+        if not top or not left then return end
+        local title=top:FindFirstChildWhichIsA("TextLabel",true)
+        if not title or not (title.Text:find("Chilli",1,true) or title.Text:find("DEVIL",1,true)) then return end
+        local data={main=main,navOrder=0,columns={},pages={}}
+        roots[gui]=data
+        gui:SetAttribute("DevilHubSkin",true)
+        for _,item in ipairs(gui:GetDescendants()) do pcall(style,item) end
+        main.BackgroundColor3=colors.bg main.BackgroundTransparency=0
+        round(main,12)
+        fixed(main,"Size",UDim2.fromOffset(760,480))
+        local aspect=main:FindFirstChildOfClass("UIAspectRatioConstraint")
+        if aspect then fixed(aspect,"AspectRatio",760/480) end
+        local scale=make("UIScale",main,{Name="DevilResponsiveScale",Scale=1})
+        local function reflow()
+            local camera=workspace.CurrentCamera
+            if camera then
+                local size=camera.ViewportSize
+                scale.Scale=math.min(1,size.X*0.94/760,size.Y*0.88/480)
+            end
+        end
+        reflow()
+        if workspace.CurrentCamera then keep(workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(reflow)) end
+        fixed(top,"AnchorPoint",Vector2.new(0,0))
+        fixed(top,"Position",UDim2.fromOffset(150,0))
+        fixed(top,"Size",UDim2.new(1,-150,0,44))
+        top.BackgroundColor3=colors.bg
+        local oldBand=top:FindFirstChild("Color")
+        if oldBand then oldBand.Visible=false end
+        fixed(title,"AnchorPoint",Vector2.new(0,0.5))
+        fixed(title,"Position",UDim2.new(0,18,0.5,0))
+        fixed(title,"Size",UDim2.new(1,-100,0,22))
+        title.Text="DEVIL HUB" title.TextScaled=false title.TextSize=14
+        title.Font=Enum.Font.GothamBold title.TextXAlignment=Enum.TextXAlignment.Left
+        local oldLogo=top:FindFirstChild("Icon")
+        if oldLogo then oldLogo.Visible=false end
+        local side=make("Frame",main,{Name="DevilSidebar",BackgroundColor3=colors.sidebar,
+            BorderSizePixel=0,Position=UDim2.fromOffset(0,0),Size=UDim2.new(0,150,1,0),ZIndex=100})
+        round(side,12)
+        data.logo=make("ImageLabel",side,{Name="DevilBrandLogo",BackgroundTransparency=1,
+            Position=UDim2.fromOffset(14,13),Size=UDim2.fromOffset(34,34),Image=logo,ScaleType=Enum.ScaleType.Fit,ZIndex=103})
+        data.fallback=make("TextLabel",data.logo,{BackgroundTransparency=1,Size=UDim2.fromScale(1,1),
+            Text="D",Font=Enum.Font.GothamBold,TextSize=26,TextColor3=colors.accent,Visible=logo=="",ZIndex=104})
+        make("TextLabel",side,{BackgroundTransparency=1,Position=UDim2.fromOffset(55,14),Size=UDim2.fromOffset(85,18),
+            Text="DEVIL HUB",Font=Enum.Font.GothamBold,TextSize=12,TextColor3=colors.text,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=103})
+        make("TextLabel",side,{BackgroundTransparency=1,Position=UDim2.fromOffset(55,33),Size=UDim2.fromOffset(85,15),
+            Text="RIDE A PET",Font=Enum.Font.Gotham,TextSize=9,TextColor3=colors.muted,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=103})
+        data.nav=make("ScrollingFrame",side,{Name="DevilCategories",BackgroundTransparency=1,BorderSizePixel=0,
+            Position=UDim2.fromOffset(9,64),Size=UDim2.new(1,-18,1,-112),AutomaticCanvasSize=Enum.AutomaticSize.Y,
+            CanvasSize=UDim2.new(),ScrollBarThickness=2,ScrollBarImageColor3=colors.accent,ZIndex=101})
+        make("UIListLayout",data.nav,{Padding=UDim.new(0,5),SortOrder=Enum.SortOrder.LayoutOrder})
+        make("TextLabel",side,{BackgroundTransparency=1,Position=UDim2.new(0,14,1,-35),Size=UDim2.new(1,-28,0,20),
+            Text="2K+  MEMBERS",TextColor3=colors.muted,TextSize=10,Font=Enum.Font.GothamBold,
+            TextXAlignment=Enum.TextXAlignment.Left,ZIndex=103})
+        local function page(item)
+            if not item:IsA("ScrollingFrame") or item.Parent~=main or data.pages[item] then return end
+            data.pages[item]=true
+            fixed(item,"AnchorPoint",Vector2.new(0,0))
+            fixed(item,"Position",UDim2.fromOffset(160,52))
+            fixed(item,"Size",UDim2.new(1,-170,1,-62))
+        end
+        data.page=page
+        data.column=function(column)
+            if data.columns[column] then return end
+            data.columns[column]=true column.Visible=false
+            local function move(button)
+                if not button:IsA("GuiButton") then return end
+                data.navOrder+=1
+                button.Parent=data.nav
+                button.LayoutOrder=data.navOrder
+                fixed(button,"Size",UDim2.new(1,0,0,32))
+                button.ZIndex=104
+                for _,item in ipairs(button:GetDescendants()) do
+                    pcall(style,item)
+                    if item:IsA("GuiObject") then item.ZIndex=105 end
+                    if item:IsA("UIAspectRatioConstraint") then item:Destroy() end
+                    if item:IsA("TextLabel") then
+                        item.TextScaled=false item.TextSize=11 item.TextXAlignment=Enum.TextXAlignment.Left
+                        item.Position=UDim2.new(0,34,0,0) item.Size=UDim2.new(1,-40,1,0)
+                        item.AnchorPoint=Vector2.new(0,0)
+                    end
+                end
+                addIcon(button,data.navOrder)
+            end
+            for _,button in ipairs(column:GetChildren()) do move(button) end
+            keep(column.ChildAdded:Connect(function(button) task.defer(function() if not stopped then move(button) end end) end))
+        end
+        data.column(left)
+        local right=main:FindFirstChild("SideButtonsRight")
+        if right then data.column(right) end
+        for _,item in ipairs(main:GetChildren()) do page(item) end
+        beginLogo()
+        return data
+    end
+    local function inspect(item)
+        if stopped then return end
+        local gui=rootFor(item)
+        if not gui then return end
+        local data=attach(gui)
+        if data then
+            pcall(style,item)
+            if item.Parent==data.main then
+                if item.Name=="SideButtonsRight" then data.column(item) end
+                data.page(item)
+            end
+        elseif gui.Name:find("ChilliLeft",1,true) then
+            if item:IsA("ViewportFrame") then item.Visible=false end
+            if item:IsA("ImageButton") and item.Name=="Chilli" then
+                if logoTargets[item] then return end
+                logoTargets[item]=true
+                item:SetAttribute("DevilReplaceLogo",true)
+                item.HoverImage="" item.PressedImage="" item.ScaleType=Enum.ScaleType.Fit
+                item.BackgroundColor3=colors.sidebar item.BackgroundTransparency=0 round(item,12)
+                if logo~="" then fixed(item,"Image",logo) end
+                beginLogo()
+                keep(item.InputBegan:Connect(function(input)
+                    if input.UserInputType~=Enum.UserInputType.MouseButton1 and input.UserInputType~=Enum.UserInputType.Touch then return end
+                    local start=input.Position local position=item.Position
+                    local change,finish
+                    change=UIS.InputChanged:Connect(function(movement)
+                        if movement.UserInputType==Enum.UserInputType.MouseMovement or movement.UserInputType==Enum.UserInputType.Touch then
+                            local delta=movement.Position-start
+                            item.Position=UDim2.new(position.X.Scale,position.X.Offset+delta.X,position.Y.Scale,position.Y.Offset+delta.Y)
+                        end
+                    end)
+                    finish=UIS.InputEnded:Connect(function(ended)
+                        if ended.UserInputType==input.UserInputType then change:Disconnect() finish:Disconnect() end
+                    end)
+                    keep(change) keep(finish)
+                end))
+            end
+        end
+    end
+    return {Inspect=inspect,Stop=function() stopped=true end,Roots=roots}
+end
+
+local skin=DevilSkin(keep)
+local function branded(text, member)
     if type(text) ~= "string" then return text end
     text = text:gsub("Chilli Hub", "DEVIL HUB"):gsub("CHILLI HUB", "DEVIL HUB")
+    if member then text=text:gsub("130K%+", "2K+") end
     return text:gsub("discord%.gg/CJK4bs2mgT", "discord.gg/ZY7PRcVJe2")
 end
 -- Redirect only this script's old invite; other clipboard data is unchanged.
@@ -38,14 +315,17 @@ if type(originalClipboard) == "function" then
     end
 end
 local function inspect(item)
+    if not stopped then pcall(skin.Inspect,item) end
     if stopped or watchers[item] then return end
     if not (item:IsA("TextLabel") or item:IsA("TextButton") or item:IsA("TextBox")) then return end
     local before = item.Text
-    if branded(before) == before then return end
+    local owner=item:FindFirstAncestorOfClass("ScreenGui")
+    local member=owner and owner:GetAttribute("DevilHubSkin")==true
+    if branded(before,member) == before then return end
     watchers[item] = true
     local function update()
         if stopped then return end
-        local after = branded(item.Text)
+        local after = branded(item.Text,member)
         if after ~= item.Text then item.Text = after end
     end
     update()
@@ -72,6 +352,7 @@ local playerGui = player and player:FindFirstChildOfClass("PlayerGui")
 local panel
 local function cleanup()
     stopped = true
+    skin.Stop()
     for _, connection in ipairs(links) do pcall(function() connection:Disconnect() end) end
     for key, original in pairs(patched) do
         if clipboardEnv[key] == redirectedClipboard then clipboardEnv[key] = original end
@@ -91,7 +372,7 @@ local ok, result = xpcall(function()
         panel.DisplayOrder = 10000
         local button = Instance.new("TextButton")
         button.Size = UDim2.fromOffset(230, 34)
-        button.Position = UDim2.new(0.5, -115, 0, 6)
+        button.Position = UDim2.new(1, -244, 1, -48)
         button.BackgroundColor3 = Color3.fromRGB(30, 12, 20)
         button.TextColor3 = Color3.fromRGB(255, 205, 214)
         button.TextSize = 14

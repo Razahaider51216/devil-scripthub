@@ -6,17 +6,21 @@
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/ride-a-pet.lua"))()
 ```
 
-This separate Ride a Pet release adapts Chilli Hub with the DEVIL HUB name,
-a crimson community card, the supplied logo, and
-[DEVIL HUB Discord](https://discord.gg/ZY7PRcVJe2). The original gameplay VM is
-retained. Its captured outer layer was decoded; complete devirtualization was
-not required for these UI changes. Existing dependencies and settings remain
-compatible. Teleport auto-load points to this release.
+The Delta-compatible Ride a Pet build retains the original protected Chilli
+runtime byte-for-byte. The interface is restyled externally: a dark crimson
+window, left category sidebar with native vector icons, original controls on
+the right, the supplied monochrome logo, and `2K+` community member text.
+[DEVIL HUB Discord](https://discord.gg/ZY7PRcVJe2) replaces the old invite.
 
-Validated with Luau compilation, branding checks, an isolated VM loader test
-up to a stub gameplay entry point, and an exact packed-payload comparison.
-Actual Roblox gameplay and visual layout have not been tested in this environment.
-The release is packed for distribution; packing is reversible.
+The original buttons and callbacks are retained when categories are moved.
+Layout adapts to viewport size; the launcher can be dragged. No extra payload
+packing or modified gameplay VM is used. The original game's dependencies and
+teleport behavior remain. The original runtime was confirmed working by the
+user on DeltaX; this newest visual layout has not been tested inside Roblox.
+
+Validation: official Luau compilation, exact original runtime bytes, isolated
+startup/clipboard cleanup, and GUI mocks covering native callback preservation,
+page selection, logos, categories created later, layout updates, and HUD isolation.
 
 ## Anime Legacy
 
