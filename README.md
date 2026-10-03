@@ -1,52 +1,39 @@
 # Devil Hub
 
-Anime Legacy hub with a completely rebuilt dark crimson interface: vector icons,
-left sidebar, category pages, two-column collapsible cards, searchable dropdowns,
-page search, themes, draggable window and launcher, and a responsive mobile layout.
+Anime Legacy hub with a dark crimson UI, category sidebar, collapsible cards,
+search, configurable themes, and the supplied black-and-white logo.
 
-The supplied black-and-white logo is used in the sidebar and floating launcher.
-The original PNG is stored at `assets/devil-logo.png`. It is loaded and cached
-through the environment's `writefile` and `getcustomasset` / `getsynasset` APIs;
-the vector Devil icon stays visible if local image assets are unavailable.
+## Start
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader"))()
 ```
+
+The small loader shows the logo and loading stages before fetching the packed
+hub. The hub stays hidden until initialization succeeds. A failed load offers
+Retry and Close. Calling `devil.lua` directly still opens the loading overlay,
+after the initial download completes.
 
 Supports Anime Legacy: universe `10765902945`, or place `106198175232796`.
-`Ctrl` / `RightShift` hides or opens the window. The floating Devil icon also toggles
-the window and can be dragged. Typing in an input suppresses keyboard shortcuts.
+Ctrl / RightShift hides the window. The floating logo toggles it and can be dragged.
+The original category features, automation, movement, profiles, favorites, and
+reconnect behavior are retained. Existing saved profile names remain compatible.
 
-## Categories
+## Distribution
 
-Main, Fruits, Modes, Equipment, Player, Gacha, Auto, Potions, Traits, Breathing,
-Config, and Search. Each category keeps the original feature pages, callbacks,
-automation workers, status displays, priorities, favorites, and configuration
-controls. The Player category retains the existing speed, jump and flight system.
+`devil.lua` is an obfuscated distribution build. Readable development modules and
+build tools are retained locally and are excluded from the current release tree.
+Client-side obfuscation is reversible: it discourages casual copying but does not
+provide unbreakable protection, licensing, or server-side access control. Earlier
+public commits still contain the previously published readable code; removing files
+from the latest tree does not remove those commits or other people's copies.
 
-Saved profile paths retain their original `ItachiLegacy-<UserId>` names so existing
-profiles and favorites still load. Old theme names map to Devil themes. Reconnect
-resumes from this repository's `devil.lua`.
+The PNG logo is cached using writefile and getcustomasset / getsynasset. If these
+APIs are unavailable, the hub uses its vector icon fallback.
 
-## Source and builds
+Validation: Luau compilation, exact payload roundtrip, damaged payload rejection,
+original feature inventory, UI mock tests, and loading-screen lifecycle mock tests.
+Actual game integration has not been tested in Roblox here.
 
-- `devil.lua`: generated, self-contained hub payload; includes the new UI.
-- `loader`: small alternative launcher for the same payload.
-- `src/ui.lua`: native Roblox UI library.
-- `src/legacy.lua`: recovered Legacy controller with UI and branding changes.
-- `movement.lua`: preserves the repository's previous standalone Speed/Fly script.
-- `tools/build.py`: rebuilds `devil.lua` from the two source modules.
-
-```sh
-python tools/build.py
-python tools/test.py --luau-dir /path/to/luau-binaries
-```
-
-Validation compiles all entry points, checks the recovered feature inventory,
-and tests the UI API and interaction lifecycle using a Roblox API mock. These
-checks do not replace an in-game test. Actual game integration has not been
-tested in Roblox here.
-
-The Legacy controller and original post-load integration derive from
-[`itachidevrs/script`](https://github.com/itachidevrs/script). The original `gg2`
-post-load integration URL is retained; the new UI does not fetch the old UI library.
+The original Legacy controller derives from [itachidevrs/script](https://github.com/itachidevrs/script).
+The original gg2 post-load integration URL remains in use.

@@ -1,0 +1,8 @@
+# Readable development sources remain local. Public branches contain release artifacts.
+/src/
+/tools/
+/tests/
+/movement.lua
+/devil.clear.lua
+__pycache__/
+*.pyc
