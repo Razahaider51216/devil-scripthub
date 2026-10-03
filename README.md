@@ -13,14 +13,19 @@ the right, the supplied monochrome logo, and `2K+` community member text.
 [DEVIL HUB Discord](https://discord.gg/ZY7PRcVJe2) replaces the old invite.
 
 The original buttons and callbacks are retained when categories are moved.
-Layout adapts to viewport size; the launcher can be dragged. No extra payload
+Native main-window and content geometry are retained; no extra UIScale or
+content-size locks are added. Navigation sits beside the native window. The
+launcher keeps its original dragging and toggle behavior, and its randomized
+button is recognized by the original logo asset ID. The extra floating
+Discord button has been removed. No extra payload
 packing or modified gameplay VM is used. The original game's dependencies and
 teleport behavior remain. The original runtime was confirmed working by the
 user on DeltaX; this newest visual layout has not been tested inside Roblox.
 
 Validation: official Luau compilation, exact original runtime bytes, isolated
 startup/clipboard cleanup, and GUI mocks covering native callback preservation,
-page selection, logos, categories created later, layout updates, and HUD isolation.
+page selection, native dimensions, absence of an extra scale, randomized
+launcher logos and event preservation, categories created later, and HUD isolation.
 
 ## Anime Legacy
 

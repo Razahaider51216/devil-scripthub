@@ -163,34 +163,18 @@ local function DevilSkin(keep)
         for _,item in ipairs(gui:GetDescendants()) do pcall(style,item) end
         main.BackgroundColor3=colors.bg main.BackgroundTransparency=0
         round(main,12)
-        fixed(main,"Size",UDim2.fromOffset(760,480))
-        local aspect=main:FindFirstChildOfClass("UIAspectRatioConstraint")
-        if aspect then fixed(aspect,"AspectRatio",760/480) end
-        local scale=make("UIScale",main,{Name="DevilResponsiveScale",Scale=1})
-        local function reflow()
-            local camera=workspace.CurrentCamera
-            if camera then
-                local size=camera.ViewportSize
-                scale.Scale=math.min(1,size.X*0.94/760,size.Y*0.88/480)
-            end
-        end
-        reflow()
-        if workspace.CurrentCamera then keep(workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(reflow)) end
-        fixed(top,"AnchorPoint",Vector2.new(0,0))
-        fixed(top,"Position",UDim2.fromOffset(150,0))
-        fixed(top,"Size",UDim2.new(1,-150,0,44))
+        -- Native row heights are measured in AbsoluteSize pixels. Adding UIScale
+        -- or forcing page sizes feeds scaled pixels back into unscaled offsets.
+        -- Preserve the native main/page geometry and place navigation beside it.
         top.BackgroundColor3=colors.bg
         local oldBand=top:FindFirstChild("Color")
-        if oldBand then oldBand.Visible=false end
-        fixed(title,"AnchorPoint",Vector2.new(0,0.5))
-        fixed(title,"Position",UDim2.new(0,18,0.5,0))
-        fixed(title,"Size",UDim2.new(1,-100,0,22))
+        if oldBand then oldBand.BackgroundTransparency=1 end
         title.Text="DEVIL HUB" title.TextScaled=false title.TextSize=14
         title.Font=Enum.Font.GothamBold title.TextXAlignment=Enum.TextXAlignment.Left
         local oldLogo=top:FindFirstChild("Icon")
         if oldLogo then oldLogo.Visible=false end
         local side=make("Frame",main,{Name="DevilSidebar",BackgroundColor3=colors.sidebar,
-            BorderSizePixel=0,Position=UDim2.fromOffset(0,0),Size=UDim2.new(0,150,1,0),ZIndex=100})
+            BorderSizePixel=0,Position=UDim2.fromOffset(-158,0),Size=UDim2.new(0,150,1,0),ZIndex=100})
         round(side,12)
         data.logo=make("ImageLabel",side,{Name="DevilBrandLogo",BackgroundTransparency=1,
             Position=UDim2.fromOffset(14,13),Size=UDim2.fromOffset(34,34),Image=logo,ScaleType=Enum.ScaleType.Fit,ZIndex=103})
@@ -210,9 +194,6 @@ local function DevilSkin(keep)
         local function page(item)
             if not item:IsA("ScrollingFrame") or item.Parent~=main or data.pages[item] then return end
             data.pages[item]=true
-            fixed(item,"AnchorPoint",Vector2.new(0,0))
-            fixed(item,"Position",UDim2.fromOffset(160,52))
-            fixed(item,"Size",UDim2.new(1,-170,1,-62))
         end
         data.page=page
         data.column=function(column)
@@ -249,6 +230,18 @@ local function DevilSkin(keep)
     end
     local function inspect(item)
         if stopped then return end
+        -- Ride a Pet creates its own launcher with randomized instance names.
+        -- Identify its known image, not the unused ChilliLeft launcher GUI name.
+        if (item:IsA("ImageButton") or item:IsA("ImageLabel")) and
+            (item.Image=="rbxassetid://128961717706452" or item.Image=="rbxassetid://88734015663903" or item.Image=="rbxassetid://119376130178381") then
+            logoTargets[item]=true
+            item:SetAttribute("DevilReplaceLogo",true)
+            if logo~="" then fixed(item,"Image",logo) end
+            if item:IsA("ImageButton") then
+                item.HoverImage="" item.PressedImage="" item.ScaleType=Enum.ScaleType.Fit
+            end
+            beginLogo()
+        end
         local gui=rootFor(item)
         if not gui then return end
         local data=attach(gui)
@@ -349,7 +342,6 @@ end
 local guiParent
 pcall(function() guiParent = type(gethui) == "function" and gethui() or game:GetService("CoreGui") end)
 local playerGui = player and player:FindFirstChildOfClass("PlayerGui")
-local panel
 local function cleanup()
     stopped = true
     skin.Stop()
@@ -357,41 +349,12 @@ local function cleanup()
     for key, original in pairs(patched) do
         if clipboardEnv[key] == redirectedClipboard then clipboardEnv[key] = original end
     end
-    if panel then panel:Destroy() end
 end
 stateEnv.DevilRideDeltaCleanup = cleanup
 local args = table.pack(...)
 local ok, result = xpcall(function()
     observe(guiParent)
     if playerGui and playerGui ~= guiParent then observe(playerGui) end
-    local parent = guiParent or playerGui
-    if parent then
-        panel = Instance.new("ScreenGui")
-        panel.Name = "DevilRideDeltaCommunity"
-        panel.ResetOnSpawn = false
-        panel.DisplayOrder = 10000
-        local button = Instance.new("TextButton")
-        button.Size = UDim2.fromOffset(230, 34)
-        button.Position = UDim2.new(1, -244, 1, -48)
-        button.BackgroundColor3 = Color3.fromRGB(30, 12, 20)
-        button.TextColor3 = Color3.fromRGB(255, 205, 214)
-        button.TextSize = 14
-        button.Font = Enum.Font.GothamBold
-        button.Text = "DEVIL HUB  ·  Discord"
-        button.Parent = panel
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 9)
-        corner.Parent = button
-        keep(button.Activated:Connect(function()
-            if type(originalClipboard) == "function" then
-                local copied = pcall(originalClipboard, community)
-                button.Text = copied and "DEVIL HUB  ·  Copied!" or community
-            else
-                button.Text = community
-            end
-        end))
-        panel.Parent = parent
-    end
     print("[DEVIL HUB Delta] Starting the unchanged Chilli runtime...")
     task.wait()
     local source=[==========[-- This file was protected using Luraph Obfuscator v15.1 [https://lura.ph/]
