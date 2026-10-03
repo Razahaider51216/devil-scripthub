@@ -4,6 +4,11 @@ Anime Legacy hub with a completely rebuilt dark crimson interface: vector icons,
 left sidebar, category pages, two-column collapsible cards, searchable dropdowns,
 page search, themes, draggable window and launcher, and a responsive mobile layout.
 
+The supplied black-and-white logo is used in the sidebar and floating launcher.
+The original PNG is stored at `assets/devil-logo.png`. It is loaded and cached
+through the environment's `writefile` and `getcustomasset` / `getsynasset` APIs;
+the vector Devil icon stays visible if local image assets are unavailable.
+
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil.lua"))()
 ```

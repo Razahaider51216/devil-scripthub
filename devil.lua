@@ -17,7 +17,8 @@ local success, result = xpcall(function()
 local DevilUI = (function()
 -- Devil Hub UI: native vector icons, compact cards, touch-friendly controls.
 -- API-compatible with the recovered Legacy feature controller.
-local UI = {APIVersion = 1, LayoutRevision = 3}
+local UI = {APIVersion = 1, LayoutRevision = 3,
+    LogoURL = "https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png"}
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
@@ -116,7 +117,27 @@ function UI:GetThemeOptions()
     end
     return result
 end
-function UI:GetLogo() return "" end
+local logoAsset,logoAttempted = "",false
+function UI:GetLogo()
+    if logoAttempted then return logoAsset end
+    logoAttempted = true
+    local customAsset = getcustomasset or getsynasset
+    if type(customAsset) ~= "function" or type(writefile) ~= "function" then return "" end
+    local ok,result = pcall(function()
+        -- Content-specific cache name prevents an older brand image being reused.
+        local path = "devil-hub-logo-daceb9cac221.png"
+        if type(isfile) ~= "function" or not isfile(path) then
+            local data = game:HttpGet(self.LogoURL)
+            assert(type(data) == "string" and data:sub(1,8) == "\137PNG\13\10\26\10","Invalid Devil Hub logo")
+            writefile(path,data)
+        end
+        local asset = customAsset(path)
+        assert(type(asset) == "string" and asset ~= "","Logo asset unavailable")
+        return asset
+    end)
+    if ok then logoAsset = result end
+    return logoAsset
+end
 function UI:GetTabIcon(name) return tabIcons[name] or name end
 
 function UI:CreateWindow(config)
@@ -155,6 +176,9 @@ function UI:CreateWindow(config)
         BackgroundColor3 = palette.line,BackgroundTransparency = .35,BorderSizePixel = 0})
     local logo = drawIcon(sidebar,"devil",UDim2.fromOffset(24,18),34,accent)
     for _,line in ipairs(logo:GetDescendants()) do if line:IsA("Frame") then accentObject(line,"BackgroundColor3") end end
+    local sidebarLogo = make("ImageLabel",sidebar,{Name = "DevilBrandLogo",Position = UDim2.fromOffset(13,10),
+        Size = UDim2.fromOffset(56,50),BackgroundTransparency = 1,Image = "",Visible = false,ScaleType = Enum.ScaleType.Fit})
+    rounded(sidebarLogo,8)
     local navigation = make("ScrollingFrame",sidebar,{Name = "Navigation",Position = UDim2.fromOffset(4,70),
         Size = UDim2.new(1,-8,1,-152),BackgroundTransparency = 1,BorderSizePixel = 0,
         ScrollBarThickness = 2,ScrollBarImageColor3 = palette.line,AutomaticCanvasSize = Enum.AutomaticSize.Y,CanvasSize = UDim2.new()})
@@ -197,7 +221,18 @@ function UI:CreateWindow(config)
     rounded(launcher,15)
     local launcherStroke = outlined(launcher,accent,.25)
     accentObject(launcherStroke,"Color")
-    drawIcon(launcher,"devil",UDim2.fromOffset(10,9),32,accent)
+    local launcherVector = drawIcon(launcher,"devil",UDim2.fromOffset(10,9),32,accent)
+    local launcherLogo = make("ImageLabel",launcher,{Name = "DevilBrandLogo",Position = UDim2.fromOffset(4,4),
+        Size = UDim2.fromOffset(44,44),BackgroundTransparency = 1,Image = "",Visible = false,ScaleType = Enum.ScaleType.Fit})
+    rounded(launcherLogo,7)
+    window.LogoImages = {sidebarLogo,launcherLogo}
+    task.spawn(function()
+        local asset = UI:GetLogo()
+        if asset ~= "" and window._alive then
+            for _,image in ipairs(window.LogoImages) do image.Image = asset image.Visible = true end
+            logo.Visible = false launcherVector.Visible = false
+        end
+    end)
     window.Launcher = launcher
     local function closePopups()
         for popup,api in pairs(window._popups) do

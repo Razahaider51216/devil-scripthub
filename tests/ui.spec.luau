@@ -116,9 +116,24 @@ function services.Players:GetUserThumbnailAsync() return 'mock-thumbnail' end
 player.DisplayName='Boss Man' player.UserId=12345
 run.Heartbeat=signal()
 
+local logoFiles,logoFetches,logoWrites = {},0,0
+function game:HttpGet(url)
+ assert(url:find("/assets/devil-logo.png",1,true),'correct logo URL')
+ logoFetches=logoFetches+1
+ return "\137PNG\13\10\26\10mock-image"
+end
+function writefile(path,data) logoFiles[path]=data logoWrites=logoWrites+1 end
+function isfile(path) return logoFiles[path]~=nil end
+function getcustomasset(path) assert(logoFiles[path],'image cached before registering') return 'rbxasset://mock-logo' end
 -- UI_UNDER_TEST
 local w=UI:CreateWindow({Title='Devil Hub',Description='Anime Legacy'})
 assert(w.Gui.Name=='DevilHub','brand')
+assert(logoFetches==1 and logoWrites==1,'original logo fetched and cached once')
+for _,image in ipairs(w.LogoImages) do
+ assert(image.Visible and image.Image=='rbxasset://mock-logo','logo appears in sidebar and launcher')
+ assert(image.ScaleType==Enum.ScaleType.Fit,'logo proportions preserved')
+end
+assert(UI:GetLogo()=='rbxasset://mock-logo' and logoFetches==1,'reuse cached logo asset')
 local main=w:AddTab({Title='Main'})
 local page=main:AddPage({Title='World Farm'})
 local calls=0
