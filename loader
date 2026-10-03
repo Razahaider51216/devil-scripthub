@@ -1,0 +1,5 @@
+-- Devil Hub / Anime Legacy
+local source = game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil.lua")
+local run, err = loadstring(source, "Devil Hub")
+assert(run, err)
+return run()

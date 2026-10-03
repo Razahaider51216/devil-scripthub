@@ -1,0 +1,5 @@
+*.lua text eol=lf
+*.luau text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+loader text eol=lf
