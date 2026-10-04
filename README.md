@@ -1,18 +1,18 @@
 # Devil Hub
 
-## Universal loader: 3 games
+## Universal loader: 4 games
 
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader"))()
 ```
 
-Automatically selects Ride a Pet, Break and Steal an Egg, or Loot to Forge
+Automatically selects Ride a Pet, Break and Steal an Egg, Loot to Forge, or Build An Ant Empire
 using the Roblox universe/root place ID. Each game keeps its own production
 script, UI, features and configuration; only its module is downloaded.
 Unsupported games fail before fetching a module. The universal loader is
 packed, like the game runtimes. Client-side packing cannot guarantee secrecy.
 
-Validated with all three universe/place mappings, scoped downloads, argument
+Validated with all four universe/place mappings, scoped downloads, argument
 forwarding, startup guards, failure recovery, packed integrity and Luau
 compilation. Actual combined-loader behavior still needs an in-game run.
 
@@ -93,3 +93,19 @@ Actual game integration has not been tested in Roblox here.
 
 The original Legacy controller derives from [itachidevrs/script](https://github.com/itachidevrs/script).
 The original gg2 post-load integration URL remains in use.
+
+
+## Build An Ant Empire
+
+```lua
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/build-an-ant-empire.lua"))()
+```
+
+Full Devil Hub module, also selected by the universal loader. Uses the same
+OuroFlow presentation and Abyss blue/black theme as Loot to Forge, Devil logo,
+and https://discord.gg/ZY7PRcVJe2 for community/support links. Keeps the
+unmodified Ouroboros gameplay revision c9624e9671239c7fbe832a480d2773ebfd3b4c5d
+that the user confirmed runs. Native Obsidian controls, if used by that runtime,
+are bridged into OuroFlow with their callbacks retained. The earlier test entry
+remains available as the unmodified baseline. Branding and routing were tested
+with mocks and Luau compilation; the branded release still needs a live run.

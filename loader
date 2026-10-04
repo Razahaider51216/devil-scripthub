@@ -1,43 +1,43 @@
--- DEVIL HUB / 3 SUPPORTED GAMES
+-- DEVIL HUB / 4 SUPPORTED GAMES
 local source=(function()
-local _f124b35bea7625f4="ulK9JDAnp2GMZyxoOeb7Q4czfHIUR0tBV3dNawSvWkXP6gL/51jFCEThrq+iYs8m"
-local _78ca2656b65d4a9a={
-{819762861,2112111138,2025,"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"}
+local _12dc9d49f42fe12c="ro2zUAHF0cleDLXyB36/MpTtx+KfqPiGYsk4a58Qvg7ZVwdbSWm9OCN1EnjIhuRJ"
+local _99c5e14ff325502e={
+{983902924,2521235404,2260,"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"}
 }
-local _fafb73fd9c2c8336={1}
+local _f81425e329de82d6={1}
 
-local _318c071216cba893={}
-for _270891a1d9f45910=1,#_f124b35bea7625f4 do _318c071216cba893[_f124b35bea7625f4:byte(_270891a1d9f45910)]=_270891a1d9f45910-1 end
-local _25e7686614dc1918={}
-for _6b23db5598da6987,_3e359b11ea36f93c in ipairs(_fafb73fd9c2c8336) do
-    local _6d2ebd0bfd207645=_78ca2656b65d4a9a[_3e359b11ea36f93c]
-    local _9801646bc97b5674=_6d2ebd0bfd207645[4]
-    local _b714bf61990d7ec4=_6d2ebd0bfd207645[1]
-    local _da8823c9128ccfe3=_b714bf61990d7ec4%256
-    local _bd0de3306f911186=0
-    local _3f8537f5b0b4b10f={}
-    local function _1f81112f0bfff75e(_bee6e7183edf583c)
-        _b714bf61990d7ec4=(_b714bf61990d7ec4*48271)%2147483647
-        local _7711b77d483ae43d=(_bee6e7183edf583c-_b714bf61990d7ec4%256-_da8823c9128ccfe3)%256
-        _da8823c9128ccfe3=_bee6e7183edf583c
-        _bd0de3306f911186=(_bd0de3306f911186*33+_7711b77d483ae43d)%4294967296
-        _3f8537f5b0b4b10f[#_3f8537f5b0b4b10f+1]=string.char(_7711b77d483ae43d)
+local _169b9e22c2a2058e={}
+for _224e162702982bc1=1,#_12dc9d49f42fe12c do _169b9e22c2a2058e[_12dc9d49f42fe12c:byte(_224e162702982bc1)]=_224e162702982bc1-1 end
+local _d19fcfe1263eeb4e={}
+for _3ce3999a90edbd7d,_004c1c83a789183f in ipairs(_f81425e329de82d6) do
+    local _cf8e6badfb9bdeb4=_99c5e14ff325502e[_004c1c83a789183f]
+    local _ee63fd539542d575=_cf8e6badfb9bdeb4[4]
+    local _1d10eca60ea41ed8=_cf8e6badfb9bdeb4[1]
+    local _d4c1059bfc2dd54b=_1d10eca60ea41ed8%256
+    local _691e8743d5737d9a=0
+    local _ca344302b07164d0={}
+    local function _3aaae3c08aee3d5a(_120da10aa45ad838)
+        _1d10eca60ea41ed8=(_1d10eca60ea41ed8*48271)%2147483647
+        local _4c3f6f8470fdb5e2=(_120da10aa45ad838-_1d10eca60ea41ed8%256-_d4c1059bfc2dd54b)%256
+        _d4c1059bfc2dd54b=_120da10aa45ad838
+        _691e8743d5737d9a=(_691e8743d5737d9a*33+_4c3f6f8470fdb5e2)%4294967296
+        _ca344302b07164d0[#_ca344302b07164d0+1]=string.char(_4c3f6f8470fdb5e2)
     end
-    for _b6eef30f46bceb0e=1,#_9801646bc97b5674,4 do
-        local a,b,c,d=_9801646bc97b5674:byte(_b6eef30f46bceb0e,_b6eef30f46bceb0e+3)
-        local _0421a3d768598e77=(_318c071216cba893[a] or 0)*262144+(_318c071216cba893[b] or 0)*4096+(_318c071216cba893[c] or 0)*64+(_318c071216cba893[d] or 0)
-        _1f81112f0bfff75e(math.floor(_0421a3d768598e77/65536)%256)
-        if c~=61 then _1f81112f0bfff75e(math.floor(_0421a3d768598e77/256)%256) end
-        if d~=61 then _1f81112f0bfff75e(_0421a3d768598e77%256) end
+    for _33b340454591667b=1,#_ee63fd539542d575,4 do
+        local a,b,c,d=_ee63fd539542d575:byte(_33b340454591667b,_33b340454591667b+3)
+        local _70b6d505081aa721=(_169b9e22c2a2058e[a] or 0)*262144+(_169b9e22c2a2058e[b] or 0)*4096+(_169b9e22c2a2058e[c] or 0)*64+(_169b9e22c2a2058e[d] or 0)
+        _3aaae3c08aee3d5a(math.floor(_70b6d505081aa721/65536)%256)
+        if c~=61 then _3aaae3c08aee3d5a(math.floor(_70b6d505081aa721/256)%256) end
+        if d~=61 then _3aaae3c08aee3d5a(_70b6d505081aa721%256) end
     end
-    local _8454ffffc9b7c264=table.concat(_3f8537f5b0b4b10f)
-    assert(#_8454ffffc9b7c264==_6d2ebd0bfd207645[3] and _bd0de3306f911186==_6d2ebd0bfd207645[2],"Devil Hub release data is damaged")
-    _25e7686614dc1918[_6b23db5598da6987]=_8454ffffc9b7c264
+    local _7f4782548785790b=table.concat(_ca344302b07164d0)
+    assert(#_7f4782548785790b==_cf8e6badfb9bdeb4[3] and _691e8743d5737d9a==_cf8e6badfb9bdeb4[2],"Devil Hub release data is damaged")
+    _d19fcfe1263eeb4e[_3ce3999a90edbd7d]=_7f4782548785790b
     
 end
-local _b317f3fb9da7c5f3=table.concat(_25e7686614dc1918)
+local _9a67d6661c953407=table.concat(_d19fcfe1263eeb4e)
 
-return _b317f3fb9da7c5f3
+return _9a67d6661c953407
 
 end)()
 local run,err=loadstring(source,"DEVIL HUB / Universal")assert(run,err)return run(...)
