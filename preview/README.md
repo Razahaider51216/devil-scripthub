@@ -47,7 +47,7 @@ The MIT license and original attribution are preserved in
 ## Startup fix
 
 The preview adapts only the downloaded native GUI constructor using an HTTP
-hook. It leaves the VM compiler (`loadstring`) untouched. This experimental
+hook for both function calls and Roblox `__namecall` dispatch. It leaves the VM compiler (`loadstring`) untouched. This experimental
 bridge requires executor support for `hookfunction`; if it is missing, startup
 fails visibly instead of installing a compiler wrapper.
 
@@ -62,3 +62,7 @@ The GUI-library download has a timeout. Once live frontend controls have settled
 the loading overlay closes even if the original gameplay coroutine continues
 running. Merely creating an empty window is insufficient. Native controls and
 state callbacks remain the readiness source. Production files are unchanged.
+
+The preview keeps the upstream default palette and widget styling. It verifies
+that a frontend window and live controllers exist before accepting startup. A
+backend-only launch reports a failed GUI connection instead of success.
