@@ -6,6 +6,11 @@
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/ride-a-pet.lua"))()
 ```
 
+The `ride-a-pet.lua` entry shows a DEVIL HUB logo and loading panel before
+downloading the protected release. The same panel remains through unpacking
+and startup, closes on success, and offers Retry/Close on failure. Direct
+`ride-a-pet-delta.lua` execution also shows the preparation/startup panel.
+
 The published Ride a Pet distribution also packs the readable UI skin and
 compatibility shell. Decoding yields periodically before startup. This is
 reversible client-side obfuscation; older public commits remain accessible.
