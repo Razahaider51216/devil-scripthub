@@ -3,7 +3,7 @@
 Run in a fresh game session:
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/preview/ride-a-pet-test.lua?v=clean-ui-5"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/preview/ride-a-pet-test.lua?v=live-6"))()
 ```
 
 This preview now uses **OuroFlow / Airflow UI**, not the older ObsidianUltra GUI.
@@ -51,3 +51,7 @@ launcher GUIs. Every native top-level layer is hidden, including later additions
 The Chilli FPS/ping helper is identified by its exact native signature. Visibility
 guards prevent the old engine reopening these layers. The OuroFlow frontend and
 the game's own UI are exempt. Callback/state objects are retained, not destroyed.
+
+The preview now also includes the production callback correction: native options
+use `Set(value, true)`, with `SetValue` only as a compatibility fallback. Discord
+renders a new Devil Hub community card rather than mounting the original canvas.

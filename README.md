@@ -6,44 +6,36 @@
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/ride-a-pet.lua"))()
 ```
 
-The `ride-a-pet.lua` entry shows a DEVIL HUB logo and loading panel before
-downloading the protected release. The same panel remains through unpacking
-and startup, closes on success, and offers Retry/Close on failure. Direct
-`ride-a-pet-delta.lua` execution also shows the preparation/startup panel.
+The production Ride a Pet build uses [OuroFlow / Airflow UI](https://github.com/joustingmatch/OuroFlow),
+pinned to `c8251f76f74d9942114ebccb0564aa0ac196320a`. It has a dark crimson
+interface, an icon sidebar, search, two-column collapsible cards, a profile and
+a draggable toggle on the left. Chilli's old window, launchers, logos and FPS/ping
+helper are suppressed. Advanced predictor panels retain native instances.
 
-The published Ride a Pet distribution also packs the readable UI skin and
-compatibility shell. Decoding yields periodically before startup. This is
-reversible client-side obfuscation; older public commits remain accessible.
-The reported GUI issue still requires validation in the actual game.
+The GUI controls call the original public `Set(value, true)` API. Initial values
+and native-to-frontend updates do not fire duplicate gameplay callbacks. Buttons
+use their original press actions. Native categories, saved state and configuration
+remain. The original protected gameplay runtime is preserved byte-for-byte.
 
-The Delta-compatible Ride a Pet build retains the original protected Chilli
-runtime byte-for-byte. The interface is restyled externally: a dark crimson
-window, left category sidebar with native vector icons, original controls on
-the right, the supplied monochrome logo, and `2K+` community member text.
-[DEVIL HUB Discord](https://discord.gg/ZY7PRcVJe2) replaces the old invite.
-Chilli-branded Discord webhook request bodies use sender name `Devil Hub`,
-including matching embed titles/authors/footers. The existing destination,
-headers and game data are retained; unrelated requests pass through unchanged.
+The Discord category displays the supplied Devil Hub logo, `DEVIL HUB`,
+`2K+ MEMBERS`, and https://discord.gg/ZY7PRcVJe2. Its copy action redirects the
+original invite. Chilli-branded webhook sender/embed names use Devil Hub while
+retaining the destination, headers and game data.
 
-The original buttons and callbacks are retained when categories are moved.
-Native main-window and content geometry are retained; no extra UIScale or
-content-size locks are added. Navigation sits beside the native window. The
-launcher keeps its original dragging and toggle behavior, and its randomized
-button is recognized by the original logo asset ID. The extra floating
-Discord button has been removed. Native scaled strokes and decorative tint layers
-are disabled and guarded against later theme writes, avoiding oversized red
-borders outside the panel. Container transparency and native dimensions are
-preserved. The category list has an explicit scroll extent. Toggle ON/OFF gradients remain
-controlled by the original toggle state; decorative gradient locks exclude them.
-Switch hit targets retain their native activation and safe touch handling. The additional outer packing decodes to the exact same compatibility shell;
-the original gameplay VM remains unchanged. The original game's dependencies and
-teleport behavior remain. The original runtime was confirmed working by the
-user on DeltaX; this newest visual layout has not been tested inside Roblox.
+The loading panel precedes download, remains during unpacking and startup, and
+shows Retry/Close on failure. GUI readiness requires a real window and controls.
+The UI library and its Roblox Lucide icon registry require network access.
+This build requires executor HTTP hooks; the VM compiler remains unchanged.
 
-Validation: official Luau compilation, exact original runtime bytes, isolated
-startup/clipboard cleanup, and GUI mocks covering native callback preservation,
-page selection, native dimensions, absence of an extra scale, randomized
-launcher logos and event preservation, categories created later, and HUD isolation.
+Validation: official Luau compilation, exact original payload and pack roundtrip,
+actual native setter and callback-dispatch code exercised in bridge tests,
+facade/controller/state sync, silent initial values, profile branding, old-UI
+suppression, startup/failure/retry/duplicate handling. The user confirmed the new
+GUI appearance on DeltaX; the corrected automation callbacks have been tested
+locally, not against a live Roblox server. No test webhooks are sent.
+
+The outer distribution is reversibly packed. Older public commits remain
+accessible; client-side packing does not provide unbreakable source secrecy.
 
 ## Anime Legacy
 

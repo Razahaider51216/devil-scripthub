@@ -113,14 +113,14 @@ return Loading
 end)()
 
 local env=type(getgenv)=="function" and getgenv() or _G
-if env.DevilRideLoading and env.DevilRideLoading.Busy then return end
+if env.DevilRideUnpacking or (env.DevilRideLoading and env.DevilRideLoading.Busy) then return end
 local loading=Loading.Begin()
 loading.Busy=true
 loading:SetStage("Downloading Ride a Pet...",.08)
 task.wait()
 local args=table.pack(...)
 local ok,result=xpcall(function()
-    local source=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/ride-a-pet-delta.lua")
+    local source=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/ride-a-pet-delta.lua?v=live-6")
     assert(type(source)=="string" and #source>0,"Empty script response")
     local run,err=loadstring(source,"DEVIL HUB / Ride a Pet")
     assert(run,err)
