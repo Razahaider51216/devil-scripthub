@@ -3,7 +3,7 @@
 Run in a fresh game session:
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/preview/ride-a-pet-test.lua?v=ouroflow-4"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/preview/ride-a-pet-test.lua?v=clean-ui-5"))()
 ```
 
 This preview now uses **OuroFlow / Airflow UI**, not the older ObsidianUltra GUI.
@@ -45,3 +45,9 @@ ranges, frontend/native tab selection and cleanup; loading/error/retry checks;
 exact pack roundtrip and original gameplay bytes. Actual Roblox/DeltaX layout
 and touch behavior still need in-game testing. Production files are unchanged.
 No test webhook or Discord messages are sent.
+
+Native presentation cleanup: known Chilli logo assets also identify random-named
+launcher GUIs. Every native top-level layer is hidden, including later additions.
+The Chilli FPS/ping helper is identified by its exact native signature. Visibility
+guards prevent the old engine reopening these layers. The OuroFlow frontend and
+the game's own UI are exempt. Callback/state objects are retained, not destroyed.
