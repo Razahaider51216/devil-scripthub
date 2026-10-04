@@ -1,128 +1,43 @@
--- DEVIL HUB / LOADING SCREEN
-local Loading=(function()
--- Release loading overlay shared by the small loader and protected entry point.
-local Loading = {}
-function Loading.Begin()
-    local env = getgenv()
-    local current = env.DevilHubLoading
-    if current and current.Gui and current.Gui.Parent and not current.Failed then return current end
-    if current and current.Destroy then current:Destroy() end
-    local Players = game:GetService("Players")
-    local TweenService = game:GetService("TweenService")
-    local screen = Instance.new("ScreenGui")
-    screen.Name = "DevilHubLoading"
-    screen.ResetOnSpawn = false
-    screen.DisplayOrder = 10001
-    screen.IgnoreGuiInset = true
-    screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    screen.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
-    local function make(class,parent,properties)
-        local object = Instance.new(class)
-        for key,value in pairs(properties) do object[key] = value end
-        object.Parent = parent
-        return object
-    end
-    local function corner(parent,radius) make("UICorner",parent,{CornerRadius = UDim.new(0,radius)}) end
-    local shade = make("Frame",screen,{Size = UDim2.fromScale(1,1),BackgroundColor3 = Color3.fromRGB(0,0,0),BackgroundTransparency = .35,BorderSizePixel = 0})
-    local panel = make("Frame",shade,{AnchorPoint = Vector2.new(.5,.5),Position = UDim2.fromScale(.5,.5),Size = UDim2.new(.86,0,0,270),BackgroundColor3 = Color3.fromRGB(20,13,20),BorderSizePixel = 0})
-    make("UISizeConstraint",panel,{MaxSize = Vector2.new(420,270)})
-    corner(panel,16)
-    make("UIStroke",panel,{Color = Color3.fromRGB(116,39,59),Thickness = 1})
-    local logo = make("ImageLabel",panel,{AnchorPoint = Vector2.new(.5,0),Position = UDim2.new(.5,0,0,17),Size = UDim2.fromOffset(76,64),BackgroundTransparency = 1,Image = "",ScaleType = Enum.ScaleType.Fit})
-    corner(logo,9)
-    local title = make("TextLabel",panel,{Position = UDim2.fromOffset(20,92),Size = UDim2.new(1,-40,0,30),BackgroundTransparency = 1,Text = "DEVIL HUB",Font = Enum.Font.GothamBold,TextSize = 24,TextColor3 = Color3.fromRGB(247,48,75)})
-    local status = make("TextLabel",panel,{Position = UDim2.fromOffset(20,131),Size = UDim2.new(1,-40,0,37),BackgroundTransparency = 1,Text = "Preparing your session...",Font = Enum.Font.Gotham,TextSize = 12,TextColor3 = Color3.fromRGB(187,161,179),TextWrapped = true})
-    local track = make("Frame",panel,{Position = UDim2.fromOffset(28,181),Size = UDim2.new(1,-56,0,5),BackgroundColor3 = Color3.fromRGB(52,29,44),BorderSizePixel = 0})
-    corner(track,3)
-    local fill = make("Frame",track,{Size = UDim2.fromScale(.04,1),BackgroundColor3 = Color3.fromRGB(247,48,75),BorderSizePixel = 0})
-    corner(fill,3)
-    local detail = make("TextLabel",panel,{Position = UDim2.fromOffset(20,203),Size = UDim2.new(1,-40,0,20),BackgroundTransparency = 1,Text = "ANIME LEGACY / STARTING",Font = Enum.Font.Gotham,TextSize = 9,TextColor3 = Color3.fromRGB(120,98,113)})
-    local actions = make("Frame",panel,{Position = UDim2.new(0,24,1,-42),Size = UDim2.new(1,-48,0,28),BackgroundTransparency = 1,Visible = false})
-    local function action(text,x)
-        local button = make("TextButton",actions,{Position = UDim2.new(x,0,0,0),Size = UDim2.new(.48,0,1,0),Text = text,Font = Enum.Font.GothamMedium,TextSize = 11,TextColor3 = Color3.new(1,1,1),BackgroundColor3 = Color3.fromRGB(65,29,44),BorderSizePixel = 0,AutoButtonColor = false})
-        corner(button,6)
-        return button
-    end
-    local retry,close = action("Retry",0),action("Close",.52)
-    local controller = {Gui = screen,HoldHub = true,Busy = false,PayloadRunning = false,Failed = false,Progress = 0,Connections = {}}
-    env.DevilHubLoading = controller
-    local animation
-    function controller:SetStage(message,progress)
-        if not screen.Parent then return end
-        self.Progress = math.max(self.Progress,math.clamp(progress or self.Progress,0,1))
-        status.Text = message
-        detail.Text = string.format("ANIME LEGACY / %d%%",math.floor(self.Progress*100))
-        if animation then animation:Cancel() end
-        animation = TweenService:Create(fill,TweenInfo.new(.18),{Size = UDim2.fromScale(self.Progress,1)})
-        animation:Play()
-    end
-    function controller:Destroy()
-        self.HoldHub = false self.Busy = false
-        if animation then animation:Cancel() end
-        for _,connection in ipairs(self.Connections) do connection:Disconnect() end
-        if env.DevilHubLoading == self then env.DevilHubLoading = nil end
-        if screen.Parent then screen:Destroy() end
-    end
-    function controller:Finish(success,message)
-        self.Busy = false self.HoldHub = false self.PayloadRunning = false
-        if success then
-            self:SetStage("Ready. Welcome to Devil Hub.",1)
-            local runtime = env.DevilHubLegacy
-            if runtime and runtime.Window and runtime.Window.Gui.Parent then runtime.Window.Gui.Enabled = true end
-            self:Destroy()
-        else
-            self.Failed = true
-            status.Text = message or "Unable to start. Please retry."
-            detail.Text = "LOAD FAILED / CHECK CONSOLE"
-            actions.Visible = true
-            local runtime = env.DevilHubLegacy
-            if runtime and runtime.Stop then pcall(runtime.Stop) end
-        end
-    end
-    table.insert(controller.Connections,close.Activated:Connect(function() controller:Destroy() end))
-    table.insert(controller.Connections,retry.Activated:Connect(function()
-        controller:Destroy()
-        task.spawn(function()
-            local ok,err = pcall(function()
-                local run,parseError = loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader"),"Devil Hub / Retry")
-                assert(run,parseError) run()
-            end)
-            if not ok then warn("[Devil Hub] Retry failed: "..tostring(err)) end
-        end)
-    end))
-    task.spawn(function()
-        local custom = getcustomasset or getsynasset
-        if type(custom) ~= "function" or type(writefile) ~= "function" then return end
-        local ok,asset = pcall(function()
-            local path = "devil-hub-logo-daceb9cac221.png"
-            if type(isfile) ~= "function" or not isfile(path) then
-                local data = game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png")
-                assert(data:sub(1,8) == "\137PNG\13\10\26\10") writefile(path,data)
-            end
-            return custom(path)
-        end)
-        if ok and screen.Parent then logo.Image = asset end
-    end)
-    return controller
-end
-return Loading
-end)()
+-- DEVIL HUB / 3 SUPPORTED GAMES
+local source=(function()
+local _f124b35bea7625f4="ulK9JDAnp2GMZyxoOeb7Q4czfHIUR0tBV3dNawSvWkXP6gL/51jFCEThrq+iYs8m"
+local _78ca2656b65d4a9a={
+{819762861,2112111138,2025,"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"}
+}
+local _fafb73fd9c2c8336={1}
 
-local env=getgenv()
-if env.DevilHubLoading and env.DevilHubLoading.Busy then return end
-local loading=Loading.Begin()
-loading.Busy=true
-loading:SetStage("Downloading Devil Hub...",.08)
-local success,result=xpcall(function()
-    local source=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil.lua")
-    assert(type(source)=="string" and #source>0,"Empty script response")
-    loading:SetStage("Preparing your session...",.18)
-    local run,err=loadstring(source,"Devil Hub")
-    assert(run,err)
-    return run()
-end,debug.traceback)
-if not success then
-    loading:Finish(false,"Download failed. Check your connection and retry.")
-    warn("[Devil Hub] "..tostring(result))
+local _318c071216cba893={}
+for _270891a1d9f45910=1,#_f124b35bea7625f4 do _318c071216cba893[_f124b35bea7625f4:byte(_270891a1d9f45910)]=_270891a1d9f45910-1 end
+local _25e7686614dc1918={}
+for _6b23db5598da6987,_3e359b11ea36f93c in ipairs(_fafb73fd9c2c8336) do
+    local _6d2ebd0bfd207645=_78ca2656b65d4a9a[_3e359b11ea36f93c]
+    local _9801646bc97b5674=_6d2ebd0bfd207645[4]
+    local _b714bf61990d7ec4=_6d2ebd0bfd207645[1]
+    local _da8823c9128ccfe3=_b714bf61990d7ec4%256
+    local _bd0de3306f911186=0
+    local _3f8537f5b0b4b10f={}
+    local function _1f81112f0bfff75e(_bee6e7183edf583c)
+        _b714bf61990d7ec4=(_b714bf61990d7ec4*48271)%2147483647
+        local _7711b77d483ae43d=(_bee6e7183edf583c-_b714bf61990d7ec4%256-_da8823c9128ccfe3)%256
+        _da8823c9128ccfe3=_bee6e7183edf583c
+        _bd0de3306f911186=(_bd0de3306f911186*33+_7711b77d483ae43d)%4294967296
+        _3f8537f5b0b4b10f[#_3f8537f5b0b4b10f+1]=string.char(_7711b77d483ae43d)
+    end
+    for _b6eef30f46bceb0e=1,#_9801646bc97b5674,4 do
+        local a,b,c,d=_9801646bc97b5674:byte(_b6eef30f46bceb0e,_b6eef30f46bceb0e+3)
+        local _0421a3d768598e77=(_318c071216cba893[a] or 0)*262144+(_318c071216cba893[b] or 0)*4096+(_318c071216cba893[c] or 0)*64+(_318c071216cba893[d] or 0)
+        _1f81112f0bfff75e(math.floor(_0421a3d768598e77/65536)%256)
+        if c~=61 then _1f81112f0bfff75e(math.floor(_0421a3d768598e77/256)%256) end
+        if d~=61 then _1f81112f0bfff75e(_0421a3d768598e77%256) end
+    end
+    local _8454ffffc9b7c264=table.concat(_3f8537f5b0b4b10f)
+    assert(#_8454ffffc9b7c264==_6d2ebd0bfd207645[3] and _bd0de3306f911186==_6d2ebd0bfd207645[2],"Devil Hub release data is damaged")
+    _25e7686614dc1918[_6b23db5598da6987]=_8454ffffc9b7c264
+    
 end
-return result
+local _b317f3fb9da7c5f3=table.concat(_25e7686614dc1918)
+
+return _b317f3fb9da7c5f3
+
+end)()
+local run,err=loadstring(source,"DEVIL HUB / Universal")assert(run,err)return run(...)

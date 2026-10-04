@@ -1,5 +1,22 @@
 # Devil Hub
 
+## Universal loader: 3 games
+
+```lua
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader"))()
+```
+
+Automatically selects Ride a Pet, Break and Steal an Egg, or Loot to Forge
+using the Roblox universe/root place ID. Each game keeps its own production
+script, UI, features and configuration; only its module is downloaded.
+Unsupported games fail before fetching a module. The universal loader is
+packed, like the game runtimes. Client-side packing cannot guarantee secrecy.
+
+Validated with all three universe/place mappings, scoped downloads, argument
+forwarding, startup guards, failure recovery, packed integrity and Luau
+compilation. Actual combined-loader behavior still needs an in-game run.
+
+
 ## Ride a Pet
 
 ```lua
@@ -45,7 +62,7 @@ search, configurable themes, and the supplied black-and-white logo.
 ## Start
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/anime-legacy-loader.lua"))()
 ```
 
 The small loader shows the logo and loading stages before fetching the packed
