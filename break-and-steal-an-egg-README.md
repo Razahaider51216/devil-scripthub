@@ -9,13 +9,13 @@ session after updating. Supports place 114326934417838 / universe 10765288803.
 Requires executor HTTP hooks, loadstring and network access.
 
 The OuroFlow GUI uses the original Info, Main, Visuals, Player and Settings
-categories, with native gameplay callbacks behind the new controls. The old
+categories, plus a dedicated Webhook category, with native gameplay callbacks behind the new controls. The old
 Obsidian screen is disabled. Socials contains Discord only. The Discord card
 uses the Devil logo and 2K+ members, without the old background banner.
 
 ## Webhook
 
-In Settings > Webhook, paste your Discord webhook URL and enable Animal
+In Webhook, paste your Discord webhook URL and enable Animal
 pickup notifications. One message is queued for each new nonempty Carrying
 transition, the game's pickup confirmation. Opening the toggle, holding an
 existing animal, passive Cash income, and banking/dropping the current animal
@@ -26,7 +26,18 @@ second. These fields come from matching AnimalPickup / PlacedAnimal model
 attributes or the Carrying JSON. Model details are cached before removal so
 notifications can resolve an animal after it leaves the pickup list. Missing
 fields show Unavailable. Total player cash is never used as the pet's value.
+Weight (KG) is included when exposed in the animal attributes or Carrying JSON.
 Name and rarity overrides are optional.
+
+Notify Animal Filter and Notify Rarity Filter allow multiple selections; empty
+selections allow all. Choices come from animals observed in the current session;
+Refresh animal / rarity options updates those lists. Min $/s and Min KG default
+to zero. Positive minimums reject animals whose corresponding data is missing.
+Filters evaluate actual animal data before optional name/rarity display overrides.
+
+Main > Recent Steals shows the last 20 confirmed pickups in this session with
+name, rarity, weight and income per second. Search filters the local history;
+Clear history removes it. Loading does not reconstruct previous pickups.
 
 Messages hold independent snapshots so collecting another animal cannot
 replace an earlier queued animal's details. A minimum send gap (default two
@@ -53,5 +64,11 @@ controls, Socials filtering, and mocked pickup notifications, item snapshots,
 429 backoff and request failures. No real webhook messages were sent in tests.
 Live game actions and DeltaX have not been verified in this environment.
 Client-side packing does not guarantee source secrecy.
+
+The supplied ThanHub screenshots also show Auto Titanic Egg, Auto Swing,
+Mutation/Min KG pickup filters, Merge and Sell automation. Those gameplay
+systems are not implemented in this release: the public ThanHub loader does
+not expose their game actions, and screenshots do not establish the current
+server API. This update does not resolve or bypass the game's anti-cheat.
 
 Discord: https://discord.gg/ZY7PRcVJe2
