@@ -61,12 +61,18 @@ local function DevilSkin(keep)
     local function style(item)
         if stopped or styled[item] or item:GetAttribute("DevilSkinOwned") or not withinSkin(item) then return end
         styled[item]=true
+        if item:IsA("Frame") and (item.Name=="Color" or item.Name=="Transparent") then
+            fixed(item,"BackgroundTransparency",1)
+        elseif item:IsA("ImageLabel") and item.Name=="Pattern" then
+            fixed(item,"ImageTransparency",1)
+        end
         if item:IsA("UIGradient") then
-            item.Enabled=false
+            fixed(item,"Enabled",false)
         elseif item:IsA("UIStroke") then
-            item.Color=colors.line item.Thickness=1 item.Transparency=0.25
-            pcall(function() item.StrokeSizingMode=Enum.StrokeSizingMode.FixedSize end)
-            if item.Parent and (item.Parent:IsA("TextLabel") or item.Parent:IsA("TextBox")) then item.Enabled=false end
+            -- Native strokes use ScaledSize. Thickness=1 can paint a border as
+            -- large as its parent; the native scaler can restore ScaledSize later.
+            -- Disable the decorative native stroke without changing its sizing.
+            fixed(item,"Enabled",false)
         elseif item:IsA("TextLabel") or item:IsA("TextButton") or item:IsA("TextBox") then
             item.Font=Enum.Font.Gotham
             item.TextStrokeTransparency=1
@@ -79,7 +85,7 @@ local function DevilSkin(keep)
         elseif item:IsA("Frame") or item:IsA("ImageButton") then
             if item.BackgroundTransparency<0.8 then
                 item.BackgroundColor3=item.Name=="Main" and colors.card or colors.field
-                item.BackgroundTransparency=0
+                -- Preserve transparency: decorative containers are not cards.
                 round(item,7)
             end
         elseif item:IsA("ScrollingFrame") then
@@ -161,16 +167,31 @@ local function DevilSkin(keep)
         roots[gui]=data
         gui:SetAttribute("DevilHubSkin",true)
         for _,item in ipairs(gui:GetDescendants()) do pcall(style,item) end
-        main.BackgroundColor3=colors.bg main.BackgroundTransparency=0
+        fixed(main,"BackgroundColor3",colors.bg)
+        fixed(main,"BackgroundTransparency",0)
         round(main,12)
         -- Native row heights are measured in AbsoluteSize pixels. Adding UIScale
         -- or forcing page sizes feeds scaled pixels back into unscaled offsets.
         -- Preserve the native main/page geometry and place navigation beside it.
-        top.BackgroundColor3=colors.bg
+        fixed(top,"BackgroundColor3",colors.bg)
+        fixed(top,"BackgroundTransparency",0)
         local oldBand=top:FindFirstChild("Color")
-        if oldBand then oldBand.BackgroundTransparency=1 end
-        title.Text="DEVIL HUB" title.TextScaled=false title.TextSize=14
-        title.Font=Enum.Font.GothamBold title.TextXAlignment=Enum.TextXAlignment.Left
+        if oldBand then fixed(oldBand,"BackgroundTransparency",1) end
+        title.Text="DEVIL HUB"
+        fixed(title,"TextTransparency",1)
+        make("TextLabel",top,{Name="DevilHeader",BackgroundTransparency=1,
+            Position=UDim2.new(0,12,0,0),Size=UDim2.new(0.85,-12,1,0),
+            Text="DEVIL HUB",TextScaled=false,TextSize=14,Font=Enum.Font.GothamBold,
+            TextColor3=colors.text,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=90})
+        -- These layers are purely decorative, including the close-button tint.
+        -- Keep their descendants (title/close callbacks) and native geometry.
+        for _,item in ipairs(main:GetDescendants()) do
+            if item:IsA("Frame") and (item.Name=="Color" or item.Name=="Transparent") then
+                fixed(item,"BackgroundTransparency",1)
+            elseif item:IsA("ImageLabel") and item.Name=="Pattern" then
+                fixed(item,"ImageTransparency",1)
+            end
+        end
         local oldLogo=top:FindFirstChild("Icon")
         if oldLogo then oldLogo.Visible=false end
         local side=make("Frame",main,{Name="DevilSidebar",BackgroundColor3=colors.sidebar,
@@ -186,7 +207,9 @@ local function DevilSkin(keep)
             Text="RIDE A PET",Font=Enum.Font.Gotham,TextSize=9,TextColor3=colors.muted,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=103})
         data.nav=make("ScrollingFrame",side,{Name="DevilCategories",BackgroundTransparency=1,BorderSizePixel=0,
             Position=UDim2.fromOffset(9,64),Size=UDim2.new(1,-18,1,-112),AutomaticCanvasSize=Enum.AutomaticSize.Y,
-            CanvasSize=UDim2.new(),ScrollBarThickness=2,ScrollBarImageColor3=colors.accent,ZIndex=101})
+            CanvasSize=UDim2.new(),ScrollBarThickness=4,ScrollBarImageColor3=colors.accent,
+            Active=true,ScrollingEnabled=true,ScrollingDirection=Enum.ScrollingDirection.Y,
+            ClipsDescendants=true,ZIndex=101})
         make("UIListLayout",data.nav,{Padding=UDim.new(0,5),SortOrder=Enum.SortOrder.LayoutOrder})
         make("TextLabel",side,{BackgroundTransparency=1,Position=UDim2.new(0,14,1,-35),Size=UDim2.new(1,-28,0,20),
             Text="2K+  MEMBERS",TextColor3=colors.muted,TextSize=10,Font=Enum.Font.GothamBold,
@@ -203,8 +226,9 @@ local function DevilSkin(keep)
                 if not button:IsA("GuiButton") then return end
                 data.navOrder+=1
                 button.Parent=data.nav
-                button.LayoutOrder=data.navOrder
-                fixed(button,"Size",UDim2.new(1,0,0,32))
+                fixed(button,"LayoutOrder",data.navOrder)
+                data.nav.CanvasSize=UDim2.fromOffset(0,data.navOrder*37)
+                fixed(button,"Size",UDim2.new(1,-5,0,32))
                 button.ZIndex=104
                 for _,item in ipairs(button:GetDescendants()) do
                     pcall(style,item)
