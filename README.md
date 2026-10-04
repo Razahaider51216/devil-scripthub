@@ -25,7 +25,9 @@ button is recognized by the original logo asset ID. The extra floating
 Discord button has been removed. Native scaled strokes and decorative tint layers
 are disabled and guarded against later theme writes, avoiding oversized red
 borders outside the panel. Container transparency and native dimensions are
-preserved. The category list has an explicit scroll extent. The additional outer packing decodes to the exact same compatibility shell;
+preserved. The category list has an explicit scroll extent. Toggle ON/OFF gradients remain
+controlled by the original toggle state; decorative gradient locks exclude them.
+Switch hit targets retain their native activation and safe touch handling. The additional outer packing decodes to the exact same compatibility shell;
 the original gameplay VM remains unchanged. The original game's dependencies and
 teleport behavior remain. The original runtime was confirmed working by the
 user on DeltaX; this newest visual layout has not been tested inside Roblox.
