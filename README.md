@@ -21,6 +21,9 @@ runtime byte-for-byte. The interface is restyled externally: a dark crimson
 window, left category sidebar with native vector icons, original controls on
 the right, the supplied monochrome logo, and `2K+` community member text.
 [DEVIL HUB Discord](https://discord.gg/ZY7PRcVJe2) replaces the old invite.
+Chilli-branded Discord webhook request bodies use sender name `Devil Hub`,
+including matching embed titles/authors/footers. The existing destination,
+headers and game data are retained; unrelated requests pass through unchanged.
 
 The original buttons and callbacks are retained when categories are moved.
 Native main-window and content geometry are retained; no extra UIScale or
