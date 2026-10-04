@@ -1,68 +1,47 @@
-# Devil Hub / Ouroboros GUI test
+# Devil Hub / new OuroFlow GUI test
 
-This is a separate experimental build. The production loaders and scripts are
-unchanged. Run it in a fresh game session, using the preview entry:
+Run in a fresh game session:
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/preview/ride-a-pet-test.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/preview/ride-a-pet-test.lua?v=ouroflow-4"))()
 ```
 
-The GUI library is the same ObsidianUltra dependency identified in the local
-`ouroboros-source/ride-a-pet.recovered.luau`; the Ouroboros gameplay script is
-not executed. Tabs and sections are populated from Devil Hub's original
-controllers, rather than copying the Ouroboros feature list. The title/footer
-identify the build as a test.
+This preview now uses **OuroFlow / Airflow UI**, not the older ObsidianUltra GUI.
+The upstream developer's `joustingmatch/v2test` references OuroFlow. The local
+Ride a Pet recovery references the older ObsidianUltra dependency.
 
-Standard toggles, sliders, dropdowns, multi-selects, inputs, buttons and status
-labels use Obsidian controls. The adapter returns the original option handles:
-callbacks, saved state, visibility dependencies and configuration updates still
-use the original controllers. Native value changes update the new controls
-without firing callbacks again. The original backend visual frame is hidden; its ScreenGui remains enabled
-so native measurement and initialization can continue. Its
-launcher and open/close actions control the new interface.
+The new interface has an icon sidebar, player profile, search in the content
+header, compact controls and collapsible groupboxes in two columns. Crimson
+provides the dark red palette. The library adapts to narrow screens and includes
+a draggable toggle button on the left and a draggable minimized island.
 
-Custom canvas/predictor panels and action dropdowns retain their original GUI
-instances through Obsidian's UI passthrough feature. Their appearance and touch
-behavior still need verification in the real game. This is a runnable candidate,
-not a claim of verified Roblox/DeltaX integration. Do not merge into production
-until it has been checked in-game.
+Only the GUI library is loaded. Ouroboros gameplay code is not executed.
+Devil Hub categories, original option handles, callbacks, saved state and
+visibility dependencies come from the unchanged original gameplay runtime.
+Enabled toggles do not invoke gameplay a second time during frontend creation.
+Native value updates use silent frontend setters. Advanced predictor/canvas
+instances retain their connections inside clipped holders; their appearance is
+still native. The native frame and launcher are hidden.
 
-The loading overlay, packed distribution and Devil Hub webhook branding are
-retained. Test loading state has its own namespace and retries this preview.
-Gameplay payload bytes are unchanged from the working original runtime.
+The UI dependency is fetched directly from its upstream repository, pinned to
+commit `c8251f76f74d9942114ebccb0564aa0ac196320a`:
+https://github.com/joustingmatch/OuroFlow
 
-Validation: official Luau compilation of the actual UI library, adapted native
-UI constructor and packed release; original-controller bridge mocks; callback
-counts; state/config sync; multi-select conversion; live labels; visibility;
-category selection; custom-instance preservation; loading/failure/retry/close;
-exact pack roundtrip; exact original gameplay bytes; production file isolation.
+This dependency requires network access. Its Lucide icon registry is also fetched
+by the library. No custom font or texture downloads are requested by this bridge.
+The old Obsidian library/license files remain for the earlier preview history;
+the current loader does not use them.
+
+The HTTP adapter covers function calls and Roblox namecall dispatch while
+keeping `loadstring` unchanged. A launch with only the original UI is rejected
+as an unsuccessful GUI connection. Startup retains the loading overlay and
+stage messages. This preview requires `hookfunction`; native namecall coverage
+also uses `hookmetamethod` and `getnamecallmethod` when available.
+
+Validation: official Luau compilation of the pinned upstream library, facade,
+clear shell and packed entry; original-controller bridge mocks; facade tests
+for columns, initial callbacks, silent updates, dropdown values, changed slider
+ranges, frontend/native tab selection and cleanup; loading/error/retry checks;
+exact pack roundtrip and original gameplay bytes. Actual Roblox/DeltaX layout
+and touch behavior still need in-game testing. Production files are unchanged.
 No test webhook or Discord messages are sent.
-
-UI provenance: [joustingmatch/ObsidianUltra](https://github.com/joustingmatch/ObsidianUltra),
-commit `92b2f6c90e78d47cab449bdfc2d558d7c35a503c`, upstream `Library.lua` SHA256
-`3c985738a6e9b7089f61bc5869a90e8207e62994a0816f59b9dee97ce1c7b946`.
-The MIT license and original attribution are preserved in
-[Obsidian-LICENSE.txt](Obsidian-LICENSE.txt).
-
-## Startup fix
-
-The preview adapts only the downloaded native GUI constructor using an HTTP
-hook for both function calls and Roblox `__namecall` dispatch. It leaves the VM compiler (`loadstring`) untouched. This experimental
-bridge requires executor support for `hookfunction`; if it is missing, startup
-fails visibly instead of installing a compiler wrapper.
-
-The GUI library includes Lucide icon metadata and uses Roblox sprite assets.
-Default textures also use their Roblox assets. Startup no longer downloads
-Lucide spritesheets or the default PNG textures. The upstream GUI layout is
-retained; these are test-only startup patches. Lucide's MIT license is included
-in `Lucide-LICENSE.txt`.
-
-Loading displays separate download/library/controller/window/control stages.
-The GUI-library download has a timeout. Once live frontend controls have settled,
-the loading overlay closes even if the original gameplay coroutine continues
-running. Merely creating an empty window is insufficient. Native controls and
-state callbacks remain the readiness source. Production files are unchanged.
-
-The preview keeps the upstream default palette and widget styling. It verifies
-that a frontend window and live controllers exist before accepting startup. A
-backend-only launch reports a failed GUI connection instead of success.
