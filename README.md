@@ -6,6 +6,11 @@
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/ride-a-pet.lua"))()
 ```
 
+The published Ride a Pet distribution also packs the readable UI skin and
+compatibility shell. Decoding yields periodically before startup. This is
+reversible client-side obfuscation; older public commits remain accessible.
+The reported GUI issue still requires validation in the actual game.
+
 The Delta-compatible Ride a Pet build retains the original protected Chilli
 runtime byte-for-byte. The interface is restyled externally: a dark crimson
 window, left category sidebar with native vector icons, original controls on
@@ -20,8 +25,8 @@ button is recognized by the original logo asset ID. The extra floating
 Discord button has been removed. Native scaled strokes and decorative tint layers
 are disabled and guarded against later theme writes, avoiding oversized red
 borders outside the panel. Container transparency and native dimensions are
-preserved. The category list has an explicit scroll extent. No extra payload
-packing or modified gameplay VM is used. The original game's dependencies and
+preserved. The category list has an explicit scroll extent. The additional outer packing decodes to the exact same compatibility shell;
+the original gameplay VM remains unchanged. The original game's dependencies and
 teleport behavior remain. The original runtime was confirmed working by the
 user on DeltaX; this newest visual layout has not been tested inside Roblox.
 
