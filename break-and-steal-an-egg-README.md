@@ -15,23 +15,29 @@ uses the Devil logo and 2K+ members, without the old background banner.
 
 ## Webhook
 
-In Settings > Webhook, paste your Discord webhook URL and enable Cash
-notifications. Default interval is 30 seconds (adjustable from 10 to 300).
-Notifications report positive increases of the player's Cash attribute,
-session earnings and current cash, plus the latest carried egg/pet name and
-rarity. Spending is not treated as earnings. The cash amount is not attributed
-to a specific pet: that field is the latest carrying context.
+In Settings > Webhook, paste your Discord webhook URL and enable Animal
+pickup notifications. One message is queued for each new nonempty Carrying
+transition, the game's pickup confirmation. Opening the toggle, holding an
+existing animal, passive Cash income, and banking/dropping the current animal
+do not trigger messages. Repeated events for the same carried ID are ignored.
 
-Item details resolve from the Carrying attribute and matching AnimalPickup /
-PlacedAnimal models. Unavailable data stays unavailable. Optional name and
-rarity overrides let you supply details if the current game format differs.
-Send test notification sends a sample to your configured webhook.
+Each message contains that animal's name, rarity, value/price, and income per
+second. These fields come from matching AnimalPickup / PlacedAnimal model
+attributes or the Carrying JSON. Model details are cached before removal so
+notifications can resolve an animal after it leaves the pickup list. Missing
+fields show Unavailable. Total player cash is never used as the pet's value.
+Name and rarity overrides are optional.
 
-Webhook starts disabled. The URL is not saved to UI configs. Only Discord
-webhook endpoints are accepted; mentions are suppressed. Requests are batched,
-never overlap, and respect Discord rate limits. Failed earnings notifications
-remain queued until a later attempt. Disabling stops tracking and clears the
-pending batch; cleanup disconnects listeners and clears the URL.
+Messages hold independent snapshots so collecting another animal cannot
+replace an earlier queued animal's details. A minimum send gap (default two
+seconds) controls bursts; it does not create recurring notifications. Successful
+messages are removed from the queue. Failed sends wait before retrying and
+Discord 429 responses honor retry_after. Send test notification is manual only.
+
+Webhook starts disabled, and enabling does not replay historical pickups.
+The URL is not saved to UI configs. Only Discord webhook endpoints are accepted;
+mentions are suppressed. Disabling clears queued pickups. Cleanup disconnects
+listeners and clears the URL.
 
 ## Provenance and validation
 
@@ -43,7 +49,7 @@ This is not the latest FlowAuth payload; authentication checks are not bypassed.
 
 Validated with official Luau compilation, exact packed roundtrip, mock loading
 failure/retry/cleanup cases, native callback synchronization, Settings webhook
-controls, Socials filtering, and mocked webhook accounting, item lookup,
+controls, Socials filtering, and mocked pickup notifications, item snapshots,
 429 backoff and request failures. No real webhook messages were sent in tests.
 Live game actions and DeltaX have not been verified in this environment.
 Client-side packing does not guarantee source secrecy.
