@@ -1,4 +1,4 @@
--- Fishing Master TEST v9 / replacement backend: public NNVN v1.4.8
+-- Fishing Master TEST v10 / replacement backend: public NNVN v1.4.8
 local Loading=(function()
 -- Release loading overlay shared by the small loader and protected entry point.
 local Loading = {}
@@ -82,7 +82,7 @@ function Loading.Begin()
         controller:SetStage("Downloading Fishing Master...",.08)
         task.spawn(function()
             local ok,err = pcall(function()
-                local run,parseError = loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=9"),"Devil Hub / Retry")
+                local run,parseError = loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=10"),"Devil Hub / Retry")
                 assert(run,parseError)
                 if not screen.Parent then return end
                 controller:Destroy()
@@ -177,14 +177,68 @@ return function(deps)
             if self.ReleaseInput then pcall(self.ReleaseInput)self.ReleaseInput=nil end
             self.InputOwner=nil
         end
-        if not values[1]then deps.Warn("[DEVIL HUB / Input] "..tostring(values[2]))return false end
+        if not values[1]then self.LastInputError=tostring(values[2]) deps.Warn("[DEVIL HUB / Input] "..self.LastInputError)return false end
+        self.LastInputError=nil
         return table.unpack(values,2,values.n)
+    end
+    function self:StartWorker(label,fn)
+        return self.Task.spawn(function()
+            while self.Active do
+                local ok,err=pcall(fn)
+                if ok or not self.Active then return end
+                self.WorkerErrors=self.WorkerErrors or {}
+                err=tostring(err)
+                if self.WorkerErrors[label]~=err then deps.Warn("[DEVIL HUB / Worker "..label.."] "..err)end
+                self.WorkerErrors[label]=err
+                baseTask.wait(2)
+            end
+        end)
+    end
+    function self:Report()
+        local env=self.Env or {}
+        local report={Active=self.Active,InputBlocked=self:InputBlocked(),InputError=self.LastInputError,
+            InputOwner=self.InputOwner and coroutine.status(self.InputOwner)or "none",WorkerErrors=self.WorkerErrors or {}}
+        local state=env.S or {}
+        for _,key in ipairs({"AutoCast","AutoClickFish","AutoPullMinigame","AutoUseSkills","AutoUseSkillsAtExecute","AutoEquipRod","AutoActionBusy","Casts","Clicks","Skills"})do report[key]=state[key]end
+        local function probe(key,fn)
+            if type(fn)~="function"then report[key]="unavailable"return end
+            local ok,value=pcall(fn)
+            report[key]=ok and (value==nil and "nil"or tostring(value))or("ERROR: "..tostring(value))
+        end
+        probe("Controller",env.getFishingController)
+        probe("State",env.getFishState)
+        probe("RodEquipped",env.hasRodEquipped)
+        local ctrlOK,ctrl=pcall(function()return env.getFishingController and env.getFishingController()end)
+        if ctrlOK and type(ctrl)=="table"then
+            report.GetState=type(ctrl.GetState)report.GetFishInfo=type(ctrl.GetFishInfo)
+            if type(ctrl.GetState)=="function"then probe("RawState",function()return ctrl:GetState()end)end
+        end
+        probe("MouseTarget",function()local x,y=self:MousePoint()return x and (tostring(x)..","..tostring(y))or "none"end)
+        local jsonOK,json=pcall(function()return deps.Encode(report)end)
+        local text=jsonOK and json or("State="..tostring(report.State).." | Controller="..tostring(report.Controller).." | InputError="..tostring(report.InputError))
+        if deps.Print then deps.Print("[DEVIL HUB / DIAGNOSTICS] "..text)end
+        return report
+    end
+    function self:Monitor()
+        self.Task.spawn(function()
+            local previous,idle=nil,0
+            while self.Active do
+                baseTask.wait(5)
+                local state=self.Env and self.Env.S or {}
+                if state.AutoCast or state.AutoClickFish or state.AutoPullMinigame or state.AutoUseSkills or state.AutoUseSkillsAtExecute then
+                    local total=(state.Casts or 0)+(state.Clicks or 0)+(state.Skills or 0)
+                    idle=total==previous and idle+5 or 0
+                    previous=total
+                    if idle==10 then self:Report()end
+                else previous=nil idle=0 end
+            end
+        end)
     end
     function self:MousePoint()
         local viewport=deps.Viewport and deps.Viewport()
         if not viewport then return 0,0 end
         local root=self.Window and self.Window.MainFrame
-        for _,fraction in ipairs({{.5,.5},{.25,.6},{.75,.6},{.5,.8},{.02,.55},{.98,.55},{.02,.85},{.98,.85}})do
+        for _,fraction in ipairs({{0,0},{.5,.5},{.25,.6},{.75,.6},{.5,.8},{.02,.55},{.98,.55},{.02,.85},{.98,.85}})do
             local x,y=math.floor(viewport.X*fraction[1]),math.floor(viewport.Y*fraction[2])
             local blocked=false
             if root and root.Visible then
@@ -516,8 +570,8 @@ local ok,result=xpcall(function()
     local gui=fetch("https://raw.githubusercontent.com/joustingmatch/OuroFlow/7c495f5a17a2390d70809d628c82cd5384142dbd/Source.luau")
     assert(#gui==413023,"Unexpected GUI revision")
     loading:SetStage("Downloading the NNVN v1.4.8 game systems...",.4)
-    local runtime=fetch("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-nnvn-runtime.lua?v=9")
-    assert(#runtime==417619,"Unexpected game systems revision")
+    local runtime=fetch("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-nnvn-runtime.lua?v=10")
+    assert(#runtime==418383,"Unexpected game systems revision")
     local guiFn=compile(gui,"DEVIL HUB / interface")
     local runtimeFn=compile(runtime,"DEVIL HUB / Fishing Master")
     local logo=""
@@ -527,7 +581,7 @@ local ok,result=xpcall(function()
         if assetOK then logo=asset end
     end
     local player=game:GetService("Players").LocalPlayer
-    ctx=ContextFactory({Task=task,Warn=warn,HookFunction=hookfunction,HookMeta=hookmetamethod,
+    ctx=ContextFactory({Task=task,Warn=warn,Print=print,Encode=function(value)return game:GetService("HttpService"):JSONEncode(value)end,HookFunction=hookfunction,HookMeta=hookmetamethod,
         Input=game:GetService("UserInputService"),Player=player,PlayerGui=player:WaitForChild("PlayerGui"),
         FireSignal=firesignal,GetConnections=getconnections,KeyCode=Enum.KeyCode,Viewport=function()return workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize end,Logo=logo,OnStop=restore})
     env.DevilFishingNNVNContext=ctx
@@ -554,6 +608,7 @@ local ok,result=xpcall(function()
     env.DevilFishingNNVNStarting=false
     env.DevilFishingNNVNRunning=ctx
     env.DevilFishingNNVNCleanup=function()ctx:Stop(true)end
+    ctx:Monitor()
     loading:Finish(true)
     return startResult
 end,debug.traceback)

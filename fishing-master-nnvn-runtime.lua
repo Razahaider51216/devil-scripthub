@@ -2254,10 +2254,15 @@ local function setupFishingCore(env)
 
     -- ============ FISHING ============
     local function hasRodEquipped()
-        local char = getChar()
+        local ctrl=getFishingController()
+        if ctrl and type(ctrl.IsRodEquipped)=="function"then
+            local ok,equipped=pcall(ctrl.IsRodEquipped,ctrl)
+            if ok and type(equipped)=="boolean"then return equipped end
+        end
+        local char=getChar()
         if not char then return false end
-        for _, child in ipairs(char:GetChildren()) do
-            if child:IsA("Tool") and tostring(child.Name):lower():find("rod",1,true) then return true end
+        for _,child in ipairs(char:GetChildren())do
+            if child:IsA("Tool")and tostring(child.Name):lower():find("rod",1,true)then return true end
         end
         return false
     end
@@ -5549,8 +5554,9 @@ local function buildFarmTab(env)
         end })
     FarmSec:Button({ Title="Debug State", Icon="bug",
         Callback=function()
+            local report=__devilRuntime:Report()
             local ctrl = getFishingController()
-            if not ctrl then notify("Debug","Fishing system is not ready"); return end
+            if not ctrl then notify("Debug","Fishing controller not ready. See DIAGNOSTICS in console."); return end
             local state = getFishState()
             local _, hp, maxHp = getFishInfo()
             local msg = ("State=%s | HP=%s/%s"):format(tostring(state),tostring(hp),tostring(maxHp))
@@ -8804,10 +8810,10 @@ local function startLoops(env)
         return fishRarityGate()
     end
 
-    task.spawn(function() while task.wait(S.ClickDelay or 0.18) do if S.AutoClickFish and not S.AutoPullMinigame and fishRarityGate() then clickFish() end end end)
-    task.spawn(function() while task.wait(S.PullDelay or 0.12) do if S.AutoMissFilteredFish then autoMissFilteredFishOnce() end end end)
-    task.spawn(function() while task.wait(S.PullDelay or 0.12) do if S.AutoPullMinigame and fishRarityGate() then pullMinigame() end end end)
-    task.spawn(function()
+    __devilRuntime:StartWorker("loop-8806",function() while task.wait(S.ClickDelay or 0.18) do if S.AutoClickFish and not S.AutoPullMinigame and fishRarityGate() then clickFish() end end end)
+    __devilRuntime:StartWorker("loop-8807",function() while task.wait(S.PullDelay or 0.12) do if S.AutoMissFilteredFish then autoMissFilteredFishOnce() end end end)
+    __devilRuntime:StartWorker("loop-8808",function() while task.wait(S.PullDelay or 0.12) do if S.AutoPullMinigame and fishRarityGate() then pullMinigame() end end end)
+    __devilRuntime:StartWorker("loop-8809",function()
         while task.wait(0.15) do
             if S.AutoCast and not automationBusy() then
                 local state = getFishState()
@@ -8819,16 +8825,16 @@ local function startLoops(env)
             end
         end
     end)
-    task.spawn(function() while task.wait(1) do if S.AutoEquipRod and not automationBusy() and not hasRodEquipped() then equipRod() end end end)
-    task.spawn(function()
+    __devilRuntime:StartWorker("loop-8821",function() while task.wait(1) do if S.AutoEquipRod and not automationBusy() and not hasRodEquipped() then equipRod() end end end)
+    __devilRuntime:StartWorker("loop-8822",function()
         while task.wait(0.75) do
-            if S.AutoUseSkills and not S.AutoUseSkillsAtExecute and skillFilterGate() then
+            if S.AutoUseSkills and skillFilterGate() then
                 useSkillsOnce()
             end
         end
     end)
-    task.spawn(function() while task.wait(0.25) do if S.AutoUseSkillsAtExecute and skillFilterGate() then useSkillsAtExecute() end end end)
-    task.spawn(function()
+    __devilRuntime:StartWorker("loop-8829",function() while task.wait(0.25) do if S.AutoUseSkillsAtExecute and skillFilterGate() then useSkillsAtExecute() end end end)
+    __devilRuntime:StartWorker("loop-8830",function()
         while task.wait(1) do
             if S.AutoSellInterval then
                 local minutes = tonumber(S.SellIntervalMinutes) or 0
@@ -8858,7 +8864,7 @@ local function startLoops(env)
             end
         end
     end)
-    task.spawn(function()
+    __devilRuntime:StartWorker("loop-8860",function()
         while task.wait(3) do
             if S.AutoSellWhenFull then
                 local busy = env.isSellBusy and env.isSellBusy()
@@ -8889,11 +8895,11 @@ local function startLoops(env)
             end
         end
     end)
-    task.spawn(function() while task.wait(3) do if S.AutoBuyRod and not automationBusy() then autoBuyRodOnce() end end end)
-    task.spawn(function() while task.wait(2.5) do if S.AutoUnlockIsland and not automationBusy() then unlockIslandOnce(S.SelectedUnlockIsland) end end end)
-    task.spawn(function() while task.wait(5) do if S.AutoClaimRewards and not automationBusy() then claimRewardsOnce() end end end)
+    __devilRuntime:StartWorker("loop-8891",function() while task.wait(3) do if S.AutoBuyRod and not automationBusy() then autoBuyRodOnce() end end end)
+    __devilRuntime:StartWorker("loop-8892",function() while task.wait(2.5) do if S.AutoUnlockIsland and not automationBusy() then unlockIslandOnce(S.SelectedUnlockIsland) end end end)
+    __devilRuntime:StartWorker("loop-8893",function() while task.wait(5) do if S.AutoClaimRewards and not automationBusy() then claimRewardsOnce() end end end)
     task.spawn(function() pcall(scanWeatherWebhooks, false); while task.wait(4) do pcall(scanWeatherWebhooks, false) end end)
-    task.spawn(function()
+    __devilRuntime:StartWorker("loop-8895",function()
         while task.wait(S.GachaDelay or 3) do
             if S.AutoSkillGacha and not automationBusy() then
                 local ctrl = getSkillGachaController()
@@ -8908,7 +8914,7 @@ local function startLoops(env)
             end
         end
     end)
-    task.spawn(function()
+    __devilRuntime:StartWorker("loop-8910",function()
         while task.wait(S.AuraDelay or 3) do
             if S.AutoAuraGacha and not automationBusy() then
                 local ctrl = getAuraGachaController()
@@ -8923,7 +8929,7 @@ local function startLoops(env)
             end
         end
     end)
-    task.spawn(function()
+    __devilRuntime:StartWorker("loop-8925",function()
         while task.wait(S.CrateDelay or 3) do
             if S.AutoCrate and not automationBusy() then
                 local ctrl = getCrateController()
@@ -8950,8 +8956,8 @@ local function startLoops(env)
             pcall(applyFakeStats)
         end
     end)
-    task.spawn(function() while task.wait(0.1) do if S.AutoFarmBoss and not automationBusy() then pcall(updateBossFarmPlatform) end end end)
-    task.spawn(function()
+    __devilRuntime:StartWorker("loop-8952",function() while task.wait(0.1) do if S.AutoFarmBoss and not automationBusy() then pcall(updateBossFarmPlatform) end end end)
+    __devilRuntime:StartWorker("loop-8953",function()
         while task.wait(8) do
             if S.AutoFarmBoss and not automationBusy() then
                 local info = nil

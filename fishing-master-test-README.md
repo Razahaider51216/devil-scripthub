@@ -1,7 +1,7 @@
-# DEVIL HUB Fishing Master standalone v9
+# DEVIL HUB Fishing Master standalone v10
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=9"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=10"))()
 ```
 
 Run in a fresh Fishing Master session. This replaces the previous Ouroboros
@@ -69,7 +69,7 @@ if cleanup then cleanup() end
   Hidden popup ancestors and the DEVIL HUB GUI are excluded from detection.
   This path requires `firesignal` and `getconnections`.
 - Auto Pull owns reeling clicks while enabled. Auto Click shares its throttle,
-  and Execute mode takes priority over the regular Auto Skills worker.
+  and both skill modes share a batch lock and cooldowns.
 - Mouse/key input and skill batches use a shared lock to prevent concurrent
   presses. Skills run only during FirstPull/Reeling and honor visible locked
   slots, positive cooldown labels and an available IsUsingSkill state.
@@ -93,10 +93,29 @@ checks free edge positions when the GUI covers the central candidates; an
 unavailable executor GUI hit test falls back to the known DEVIL window bounds.
 The existing anti-duplicate input lock and targeted popup dismissal remain.
 
+## Additional compatibility and diagnostics in v10
+
+The original upstream `(0, 0)` mouse target is restored as the first candidate,
+with DEVIL-window protection retained. Rod detection prefers the existing
+FishingController `IsRodEquipped` method when available, so an equipped rod
+whose tool name does not contain "rod" is recognized. Both Auto Skills modes
+can run; the shared lock/cooldowns prevent duplicate batches.
+
+Seventeen persistent workers report exceptions and retry after two seconds.
+One-shot purchase/sale callbacks are not automatically retried. The existing
+Debug State button prints `[DEVIL HUB / DIAGNOSTICS]` with controller readiness,
+raw GetState errors, equipped rod status, enabled flags, input errors and worker
+errors. A stalled enabled fishing system also prints one diagnostic snapshot
+after about 15 seconds without increasing action counters.
+
+The user-provided Soteria endpoint could not be retrieved: browser access failed
+and direct HTTP failed DNS resolution. No source or systems from that endpoint
+are included, and the underlying live game incompatibility remains unverified.
+
 ## Validation
 
-Official Luau compilation passed for the entry and game runtime. Offline tests
-cover 13 sale/skill/lifecycle checks, 11 loader checks, 20 GUI bridge checks and
-16 input regression checks. Strict input-service mocks reject unsupported API
-members and exercise mobile press/release, hovering and hidden GUI behavior.
-Live Roblox/DeltaX behavior has not been verified.
+Official Luau compilation passed. Existing 60 isolated offline checks passed,
+plus four worker/diagnostic tests. These cover transient failure recovery,
+stopping retries, warning deduplication and reporting raw controller errors.
+Live Roblox/DeltaX behavior has not been verified; diagnostics are needed to
+identify any remaining controller/executor mismatch.
