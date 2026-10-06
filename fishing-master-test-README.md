@@ -1,7 +1,7 @@
-# DEVIL HUB Fishing Master standalone v7
+# DEVIL HUB Fishing Master standalone v8
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=7"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=8"))()
 ```
 
 Run in a fresh Fishing Master session. This replaces the previous Ouroboros
@@ -62,11 +62,27 @@ local cleanup = getgenv().DevilFishingNNVNCleanup
 if cleanup then cleanup() end
 ```
 
+## Input fixes in v8
+
+- Catch popup dismissal fires one registered Continue/Dismiss/Close button signal.
+  It never clicks the screen center or selects an arbitrary unrelated button.
+  Hidden popup ancestors and the DEVIL HUB GUI are excluded from detection.
+  This path requires `firesignal` and `getconnections`.
+- Auto Pull owns reeling clicks while enabled. Auto Click shares its throttle,
+  and Execute mode takes priority over the regular Auto Skills worker.
+- Mouse/key input and skill batches use a shared lock to prevent concurrent
+  presses. Skills run only during FirstPull/Reeling and honor visible locked
+  slots, positive cooldown labels and an available IsUsingSkill state.
+- Automated input pauses while typing, interacting with the DEVIL GUI, or
+  handling a selling action. Move the pointer away or hide the GUI to resume.
+- Synthetic mouse targets exclude the DEVIL window and PlayerGui buttons.
+  Stopping the script releases any held mouse/key input.
+- Generic QTE containers called Counter/Direction no longer imply an Up input.
+
 ## Validation
 
-Official Luau compilation passed for the entry, modified game runtime,
-context adapter, GUI bridge and pinned GUI. Isolated offline tests passed 13
-sale/skill/lifecycle checks, 11 loader checks and 16 GUI bridge checks, covering pending RPCs, unsuccessful
-sales, both input types, duplicate startup, failures, timeouts and cleanup.
-Downloaded full game code was not executed locally. Live Roblox/DeltaX behavior
-has not been verified, and no claim of universal anti-cheat bypass is made.
+Official Luau compilation passed for the entry and modified game runtime.
+Offline regression checks cover selling, mobile/desktop skills, lifecycle,
+loader failures and the GUI bridge. An additional 13 input checks reproduce
+popup misclicks, overlapping workers, cooldowns and hidden UI handling.
+Live Roblox/DeltaX behavior has not been verified.

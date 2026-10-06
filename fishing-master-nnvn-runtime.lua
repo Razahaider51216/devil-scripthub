@@ -573,10 +573,14 @@ local function setupCore(env)
 
     -- ============ INPUT SIM ============
     local function simulateClick()
-        pcall(function()
-            VirtualInputManager:SendMouseButtonEvent(0,0,0,true,game,0)
-            task.wait(0.03)
-            VirtualInputManager:SendMouseButtonEvent(0,0,0,false,game,0)
+        return __devilRuntime:InputAction(function()
+            local x,y=__devilRuntime:MousePoint()
+            if not x then return false end
+            VirtualInputManager:SendMouseButtonEvent(x,y,0,true,game,0)
+            __devilRuntime.ReleaseInput=function()VirtualInputManager:SendMouseButtonEvent(x,y,0,false,game,0)end
+            task.wait(.03)
+            __devilRuntime.ReleaseInput() __devilRuntime.ReleaseInput=nil
+            return true
         end)
     end
 
@@ -589,16 +593,24 @@ local function setupCore(env)
     end
 
     local function simulateHold(duration)
-        pcall(function() VirtualInputManager:SendMouseButtonEvent(0,0,0,true,game,0) end)
-        task.wait(duration)
-        pcall(function() VirtualInputManager:SendMouseButtonEvent(0,0,0,false,game,0) end)
+        return __devilRuntime:InputAction(function()
+            local x,y=__devilRuntime:MousePoint()
+            if not x then return false end
+            VirtualInputManager:SendMouseButtonEvent(x,y,0,true,game,0)
+            __devilRuntime.ReleaseInput=function()VirtualInputManager:SendMouseButtonEvent(x,y,0,false,game,0)end
+            task.wait(duration)
+            __devilRuntime.ReleaseInput() __devilRuntime.ReleaseInput=nil
+            return true
+        end)
     end
 
     local function simulateKey(keyCode)
-        pcall(function()
-            VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
-            task.wait(0.03)
-            VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
+        return __devilRuntime:InputAction(function()
+            VirtualInputManager:SendKeyEvent(true,keyCode,false,game)
+            __devilRuntime.ReleaseInput=function()VirtualInputManager:SendKeyEvent(false,keyCode,false,game)end
+            task.wait(.03)
+            __devilRuntime.ReleaseInput() __devilRuntime.ReleaseInput=nil
+            return true
         end)
     end
 
@@ -771,9 +783,9 @@ local function setupCore(env)
     local _popupBound = false
     local function findCatchPopup()
         for _, gui in ipairs(PlayerGui:GetChildren()) do
-            if gui:IsA("ScreenGui") and gui.Enabled ~= false then
+            if gui:IsA("ScreenGui") and gui.Enabled ~= false and not (__devilRuntime.Window and __devilRuntime.Window.Raw and gui==__devilRuntime.Window.Raw.Gui)then
                 for _, desc in ipairs(gui:GetDescendants()) do
-                    if desc:IsA("TextLabel") and desc.Visible then
+                    if desc:IsA("TextLabel") and __devilRuntime:IsVisible(desc)then
                         local t = tostring(desc.Text or ""):lower()
                         if t:find("fish caught",1,true) or t:find("caught!",1,true) or t:find("you caught",1,true) then
                             return gui
@@ -785,43 +797,24 @@ local function setupCore(env)
         return nil
     end
     local function findDismissButton()
-        for _, gui in ipairs(PlayerGui:GetChildren()) do
-            if gui:IsA("ScreenGui") and gui.Enabled ~= false then
-                local hasPopupText = false
-                for _, d in ipairs(gui:GetDescendants()) do
-                    if d:IsA("TextLabel") and d.Visible and tostring(d.Text or ""):lower():find("caught",1,true) then
-                        hasPopupText = true; break
-                    end
-                end
-                if hasPopupText then
-                    for _, desc in ipairs(gui:GetDescendants()) do
-                        if (desc:IsA("TextButton") or desc:IsA("ImageButton")) and desc.Visible then
-                            local n = tostring(desc.Name):lower()
-                            if n:find("continue") or n:find("close") or n:find("dismiss") or n:find("ok") or n:find("next") or n:find("confirm") then
-                                return desc
-                            end
-                        end
-                    end
-                    for _, desc in ipairs(gui:GetDescendants()) do
-                        if (desc:IsA("TextButton") or desc:IsA("ImageButton")) and desc.Visible then return desc end
-                    end
-                end
+        local popup=findCatchPopup()
+        if not popup then return nil end
+        for _,desc in ipairs(popup:GetDescendants())do
+            if desc:IsA("GuiButton")and __devilRuntime:IsVisible(desc)then
+                local name=tostring(desc.Name):lower()
+                if name:find("continue",1,true)or name:find("dismiss",1,true)or name=="close"or name=="ok"or name=="confirm"then return desc end
             end
         end
         return nil
     end
     local function dismissPopupOnce()
-        local vp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(800,600)
-        simulateClickAt(vp.X / 2, vp.Y / 2)
-        task.wait(0.03)
-        local btn = findDismissButton()
-        if btn then
-            pcall(function()
-                btn.MouseButton1Click:Fire()
-                btn.MouseButton1Down:Fire()
-                btn.MouseButton1Up:Fire()
-            end)
-        end
+        if __devilRuntime:InputBlocked()then return false end
+        local now=os.clock()
+        if __devilRuntime.LastDismiss and now-__devilRuntime.LastDismiss<.5 then return false end
+        local btn=findDismissButton()
+        if not btn then return false end
+        __devilRuntime.LastDismiss=now
+        return __devilRuntime:FireButton(btn)
     end
     local function bindAutoDismissPopup()
         if _popupBound then return end
@@ -2292,32 +2285,32 @@ local function setupFishingCore(env)
         if not hasRodEquipped() then setStatus("farm","No rod equipped"); return false end
         local minHold = math.max(0.1, tonumber(S.CastHoldMin) or 1)
         local maxHold = math.max(minHold, tonumber(S.CastHoldMax) or 2)
-        simulateHold(minHold + math.random() * (maxHold - minHold))
+        if not simulateHold(minHold + math.random() * (maxHold - minHold))then return false end
         S.Casts += 1
         setStatus("farm", ("Casts: %d | Clicks: %d | Skills: %d"):format(S.Casts,S.Clicks,S.Skills))
         return true
     end
 
     local function clickFish()
-        local ctrl = getFishingController()
-        if not ctrl then return false end
-        local state = getFishState()
-        if not state then return false end
-        if state == "FirstPull" or state == "Reeling" then
-            simulateClick(); S.Clicks += 1; return true
-        end
+        if __devilRuntime:InputBlocked()then return false end
+        local state=getFishState()
+        if state~="FirstPull"and state~="Reeling"then return false end
+        local now=os.clock()
+        if __devilRuntime.LastClick and now-__devilRuntime.LastClick<math.max(.08,S.ClickDelay or .12)then return false end
+        __devilRuntime.LastClick=now
+        if simulateClick()then S.Clicks+=1 return true end
         return false
     end
 
     local function getQTEDirection()
         local gui = PlayerGui:FindFirstChild("ReelCounterGui")
         if not gui then return nil end
-        for _, name in ipairs({"Left","Right","Up","Counter","Direction"}) do
+        for _, name in ipairs({"Left","Right","Up"}) do
             local node = gui:FindFirstChild(name, true)
-            if node and node:IsA("GuiObject") and node.Visible then return name end
+            if node and node:IsA("GuiObject") and __devilRuntime:IsVisible(node)then return name end
         end
         for _, node in ipairs(gui:GetDescendants()) do
-            if node:IsA("TextLabel") and node.Visible and node.Text ~= "" then
+            if node:IsA("TextLabel") and __devilRuntime:IsVisible(node)and node.Text ~= "" then
                 local t = node.Text:upper()
                 if t:find("LEFT") then return "Left" end
                 if t:find("RIGHT") then return "Right" end
@@ -2341,18 +2334,15 @@ local function setupFishingCore(env)
 
     local LastPullAt = 0
     local function pullMinigame()
-        local ctrl = getFishingController()
-        if not ctrl then return end
-        local state = getFishState()
-        if state ~= "FirstPull" and state ~= "Reeling" then return end
-        local direction = getQTEDirection()
-        if direction then pressQTE(direction); setStatus("farm","QTE response: "..direction); return end
-        local now = os.clock()
-        if now - LastPullAt < (S.PullDelay or 0.12) then return end
-        LastPullAt = now
-        simulateClick()
-        S.Clicks += 1
-        setStatus("farm", ("Pulling | Clicks: %d | Casts: %d"):format(S.Clicks,S.Casts))
+        if __devilRuntime:InputBlocked()then return false end
+        local state=getFishState()
+        if state~="FirstPull"and state~="Reeling"then return false end
+        local now=os.clock()
+        if now-LastPullAt<math.max(.08,S.PullDelay or .12)then return false end
+        LastPullAt=now
+        local direction=getQTEDirection()
+        if direction then pressQTE(direction)return true end
+        return clickFish()
     end
 
     local function parseSkillOrder(str)
@@ -2366,15 +2356,30 @@ local function setupFishingCore(env)
     end
 
     local function useSkillsOnce()
-        if UserInputService:GetFocusedTextBox()then return false end
-        local slots={Z=1,X=2,C=3,V=4}
-        local client=getStardustClient()
-        for _,key in ipairs(parseSkillOrder(S.SkillOrder))do
-            if __devilRuntime:UseSkill(slots[key],client,simulateKey)then S.Skills+=1 end
-            task.wait(.12)
-        end
-        setStatus("farm",("Skills: %d | Clicks: %d | Casts: %d"):format(S.Skills,S.Clicks,S.Casts))
-        return true
+        return __devilRuntime:InputAction(function()
+            local ctrl=getFishingController()
+            local state=getFishState()
+            if not ctrl or(state~="FirstPull"and state~="Reeling")then return false end
+            if ctrl.IsUsingSkill==true then return false end
+            if type(ctrl.IsUsingSkill)=="function"then
+                local ok,busy=pcall(ctrl.IsUsingSkill,ctrl)
+                if not ok or busy then return false end
+            end
+            local slots={Z=1,X=2,C=3,V=4}
+            local client=getStardustClient()
+            local used=false
+            for _,key in ipairs(parseSkillOrder(S.SkillOrder))do
+                if __devilRuntime:InputBlocked()or getFishState()~=state or ctrl.IsUsingSkill==true then break end
+                if type(ctrl.IsUsingSkill)=="function"then
+                    local ok,busy=pcall(ctrl.IsUsingSkill,ctrl)
+                    if not ok or busy then break end
+                end
+                if __devilRuntime:UseSkill(slots[key],client,simulateKey)then S.Skills+=1 used=true end
+                task.wait(.12)
+                if ctrl.IsUsingSkill==true then break end
+            end
+            return used
+        end)
     end
 
     local function useSkillsAtExecute()
@@ -8746,7 +8751,7 @@ local function startLoops(env)
     local pressQTE = env.pressQTE
 
     local function automationBusy()
-        return env.isAutoActionBusy and env.isAutoActionBusy()
+        return __devilRuntime:InputBlocked()or (env.isAutoActionBusy and env.isAutoActionBusy())
     end
 
     local function autoMissFilteredFishOnce()
@@ -8799,7 +8804,7 @@ local function startLoops(env)
         return fishRarityGate()
     end
 
-    task.spawn(function() while task.wait(S.ClickDelay or 0.18) do if S.AutoClickFish and fishRarityGate() then clickFish() end end end)
+    task.spawn(function() while task.wait(S.ClickDelay or 0.18) do if S.AutoClickFish and not S.AutoPullMinigame and fishRarityGate() then clickFish() end end end)
     task.spawn(function() while task.wait(S.PullDelay or 0.12) do if S.AutoMissFilteredFish then autoMissFilteredFishOnce() end end end)
     task.spawn(function() while task.wait(S.PullDelay or 0.12) do if S.AutoPullMinigame and fishRarityGate() then pullMinigame() end end end)
     task.spawn(function()
@@ -8817,7 +8822,7 @@ local function startLoops(env)
     task.spawn(function() while task.wait(1) do if S.AutoEquipRod and not automationBusy() and not hasRodEquipped() then equipRod() end end end)
     task.spawn(function()
         while task.wait(0.75) do
-            if S.AutoUseSkills and skillFilterGate() then
+            if S.AutoUseSkills and not S.AutoUseSkillsAtExecute and skillFilterGate() then
                 useSkillsOnce()
             end
         end

@@ -1,4 +1,4 @@
--- Fishing Master TEST v7 / replacement backend: public NNVN v1.4.8
+-- Fishing Master TEST v8 / replacement backend: public NNVN v1.4.8
 local Loading=(function()
 -- Release loading overlay shared by the small loader and protected entry point.
 local Loading = {}
@@ -82,7 +82,7 @@ function Loading.Begin()
         controller:SetStage("Downloading Fishing Master...",.08)
         task.spawn(function()
             local ok,err = pcall(function()
-                local run,parseError = loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=7"),"Devil Hub / Retry")
+                local run,parseError = loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=8"),"Devil Hub / Retry")
                 assert(run,parseError)
                 if not screen.Parent then return end
                 controller:Destroy()
@@ -154,8 +154,88 @@ return function(deps)
 		end
 	end
 	function self:Bind(env) self.Env = env end
+    function self:InputBlocked()
+        if not self.Active or deps.Input:GetFocusedTextBox()then return true end
+        if self.PointerOverGUI and self.PointerOverGUI()then return true end
+        return self.Env and self.Env.S and self.Env.S.AutoActionBusy==true or false
+    end
+    function self:InputAction(fn)
+        if self:InputBlocked()then return false end
+        local owner=coroutine.running()
+        if self.InputOwner and self.InputOwner~=owner then return false end
+        local nested=self.InputOwner==owner
+        self.InputOwner=owner
+        local values=table.pack(pcall(fn))
+        if not nested then
+            if self.ReleaseInput then pcall(self.ReleaseInput)self.ReleaseInput=nil end
+            self.InputOwner=nil
+        end
+        if not values[1]then deps.Warn("[DEVIL HUB / Input] "..tostring(values[2]))return false end
+        return table.unpack(values,2,values.n)
+    end
+    function self:MousePoint()
+        local viewport=deps.Viewport and deps.Viewport()
+        if not viewport then return 0,0 end
+        local root=self.Window and self.Window.MainFrame
+        for _,fraction in ipairs({{.5,.5},{.25,.6},{.75,.6},{.5,.8}})do
+            local x,y=math.floor(viewport.X*fraction[1]),math.floor(viewport.Y*fraction[2])
+            local blocked=false
+            if root and root.Visible then
+                local pos,size=root.AbsolutePosition,root.AbsoluteSize
+                blocked=x>=pos.X and x<=pos.X+size.X and y>=pos.Y and y<=pos.Y+size.Y
+            end
+            if not blocked and deps.PlayerGui.GetGuiObjectsAtPosition then
+                local ok,objects=pcall(deps.PlayerGui.GetGuiObjectsAtPosition,deps.PlayerGui,x,y)
+                if not ok then blocked=true else
+                    for _,object in ipairs(objects)do if object:IsA("GuiButton")then blocked=true break end end
+                end
+            end
+            if not blocked then return x,y end
+        end
+        return nil,nil
+    end
+
+    function self:IsVisible(object)
+        if not object then return false end
+        local current=object
+        while current do
+            if current:IsA("GuiObject")and not current.Visible then return false end
+            if current:IsA("ScreenGui")and not current.Enabled then return false end
+            current=current.Parent
+        end
+        return true
+    end
+    function self:FireButton(button)
+        if type(deps.FireSignal)~="function"or type(deps.GetConnections)~="function"then return false end
+        for _,name in ipairs({"Activated","MouseButton1Click"})do
+            local ok,listeners=pcall(deps.GetConnections,button[name])
+            if ok and type(listeners)=="table"then
+                for _,listener in pairs(listeners)do
+                    if listener.Enabled~=false and listener.Connected~=false then return pcall(deps.FireSignal,button[name],nil,1)end
+                end
+            end
+        end
+        return false
+    end
 	function self:UseSkill(slot, client, simulate)
-		if not self.Active or deps.Input:GetFocusedTextBox() then return false end
+		if self:InputBlocked() then return false end
+        local rodGui=deps.PlayerGui:FindFirstChild("Rod")
+        if rodGui then
+            local mobilePanel=rodGui:FindFirstChild("Mobile")
+            local desktop=rodGui:FindFirstChild("Desktop")
+            local slots=mobilePanel and mobilePanel.Visible and mobilePanel:FindFirstChild("Slots")or desktop
+            local slotGui=slots and slots:FindFirstChild("Slot"..slot)
+            if slotGui and slotGui.GetDescendants then
+                for _,node in ipairs(slotGui:GetDescendants())do
+                    if node.Name=="Locked"and self:IsVisible(node)then return false end
+                    if node.Name=="Timer"and self:IsVisible(node)and (tonumber(node.Text)or 0)>0 then return false end
+                end
+            end
+        end
+        local now=os.clock()
+        self.LastSkill=self.LastSkill or {}
+        if self.LastSkill[slot] and now-self.LastSkill[slot]<.75 then return false end
+        self.LastSkill[slot]=now
 		local keybinds
 		if client then
 			local ok, value = pcall(client.GetController, "KeybindsController")
@@ -185,12 +265,12 @@ return function(deps)
 			end
 		end
 		local names = mobileMode and { "One", "Two", "Three", "Four" } or { "Z", "X", "C", "V" }
-		simulate(deps.KeyCode[names[slot]])
-		return true
+		return simulate(deps.KeyCode[names[slot]])~=false
 	end
 	function self:Stop(destroyUI)
 		if not self.Active then return end
 		self.Active = false
+        if self.ReleaseInput then pcall(self.ReleaseInput)self.ReleaseInput=nil end
 		local env = self.Env
 		if env and env.S then
 			for key, value in pairs(env.S) do if type(value) == "boolean" then env.S[key] = false end end
@@ -322,6 +402,18 @@ return function(flow,ctx)
             ToggleButton={Platform="Both",Icon=ctx.Logo},
             ConfigurationSaving={Enabled=false,FolderName="DevilFishingStandalone"}})
         local window={Raw=raw,MainFrame=raw.Root,Tabs={}}
+        ctx.PointerOverGUI=function()
+            local root=raw.Root
+            if not root or not root.Visible then return false end
+            local input=game:GetService("UserInputService")
+            local position=input:GetMouseLocation()
+            local p,s=root.AbsolutePosition,root.AbsoluteSize
+            local function inside(v)return v.X>=p.X and v.X<=p.X+s.X and v.Y>=p.Y and v.Y<=p.Y+s.Y end
+            if inside(position)then return true end
+            if input.TouchEnabled then for _,touch in ipairs(input:GetTouches())do if inside(touch.Position)then return true end end end
+            return false
+        end
+
         self.Windows[#self.Windows+1]=window
         local destroy=raw.Destroy
         raw.Destroy=function(self,...)ctx:Stop(false)return destroy(self,...)end
@@ -408,8 +500,8 @@ local ok,result=xpcall(function()
     local gui=fetch("https://raw.githubusercontent.com/joustingmatch/OuroFlow/7c495f5a17a2390d70809d628c82cd5384142dbd/Source.luau")
     assert(#gui==413023,"Unexpected GUI revision")
     loading:SetStage("Downloading the NNVN v1.4.8 game systems...",.4)
-    local runtime=fetch("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-nnvn-runtime.lua?v=7")
-    assert(#runtime==416851,"Unexpected game systems revision")
+    local runtime=fetch("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-nnvn-runtime.lua?v=8")
+    assert(#runtime==417619,"Unexpected game systems revision")
     local guiFn=compile(gui,"DEVIL HUB / interface")
     local runtimeFn=compile(runtime,"DEVIL HUB / Fishing Master")
     local logo=""
@@ -421,7 +513,7 @@ local ok,result=xpcall(function()
     local player=game:GetService("Players").LocalPlayer
     ctx=ContextFactory({Task=task,Warn=warn,HookFunction=hookfunction,HookMeta=hookmetamethod,
         Input=game:GetService("UserInputService"),Player=player,PlayerGui=player:WaitForChild("PlayerGui"),
-        FireSignal=firesignal,GetConnections=getconnections,KeyCode=Enum.KeyCode,Logo=logo,OnStop=restore})
+        FireSignal=firesignal,GetConnections=getconnections,KeyCode=Enum.KeyCode,Viewport=function()return workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize end,Logo=logo,OnStop=restore})
     env.DevilFishingNNVNContext=ctx
     loading:SetStage("Building the DEVIL HUB interface...",.6)
     library=GuiFactory(guiFn(),ctx)
