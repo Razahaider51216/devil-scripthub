@@ -1,7 +1,7 @@
-# DEVIL HUB Fishing Master standalone v8
+# DEVIL HUB Fishing Master standalone v9
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=8"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=9"))()
 ```
 
 Run in a fresh Fishing Master session. This replaces the previous Ouroboros
@@ -74,15 +74,29 @@ if cleanup then cleanup() end
   presses. Skills run only during FirstPull/Reeling and honor visible locked
   slots, positive cooldown labels and an available IsUsingSkill state.
 - Automated input pauses while typing, interacting with the DEVIL GUI, or
-  handling a selling action. Move the pointer away or hide the GUI to resume.
+  handling a selling action. Hovering without pressing does not pause farming.
 - Synthetic mouse targets exclude the DEVIL window and PlayerGui buttons.
   Stopping the script releases any held mouse/key input.
 - Generic QTE containers called Counter/Direction no longer imply an Up input.
 
+## Mobile regression fix in v9
+
+The v8 GUI interaction probe incorrectly called `UserInputService:GetTouches`,
+which is not part of the Roblox API. An error in that probe could terminate
+an automation worker on touch devices. It now tracks `TouchStarted` and
+`TouchEnded` events, disconnects them with the runtime and pauses only while
+pressing/dragging inside the GUI. Merely hovering no longer blocks automation.
+Reference: https://create.roblox.com/docs/reference/engine/classes/UserInputService
+
+Input probe errors cannot terminate game workers. Mouse target selection also
+checks free edge positions when the GUI covers the central candidates; an
+unavailable executor GUI hit test falls back to the known DEVIL window bounds.
+The existing anti-duplicate input lock and targeted popup dismissal remain.
+
 ## Validation
 
-Official Luau compilation passed for the entry and modified game runtime.
-Offline regression checks cover selling, mobile/desktop skills, lifecycle,
-loader failures and the GUI bridge. An additional 13 input checks reproduce
-popup misclicks, overlapping workers, cooldowns and hidden UI handling.
+Official Luau compilation passed for the entry and game runtime. Offline tests
+cover 13 sale/skill/lifecycle checks, 11 loader checks, 20 GUI bridge checks and
+16 input regression checks. Strict input-service mocks reject unsupported API
+members and exercise mobile press/release, hovering and hidden GUI behavior.
 Live Roblox/DeltaX behavior has not been verified.

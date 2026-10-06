@@ -1,4 +1,4 @@
--- Fishing Master TEST v8 / replacement backend: public NNVN v1.4.8
+-- Fishing Master TEST v9 / replacement backend: public NNVN v1.4.8
 local Loading=(function()
 -- Release loading overlay shared by the small loader and protected entry point.
 local Loading = {}
@@ -82,7 +82,7 @@ function Loading.Begin()
         controller:SetStage("Downloading Fishing Master...",.08)
         task.spawn(function()
             local ok,err = pcall(function()
-                local run,parseError = loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=8"),"Devil Hub / Retry")
+                local run,parseError = loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=9"),"Devil Hub / Retry")
                 assert(run,parseError)
                 if not screen.Parent then return end
                 controller:Destroy()
@@ -156,7 +156,14 @@ return function(deps)
 	function self:Bind(env) self.Env = env end
     function self:InputBlocked()
         if not self.Active or deps.Input:GetFocusedTextBox()then return true end
-        if self.PointerOverGUI and self.PointerOverGUI()then return true end
+        if self.PointerOverGUI then
+            local ok,interacting=pcall(self.PointerOverGUI)
+            if ok and interacting then return true end
+            if not ok and not self.InputProbeWarned then
+                self.InputProbeWarned=true
+                deps.Warn("[DEVIL HUB] GUI input check failed: "..tostring(interacting))
+            end
+        end
         return self.Env and self.Env.S and self.Env.S.AutoActionBusy==true or false
     end
     function self:InputAction(fn)
@@ -177,7 +184,7 @@ return function(deps)
         local viewport=deps.Viewport and deps.Viewport()
         if not viewport then return 0,0 end
         local root=self.Window and self.Window.MainFrame
-        for _,fraction in ipairs({{.5,.5},{.25,.6},{.75,.6},{.5,.8}})do
+        for _,fraction in ipairs({{.5,.5},{.25,.6},{.75,.6},{.5,.8},{.02,.55},{.98,.55},{.02,.85},{.98,.85}})do
             local x,y=math.floor(viewport.X*fraction[1]),math.floor(viewport.Y*fraction[2])
             local blocked=false
             if root and root.Visible then
@@ -186,7 +193,12 @@ return function(deps)
             end
             if not blocked and deps.PlayerGui.GetGuiObjectsAtPosition then
                 local ok,objects=pcall(deps.PlayerGui.GetGuiObjectsAtPosition,deps.PlayerGui,x,y)
-                if not ok then blocked=true else
+                if not ok then
+                    if not self.TargetProbeWarned then
+                        self.TargetProbeWarned=true
+                        deps.Warn("[DEVIL HUB] GUI hit testing unavailable; using window bounds")
+                    end
+                else
                     for _,object in ipairs(objects)do if object:IsA("GuiButton")then blocked=true break end end
                 end
             end
@@ -402,15 +414,19 @@ return function(flow,ctx)
             ToggleButton={Platform="Both",Icon=ctx.Logo},
             ConfigurationSaving={Enabled=false,FolderName="DevilFishingStandalone"}})
         local window={Raw=raw,MainFrame=raw.Root,Tabs={}}
+        local input=game:GetService("UserInputService")
+        local touches={}
+        if input.TouchEnabled then
+            ctx:Connect(input.TouchStarted,function(touch)touches[touch]=true end)
+            ctx:Connect(input.TouchEnded,function(touch)touches[touch]=nil end)
+        end
         ctx.PointerOverGUI=function()
             local root=raw.Root
             if not root or not root.Visible then return false end
-            local input=game:GetService("UserInputService")
-            local position=input:GetMouseLocation()
             local p,s=root.AbsolutePosition,root.AbsoluteSize
             local function inside(v)return v.X>=p.X and v.X<=p.X+s.X and v.Y>=p.Y and v.Y<=p.Y+s.Y end
-            if inside(position)then return true end
-            if input.TouchEnabled then for _,touch in ipairs(input:GetTouches())do if inside(touch.Position)then return true end end end
+            if input.MouseEnabled and input:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)and inside(input:GetMouseLocation())then return true end
+            for touch in pairs(touches)do if inside(touch.Position)then return true end end
             return false
         end
 
@@ -500,7 +516,7 @@ local ok,result=xpcall(function()
     local gui=fetch("https://raw.githubusercontent.com/joustingmatch/OuroFlow/7c495f5a17a2390d70809d628c82cd5384142dbd/Source.luau")
     assert(#gui==413023,"Unexpected GUI revision")
     loading:SetStage("Downloading the NNVN v1.4.8 game systems...",.4)
-    local runtime=fetch("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-nnvn-runtime.lua?v=8")
+    local runtime=fetch("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-nnvn-runtime.lua?v=9")
     assert(#runtime==417619,"Unexpected game systems revision")
     local guiFn=compile(gui,"DEVIL HUB / interface")
     local runtimeFn=compile(runtime,"DEVIL HUB / Fishing Master")
