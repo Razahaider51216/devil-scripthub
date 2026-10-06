@@ -17,14 +17,16 @@ controller owns the request sequence. It does not invent counters or replay
 recorded requests. Hits respect the configured interval with a 0.25 second
 minimum; rejection or seven seconds without hit feedback pauses Auto Break.
 
-Auto Break and Auto Pick Up & Bank now use normal Humanoid movement instead
-of repeatedly teleporting the character. Pickup takes movement priority,
-holds the prompt for its configured duration, waits for a nonempty Carrying
-state, then walks to the original own-base destination. Banking waits for
-Carrying to clear; a confirmation timeout pauses farming. Stable targets,
-bounded pickup retries and stalled-route detection prevent alternating
-movement commands. Main > Automation status reports the current step.
-Movement uses MoveTo and cannot route around every obstacle.
+Auto Break and Auto Pick Up & Bank use teleport travel again (live-5), replacing
+the slow walking behavior from live-4. A shared travel slot limits transfers to
+one every 0.6 seconds. Each target/stage receives one transfer, followed by an
+arrival wait; a corrected position pauses that mode instead of repeatedly
+forcing the teleport. Pickup takes travel priority, holds the prompt for its
+configured duration, waits for a nonempty Carrying state, then teleports to
+the original own-base CFrame. Banking waits for Carrying to clear; a
+confirmation timeout pauses farming. Stable targets and bounded pickup retries
+prevent alternating commands. Main > Automation status reports the current step.
+This does not establish that the current server permits teleport travel.
 
 The old and supplied map exports have the same SafeZone position and size.
 The remote list grew from 40 to 62 entries, including EggHitConfirmed; no old
@@ -82,13 +84,14 @@ Gameplay derives from the public joustingmatch/Ouroboros revision
 3f9986b3035f71437b7af81e0efd5e313834184db55b9101e0ce60e3d7c5b821.
 Six callbacks are patched: two duplicated hit workers, the pickup/bank worker,
 the Carrying predicate and the two automation toggle setters. Other original
-source slices are retained, with a separate movement/action controller.
+source slices are retained, with a separate travel/action controller.
 OuroFlow GUI is pinned to c8251f76f74d9942114ebccb0564aa0ac196320a.
 This is not the latest FlowAuth payload; authentication checks are not bypassed.
 
 Validated with official Luau compilation, exact packed roundtrip, mocked
-native tool activation/cooldown, movement arbitration, pickup hold timing,
-banking confirmation timeouts and hit rejection/missing-feedback pauses; mock loading
+native tool activation/cooldown, single transfers per target, shared travel
+cooldown, pickup hold timing, banking confirmation timeouts, position-correction
+and hit rejection/missing-feedback pauses; mock loading
 failure/retry/cleanup cases, native callback synchronization, Settings webhook
 controls, Socials filtering, and mocked pickup notifications, item snapshots,
 429 backoff and request failures. No real webhook messages were sent in tests.
