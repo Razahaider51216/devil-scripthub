@@ -1,4 +1,4 @@
--- Fishing Master TEST v2 / adaptive skills and fishing cycle
+-- Fishing Master TEST v3 / adaptive skills and coordinated selling
 local Loading=(function()
 -- Release loading overlay shared by the small loader and protected entry point.
 local Loading = {}
@@ -82,7 +82,7 @@ function Loading.Begin()
         controller:SetStage("Downloading Fishing Master test...",.08)
         task.spawn(function()
             local ok,err = pcall(function()
-                local run,parseError = loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=2"),"Devil Hub / Retry")
+                local run,parseError = loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=3"),"Devil Hub / Retry")
                 assert(run,parseError)
                 if not screen.Parent then return end
                 controller:Destroy()
@@ -119,6 +119,7 @@ return function(deps)
 	local input = deps.Input
 	local player = deps.Player
 	local clock = deps.Clock or os.clock
+	local wait = deps.Wait or (task and task.wait)
 	local fire = deps.FireSignal
 	local connections = deps.GetConnections
 	local letters = { "Z", "X", "C", "V" }
@@ -314,6 +315,168 @@ return function(deps)
 	function self:Control(name)
 		return self.Library and self.Library.Flags and self.Library.Flags[name]
 	end
+	function self:HoldCast(phase)
+		return phase == "Idling" and self.SellTicket ~= nil and not self.SellTicket.Cancelled and not self.Stopped
+	end
+	function self:RestoreSellPosition(ticket)
+		if not ticket or not ticket.Root then
+			return
+		end
+		local root, frame = ticket.Root, ticket.Frame
+		ticket.Root, ticket.Frame = nil, nil
+		-- A replaced character must never inherit the old character's position.
+		if root.Parent and ticket.Context.GetRoot() == root then
+			local ok, err = pcall(function()
+				root.CFrame = frame
+			end)
+			if not ok then
+				self.SellStatus = "Return failed: " .. tostring(err)
+			end
+		end
+	end
+	function self:SellOnce(context)
+		if self.Stopped or self.SellTicket then
+			return false
+		end
+		local ticket = { Context = context }
+		self.SellTicket = ticket
+		local function allowed()
+			return not self.Stopped
+				and not ticket.Cancelled
+				and not context.Runtime.Unloaded
+				and context.State.autoSell == true
+		end
+		local ok, result = pcall(function()
+			local services = context.Services
+			local controller = services and services.Controllers and services.Controllers.SellController
+			assert(controller, "SellController unavailable")
+			self.SellStatus = "Waiting for fishing to finish"
+			local deadline = clock() + 45
+			while allowed() and context.Phase() ~= "Idling" and clock() < deadline do
+				wait(0.1)
+			end
+			if not allowed() then
+				self.SellStatus = "Sell cancelled"
+				return false
+			end
+			if context.Phase() ~= "Idling" then
+				self.SellStatus = "Fishing still busy; retry next sell interval"
+				return false
+			end
+			local data = context.GetData()
+			assert(type(data) == "table", "Player data unavailable")
+			local entitlement = services.SellConfig and services.SellConfig.SellAnywhereEntitlement
+			if
+				entitlement
+				and type(data.Entitlements) == "table"
+				and data.Entitlements[entitlement] == true
+				and type(controller.SellAllAnywhere) == "function"
+			then
+				controller:SellAllAnywhere()
+				self.SellStatus = "Sell Anywhere command sent"
+				return true
+			end
+			assert(type(controller.SellAll) == "function", "SellAll method unavailable")
+			local root = context.GetRoot()
+			assert(root and root.Parent, "Character root unavailable")
+			local seller = context.FindSeller(root.Position)
+			assert(seller, "No fish seller streamed in nearby islands")
+			ticket.Root, ticket.Frame = root, root.CFrame
+			self.SellStatus = "Moving to fish seller"
+			root.CFrame = deps.SellerCFrame(seller)
+			wait(0.6)
+			if not allowed() or context.GetRoot() ~= root or not root.Parent then
+				self.SellStatus = "Sell cancelled or character changed"
+				return false
+			end
+			if context.Phase() ~= "Idling" then
+				self.SellStatus = "Fishing restarted; sell skipped"
+				return false
+			end
+			controller:SellAll()
+			wait(0.5)
+			self.SellStatus = "Sell command sent; returning to fishing spot"
+			return true
+		end)
+		local restored, restoreError = pcall(self.RestoreSellPosition, self, ticket)
+		if self.SellTicket == ticket then
+			self.SellTicket = nil
+		end
+		if not restored then
+			self.SellStatus = "Return failed: " .. tostring(restoreError)
+		end
+		if not ok then
+			self.SellStatus = "Sell failed: " .. tostring(result)
+			return false
+		end
+		return result
+	end
+	function self:ApplySellRarities(context)
+		if self.Stopped or context.Runtime.Unloaded then
+			return
+		end
+		local services, state = context.Services, context.State
+		local config = services and services.AutoSellConfig
+		if
+			not config
+			or type(config.Order) ~= "table"
+			or type(config.SettingName) ~= "function"
+			or not services.SetSettings
+			or type(services.SetSettings.Fire) ~= "function"
+		then
+			self.RarityStatus = "Auto sell setting contract unavailable"
+			return
+		end
+		local data = context.GetData()
+		if type(data) ~= "table" then
+			self.RarityStatus = "Waiting for player data"
+			return
+		end
+		local current = type(data.Settings) == "table" and data.Settings.AutoSell
+		local hasAcknowledgement = type(current) == "table"
+		self.SellSettingAttempts = self.SellSettingAttempts or {}
+		self.RarityError = nil
+		local pending = 0
+		for _, rarity in ipairs(config.Order) do
+			local name = config.SettingName(rarity)
+			if type(name) ~= "string" or name == "" then
+				self.RarityStatus = "Invalid setting for rarity " .. tostring(rarity)
+				return
+			end
+			local desired = state.autoSellRarities == true and state.sellRarities[rarity] == true
+			local attempt = self.SellSettingAttempts[rarity]
+			if hasAcknowledgement and (current[name] == true) == desired then
+				self.SellSettingAttempts[rarity] = nil
+				state.sellApplied[rarity] = desired and true or nil
+			else
+				if not attempt or attempt.Desired ~= desired then
+					attempt = { Desired = desired, Count = 0, At = -math.huge }
+					self.SellSettingAttempts[rarity] = attempt
+				end
+				pending += 1
+				state.sellApplied[rarity] = true -- Pending intent, not a confirmed server update.
+				if attempt.Count < 3 and clock() - attempt.At >= 5 then
+					attempt.At = clock()
+					attempt.Count += 1
+					local sent, err = pcall(services.SetSettings.Fire, services.SetSettings, name, desired)
+					if not sent then
+						self.RarityError = tostring(err)
+					end
+				end
+				if not desired and attempt.Count >= 3 then
+					state.sellApplied[rarity] = nil
+				end
+			end
+		end
+		self.RarityStatus = pending == 0 and "Rarity settings confirmed"
+			or "Waiting for rarity setting confirmation (" .. pending .. ")"
+		if state.autoSellRarities == true and next(state.sellRarities) == nil then
+			self.RarityStatus = "Select one or more rarities in Selling"
+		end
+		if self.RarityError then
+			self.RarityStatus = "Rarity settings: " .. self.RarityError
+		end
+	end
 	function self:Write(name, value)
 		local control = self:Control(name)
 		if control and type(control.Set) == "function" then
@@ -359,6 +522,10 @@ return function(deps)
 		end
 	end
 	function self:StopAll()
+		if self.SellTicket then
+			self.SellTicket.Cancelled = true
+			pcall(self.RestoreSellPosition, self, self.SellTicket)
+		end
 		self:SetCycle(false)
 		if self.CycleControl then
 			self.CycleControl:Set(false, true)
@@ -451,6 +618,20 @@ return function(deps)
 			end,
 			UpdateRate = 0.5,
 		})
+		controls:CreateLabel({
+			Name = "Sell status",
+			Update = function()
+				return self.SellStatus or "Auto Sell idle"
+			end,
+			UpdateRate = 0.5,
+		})
+		controls:CreateLabel({
+			Name = "Rarity status",
+			Update = function()
+				return self.RarityStatus or "Select rarities in Selling"
+			end,
+			UpdateRate = 0.5,
+		})
 		controls:CreateButton({
 			Name = "Stop All Automation",
 			Callback = function()
@@ -486,6 +667,27 @@ local function PatchFishing(source)
 do
 local before=[====[function(g,aa,z)local R,J,q,au,ak=nil,nil,nil,nil,nil;local ah=nil;local c8=aV;ah=7;while true do ah+=276.;if ah<1437. then if ah<281 then if ah<278 then if ah<277 then if ah==276. then R=x[c8[91]][c8[595]][c8[332]..g];ah=3. else break end else local c9=c8[673];local da=q*au;ah=if(q*c8[223]+au*c8[781]+da)%c9==c8[391]then 9. else 2 end elseif ah<279. then return nil elseif ah<280 then if ah==279. then J=R;R=((function(k,f,j,e)if type(k)~="string"then return false end;if#k~=f then return false end;local g=5381;local c=buffer.fromstring(k);local a=0.;while true do if a<=f-4 then local l=buffer.readu32(c,a);g=bit32.bxor(g,l);g=bit32.band(g*33.,4294967295.);a=a+4 else break end end;while true do if a<f then local m=buffer.readu8(c,a);g=bit32.bxor(g,m);g=bit32.band(g*33.,4294967295.);a=a+1 else break end end;if g~=j then return false end;return k==e end)(type(J),c8[711.],c8[416],c8[272]));ah=if R then 4 else 8 else ah=2655.;continue end else R=(function(k,f,j,e)if type(k)~="string"then return false end;if#k~=f then return false end;local g=5381;local c=buffer.fromstring(k);local a=0.;while true do if a<=f-4 then local l=buffer.readu32(c,a);g=bit32.bxor(g,l);g=bit32.band(g*33.,4294967295.);a=a+4 else break end end;while true do if a<f then local m=buffer.readu8(c,a);g=bit32.bxor(g,m);g=bit32.band(g*33.,4294967295.);a=a+1 else break end end;if g~=j then return false end;return k==e end)(type(J[c8[153.]]),c8[107],c8[586],c8[745]);ah=8 end elseif ah<283 then if ah<282. then local db=c8[60.]-ak;au=c8[127]*ak+c8[335]*db;ah=1 else break end elseif ah<284 then if ah==283 then R=x[c8[91]][c8[595]];ah=if R then 0. else 3. else ah=284;continue end elseif ah<285. then if ah==284 then ak=if R then c8[60.]else c8[813.];local dc=c8[60.]-ak;q=c8[257]*ak+c8[1029.]*dc;ah=5 else ah=280;continue end elseif ah==285. then return J[c8[153.]]else ah=283;continue end else break end end end]====]
 local after=[====[function(slot) return __devilCompat:SkillCallback(x,slot) end]====]
+local first,last=source:find(before,1,true)
+assert(first and not source:find(before,last+1,true),"Unexpected skill patch target")
+source=source:sub(1,first-1)..after..source:sub(last+1)
+end
+do
+local before=[====[function(y)local ag,v,as,au,o,aO,aB=nil,nil,nil,nil,nil,nil,nil;local aQ=nil;local cN=aV;aQ=14;while true do aQ=14800-aQ;if aQ<14786 then if aQ<12181 then break elseif aQ<13339 then break elseif aQ<14784. then if aQ<14783 then break else v=e();aQ=if not v then 2 else 13 end elseif aQ<14785 then if aQ==14784. then aQ=if as then 4 else 17 else aQ=14786;continue end elseif aQ==14785 then v=as;as=((function(k,f,j,e)if type(k)~="string"then return false end;if#k~=f then return false end;local g=5381;local c=buffer.fromstring(k);local a=0.;while true do if a<=f-4 then local l=buffer.readu32(c,a);g=bit32.bxor(g,l);g=bit32.band(g*33.,4294967295.);a=a+4 else break end end;while true do if a<f then local m=buffer.readu8(c,a);g=bit32.bxor(g,m);g=bit32.band(g*33.,4294967295.);a=a+1 else break end end;if g~=j then return false end;return k==e end)(type(v),cN[711.],cN[416],cN[272]));aQ=if as then 3. else 16 else aQ=14786;continue end elseif aQ<14793. then if aQ<14789 then if aQ<14787. then aQ=if not(function(k,f,j,e)if type(k)~="string"then return false end;if#k~=f then return false end;local g=5381;local c=buffer.fromstring(k);local a=0.;while true do if a<=f-4 then local l=buffer.readu32(c,a);g=bit32.bxor(g,l);g=bit32.band(g*33.,4294967295.);a=a+4 else break end end;while true do if a<f then local m=buffer.readu8(c,a);g=bit32.bxor(g,m);g=bit32.band(g*33.,4294967295.);a=a+1 else break end end;if g~=j then return false end;return k==e end)(P(),cN[842],cN[824],cN[933.])then 1 else 10 elseif aQ<14788 then as=r(v[cN[567.]]);aQ=if not as then 8 else 0. else as=v[cN[582.]];aQ=15. end elseif aQ<14791 then if aQ<14790. then if aQ==14789 then v[cN[794]]=au;aQ=9. else aQ=14786;continue end elseif aQ==14790. then ag=O[cN[622]][cN[766]];v=G();as=v;aB=if as then cN[60.]else cN[813.];local cO=cN[60.]-aB;o=cN[260]*aB+cN[206]*cO;cO=cN[60.]-aB;aO=cN[302]*aB+cN[211]*cO;cO=cN[673];local cP=o*aO;aQ=if(o*cN[725]+aO*cN[549.]+cP)%cO==cN[829]then 12. else 15. else aQ=14798;continue end elseif aQ<14792 then aQ=6. elseif aQ==14792 then return else aQ=14785;continue end elseif aQ<14797 then if aQ<14795 then if aQ<14794 then if aQ==14793. then ag[cN[978.]](ag);local cQ=cN[433][cN[463]];cN[436](cN[955]);aQ=5 else aQ=14796.;continue end else break end elseif aQ<14796. then v=e();aQ=if v then 11 else 9. else ag[cN[74]](ag);return end elseif aQ<14799. then if aQ<14798 then if aQ==14797 then as=v[O[cN[944]][cN[513.]]]==true;aQ=16 else aQ=14800;continue end else return end elseif aQ<14800 then if aQ==14799. then return else aQ=14786;continue end else au=v[cN[794]];local cR=cN[548][cN[229]];v[cN[794]]=cN[521][cN[229]](as+cN[820](cN[842],cN[736],cN[813.]));cR=cN[433][cN[463]];cN[436](cN[222.]);aQ=if not E[cN[517]]then 7 else 5 end end end]====]
+local after=[====[function() return __devilCompat:SellOnce({Services=O,State=u,Runtime=E,GetData=G,GetRoot=e,Phase=P,FindSeller=r}) end]====]
+local first,last=source:find(before,1,true)
+assert(first and not source:find(before,last+1,true),"Unexpected skill patch target")
+source=source:sub(1,first-1)..after..source:sub(last+1)
+end
+do
+local before=[====[function(q,ao,ae)local B,aR,r,o,G,ax,Z=nil,nil,nil,nil,nil,nil,nil;local af=nil;local dd=aV;af=7;while true do af=12177.-af;if af<12160 then if af<10045 then break elseif af<12155 then if af<12153. then break elseif af<12154 then if af==12153. then aR=u[dd[1039]];af=if aR then 16 else 20 else af=12172;continue end elseif af==12154 then B=P();af=if u[dd[1039]]then 1 else 24. else af=12168.;continue end elseif af<12157 then if af<12156. then if af==12155 then aR=os[dd[464]]()-u[dd[1039]]>dd[736];af=18. else af=12166;continue end elseif af==12156. then u[dd[1039]]=nil;af=9. else af=5717;continue end elseif af<12158 then if af==12157 then aR=not(function(k,f,j,e)if type(k)~="string"then return false end;if#k~=f then return false end;local g=5381;local c=buffer.fromstring(k);local a=0.;while true do if a<=f-4 then local l=buffer.readu32(c,a);g=bit32.bxor(g,l);g=bit32.band(g*33.,4294967295.);a=a+4 else break end end;while true do if a<f then local m=buffer.readu8(c,a);g=bit32.bxor(g,m);g=bit32.band(g*33.,4294967295.);a=a+1 else break end end;if g~=j then return false end;return k==e end)(B,dd[842],dd[824],dd[933.]);af=16 else af=12163;continue end elseif af<12159. then af=if aR then 6. else 14 elseif af==12159. then af=if aR then 21. else 17 else af=12156.;continue end elseif af<12169 then if af<12164 then if af<12162. then if af<12161 then if af==12160 then local de=(function(k,f,j,e)if type(k)~="string"then return false end;if#k~=f then return false end;local g=5381;local c=buffer.fromstring(k);local a=0.;while true do if a<=f-4 then local l=buffer.readu32(c,a);g=bit32.bxor(g,l);g=bit32.band(g*33.,4294967295.);a=a+4 else break end end;while true do if a<f then local m=buffer.readu8(c,a);g=bit32.bxor(g,m);g=bit32.band(g*33.,4294967295.);a=a+1 else break end end;if g~=j then return false end;return k==e end)(B,dd[842],dd[824],dd[933.]);local df=dd[842];local dg=dd[824];local dh=dd[933.];aR=not(function(k,f,j,e)if type(k)~="string"then return false end;if#k~=f then return false end;local g=5381;local c=buffer.fromstring(k);local a=0.;while true do if a<=f-4 then local l=buffer.readu32(c,a);g=bit32.bxor(g,l);g=bit32.band(g*33.,4294967295.);a=a+4 else break end end;while true do if a<f then local m=buffer.readu8(c,a);g=bit32.bxor(g,m);g=bit32.band(g*33.,4294967295.);a=a+1 else break end end;if g~=j then return false end;return k==e end)(B,dd[946],dd[537.],dd[1041.]);r=not de;Z=if r then dd[60.]else dd[813.];de=dd[60.]-Z;G=dd[654.]*Z+dd[31]*de;de=dd[60.]-Z;ax=dd[617]*Z+dd[751]*de;de=dd[673];dh=G*ax;af=if(G*dd[594.]+ax*dd[1]+dh)%de==dd[103]then 5 else 2 else af=12153.;continue end else af=if aR then 19 else 15. end elseif af<12163 then aR=an();af=19 elseif af==12163 then aR=not D();af=6. else af=8232.;continue end elseif af<12166 then if af<12165. then u[dd[1039]]=os[dd[464]]();U(dd[610]);af=10 else af=if o then 0. else 11 end elseif af<12167 then af=9. elseif af<12168. then break elseif af==12168. then af=24. else af=12159.;continue end elseif af<12174. then if af<12171. then if af<12170 then if af==12169 then o=aR;af=12. else af=12168.;continue end else af=if not D()then 3. else 23 end elseif af<12172 then if af==12171. then af=if aR then 4 else 13 else af=12154;continue end elseif af<12173 then if af==12172 then r=aR;af=2 else af=12174.;continue end else return end elseif af<12176 then if af<12175 then l();return else aR=not(function(k,f,j,e)if type(k)~="string"then return false end;if#k~=f then return false end;local g=5381;local c=buffer.fromstring(k);local a=0.;while true do if a<=f-4 then local l=buffer.readu32(c,a);g=bit32.bxor(g,l);g=bit32.band(g*33.,4294967295.);a=a+4 else break end end;while true do if a<f then local m=buffer.readu8(c,a);g=bit32.bxor(g,m);g=bit32.band(g*33.,4294967295.);a=a+1 else break end end;if g~=j then return false end;return k==e end)(B,dd[107],dd[34],dd[859]);o=r;af=if o then 8 else 12. end elseif af<12177. then aR=((function(k,f,j,e)if type(k)~="string"then return false end;if#k~=f then return false end;local g=5381;local c=buffer.fromstring(k);local a=0.;while true do if a<=f-4 then local l=buffer.readu32(c,a);g=bit32.bxor(g,l);g=bit32.band(g*33.,4294967295.);a=a+4 else break end end;while true do if a<f then local m=buffer.readu8(c,a);g=bit32.bxor(g,m);g=bit32.band(g*33.,4294967295.);a=a+1 else break end end;if g~=j then return false end;return k==e end)(B,dd[842],dd[824],dd[933.]));af=if aR then 22 else 18. elseif af<15616 then if af==12177. then u[dd[1039]]=nil;af=11 else af=12160;continue end else break end end end]====]
+local after=[====[function(q,ao,ae) if __devilCompat:HoldCast(P()) then return end local B,aR,r,o,G,ax,Z=nil,nil,nil,nil,nil,nil,nil;local af=nil;local dd=aV;af=7;while true do af=12177.-af;if af<12160 then if af<10045 then break elseif af<12155 then if af<12153. then break elseif af<12154 then if af==12153. then aR=u[dd[1039]];af=if aR then 16 else 20 else af=12172;continue end elseif af==12154 then B=P();af=if u[dd[1039]]then 1 else 24. else af=12168.;continue end elseif af<12157 then if af<12156. then if af==12155 then aR=os[dd[464]]()-u[dd[1039]]>dd[736];af=18. else af=12166;continue end elseif af==12156. then u[dd[1039]]=nil;af=9. else af=5717;continue end elseif af<12158 then if af==12157 then aR=not(function(k,f,j,e)if type(k)~="string"then return false end;if#k~=f then return false end;local g=5381;local c=buffer.fromstring(k);local a=0.;while true do if a<=f-4 then local l=buffer.readu32(c,a);g=bit32.bxor(g,l);g=bit32.band(g*33.,4294967295.);a=a+4 else break end end;while true do if a<f then local m=buffer.readu8(c,a);g=bit32.bxor(g,m);g=bit32.band(g*33.,4294967295.);a=a+1 else break end end;if g~=j then return false end;return k==e end)(B,dd[842],dd[824],dd[933.]);af=16 else af=12163;continue end elseif af<12159. then af=if aR then 6. else 14 elseif af==12159. then af=if aR then 21. else 17 else af=12156.;continue end elseif af<12169 then if af<12164 then if af<12162. then if af<12161 then if af==12160 then local de=(function(k,f,j,e)if type(k)~="string"then return false end;if#k~=f then return false end;local g=5381;local c=buffer.fromstring(k);local a=0.;while true do if a<=f-4 then local l=buffer.readu32(c,a);g=bit32.bxor(g,l);g=bit32.band(g*33.,4294967295.);a=a+4 else break end end;while true do if a<f then local m=buffer.readu8(c,a);g=bit32.bxor(g,m);g=bit32.band(g*33.,4294967295.);a=a+1 else break end end;if g~=j then return false end;return k==e end)(B,dd[842],dd[824],dd[933.]);local df=dd[842];local dg=dd[824];local dh=dd[933.];aR=not(function(k,f,j,e)if type(k)~="string"then return false end;if#k~=f then return false end;local g=5381;local c=buffer.fromstring(k);local a=0.;while true do if a<=f-4 then local l=buffer.readu32(c,a);g=bit32.bxor(g,l);g=bit32.band(g*33.,4294967295.);a=a+4 else break end end;while true do if a<f then local m=buffer.readu8(c,a);g=bit32.bxor(g,m);g=bit32.band(g*33.,4294967295.);a=a+1 else break end end;if g~=j then return false end;return k==e end)(B,dd[946],dd[537.],dd[1041.]);r=not de;Z=if r then dd[60.]else dd[813.];de=dd[60.]-Z;G=dd[654.]*Z+dd[31]*de;de=dd[60.]-Z;ax=dd[617]*Z+dd[751]*de;de=dd[673];dh=G*ax;af=if(G*dd[594.]+ax*dd[1]+dh)%de==dd[103]then 5 else 2 else af=12153.;continue end else af=if aR then 19 else 15. end elseif af<12163 then aR=an();af=19 elseif af==12163 then aR=not D();af=6. else af=8232.;continue end elseif af<12166 then if af<12165. then u[dd[1039]]=os[dd[464]]();U(dd[610]);af=10 else af=if o then 0. else 11 end elseif af<12167 then af=9. elseif af<12168. then break elseif af==12168. then af=24. else af=12159.;continue end elseif af<12174. then if af<12171. then if af<12170 then if af==12169 then o=aR;af=12. else af=12168.;continue end else af=if not D()then 3. else 23 end elseif af<12172 then if af==12171. then af=if aR then 4 else 13 else af=12154;continue end elseif af<12173 then if af==12172 then r=aR;af=2 else af=12174.;continue end else return end elseif af<12176 then if af<12175 then l();return else aR=not(function(k,f,j,e)if type(k)~="string"then return false end;if#k~=f then return false end;local g=5381;local c=buffer.fromstring(k);local a=0.;while true do if a<=f-4 then local l=buffer.readu32(c,a);g=bit32.bxor(g,l);g=bit32.band(g*33.,4294967295.);a=a+4 else break end end;while true do if a<f then local m=buffer.readu8(c,a);g=bit32.bxor(g,m);g=bit32.band(g*33.,4294967295.);a=a+1 else break end end;if g~=j then return false end;return k==e end)(B,dd[107],dd[34],dd[859]);o=r;af=if o then 8 else 12. end elseif af<12177. then aR=((function(k,f,j,e)if type(k)~="string"then return false end;if#k~=f then return false end;local g=5381;local c=buffer.fromstring(k);local a=0.;while true do if a<=f-4 then local l=buffer.readu32(c,a);g=bit32.bxor(g,l);g=bit32.band(g*33.,4294967295.);a=a+4 else break end end;while true do if a<f then local m=buffer.readu8(c,a);g=bit32.bxor(g,m);g=bit32.band(g*33.,4294967295.);a=a+1 else break end end;if g~=j then return false end;return k==e end)(B,dd[842],dd[824],dd[933.]));af=if aR then 22 else 18. elseif af<15616 then if af==12177. then u[dd[1039]]=nil;af=11 else af=12160;continue end else break end end end]====]
+local first,last=source:find(before,1,true)
+assert(first and not source:find(before,last+1,true),"Unexpected skill patch target")
+source=source:sub(1,first-1)..after..source:sub(last+1)
+end
+do
+local before=[====[function(ag,aw)local Q,al,aA,L,ay,q,aq,aF,n=nil,nil,nil,nil,nil,nil,nil,nil,nil;local aR=nil;local cY=aV;aR=5;while true do aR=bit32.bxor(aR,3451);if aR<3451 then if aR<3449 then if aR==3448 then local cZ=O;local c_=cZ[cY[865]];local c0=c_[cY[983]];local c1=cY[865];local c2=cY[983];aq=false;for k,f in c0 do aF=k;n=f;local aK=aF;local ao=n;local q=nil;q=cY[711.];while true do if q<6. then if q<3. then if q<1 then al[ao]=aA;q=cY[60.]elseif q<2 then q=cY[736]else aA=u[cY[984.]][ao];q=cY[842]end elseif q<4 then break elseif q<5 then aA=nil;q=cY[813.]else al=O[cY[865]][cY[203]](ao);aA=u[cY[82]];q=if aA then cY[107]else cY[749]end elseif q<9. then if q<7 then ay=aA;q=cY[892]elseif q<8 then cY[554](O[cY[496]][cY[638]],O[cY[496]],al,L);al=u[cY[984.]];aA=L;q=if aA then cY[813.]else cY[249.]else aA=u[cY[1025]][ao]==true;q=cY[749]end elseif q<11 then if q<10 then aA=L;q=if aA then cY[842]else cY[52]else L=aA;aA=Q[al]==true;ay=L~=aA;q=if ay then cY[402.]else cY[892]end elseif q<12. then aq=true;q=cY[736]else q=if ay then cY[946]else cY[60.]end end;if aq then break end end;aR=1 else break end elseif aR<3450. then if aR==3449 then al=Q[cY[536]];aR=6. else aR=3451;continue end else break end elseif aR<8260 then if aR<3455 then if aR<3453. then if aR<3452 then al=Q[cY[536]][cY[99.]];aR=7 else Q=al;aR=if not(function(k,f,j,e)if type(k)~="string"then return false end;if#k~=f then return false end;local g=5381;local c=buffer.fromstring(k);local a=0.;while true do if a<=f-4 then local l=buffer.readu32(c,a);g=bit32.bxor(g,l);g=bit32.band(g*33.,4294967295.);a=a+4 else break end end;while true do if a<f then local m=buffer.readu8(c,a);g=bit32.bxor(g,m);g=bit32.band(g*33.,4294967295.);a=a+1 else break end end;if g~=j then return false end;return k==e end)(type(Q),cY[711.],cY[416],cY[272])then 4 else 3. end elseif aR<3454 then aR=if al then 0. else 7 elseif aR==3454 then Q=G();al=Q;aR=if al then 2 else 6. else aR=3455;continue end elseif aR<6279. then if aR<5719 then if aR==3455 then return else break end else break end else break end else break end end end]====]
+local after=[====[function() return __devilCompat:ApplySellRarities({Services=O,State=u,Runtime=E,GetData=G}) end]====]
 local first,last=source:find(before,1,true)
 assert(first and not source:find(before,last+1,true),"Unexpected skill patch target")
 source=source:sub(1,first-1)..after..source:sub(last+1)
@@ -598,6 +800,9 @@ local ok, result = xpcall(function()
 		FireSignal = firesignal,
 		GetConnections = getconnections,
 		KeyCode = Enum.KeyCode,
+		SellerCFrame = function(position)
+			return CFrame.new(position + Vector3.new(6, 3, 0))
+		end,
 	})
 	env.DevilFishingTestCompat = compat
 	source = PatchFishing(source)

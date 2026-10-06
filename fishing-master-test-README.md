@@ -1,13 +1,14 @@
-## Standalone test v2
+## Standalone test v3
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=2"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=3"))()
 ```
 
 Run inside Fishing Master in a fresh session. The original historical GUI stays
 pinned to commit `836b20c6a25cca72dd8530f54462d978251b3024`. Gameplay source is
-prefetched from its immutable public revision, then three exact source targets
-are patched: the skill callback resolver and the two skill-label constructors.
+prefetched from its immutable public revision, then six exact source targets
+are patched: the skill callback resolver, two skill-label constructors,
+Auto Sell All, the cast worker guard and the rarity setting synchronizer.
 All other historical game logic remains the original source. The loader needs
 `loadstring` and `hookfunction`; native automation needs `firesignal`.
 
@@ -35,6 +36,40 @@ Downloads have 30-second deadlines and startup has a 90-second deadline.
 Temporary HTTP hooks and compatibility bindings restore on success or failure.
 Closing/unloading removes the additional heartbeat listener and stops its
 callbacks. Errors appear after `[FISHING MASTER TEST]` in the console.
+
+## Selling in v3
+
+The historical Sell All worker returns immediately unless fishing is Idling.
+Continuous auto casting can restart before a sell tick gets that state. V3
+reserves a sell operation and holds new casts only while Idling, allowing the
+current cast/minigame/skills to finish. It waits at most 45 seconds, sends the
+native sell command once, and restores the original character position on
+completion, errors or cancellation. A replaced character is never moved to the
+old spawn position. Sell Anywhere is used only with the actual entitlement.
+Live acceptance is not inferred from a client method returning normally.
+
+The old rarity synchronizer cached changes even when SetSettings.Fire failed.
+V3 reads current Settings.AutoSell and distinguishes confirmed values from
+pending intent. Failed/unconfirmed packets can retry every five seconds, at
+most three attempts per setting/value. Disabled cleanup is also bounded.
+Status labels show missing sellers, busy fishing, failed commands, missing
+contracts, pending confirmation and an empty rarity selection.
+
+The native selected-rarity switch updates the game's auto-sell settings; this
+source does not demonstrate a method to sell existing inventory by rarity.
+Choose at least one rarity in Selling. This repair does not invent a remote
+contract for selling existing inventory selectively.
+
+There is no selectable island teleport menu in this Fishing Master source.
+IslandConfig/UnlockedIslands filter rod purchases. The existing sell journey
+finds the nearest npc_fish_seller under World.Islands.*.Interactives, moves to
+that seller and returns. The dump confirms npc_fish_seller_1 on island_starter.
+Reconnect uses TeleportService separately. No island navigation was added.
+
+Eight sell scenarios and filter-setting checks cover cast coordination,
+command errors, no seller, timeouts, cancellation, respawn, unload, actual
+Sell Anywhere entitlement, failed setting packets, bounded retries and server
+acknowledgement. Live Roblox/DeltaX behavior remains untested in this release.
 
 ## Local dump findings
 
