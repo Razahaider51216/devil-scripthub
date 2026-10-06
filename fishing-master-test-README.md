@@ -1,7 +1,7 @@
-# DEVIL HUB Fishing Master standalone v6
+# DEVIL HUB Fishing Master standalone v7
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=6"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=7"))()
 ```
 
 Run in a fresh Fishing Master session. This replaces the previous Ouroboros
@@ -27,7 +27,8 @@ as the main DEVIL HUB scripts, pinned to commit
 `b63399d1cefd5b61ca383d27a62110863e63350df856bfede18af198bf6992d3`.
 A WindUI-to-OuroFlow adapter renders the native Fishing Master controls through
 that library. The upstream UltraObsidian GUI is no longer downloaded or created.
-The gameplay runtime is byte-identical to v5.
+The separate floating Fishing Master version/status bar and its settings
+section are removed. Gameplay automation is preserved.
 
 ## Systems and integration changes
 
@@ -50,7 +51,7 @@ executor capabilities and any existing upstream feature restrictions.
   at the seller and preserve the original return position for retries.
 - Six hardcoded third-party weather webhook credentials are removed. Weather
   sending defaults off and uses only the user-entered Boss/Weather webhook URL.
-- Native game workers, 13 event connections and owned hooks are tracked and
+- Native game workers, 12 event connections and owned hooks are tracked and
   cleaned when the library unloads or startup fails. Downloads time out after
   30 seconds; game setup times out after 90 seconds with cleanup.
 - Existing automation defaults remain off. No previous game backend is loaded.

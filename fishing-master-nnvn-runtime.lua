@@ -4572,53 +4572,9 @@ end
 -- FUNCTION 6: setupInfoBar
 -- ============================================================
 local function setupInfoBar(env)
-    local PlayerGui = PlayerGui
-    local RunService = RunService
-    local Stats = Stats
-    local S = env.S
-    local getRoot = env.getRoot
-    local getIslandForPosition = env.getIslandForPosition
-
-    if PlayerGui:FindFirstChild("NNVN_FishingMaster_InfoBar") then return end
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "NNVN_FishingMaster_InfoBar"
-    gui.ResetOnSpawn = false; gui.IgnoreGuiInset = true; gui.Parent = PlayerGui
-    local frame = Instance.new("Frame")
-    frame.BackgroundColor3 = Color3.fromRGB(8,8,8)
-    frame.BorderColor3 = Color3.fromRGB(245,245,245); frame.BorderSizePixel = 1
-    frame.Position = UDim2.fromOffset(8,112); frame.Size = UDim2.fromOffset(560,24)
-    frame.Parent = gui; frame.Active = true; frame.Draggable = true
-    local label = Instance.new("TextLabel")
-    label.BackgroundTransparency = 1; label.TextColor3 = Color3.fromRGB(255,255,255)
-    label.Font = Enum.Font.GothamMedium; label.TextSize = 12
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Position = UDim2.fromOffset(8,0); label.Size = UDim2.new(1,-12,1,0)
-    label.Text = "Fishing Master v1.4.8 | -- ms | -- FPS | Island: Unknown"
-    label.Parent = frame
-    local frames, last = 0, os.clock()
-    __devilRuntime:Connect(RunService.RenderStepped,function()
-        frames += 1
-        local now = os.clock()
-        if now - last >= 1 then
-            local fps = frames; frames = 0; last = now
-            gui.Enabled = S.InfoBarEnabled ~= false
-            frame.Visible = S.InfoBarEnabled ~= false
-            local ping = "-- ms"
-            pcall(function() ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValueString() end)
-            local island = "Unknown"
-            pcall(function()
-                local root = getRoot and getRoot()
-                if root and getIslandForPosition then island = getIslandForPosition(root.Position) end
-            end)
-            local parts = {}
-            if S.InfoShowGameName ~= false then parts[#parts+1] = "Fishing Master v1.4.8" end
-            if S.InfoShowPing ~= false then parts[#parts+1] = tostring(ping) end
-            if S.InfoShowFPS ~= false then parts[#parts+1] = tostring(fps) .. " FPS" end
-            if S.InfoShowIsland ~= false then parts[#parts+1] = "Island: " .. tostring(island) end
-            if S.InfoShowDismiss ~= false then parts[#parts+1] = "Dismiss:" .. (S.AutoDismissPopup and "ON" or "OFF") end
-            label.Text = table.concat(parts, " | ")
-        end
-    end)
+    env.S.InfoBarEnabled=false
+    local old=PlayerGui:FindFirstChild("NNVN_FishingMaster_InfoBar")
+    if old then old:Destroy()end
 end
 
 -- ============================================================
@@ -6838,30 +6794,7 @@ local function buildMiscTab(env)
         end,
     })
 
-    local StatusBarSec = section(MiscTab, { Title = "Status Bar Settings", Icon = "panel-top" })
-    Paragraphs.statusbar = StatusBarSec:Paragraph({ Title="Status", Desc="All status bar fields are visible" })
-    local function updateStatusBarStatus()
-        local shown = {}
-        if S.InfoBarEnabled ~= false then shown[#shown+1] = "Bar" end
-        if S.InfoShowGameName ~= false then shown[#shown+1] = "Game" end
-        if S.InfoShowPing ~= false then shown[#shown+1] = "Ping" end
-        if S.InfoShowFPS ~= false then shown[#shown+1] = "FPS" end
-        if S.InfoShowIsland ~= false then shown[#shown+1] = "Island" end
-        if S.InfoShowDismiss ~= false then shown[#shown+1] = "Dismiss" end
-        setStatus("statusbar", #shown > 0 and ("Visible: " .. table.concat(shown, ", ")) or "All fields hidden")
-    end
-    StatusBarSec:Toggle({ Title="Show Status Bar", Icon="rectangle-horizontal", Default=true,
-        Callback=function(v) S.InfoBarEnabled = v; updateStatusBarStatus() end })
-    StatusBarSec:Toggle({ Title="Show Game Name", Icon="badge-info", Default=true,
-        Callback=function(v) S.InfoShowGameName = v; updateStatusBarStatus() end })
-    StatusBarSec:Toggle({ Title="Show Ping", Icon="wifi", Default=true,
-        Callback=function(v) S.InfoShowPing = v; updateStatusBarStatus() end })
-    StatusBarSec:Toggle({ Title="Show FPS", Icon="gauge", Default=true,
-        Callback=function(v) S.InfoShowFPS = v; updateStatusBarStatus() end })
-    StatusBarSec:Toggle({ Title="Show Island", Icon="map-pin", Default=true,
-        Callback=function(v) S.InfoShowIsland = v; updateStatusBarStatus() end })
-    StatusBarSec:Toggle({ Title="Show Dismiss State", Icon="mouse-pointer-click", Default=true,
-        Callback=function(v) S.InfoShowDismiss = v; updateStatusBarStatus() end })
+
 end
 
 -- ============================================================

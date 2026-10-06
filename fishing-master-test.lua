@@ -1,4 +1,4 @@
--- Fishing Master TEST v6 / replacement backend: public NNVN v1.4.8
+-- Fishing Master TEST v7 / replacement backend: public NNVN v1.4.8
 local Loading=(function()
 -- Release loading overlay shared by the small loader and protected entry point.
 local Loading = {}
@@ -82,7 +82,7 @@ function Loading.Begin()
         controller:SetStage("Downloading Fishing Master...",.08)
         task.spawn(function()
             local ok,err = pcall(function()
-                local run,parseError = loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=6"),"Devil Hub / Retry")
+                local run,parseError = loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=7"),"Devil Hub / Retry")
                 assert(run,parseError)
                 if not screen.Parent then return end
                 controller:Destroy()
@@ -408,8 +408,8 @@ local ok,result=xpcall(function()
     local gui=fetch("https://raw.githubusercontent.com/joustingmatch/OuroFlow/7c495f5a17a2390d70809d628c82cd5384142dbd/Source.luau")
     assert(#gui==413023,"Unexpected GUI revision")
     loading:SetStage("Downloading the NNVN v1.4.8 game systems...",.4)
-    local runtime=fetch("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-nnvn-runtime.lua?v=6")
-    assert(#runtime==421019,"Unexpected game systems revision")
+    local runtime=fetch("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-nnvn-runtime.lua?v=7")
+    assert(#runtime==416851,"Unexpected game systems revision")
     local guiFn=compile(gui,"DEVIL HUB / interface")
     local runtimeFn=compile(runtime,"DEVIL HUB / Fishing Master")
     local logo=""
