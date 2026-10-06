@@ -1,4 +1,4 @@
--- Fishing Master TEST v5 / replacement backend: public NNVN v1.4.8
+-- Fishing Master TEST v6 / replacement backend: public NNVN v1.4.8
 local Loading=(function()
 -- Release loading overlay shared by the small loader and protected entry point.
 local Loading = {}
@@ -82,7 +82,7 @@ function Loading.Begin()
         controller:SetStage("Downloading Fishing Master...",.08)
         task.spawn(function()
             local ok,err = pcall(function()
-                local run,parseError = loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=5"),"Devil Hub / Retry")
+                local run,parseError = loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=6"),"Devil Hub / Retry")
                 assert(run,parseError)
                 if not screen.Parent then return end
                 controller:Destroy()
@@ -221,6 +221,152 @@ return function(deps)
 end
 
 end)()
+local GuiFactory=(function()
+-- WindUI control contract rendered entirely by the main DEVIL HUB OuroFlow GUI.
+return function(flow,ctx)
+    local ui={Scheme={},Windows={},Theme="Abyss"}
+    local sequence=0
+    local function name(info)return tostring(info.Title or info.Name or info.Text or "Control")end
+    local function live()return ctx.Active end
+    local function selected(value,values)
+        if type(value)~="table"then return value end
+        if value.Value~=nil then return selected(value.Value,values)end
+        local out={}
+        for _,v in ipairs(values or {})do
+            if value[v]==true or table.find(value,v)then out[#out+1]=v end
+        end
+        return out
+    end
+    local function groupFacade(raw)
+        local group={Raw=raw}
+        local function control(kind,info)
+            info=info or {}
+            sequence+=1
+            local constructing=true
+            local multi=info.Multi==true or info.MultiSelect==true or info.Multiple==true
+            local settings=type(info.Value)=="table"and info.Value or {}
+            local default=info.Default
+            if default==nil then default=info.Value end
+            local opts={Name=name(info),Icon=info.Icon,Tooltip=info.Tooltip or info.Description,
+                Flag="DevilFishing_"..sequence,CurrentValue=default,Visible=info.Visible~=false}
+            if kind=="Slider"then
+                opts.Range={settings.Min or info.Min or 0,settings.Max or info.Max or 100}
+                opts.CurrentValue=settings.Default or info.Default or opts.Range[1]
+                opts.Increment=settings.Step or info.Step or .01
+            elseif kind=="Dropdown"then
+                opts.Options=info.Values or info.Options or {}
+                opts.MultipleOptions=multi opts.AllowNone=true opts.Searchable=true
+                opts.CurrentOption=multi and selected(default or {},opts.Options)or default
+            elseif kind=="Input"then
+                opts.CurrentValue=tostring(default or "")opts.PlaceholderText=info.Placeholder
+            end
+            local proxy={Value=opts.CurrentValue,Values=opts.Options,Multi=multi}
+            opts.Callback=function(value,...)
+                proxy.Value=value
+                if not constructing and live()and type(info.Callback)=="function"then return info.Callback(value,...)end
+            end
+            local widget=raw["Create"..kind](raw,opts)
+            proxy.Raw=widget constructing=false
+            function proxy:Set(value,silent)
+                if kind=="Dropdown"and multi then value=selected(value,self.Values)end
+                self.Value=value widget:Set(value,silent==true)
+            end
+            proxy.SetValue=proxy.Set proxy.SetSelected=proxy.Set proxy.Select=proxy.Set
+            function proxy:Get()return widget:Get()end
+            function proxy:Refresh(values,keep,silent)
+                self.Values=values widget:Refresh(values,keep~=false,silent==true)
+            end
+            proxy.SetValues=proxy.Refresh
+            function proxy:SetVisible(value)widget:SetVisible(value)end
+            function proxy:SetTitle(value)if widget.SetTitle then widget:SetTitle(value)elseif widget.SetText then widget:SetText(value)end end
+            function proxy:Destroy()widget:Destroy()end
+            return proxy
+        end
+        for _,kind in ipairs({"Toggle","Slider","Dropdown","Input"})do group[kind]=function(_,info)return control(kind,info)end end
+        function group:Button(info)
+            return raw:CreateButton({Name=name(info),Icon=info.Icon,Tooltip=info.Tooltip or info.Description,
+                Callback=function(...)if live()and info.Callback then return info.Callback(...)end end})
+        end
+        function group:Paragraph(info)
+            local widget=raw:CreateParagraph({Title=name(info),Content=info.Desc or info.Content or info.Description or ""})
+            local proxy={Raw=widget}
+            function proxy:SetDesc(text)widget:Set(tostring(text or ""))end
+            proxy.Set=proxy.SetDesc proxy.SetText=proxy.SetDesc
+            function proxy:SetTitle(text)if widget.SetTitle then widget:SetTitle(text)end end
+            function proxy:SetVisible(value)widget:SetVisible(value)end
+            function proxy:Destroy()widget:Destroy()end
+            return proxy
+        end
+        function group:AddDiscordBox(_,info)
+            local picture=raw:CreateImage({Name="DEVIL HUB",Image=ctx.Logo,Height=105,ScaleType=Enum.ScaleType.Fit})
+            local details=raw:CreateParagraph({Title="Discord",Content="https://discord.gg/ZY7PRcVJe2"})
+            local button=raw:CreateButton({Name="Copy Discord Invite",Icon="copy",Callback=function()
+                if live()then
+                    local copy=setclipboard or toclipboard
+                    if type(copy)=="function"then copy("https://discord.gg/ZY7PRcVJe2")end
+                end
+            end})
+            local proxy={}
+            function proxy:SetVisible(value)picture:SetVisible(value)details:SetVisible(value)button:SetVisible(value)end
+            function proxy:Destroy()picture:Destroy()details:Destroy()button:Destroy()end
+            return proxy
+        end
+        function group:DiscordBox(info)return self:AddDiscordBox("DevilDiscord",info)end
+        return group
+    end
+    function ui:CreateWindow(info)
+        local raw=flow:CreateWindow({Name="DEVIL HUB",Icon=ctx.Logo,LoadingSubtitle="FISHING MASTER",
+            Theme="Abyss",Density="Compact",Profile=true,Search=true,Home=false,Loading=false,
+            Backdrop=false,UnsupportedExecutor=false,Disclaimer=false,KeepOnScreen=true,IslandDraggable=true,
+            Size=UDim2.fromOffset(820,550),ToggleUIKeybind="RightControl",
+            ToggleButton={Platform="Both",Icon=ctx.Logo},
+            ConfigurationSaving={Enabled=false,FolderName="DevilFishingStandalone"}})
+        local window={Raw=raw,MainFrame=raw.Root,Tabs={}}
+        self.Windows[#self.Windows+1]=window
+        local destroy=raw.Destroy
+        raw.Destroy=function(self,...)ctx:Stop(false)return destroy(self,...)end
+        function window:Tab(config)
+            local native=raw:CreateTab({Name=name(config),Icon=config.Icon,Backdrop=false})
+            local tab={Raw=native,Sections=0}
+            self.Tabs[#self.Tabs+1]=tab
+            function tab:Section(settings)
+                self.Sections+=1
+                local side=settings.Side or(self.Sections%2==1 and "Left"or "Right")
+                return groupFacade(native:CreateGroupbox({Name=name(settings),Icon=settings.Icon,Side=side,Collapsed=false}))
+            end
+            tab.AddSection=tab.Section
+            function tab:Select()raw:SelectTab(native)end
+            tab.Show=tab.Select
+            function tab:SetVisible(value)if native.SetVisible then native:SetVisible(value)end end
+            return tab
+        end
+        function window:EditOpenButton(settings)if raw.SetToggleButtonIcon then raw:SetToggleButtonIcon(ctx.Logo)end end
+        function window:SetCompact()end -- Compact density is set at construction.
+        function window:SetFooter()end -- Main GUI uses its player profile and Home Discord card.
+        function window:Tag()end -- Access status remains in the native Home section.
+        function window:SetBackground(image)if raw.SetBackground then raw:SetBackground(image)end end
+        window.SetBackgroundImage=window.SetBackground
+        function window:Destroy()ui:Unload()end
+        function window:Toggle(value)raw:Toggle(value)end
+        return window
+    end
+    function ui:SetTheme(value)
+        value=tostring(value or "Abyss")
+        if value=="Dark"or value=="Midnight"then value="Abyss"end
+        flow:SetTheme(value)self.Theme=value
+    end
+    function ui:GetCurrentTheme()return self.Theme end
+    function ui:GetThemes()return{Abyss=true,Obsidian=true,Crimson=true}end
+    function ui:UpdateColors()end -- The main GUI theme owns presentation colors.
+    function ui:Notify(info)
+        local window=self.Windows[#self.Windows]
+        if window and live()then return window.Raw:Notify(info)end
+    end
+    function ui:Unload()flow:Unload()end
+    return ui
+end
+
+end)()
 return(function(...)
 local env=type(getgenv)=="function" and getgenv()or _G
 if env.DevilFishingNNVNStarting or env.DevilFishingNNVNRunning then return end
@@ -259,10 +405,10 @@ local ok,result=xpcall(function()
     assert(not env.DevilFishingTestRunning and not env.DevilFishingTestStarting,"Rejoin before replacing the previous Fishing Master backend")
     assert(not env.OuroborosFishingMaster or env.OuroborosFishingMaster.Unloaded==true,"Rejoin before replacing the previous Fishing Master backend")
     loading:SetStage("Downloading Fishing Master interface...",.12)
-    local gui=fetch("https://raw.githubusercontent.com/n0namevnnek-web/UltraObsidian/f18a39bcc2a8e1fe3d8409bf964e3e61e5d85f48/Library.lua")
-    assert(#gui==808984,"Unexpected GUI revision")
+    local gui=fetch("https://raw.githubusercontent.com/joustingmatch/OuroFlow/7c495f5a17a2390d70809d628c82cd5384142dbd/Source.luau")
+    assert(#gui==413023,"Unexpected GUI revision")
     loading:SetStage("Downloading the NNVN v1.4.8 game systems...",.4)
-    local runtime=fetch("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-nnvn-runtime.lua?v=5")
+    local runtime=fetch("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-nnvn-runtime.lua?v=6")
     assert(#runtime==421019,"Unexpected game systems revision")
     local guiFn=compile(gui,"DEVIL HUB / interface")
     local runtimeFn=compile(runtime,"DEVIL HUB / Fishing Master")
@@ -278,7 +424,7 @@ local ok,result=xpcall(function()
         FireSignal=firesignal,GetConnections=getconnections,KeyCode=Enum.KeyCode,Logo=logo,OnStop=restore})
     env.DevilFishingNNVNContext=ctx
     loading:SetStage("Building the DEVIL HUB interface...",.6)
-    library=guiFn()
+    library=GuiFactory(guiFn(),ctx)
     assert(type(library)=="table" and type(library.CreateWindow)=="function","Interface failed to initialize")
     ctx.Library=library
     ctx.UnloadLibrary=library.Unload

@@ -1,7 +1,7 @@
-# DEVIL HUB Fishing Master standalone v5
+# DEVIL HUB Fishing Master standalone v6
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=5"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=6"))()
 ```
 
 Run in a fresh Fishing Master session. This replaces the previous Ouroboros
@@ -21,10 +21,13 @@ Original source SHA-256:
 Original author credit and existing premium checks are retained. No PandaAuth
 key validation or premium flag is bypassed.
 
-The matching UltraObsidian GUI is pinned to commit
-`f18a39bcc2a8e1fe3d8409bf964e3e61e5d85f48` in
-`n0namevnnek-web/UltraObsidian`, SHA-256
-`c9ad56cb94b3d0938bbb93357e29f49e8b71f61cdba522691ce1e69ac05112a0`.
+The interface now uses the same OuroFlow library and Abyss blue/black theme
+as the main DEVIL HUB scripts, pinned to commit
+`7c495f5a17a2390d70809d628c82cd5384142dbd` in `joustingmatch/OuroFlow`, SHA-256
+`b63399d1cefd5b61ca383d27a62110863e63350df856bfede18af198bf6992d3`.
+A WindUI-to-OuroFlow adapter renders the native Fishing Master controls through
+that library. The upstream UltraObsidian GUI is no longer downloaded or created.
+The gameplay runtime is byte-identical to v5.
 
 ## Systems and integration changes
 
@@ -36,6 +39,9 @@ executor capabilities and any existing upstream feature restrictions.
 
 - DEVIL HUB name, blue/black colors, logo and Discord:
   https://discord.gg/ZY7PRcVJe2.
+- Main GUI sidebar, search, alternating two-column groupboxes, responsive layout,
+  player profile and draggable DEVIL-logo reopen button on desktop/mobile.
+  The Discord card uses the DEVIL logo, with no original avatar or banner.
 - Auto Skills accepts Z/X/C/V and 1/2/3/4. Canonical registered slot callbacks
   are preferred; mobile button signals or the appropriate physical key are
   used as fallbacks, with one input path per attempt. Skills pause during text entry.
@@ -58,8 +64,8 @@ if cleanup then cleanup() end
 ## Validation
 
 Official Luau compilation passed for the entry, modified game runtime,
-context adapter and pinned GUI. Isolated offline tests passed 13 sale/skill/
-lifecycle checks and 11 loader checks, covering pending RPCs, unsuccessful
+context adapter, GUI bridge and pinned GUI. Isolated offline tests passed 13
+sale/skill/lifecycle checks, 11 loader checks and 16 GUI bridge checks, covering pending RPCs, unsuccessful
 sales, both input types, duplicate startup, failures, timeouts and cleanup.
 Downloaded full game code was not executed locally. Live Roblox/DeltaX behavior
 has not been verified, and no claim of universal anti-cheat bypass is made.
