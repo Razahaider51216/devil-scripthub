@@ -14,19 +14,28 @@ The supplied remote recording shows EggHitRequest receiving an egg and a
 sequence number (2 through 12). The older public runtime sent only the egg.
 Auto Break now equips and activates the game's Pickaxe tool so its native
 controller owns the request sequence. It does not invent counters or replay
-recorded requests. Hits respect the configured interval with a 0.25 second
-minimum; rejection or seven seconds without hit feedback pauses Auto Break.
+recorded requests. Auto Break includes automatic press/release swings: the
+tool is activated, then released after 0.03 seconds. Swings follow the game's
+configured hit interval with a 0.05 second minimum. Missing hit feedback is
+reported in the status without turning off the toggle. Rejections wait for
+cooldown before retrying.
 
-Auto Break and Auto Pick Up & Bank use teleport travel again (live-5), replacing
-the slow walking behavior from live-4. A shared travel slot limits transfers to
-one every 0.6 seconds. Each target/stage receives one transfer, followed by an
-arrival wait; a corrected position pauses that mode instead of repeatedly
-forcing the teleport. Pickup takes travel priority, holds the prompt for its
-configured duration, waits for a nonempty Carrying state, then teleports to
-the original own-base CFrame. Banking waits for Carrying to clear; a
-confirmation timeout pauses farming. Stable targets and bounded pickup retries
-prevent alternating commands. Main > Automation status reports the current step.
-This does not establish that the current server permits teleport travel.
+Auto Break and Auto Pick Up & Bank use teleport travel (live-6). A shared travel
+slot limits transfers to one every 0.35 seconds. Each target/stage receives one
+transfer, followed by an arrival wait. Position corrections and action errors
+wait before retrying while keeping the user's toggle enabled. Disabling a mode
+cancels pending actions. Pickup takes travel priority and holds the prompt for
+its configured duration before waiting for a nonempty Carrying state.
+
+Banking now returns to the upstream deposit point (-67, 3, -26), rather than
+the plot SpawnPoint used by live-4/live-5. The original deposit helper and
+manual Teleport to Base use different destinations. Teleports reset linear
+and angular velocity as the upstream helper did. After arrival, a short
+physical step allows normal movement replication; Carrying must clear before
+farming resumes. Unconfirmed banking retries after a wait and never marks the
+animal deposited solely because the character reached the zone. The current
+server deposit rules remain unverified. Main > Automation status reports the
+current step. This does not establish that the server permits teleport travel.
 
 The old and supplied map exports have the same SafeZone position and size.
 The remote list grew from 40 to 62 entries, including EggHitConfirmed; no old
@@ -90,8 +99,9 @@ This is not the latest FlowAuth payload; authentication checks are not bypassed.
 
 Validated with official Luau compilation, exact packed roundtrip, mocked
 native tool activation/cooldown, single transfers per target, shared travel
-cooldown, pickup hold timing, banking confirmation timeouts, position-correction
-and hit rejection/missing-feedback pauses; mock loading
+cooldown, velocity reset, automatic tool release, pickup hold timing, original
+deposit destination, post-arrival movement and recovery that keeps toggles
+enabled; mock loading
 failure/retry/cleanup cases, native callback synchronization, Settings webhook
 controls, Socials filtering, and mocked pickup notifications, item snapshots,
 429 backoff and request failures. No real webhook messages were sent in tests.
