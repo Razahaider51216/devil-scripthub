@@ -1,4 +1,4 @@
--- Fishing Master TEST v3 / adaptive skills and coordinated selling
+-- Fishing Master TEST v4 / wait for replicated sale confirmation
 local Loading=(function()
 -- Release loading overlay shared by the small loader and protected entry point.
 local Loading = {}
@@ -82,7 +82,7 @@ function Loading.Begin()
         controller:SetStage("Downloading Fishing Master test...",.08)
         task.spawn(function()
             local ok,err = pcall(function()
-                local run,parseError = loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=3"),"Devil Hub / Retry")
+                local run,parseError = loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/fishing-master-test.lua?v=4"),"Devil Hub / Retry")
                 assert(run,parseError)
                 if not screen.Parent then return end
                 controller:Destroy()
@@ -334,6 +334,104 @@ return function(deps)
 			end
 		end
 	end
+	function self:SaleSnapshot(context)
+		local ok, data = pcall(context.GetData)
+		if not ok or type(data) ~= "table" then
+			return nil
+		end
+		-- Coin is the replicated field used by the original runtime. Optional
+		-- inventory schemas are read only when they actually contain fish records.
+		local snapshot = { Coin = type(data.Coin) == "number" and data.Coin or nil }
+		local paths =
+			{ { "Fish" }, { "Fishes" }, { "FishInventory" }, { "Inventory", "Fish" }, { "Inventory", "Fishes" } }
+		for _, path in ipairs(paths) do
+			local records = data
+			for _, key in ipairs(path) do
+				records = type(records) == "table" and records[key] or nil
+			end
+			if type(records) == "table" then
+				local count, valid = 0, true
+				for _, record in pairs(records) do
+					if type(record) ~= "table" or type(record.fishId or record.FishId) ~= "string" then
+						valid = false
+						break
+					end
+					local protected = record.favorite == true
+						or record.Favorite == true
+						or record.locked == true
+						or record.Locked == true
+					if not protected then
+						count += 1
+					end
+				end
+				if valid then
+					snapshot.Count = count
+					snapshot.Path = table.concat(path, ".")
+					break
+				end
+			end
+		end
+		return snapshot
+	end
+	function self:WaitForSale(context, ticket, method, controller, allowed)
+		local before = self:SaleSnapshot(context)
+		if not before or before.Coin == nil then
+			self.SellStatus = "Waiting for player balance before selling"
+			while allowed() and (not before or before.Coin == nil) do
+				wait(0.25)
+				before = self:SaleSnapshot(context)
+			end
+		end
+		if not allowed() then
+			return false
+		end
+		local attempts, lastAttempt, lastChange = 0, -math.huge, clock()
+		local observedCoin, observedCount = before.Coin, before.Count
+		local evidence = false
+		while allowed() do
+			if ticket.Root and (not ticket.Root.Parent or context.GetRoot() ~= ticket.Root) then
+				self.SellStatus = "Character changed; sell cancelled"
+				return false
+			end
+			local current = self:SaleSnapshot(context)
+			local sameInventory = current
+				and before.Path ~= nil
+				and current.Path == before.Path
+				and current.Count ~= nil
+			local paid = current and current.Coin ~= nil and current.Coin > before.Coin
+			local emptied = sameInventory and before.Count > 0 and current.Count == 0
+			-- A recognized inventory must finish selling, including batched updates.
+			-- Otherwise use the replicated Coin increase as the available receipt.
+			evidence = before.Path ~= nil and emptied or before.Path == nil and paid
+			if current and (current.Coin ~= observedCoin or sameInventory and current.Count ~= observedCount) then
+				observedCoin = current.Coin
+				observedCount = current.Count
+				lastChange = clock()
+			end
+			if evidence then
+				self.SellStatus = "Sale update received; waiting for updates to finish"
+				if clock() - lastChange >= 2 and context.Phase() == "Idling" then
+					self.SellStatus = "Sale confirmed; returning to fishing spot"
+					return true
+				end
+			elseif attempts < 3 and clock() - lastAttempt >= 5 and context.Phase() == "Idling" then
+				attempts += 1
+				lastAttempt = clock()
+				lastChange = clock()
+				local sent, err = pcall(method, controller)
+				if not sent then
+					self.SellStatus = "Sell request failed: " .. tostring(err)
+				else
+					self.SellStatus = "Waiting for sale payment (attempt " .. attempts .. "/3)"
+				end
+			elseif attempts >= 3 and clock() - lastAttempt >= 5 then
+				self.SellStatus = "No sale confirmation yet; staying at seller. Stop All cancels."
+			end
+			wait(0.25)
+		end
+		self.SellStatus = "Sell cancelled"
+		return false
+	end
 	function self:SellOnce(context)
 		if self.Stopped or self.SellTicket then
 			return false
@@ -365,6 +463,11 @@ return function(deps)
 			end
 			local data = context.GetData()
 			assert(type(data) == "table", "Player data unavailable")
+			local inventory = self:SaleSnapshot(context)
+			if inventory and inventory.Count == 0 then
+				self.SellStatus = "No sellable fish"
+				return false
+			end
 			local entitlement = services.SellConfig and services.SellConfig.SellAnywhereEntitlement
 			if
 				entitlement
@@ -372,9 +475,7 @@ return function(deps)
 				and data.Entitlements[entitlement] == true
 				and type(controller.SellAllAnywhere) == "function"
 			then
-				controller:SellAllAnywhere()
-				self.SellStatus = "Sell Anywhere command sent"
-				return true
+				return self:WaitForSale(context, ticket, controller.SellAllAnywhere, controller, allowed)
 			end
 			assert(type(controller.SellAll) == "function", "SellAll method unavailable")
 			local root = context.GetRoot()
@@ -393,10 +494,7 @@ return function(deps)
 				self.SellStatus = "Fishing restarted; sell skipped"
 				return false
 			end
-			controller:SellAll()
-			wait(0.5)
-			self.SellStatus = "Sell command sent; returning to fishing spot"
-			return true
+			return self:WaitForSale(context, ticket, controller.SellAll, controller, allowed)
 		end)
 		local restored, restoreError = pcall(self.RestoreSellPosition, self, ticket)
 		if self.SellTicket == ticket then
