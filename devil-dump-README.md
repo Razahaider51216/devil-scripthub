@@ -4,7 +4,7 @@ Independent universal client utility based on ValenHub. Uses the same OuroFlow
 Abyss blue/black interface, Devil logo and Discord invite as Devil Hub.
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-dump.lua?v=4"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-dump.lua?v=5"))()
 ```
 
 Rejoin before switching from an already running ValenHub version. The previous
@@ -46,6 +46,8 @@ Changes in this release:
 - Fix native Slider startup by keeping AccentGlow as a numeric transparency,
   preserving the color fields separately. Validate the native slider reveal
   and refresh paths with the actual pinned library implementation.
+- Fit DEX Explorer and its picking banner to ScreenGui safe bounds automatically,
+  recompute on resize/rotation, and clamp mouse/touch dragging inside the screen.
 
 Validation: official Luau compilation for all components; isolated tests for
 controller callbacks and configuration synchronization, movement restoration
