@@ -1,104 +1,69 @@
 # Devil Hub / Loot to Forge
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-2k-4"))()
 ```
 
-Retains the pinned Ouroboros game revision tested with the test loader:
-c8c823473a8440cd1cd426b47d0edb1ec1ec80af.
-Original OuroFlow layout, tabs, controls, gameplay and configurations remain,
-with optional additions adapted from the supplied 2KScripts LootToForge source.
-The window/home title and hub/toggle logo use DEVIL HUB branding. The default
-theme is Abyss: near-black panels with blue accents.
+Uses the gameplay from the supplied [2KScripts LootToForge reference](https://github.com/hxrendontcry/2kscripts/blob/main/LootToForge.luau)
+with Devil Hub's existing OuroFlow GUI, pinned to
+`c8251f76f74d9942114ebccb0564aa0ac196320a`. Native tabs, groupboxes, widgets,
+the Abyss theme and Devil Hub logo are retained. The reference's custom TwoKUI
+window renderer is replaced by a Section/Toggle/Slider/Dropdown/Button bridge.
 
-Discord and Supported Games copy actions return https://discord.gg/ZY7PRcVJe2.
-Both cards display the same Discord invite below their headings. Buttons are
-retained. Other clipboard values
-such as Job ID and user profile links remain unchanged.
+This supersedes loot-2k-1/2/3 and the old Ouroboros game engine. There is one
+reference engine, rather than two overlapping farm implementations.
 
-Requires executor loadstring and HTTP hooks. Start a fresh game session after
-switching from the test script. Duplicate startup is blocked. Native UI unload
-restores hooks. The untouched game revision retains its authorization checks.
+## Reference systems
 
-Validated with official Luau compilation, packed integrity and mocks for
-constructor return values, native layout/configs, branding, scoped clipboard
-and HTTP behavior, startup errors and cleanup. The upstream test was confirmed
-working by the user; the branded wrapper has not been verified in-game here.
+The eight reference tabs and 59 named controls are connected to the original
+State callbacks, including:
 
-## Verified reference additions (loot-2k-1)
+- Power training, automatic stage clears, dungeon farming, Super Loot and World
+  Boss automation, selected potions and x100 training at Zone 9.
+- Gear/ore/enchant-stone selling, selectable rarity filters and reward claims.
+- Forge options, equip best and automatic enchanting.
+- Upgrades, rebirth and class rolling with target rarity.
+- God Spawner: four armor/hat sets, four weapons and the Ember Stone routine.
+- FPS/graphics controls, Anti-AFK, character movement, scale/theme settings,
+  and reference configuration save/load.
 
-The existing GUI gains **Extra Automation** when a supported missing feature
-is available. Each new toggle defaults off:
+The reference uses **ReplicatedStorage.Remote** (singular). Previous optional
+additions incorrectly searched `Remotes`, causing supported requests to be
+missed. The full engine now uses the original root and remote names directly.
+Spawner buttons always appear, as in the reference. GetArmorRE/GetWeaponRE
+requests and subsequent inventory/equip actions retain the original IDs.
 
-- Auto Enchant Equipped Gear: fills empty enchant slots on equipped weapons,
-  armor and hats using owned EnchStone items, respecting their quantities.
-- Auto Use Selected Potions: Train, Coin, Luck, Damage and HP; uses owned,
-  selected potions only when the matching buff is inactive.
-- Auto Roll Class: uses class tickets and stops at Epic, Legendary or Mythic
-  (or higher), according to the selected target.
-- Auto Claim Online Rewards and separate Update, Offline and Index reward
-  toggles. Index level requests cover levels 1-10, as in the reference.
+The new engine stores configuration in `DevilHub_LootToForge_2K_Config.json`.
+The previous Ouroboros engine's configuration schema is not imported. Requests
+still depend on the actual game server: simulated success does not establish
+permission to grant gear, persist items across rejoins or unlock paid benefits.
+Notifications avoid guaranteeing permanent saving.
 
-Native control flags/titles are observed before adding each feature. Existing
-equivalents suppress the matching additions. Missing modules/remotes also omit
-their controls; the number of displayed controls can therefore vary by session.
-No new farm/forge/sell/dungeon workers are added. The original pinned gameplay
-and its authorization behavior are retained.
+## Adaptation and lifecycle
 
-Reference: [2KScripts LootToForge.luau](https://github.com/hxrendontcry/2kscripts/blob/main/LootToForge.luau),
-build 2026-10-07T08:55:37.768Z, SHA256
+The decoded game body is used directly; no protected upstream game VM is
+downloaded. The separate original telemetry/anti-environment loader is not run.
+The custom GUI factory is replaced, Discord links use Devil Hub's invite, and
+the duplicate source Anti-AFK setting is consolidated. The reference's missing
+theme/minimize adapters map to the native GUI.
+
+Gameplay runs in an isolated environment. Workers, delays and event listeners
+are tracked. Unload cancels workers, disconnects listeners, restores function
+hooks and changed shared-module methods, and closes the GUI. Source store
+callbacks without unregister methods become inactive after cleanup. Existing
+sessions can be replaced through DevilLootCleanup; a fresh game session remains
+the clearest way to compare the complete engine with the prior version.
+
+Reference build: `2026-10-07T08:55:37.768Z`. Distribution SHA256:
 `218647dfa0ff786534259887e59a04b4992f68d87bf505676acd617004076c52`.
-Its loader registry identifies the Loot to Forge file; its outer cipher was
-decoded locally. The separate telemetry/anti-environment loader is not used.
-The current original VM was not fully reconstructed: overlap is checked against
-the controls built by the actual original UI at runtime, rather than assuming
-that absence from an older readable version proves a feature is missing.
+Source credit: clack / 2K Script Studio.
 
-Validation includes packed checksums/source roundtrip, official Luau compilation,
-executable API mocks, resource limits, active-buff avoidance, class target stop,
-reward requests, duplicate-feature omission, missing-API omission, cancellation
-and actual wrapper integration/cleanup. Live Roblox behavior remains unverified.
+Validation: official Luau compilation; packed checksums/exact source roundtrip;
+the complete adapted engine executed with Roblox API mocks; all eight tabs and
+59 named controls bound; original dropdown callbacks, singular Remote paths,
+armor/hat/weapon IDs and x100 Zone 9 requests exercised. Host integration checks
+native UI loading, environment isolation, shared-method/hook restoration and
+worker cleanup. Universal routing for all four games also passes. Live server
+behavior has not been verified here.
 
-```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-2k-1"))()
-```
-
-## Reference armor/weapon requests (loot-2k-2)
-
-Extra Automation includes Spawn Armor Sets and Spawn Weapons when the reference
-Dev remotes and inventory/equip APIs are available and no native spawner exists.
-The eight buttons use the exact reference IDs from lines 4612-4677:
-
-- Astral Dragon Emperor, Apocalypse Overlord, Cataclysm Destroyer and Void
-  Sovereign sets (each requests its matching armor and hat).
-- Chaoseater, Astral Supernova Edge, Apocalypse Katana and Void Greatsword.
-
-Requests use Dev.GetArmorRE / Dev.GetWeaponRE, followed by TryEquipItemRE only
-for matching, real inventory UUIDs. Already-owned gear is equipped without a
-new grant request. Requests are serialized, time out after three seconds and
-stop on unload. Success requires both inventory presence and IsEquipedUUID;
-unconfirmed grants/equips report that status. Server authorization and saving
-across rejoins have not been verified; remote presence alone does not establish
-that a server will grant an item. No client inventory entries are fabricated.
-
-```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-2k-2"))()
-```
-
-## Always-visible reference spawner (loot-2k-3)
-
-The dedicated **God Spawner** tab now always creates all four armor-set and
-four weapon buttons, matching the reference's unconditional menu construction.
-It does not depend on Dev remotes or IsEquipedUUID being present at startup.
-This supersedes the menu visibility conditions in loot-2k-2.
-
-Buttons resolve the reference Dev remotes again when clicked and send the same
-item IDs, then poll the backpack for three seconds and equip matching UUIDs.
-IsEquipedUUID is optional: when absent, the status reports inventory presence
-and an equip request, not confirmed equipment. Missing remotes/API report the
-unavailable step without hiding the menu. Server grants/persistence still
-require live verification.
-
-```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-2k-3"))()
-```
+Discord: https://discord.gg/ZY7PRcVJe2
