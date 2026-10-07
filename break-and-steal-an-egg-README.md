@@ -25,7 +25,8 @@ loading overlay, Discord card, Webhook and Recent Steals features remain.
 - Auto Egg selects valid eggs by lowest health, using nearest distance to break
   ties. It skips Broken/Hatching eggs and eggs near zone-build models, equips
   the pickaxe, moves within hit distance, and calls EggHitRequest. Delay,
-  stand distance, and movement speed remain adjustable. Pausing, carrying,
+  and stand distance remain adjustable. Movement uses the character's normal
+  walking speed. Pausing, carrying,
   disabling, and unloading cancel movement or further hits.
 - Auto Shop buys pickaxes/trails, unlocks/upgrades the treadmill, upgrades the
   pen, sells eligible backpack pets, and equips best. Prices come from the
@@ -163,5 +164,21 @@ cover joint egg-to-pet-to-bank-to-next-egg execution, delayed bank confirmation,
 manual hatch detection, and rejection of excluded or ambiguous nearby animals.
 The spatial fallback is an inference; current in-game prompt layout still needs
 validation on the user's executor.
+
+## Auto Egg walking fix (satbiz-6)
+
+Auto Egg now uses PathfindingService waypoints and Humanoid:MoveTo instead of
+writing the character CFrame, clearing velocity, or tweening the character
+between eggs. It leaves the game's movement speed unchanged. Failed/blocked
+paths do not fall back to teleporting, and hits remain limited to reachable
+targets within the configured distance. Carry handoff cancels walking before
+pickup movement. The obsolete Fly speed control is removed.
+
+Stop Auto Egg on damage defaults on. A health drop during egg farming disables
+the egg toggle and cancels pending movement/hits; damage during a carry handoff
+does not incorrectly disable the paused egg worker. This cannot prevent an
+instant server kill and is not a verified anti-cheat bypass. Carry's existing
+route is unchanged. Mocks cover walking, no transform/velocity writes, damage
+cancellation, manual stop, blocked paths and the existing joint handoff.
 
 Discord: https://discord.gg/ZY7PRcVJe2
