@@ -109,4 +109,14 @@ Titanic-specific farming, mutation/Min KG gameplay pickup filters and Merge
 automation are not supplied by this reference. Webhook filters remain notification
 filters. This update does not resolve or bypass the game's anti-cheat.
 
+## Startup fix (satbiz-2)
+
+The Keybind/ColorPicker bridge resolves the actual addon from native Options[id].
+Obsidian's AddKeyPicker and AddColorPicker return their parent row for chaining;
+passing that row to OuroFlow sent a boolean toggle value and caused the reported
+`attempt to index boolean with 'Name'` startup failure. Unbound/invalid keys now
+become nil; bound keys become EnumItems. Frontend-to-native edits keep key mode,
+modifiers and color transparency. Regression mocks use the pinned OuroFlow key
+renderer and the native parent-return contract, including key sync and teardown.
+
 Discord: https://discord.gg/ZY7PRcVJe2
