@@ -58,8 +58,11 @@ gameplay config. Visual ESP filters remain independent.
 
 Eggs use rarity attributes or the existing BillboardGui text. Animals use
 their model's rarity and its own pickup prompt. The legacy global PromptAnchor
-is allowed with All, or when its rarity/animal ID identifies a selected animal.
-An unknown or unassociated anchor is skipped when selecting specific tiers.
+is allowed with All, or when rarity, animal ID, an ObjectValue link, or an
+unambiguous nearby animal model identifies a selected animal. Spatial matching
+checks every rarity, caps the range at eight studs, and rejects near ties;
+it does not substitute a farther selected animal for a closer excluded one.
+An unknown or ambiguous anchor is skipped when selecting specific tiers.
 Mythic and Mythical are treated as the same tier. Selection is checked again
 before hits/prompt activation, including after movement; animals already picked
 up continue their delivery. In-game prompt/model layout still needs validation.
@@ -144,5 +147,21 @@ the worker waits for a living character and resumes. Disabling/unloading stops
 the worker and cancels movement. An animal already carried before enabling is
 left for the player to deliver. Regression mocks cover unchanged health on
 enable/delivery, two deliveries without respawning, and natural-death recovery.
+
+## Auto Egg + Carry handoff (satbiz-5)
+
+Both toggles can stay enabled. An idle carry worker allows Auto Egg to continue.
+When a selected animal becomes available, carry acquires movement control,
+cancels any egg tween, pauses hits, picks up and delivers the animal. Egg farming
+resumes after Carrying clears and delivery finishes. Delivery still pending keeps
+the handoff; disabling carry releases it. Each worker retains its toggle state.
+NoClip changes are scoped to active carry work and restored afterwards.
+
+Carry also works when Auto Egg is off and the player breaks an egg manually.
+Detached PromptAnchor lookup now supports the model association above. Mocks
+cover joint egg-to-pet-to-bank-to-next-egg execution, delayed bank confirmation,
+manual hatch detection, and rejection of excluded or ambiguous nearby animals.
+The spatial fallback is an inference; current in-game prompt layout still needs
+validation on the user's executor.
 
 Discord: https://discord.gg/ZY7PRcVJe2
