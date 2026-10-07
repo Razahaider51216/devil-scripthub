@@ -61,7 +61,7 @@ Eggs use rarity attributes or the existing BillboardGui text. Animals use
 their model's rarity and its own pickup prompt. The legacy global PromptAnchor
 is allowed with All, or when rarity, animal ID, an ObjectValue link, or an
 unambiguous nearby animal model identifies a selected animal. Spatial matching
-checks every rarity, caps the range at eight studs, and rejects near ties;
+checks every rarity, respects the prompt's MaxActivationDistance, and rejects near ties;
 it does not substitute a farther selected animal for a closer excluded one.
 An unknown or ambiguous anchor is skipped when selecting specific tiers.
 Mythic and Mythical are treated as the same tier. Selection is checked again
@@ -198,3 +198,22 @@ satbiz-6 is superseded. Flight cancels on disable, damage, death, changed filter
 or a carry handoff; hits require arrival within range. The shared rarity choices,
 Inferno/Celestial support and continuous carry farm remain. Stop on damage stays
 enabled by default. This is not a verified anti-cheat bypass.
+
+## Carry discovery fix (satbiz-9)
+
+Carry no longer requires an existing Steal prompt before approaching an animal.
+It scans selected animal models first, including nested AnimalPickups folders,
+then approaches one to reveal the prompt. Rarity lookup reads all descendant
+labels, including a second BillboardGui, rich text and `Rarity: Celestial` labels.
+ProximityPromptService.PromptShown/PromptHidden tracks newly visible pickup
+prompts outside the model or the legacy PromptAnchor. A unique ObjectText animal
+name (with its weight prefix removed) can associate a detached prompt to its
+model. ID/reference and unambiguous spatial associations remain supported.
+Buy/shop prompts are excluded.
+
+Pickup requests pass the prompt's HoldDuration. Status now distinguishes
+approach, prompt/rarity discovery failure, unconfirmed pickup and delivery;
+scan exceptions stop the carry toggle and print a traceback. Regression mocks
+cover a newly hatched nested animal with two billboards and a late visible,
+name-bound Steal prompt, correct hold duration, delivery and shop exclusion.
+These model-layout cases are simulated; a live executor run remains necessary.
