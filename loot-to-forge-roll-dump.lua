@@ -58,7 +58,7 @@ local function redraw()
     if closed then return end
     local lines={"Online reward -> receive ticket -> Roll once.","Records: "..#controller.Records.." | Ticket count: "..tostring(ticketCount()or "unavailable"),
         "Outgoing capture: "..(controller.Capabilities and controller.Capabilities.outgoing and "available"or "unsupported by executor")}
-    for index=math.max(1,#controller.Records-10),#controller.Records do
+    for index=1,#controller.Records do
         local row=controller.Records[index]
         lines[#lines+1]=string.format("%.2fs  %s  %s",row.seconds,row.kind,row.path or row.note or "")
     end
@@ -159,9 +159,26 @@ end
 screen=make("ScreenGui",player:WaitForChild("PlayerGui"),{Name="DevilLootRollDump",ResetOnSpawn=false,DisplayOrder=11000})
 local panel=make("Frame",screen,{Position=UDim2.fromScale(.08,.2),Size=UDim2.fromScale(.84,.6),BackgroundColor3=Color3.fromRGB(17,17,23),BorderSizePixel=0})
 make("UICorner",panel,{CornerRadius=UDim.new(0,12)})
-make("TextLabel",panel,{Position=UDim2.fromOffset(12,8),Size=UDim2.new(1,-24,0,28),BackgroundTransparency=1,Text="DEVIL HUB / ROLL DUMP",TextColor3=Color3.fromRGB(255,85,95),TextSize=18,Font=Enum.Font.GothamBold})
+local title=make("TextLabel",panel,{Position=UDim2.fromOffset(12,8),Size=UDim2.new(1,-24,0,28),BackgroundTransparency=1,Text="DEVIL HUB / ROLL DUMP",TextColor3=Color3.fromRGB(255,85,95),TextSize=18,Font=Enum.Font.GothamBold,Active=true})
 status=make("TextLabel",panel,{Position=UDim2.fromOffset(12,37),Size=UDim2.new(1,-24,0,22),BackgroundTransparency=1,Text="",TextColor3=Color3.fromRGB(210,210,215),TextSize=12,Font=Enum.Font.Gotham})
-output=make("TextLabel",panel,{Position=UDim2.fromOffset(12,66),Size=UDim2.new(1,-24,1,-116),BackgroundTransparency=1,Text="",TextColor3=Color3.fromRGB(235,235,240),TextSize=12,Font=Enum.Font.Code,TextWrapped=true,TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Top})
+local scroll=make("ScrollingFrame",panel,{Position=UDim2.fromOffset(12,66),Size=UDim2.new(1,-24,1,-116),BackgroundTransparency=1,BorderSizePixel=0,Active=true,ScrollingEnabled=true,ScrollingDirection=Enum.ScrollingDirection.Y,ScrollBarThickness=6,ScrollBarImageColor3=Color3.fromRGB(255,85,95),CanvasSize=UDim2.fromOffset(0,0),AutomaticCanvasSize=Enum.AutomaticSize.Y})
+output=make("TextLabel",scroll,{Position=UDim2.fromOffset(0,0),Size=UDim2.new(1,-12,0,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundTransparency=1,Text="",TextColor3=Color3.fromRGB(235,235,240),TextSize=12,Font=Enum.Font.Code,TextWrapped=true,TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Top})
+-- Drag the title to move the window; dragging the log scrolls its contents.
+local inputs=game:GetService("UserInputService")
+local dragInput,dragStart,dragPosition
+connections[#connections+1]=title.InputBegan:Connect(function(input)
+    if input.UserInputType~=Enum.UserInputType.MouseButton1 and input.UserInputType~=Enum.UserInputType.Touch then return end
+    dragInput=input dragStart=input.Position dragPosition=panel.Position
+end)
+connections[#connections+1]=inputs.InputEnded:Connect(function(input)
+    if input==dragInput then dragInput=nil end
+end)
+connections[#connections+1]=inputs.InputChanged:Connect(function(input)
+    if not dragInput or closed then return end
+    if input~=dragInput and input.UserInputType~=Enum.UserInputType.MouseMovement then return end
+    local delta=input.Position-dragStart
+    panel.Position=UDim2.new(dragPosition.X.Scale,dragPosition.X.Offset+delta.X,dragPosition.Y.Scale,dragPosition.Y.Offset+delta.Y)
+end)
 for index,item in ipairs({{"Start Remote",function()controller:Start()end},{"Copy",function()controller:Copy()end},
     {"Save",function()controller:Save()end},{"Stop",function()controller:Stop()end},{"Close",function()controller:Close()end}})do
     local button=make("TextButton",panel,{Position=UDim2.new((index-1)/5,6,1,-39),Size=UDim2.new(.2,-12,0,30),BackgroundColor3=Color3.fromRGB(53,29,36),Text=item[1],TextColor3=Color3.new(1,1,1),TextSize=13,TextScaled=true,Font=Enum.Font.Gotham})

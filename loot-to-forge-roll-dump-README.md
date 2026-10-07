@@ -30,3 +30,7 @@ capture; Start Remote resumes it without duplicate listeners. Close disconnects
 listeners and restores the top namecall hook only
 when owned by this tool, preserving later-installed hooks. Rerun to start a new
 session. Close also removes its independent GUI.
+
+Drag the title to reposition the window with mouse or touch. The log area scrolls
+vertically through the retained records with a mouse wheel or touch gesture;
+Copy and Save remain fixed below it. New records do not reset the scroll position.
