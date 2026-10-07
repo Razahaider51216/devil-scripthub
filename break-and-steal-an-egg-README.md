@@ -25,8 +25,8 @@ loading overlay, Discord card, Webhook and Recent Steals features remain.
 - Auto Egg selects valid eggs by lowest health, using nearest distance to break
   ties. It skips Broken/Hatching eggs and eggs near zone-build models, equips
   the pickaxe, moves within hit distance, and calls EggHitRequest. Delay,
-  and stand distance remain adjustable. Movement uses the character's normal
-  walking speed. Pausing, carrying,
+  stand distance and Fly speed remain adjustable. Movement uses Tween flight.
+  Pausing, carrying,
   disabling, and unloading cancel movement or further hits.
 - Auto Shop buys pickaxes/trails, unlocks/upgrades the treadmill, upgrades the
   pen, sells eligible backpack pets, and equips best. Prices come from the
@@ -189,3 +189,12 @@ BillboardGui text, and ESP assigns orange/gold colors. Regression mocks cover
 Inferno/Celestial egg selection and collecting a Celestial animal.
 
 Discord: https://discord.gg/ZY7PRcVJe2
+
+## Flight restored (satbiz-8)
+
+Auto Egg again flies between eggs using TweenService, with the original
+Fly speed slider (default 100, range 80–600 studs/s). Walking/pathfinding from
+satbiz-6 is superseded. Flight cancels on disable, damage, death, changed filters,
+or a carry handoff; hits require arrival within range. The shared rarity choices,
+Inferno/Celestial support and continuous carry farm remain. Stop on damage stays
+enabled by default. This is not a verified anti-cheat bypass.
