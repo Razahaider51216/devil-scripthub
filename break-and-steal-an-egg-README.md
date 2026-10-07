@@ -181,4 +181,11 @@ instant server kill and is not a verified anti-cheat bypass. Carry's existing
 route is unchanged. Mocks cover walking, no transform/velocity writes, damage
 cancellation, manual stop, blocked paths and the existing joint handoff.
 
+## Additional rarities (satbiz-7)
+
+Inferno and Celestial are available in Main's shared multiselect and both ESP
+rarity dropdowns. Egg/pet matching recognizes them through attributes or
+BillboardGui text, and ESP assigns orange/gold colors. Regression mocks cover
+Inferno/Celestial egg selection and collecting a Celestial animal.
+
 Discord: https://discord.gg/ZY7PRcVJe2
