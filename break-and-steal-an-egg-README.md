@@ -248,3 +248,14 @@ and unchanged egg targeting. Live game verification remains necessary.
 The entry and runtime loading panels now show `BREAK EGG / STARTING` and
 `BREAK EGG / <percent>%`. These status labels previously retained the Ride a
 Pet template name despite loading the Break Egg module.
+
+## Anti-AFK (satbiz-13)
+
+Main > Session > Anti-AFK defaults on and responds to LocalPlayer.Idled with a
+brief VirtualUser right click. It does not hold a button or move the character,
+and works independently of the farm toggles. One tracked idle listener is
+removed on unload; unsupported input reports one warning instead of stopping
+the farms or repeatedly notifying. Existing configuration saving applies.
+Mocks cover default-on behavior, disable/re-enable without duplicate input,
+executor errors, camera fallback and unload. Live idle-kick prevention depends
+on executor support; network/server disconnects are outside this feature.
