@@ -279,3 +279,14 @@ approaching, it uses the freshly resolved prompt for the same animal, allowing
 client prompt recreation without discarding a valid pickup. Rarity/income checks
 and server pickup confirmation remain required. Regression mocks cover an
 unrelated prompt before Steal and replacement during the approach wait.
+
+## Continuous carry discovery (satbiz-16)
+
+While searching, enabled carry refreshes world pickup prompts every 0.5 seconds,
+independently of PromptShown, and requests an immediate rescan on each enable.
+Cached prompts outside Workspace are removed. Nested animals with only rarity,
+name and income billboards can be discovered and uniquely matched to Steal.
+Transient object/scan errors retry rather than disabling the farm. Carry
+confirmation and the selected rarity/minimum income checks still apply.
+Mocks cover pets appearing after enable, prompt discovery without events,
+disable/re-enable and recovery from a transient scan error.
