@@ -1,3 +1,18 @@
+-- DEVIL MAP ENTRY GUARD
+if game.GameId~=10684750879 and game.PlaceId~=118805555015549 then
+    assert(type(loadstring)=="function","Executor loadstring support is required.")
+    local source,lastError
+    for attempt=1,3 do
+        local ok,body=pcall(game.HttpGet,game,"https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?hub=4-games-3")
+        if ok and type(body)=="string"and #body>0 and not body:match("^%s*<")then source=body break end
+        lastError=ok and "Empty or invalid router response"or tostring(body)
+        if attempt<3 then task.wait(attempt)end
+    end
+    assert(source,"DEVIL HUB router download failed: "..tostring(lastError))
+    local run,err=loadstring(source,"DEVIL HUB / Select current map")assert(run,err)
+    return run(...)
+end
+-- END DEVIL MAP ENTRY GUARD
 -- DEVIL HUB / Loot to Forge
 local source=(function()
 local _88cc28b84759a5e3="PflIrK+sGpFLRWu6hnXjHxA3m8DNg51zbkyY2V9/vd4CqQeiSMUEZ7TOocaJBtw0"

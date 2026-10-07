@@ -1,3 +1,28 @@
+-- DEVIL MAP ENTRY GUARD
+if game.GameId~=10035204815 and game.PlaceId~=124216119978534 then
+    assert(type(loadstring)=="function","Executor loadstring support is required.")
+    local source,lastError
+    for attempt=1,3 do
+        local ok,body=pcall(game.HttpGet,game,"https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?hub=4-games-3")
+        if ok and type(body)=="string"and #body>0 and not body:match("^%s*<")then source=body break end
+        lastError=ok and "Empty or invalid router response"or tostring(body)
+        if attempt<3 then task.wait(attempt)end
+    end
+    assert(source,"DEVIL HUB router download failed: "..tostring(lastError))
+    local run,err=loadstring(source,"DEVIL HUB / Select current map")assert(run,err)
+    return run(...)
+end
+-- END DEVIL MAP ENTRY GUARD
+local function DevilDownload(url)
+    local lastError
+    for attempt=1,3 do
+        local ok,body=pcall(game.HttpGet,game,url)
+        if ok and type(body)=="string"and #body>0 and not body:match("^%s*<")then return body end
+        lastError=ok and "Empty or invalid download response"or tostring(body)
+        if attempt<3 then task.wait(attempt)end
+    end
+    error("Download failed: "..tostring(lastError),0)
+end
 -- DEVIL HUB / Ride a Pet loading entry
 local Loading=(function()
 -- Release loading overlay shared by the small loader and protected entry point.
@@ -82,7 +107,7 @@ function Loading.Begin()
         controller:SetStage("Downloading Ride a Pet...",.08)
         task.spawn(function()
             local ok,err = pcall(function()
-                local run,parseError = loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/ride-a-pet.lua"),"Devil Hub / Retry")
+                local run,parseError = loadstring(DevilDownload("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/ride-a-pet.lua"),"Devil Hub / Retry")
                 assert(run,parseError)
                 if not screen.Parent then return end
                 controller:Destroy()
@@ -100,7 +125,7 @@ function Loading.Begin()
         local ok,asset = pcall(function()
             local path = "devil-hub-logo-daceb9cac221.png"
             if type(isfile) ~= "function" or not isfile(path) then
-                local data = game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png")
+                local data = DevilDownload("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png")
                 assert(data:sub(1,8) == "\137PNG\13\10\26\10") writefile(path,data)
             end
             return custom(path)
@@ -120,14 +145,14 @@ loading:SetStage("Downloading Ride a Pet...",.08)
 task.wait()
 local args=table.pack(...)
 local ok,result=xpcall(function()
-    local source=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/ride-a-pet-delta.lua?v=live-6")
+    local source=DevilDownload("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/ride-a-pet-delta.lua?v=mapfix-3")
     assert(type(source)=="string" and #source>0,"Empty script response")
     local run,err=loadstring(source,"DEVIL HUB / Ride a Pet")
     assert(run,err)
     return run(table.unpack(args,1,args.n))
 end,function(err) return debug.traceback(tostring(err),2) end)
 if not ok then
-    loading:Finish(false,"Download or startup failed. Please retry.")
+    loading:Finish(false,("Startup failed: "..(tostring(result):match("[^"..string.char(10).."]+")or "Unknown error")):sub(1,180))
     warn("[DEVIL HUB] "..tostring(result))
 end
 return result

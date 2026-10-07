@@ -16,6 +16,23 @@ Validated with all four universe/place mappings, scoped downloads, argument
 forwarding, startup guards, failure recovery, packed integrity and Luau
 compilation. Actual combined-loader behavior still needs an in-game run.
 
+2026-10-08 startup fixes: all six production entry points (the four games plus
+Ride/Break runtime entries) check the current universe/place before creating
+their GUI. Launching a game-specific entry in another supported map redirects
+through the universal loader. Downloads through the router and Ride/Break
+entry wrappers retry up to three times. Failure panels show the first actual
+error; the full traceback stays in the console. Build An Ant Empire's
+Keybind/ColorPicker bridge now resolves native addons from Options instead of
+using their parent rows. The same fix is already applied to Break Egg.
+
+Validated with Luau compilation and executable mocks for all four universe/root
+mappings, six cross-map entries, retries, failure-state recovery, unsupported-map
+and duplicate-load rejection, and both native addon bridges. Ride and Loot
+gameplay payloads are unchanged. Live Roblox/executor behavior still needs a run.
+
+Break Egg now includes Main > Farm Rarities > Egg + Animal Rarities: a shared
+multiselect for Auto Egg and Auto Pet Carry Farm. See its game README for details.
+
 
 ## Ride a Pet
 

@@ -48,6 +48,22 @@ Gameplay configs use DevilHub/BreakEgg/<place ID>; previous Ouroboros configs
 are not migrated. Theme/config addon groupboxes and confirmation dialogs are
 bridged to the existing frontend. The visible frontend still starts in Crimson.
 
+## Shared rarity selection (satbiz-3)
+
+Main > Farm Rarities > Egg + Animal Rarities reuses the existing rarity choices
+and supports multiple selections. Auto Egg and Auto Pet Carry Farm use the
+same selection. Selecting a tier clears All; selecting All clears prior tiers.
+An empty selection prevents new hits and pickups. Values are saved with the
+gameplay config. Visual ESP filters remain independent.
+
+Eggs use rarity attributes or the existing BillboardGui text. Animals use
+their model's rarity and its own pickup prompt. The legacy global PromptAnchor
+is allowed with All, or when its rarity/animal ID identifies a selected animal.
+An unknown or unassociated anchor is skipped when selecting specific tiers.
+Mythic and Mythical are treated as the same tier. Selection is checked again
+before hits/prompt activation, including after movement; animals already picked
+up continue their delivery. In-game prompt/model layout still needs validation.
+
 ## Webhook
 
 In Webhook, paste your Discord webhook URL and enable Animal
