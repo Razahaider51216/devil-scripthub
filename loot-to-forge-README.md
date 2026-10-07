@@ -1,7 +1,7 @@
 # Devil Hub / Loot to Forge
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-2k-5"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-2k-6"))()
 ```
 
 Uses the gameplay from the supplied [2KScripts LootToForge reference](https://github.com/hxrendontcry/2kscripts/blob/main/LootToForge.luau)
@@ -71,3 +71,7 @@ Discord: https://discord.gg/ZY7PRcVJe2
 Version `loot-2k-5` fixes initialization of reference sliders whose `Value` contains
 `Min`, `Max`, and `Default`. The bridge now passes numeric defaults and the original
 ranges to OuroFlow, including numeric values when applying saved settings.
+
+English DEVIL HUB labels and dropdowns preserve original gameplay/config values.
+Community links use https://discord.gg/rZxnEE4Jnp. The logo uses a cached custom
+asset when supported, with the original image URL as fallback.
