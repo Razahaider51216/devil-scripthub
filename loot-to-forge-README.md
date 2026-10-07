@@ -84,3 +84,21 @@ that a server will grant an item. No client inventory entries are fabricated.
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-2k-2"))()
 ```
+
+## Always-visible reference spawner (loot-2k-3)
+
+The dedicated **God Spawner** tab now always creates all four armor-set and
+four weapon buttons, matching the reference's unconditional menu construction.
+It does not depend on Dev remotes or IsEquipedUUID being present at startup.
+This supersedes the menu visibility conditions in loot-2k-2.
+
+Buttons resolve the reference Dev remotes again when clicked and send the same
+item IDs, then poll the backpack for three seconds and equip matching UUIDs.
+IsEquipedUUID is optional: when absent, the status reports inventory presence
+and an equip request, not confirmed equipment. Missing remotes/API report the
+unavailable step without hiding the menu. Server grants/persistence still
+require live verification.
+
+```lua
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-2k-3"))()
+```
