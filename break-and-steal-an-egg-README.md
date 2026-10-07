@@ -242,3 +242,9 @@ scanning and again immediately before requesting Steal; an already carried pet
 continues delivery. Regression mocks cover the exact boundary, numeric/suffix
 values, rich text, direct/detached prompts, rarity intersections, live changes
 and unchanged egg targeting. Live game verification remains necessary.
+
+## Loading label fix (satbiz-12)
+
+The entry and runtime loading panels now show `BREAK EGG / STARTING` and
+`BREAK EGG / <percent>%`. These status labels previously retained the Ride a
+Pet template name despite loading the Break Egg module.
