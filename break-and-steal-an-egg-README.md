@@ -226,3 +226,19 @@ selected speed instead of accelerating to finish within 12 seconds. Short trips
 also use the same calculation. Fly, cancellation and carry handoff are retained.
 Regression mocks compare near and distant flights at 80, 100 and 600 studs/s,
 including a flight lasting over 12 seconds. Live game behavior is unverified.
+
+## Minimum pet income (satbiz-11)
+
+Main > Farm Rarities now includes `Minimum pet income ($/s)`. Enter `2000000`
+or `2M` to steal only animals earning at least $2M per second AND matching the
+selected rarities. `0` disables the income filter. This applies to Auto Pet
+Carry Farm, including its handoff from Auto Egg; egg targeting stays unchanged.
+The setting is saved with the existing configuration options.
+
+Income is read from IncomePerSecond/MoneyPerSecond/CashPerSecond attributes or
+descendant income labels such as `$2M/s`. Positive limits exclude unknown
+income. Invalid input retains the previous limit. The filter is checked while
+scanning and again immediately before requesting Steal; an already carried pet
+continues delivery. Regression mocks cover the exact boundary, numeric/suffix
+values, rich text, direct/detached prompts, rarity intersections, live changes
+and unchanged egg targeting. Live game verification remains necessary.
