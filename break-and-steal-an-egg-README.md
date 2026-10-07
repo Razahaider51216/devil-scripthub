@@ -270,3 +270,12 @@ before pickup still applies. Regression mocks cover the 13B boundary, conflictin
 attribute/billboard values, direct and detached prompts, and grouped animals.
 Auto Egg targeting, flying and delivery behavior remain intact; live game
 verification is still needed.
+
+## Pickup prompt selection (satbiz-15)
+
+The carry scan checks all descendant prompts for an enabled pickup interaction,
+rather than stopping at the first prompt (which can be Buy or disabled). After
+approaching, it uses the freshly resolved prompt for the same animal, allowing
+client prompt recreation without discarding a valid pickup. Rarity/income checks
+and server pickup confirmation remain required. Regression mocks cover an
+unrelated prompt before Steal and replacement during the approach wait.
