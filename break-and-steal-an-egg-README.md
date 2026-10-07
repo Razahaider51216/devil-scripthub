@@ -259,3 +259,14 @@ the farms or repeatedly notifying. Existing configuration saving applies.
 Mocks cover default-on behavior, disable/re-enable without duplicate input,
 executor errors, camera fallback and unload. Live idle-kick prevention depends
 on executor support; network/server disconnects are outside this feature.
+
+## Minimum income enforcement (satbiz-14)
+
+When income attributes and visible per-second labels disagree, the carry filter
+uses the lowest available parsed rate. A positive minimum excludes unknown income.
+Grouping Models containing other discovered animals are excluded so a richer
+sibling cannot qualify a cheaper animal's Steal prompt. The existing check just
+before pickup still applies. Regression mocks cover the 13B boundary, conflicting
+attribute/billboard values, direct and detached prompts, and grouped animals.
+Auto Egg targeting, flying and delivery behavior remain intact; live game
+verification is still needed.
