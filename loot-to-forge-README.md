@@ -62,3 +62,25 @@ and actual wrapper integration/cleanup. Live Roblox behavior remains unverified.
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-2k-1"))()
 ```
+
+## Reference armor/weapon requests (loot-2k-2)
+
+Extra Automation includes Spawn Armor Sets and Spawn Weapons when the reference
+Dev remotes and inventory/equip APIs are available and no native spawner exists.
+The eight buttons use the exact reference IDs from lines 4612-4677:
+
+- Astral Dragon Emperor, Apocalypse Overlord, Cataclysm Destroyer and Void
+  Sovereign sets (each requests its matching armor and hat).
+- Chaoseater, Astral Supernova Edge, Apocalypse Katana and Void Greatsword.
+
+Requests use Dev.GetArmorRE / Dev.GetWeaponRE, followed by TryEquipItemRE only
+for matching, real inventory UUIDs. Already-owned gear is equipped without a
+new grant request. Requests are serialized, time out after three seconds and
+stop on unload. Success requires both inventory presence and IsEquipedUUID;
+unconfirmed grants/equips report that status. Server authorization and saving
+across rejoins have not been verified; remote presence alone does not establish
+that a server will grant an item. No client inventory entries are fabricated.
+
+```lua
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-2k-2"))()
+```
