@@ -217,3 +217,12 @@ scan exceptions stop the carry toggle and print a traceback. Regression mocks
 cover a newly hatched nested animal with two billboards and a late visible,
 name-bound Steal prompt, correct hold duration, delivery and shop exclusion.
 These model-layout cases are simulated; a live executor run remains necessary.
+
+## Constant flight speed (satbiz-10)
+
+Auto Egg flight duration is now distance divided by the Fly speed setting,
+with linear easing and no 12-second maximum. Long trips therefore keep the
+selected speed instead of accelerating to finish within 12 seconds. Short trips
+also use the same calculation. Fly, cancellation and carry handoff are retained.
+Regression mocks compare near and distant flights at 80, 100 and 600 studs/s,
+including a flight lasting over 12 seconds. Live game behavior is unverified.
