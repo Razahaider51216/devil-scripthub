@@ -35,7 +35,7 @@ loading overlay, Discord card, Webhook and Recent Steals features remain.
   approach at Y=3/Z=123, deliver at X=-77/Y=3/Z=123, with Zone1–Zone9 timing.
   Pickup requires a nonempty Carrying attribute and the delivery counter waits
   for Carrying to clear after the route completes. This is an inferred delivery
-  confirmation, not a server delivery receipt. The farm respawns to repeat,
+  confirmation, not a server delivery receipt. The farm loops with the current living character,
   pauses Auto Egg, and restores any NoClip state it enabled when disabled.
 - Player controls cover jump height, infinite jump, reset, saved-position
   teleport/loop, player teleport and NoClip. Visuals cover FOV, player/teammate
@@ -134,5 +134,15 @@ passing that row to OuroFlow sent a boolean toggle value and caused the reported
 become nil; bound keys become EnumItems. Frontend-to-native edits keep key mode,
 modifiers and color transparency. Regression mocks use the pinned OuroFlow key
 renderer and the native parent-return contract, including key sync and teardown.
+
+## Carry without forced death (satbiz-4)
+
+Auto Pet Carry Farm no longer sets Humanoid.Health to zero on enable, after
+delivery, or when no matching pickup is found. It starts with the current living
+character and repeats after each delivery. If the character dies naturally,
+the worker waits for a living character and resumes. Disabling/unloading stops
+the worker and cancels movement. An animal already carried before enabling is
+left for the player to deliver. Regression mocks cover unchanged health on
+enable/delivery, two deliveries without respawning, and natural-death recovery.
 
 Discord: https://discord.gg/ZY7PRcVJe2
