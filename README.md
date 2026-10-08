@@ -34,6 +34,29 @@ Break Egg now includes Main > Farm Rarities > Egg + Animal Rarities: a shared
 multiselect for Auto Egg and Auto Pet Carry Farm. See its game README for details.
 
 
+## Executor startup compatibility
+
+Startup downloads prefer `game.HttpGet`, then try `game.HttpGetAsync` and
+`request`, `http_request`, `httprequest`, `http.request`, `syn.request`, or
+`fluxus.request`. Failed downloads retry three times; HTTP error responses,
+HTML and empty Lua responses are rejected. Binary logo downloads retain their
+original bytes. Errors remain readable when `debug.traceback` is unavailable.
+
+The GUI bridges also accept `hookfunc` or `syn.hookfunction` when the executor
+does not expose the global `hookfunction`. Required startup APIs are checked
+with an explicit missing-API message. Ride a Pet and Build An Ant Empire still
+need native `game.HttpGet` and a working HTTP hook. Break Egg and Loot to Forge
+need `loadstring` and `setfenv`. These checks describe startup requirements;
+they do not emulate missing gameplay APIs.
+
+The initial one-line launch command above itself needs `game:HttpGet` and
+`loadstring` before the downloaded adapter can run. No executor brand is
+blocked. Real and other executors have not been tested live; support depends
+on their available APIs. Existing GUI, farming controls and embedded gameplay
+payloads are preserved. Local validation covers 22 adapter checks, four map
+mappings, six entry guards, retries, packed integrity, exact original gameplay
+literal bytes, and compilation of all seven public files.
+
 ## Ride a Pet
 
 ```lua

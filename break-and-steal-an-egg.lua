@@ -1,28 +1,127 @@
+-- DEVIL EXECUTOR COMPAT BEGIN
+-- Startup adapters only. Do not replace the VM compiler or gameplay APIs.
+local DevilCompat=(function()
+    local scope=_G
+    if type(getfenv)=="function"then
+        local ok,value=pcall(function()return getfenv(1)end)
+        if ok and type(value)=="table"then scope=value end
+    end
+    local scopes={scope}
+    if type(getgenv)=="function"then
+        local ok,value=pcall(getgenv)
+        if ok and type(value)=="table"and value~=scope then scopes[#scopes+1]=value end
+    end
+    if type(_G)=="table"and _G~=scope then scopes[#scopes+1]=_G end
+    local function member(object,key)
+        if object==nil then return nil end
+        local ok,value=pcall(function()return object[key]end)
+        if ok then return value end
+    end
+    local function lookup(names,namespaces)
+        for _,name in ipairs(names)do
+            for _,source in ipairs(scopes)do
+                local value=member(source,name)
+                if type(value)=="function"then return value end
+            end
+        end
+        for _,namespace in ipairs(namespaces or {})do
+            for _,source in ipairs(scopes)do
+                local container=member(source,namespace)
+                for _,name in ipairs(names)do
+                    local value=member(container,name)
+                    if type(value)=="function"then return value end
+                end
+            end
+        end
+    end
+    local function trace(err)
+        local message=tostring(err)
+        local traceback=member(debug,"traceback")
+        if type(traceback)=="function"then
+            local ok,value=pcall(traceback,message,2)
+            if ok and type(value)=="string"then return value end
+        end
+        return message
+    end
+    local function body(value,luaSource)
+        if type(value)~="string"or #value==0 then return nil,"Empty HTTP response"end
+        if luaSource then
+            if value:sub(1,3)=="\239\187\191"then value=value:sub(4)end
+            if value:match("^%s*<")then return nil,"HTTP returned HTML instead of Lua"end
+            if value:match("^%s*$")then return nil,"Empty Lua response"end
+        end
+        return value
+    end
+    local function download(url,luaSource)
+        if luaSource==nil then luaSource=true end
+        local lastError="No executor HTTP API available"
+        for attempt=1,3 do
+            for _,name in ipairs({"HttpGet","HttpGetAsync"})do
+                local native=member(game,name)
+                if type(native)=="function"then
+                    local ok,value=pcall(native,game,url)
+                    if ok then
+                        local valid,problem=body(value,luaSource)
+                        if valid then return valid end
+                        lastError=problem
+                    else lastError=tostring(value)end
+                end
+            end
+            -- A working native downloader remains the preferred path.
+            local seen={}
+            local function try(send)
+                if type(send)~="function"or seen[send]then return nil end
+                seen[send]=true
+                local ok,response=pcall(send,{Url=url,Method="GET"})
+                if not ok then lastError=tostring(response)return nil end
+                local content=response
+                if type(response)=="table"then
+                    local status=tonumber(response.StatusCode or response.Status or response.status_code)
+                    if response.Success==false or (status and(status<200 or status>=300))then
+                        lastError="HTTP "..tostring(status or "request failed")return nil
+                    end
+                    content=response.Body or response.body
+                end
+                local valid,problem=body(content,luaSource)
+                if valid then return valid end
+                lastError=problem
+            end
+            for _,source in ipairs(scopes)do
+                for _,name in ipairs({"request","http_request","httprequest"})do
+                    local value=try(member(source,name))if value then return value end
+                end
+                for _,namespace in ipairs({"http","syn","fluxus"})do
+                    local value=try(member(member(source,namespace),"request"))if value then return value end
+                end
+            end
+            if attempt<3 then task.wait(attempt)end
+        end
+        error("DEVIL HUB download failed: "..lastError.." | "..tostring(url),0)
+    end
+    local function requireApis(label,requirements)
+        local missing={}
+        for _,entry in ipairs(requirements)do
+            if type(entry[2])~="function"then missing[#missing+1]=entry[1]end
+        end
+        assert(#missing==0,"DEVIL HUB / "..label..": missing executor API: "..table.concat(missing,", "))
+    end
+    return {Download=download,Trace=trace,Lookup=lookup,Require=requireApis,
+        NativeHttpGet=member(game,"HttpGet")}
+end)()
+-- hookfunc is the alternate name for the same old-function-returning API.
+-- replaceclosure/replacefunc are intentionally not treated as hookfunction.
+local hookfunction=DevilCompat.Lookup({"hookfunction","hookfunc"},{"syn"})
+local newcclosure=DevilCompat.Lookup({"newcclosure"},{"syn"})
+-- DEVIL EXECUTOR COMPAT END
 -- DEVIL MAP ENTRY GUARD
 if game.GameId~=10765288803 and game.PlaceId~=114326934417838 then
-    assert(type(loadstring)=="function","Executor loadstring support is required.")
-    local source,lastError
-    for attempt=1,3 do
-        local ok,body=pcall(game.HttpGet,game,"https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?hub=4-games-3")
-        if ok and type(body)=="string"and #body>0 and not body:match("^%s*<")then source=body break end
-        lastError=ok and "Empty or invalid router response"or tostring(body)
-        if attempt<3 then task.wait(attempt)end
-    end
-    assert(source,"DEVIL HUB router download failed: "..tostring(lastError))
+    DevilCompat.Require("Map selector",{{"loadstring",loadstring}})
+    local source=DevilCompat.Download("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?hub=compat-1")
     local run,err=loadstring(source,"DEVIL HUB / Select current map")assert(run,err)
     return run(...)
 end
 -- END DEVIL MAP ENTRY GUARD
-local function DevilDownload(url)
-    local lastError
-    for attempt=1,3 do
-        local ok,body=pcall(game.HttpGet,game,url)
-        if ok and type(body)=="string"and #body>0 and not body:match("^%s*<")then return body end
-        lastError=ok and "Empty or invalid download response"or tostring(body)
-        if attempt<3 then task.wait(attempt)end
-    end
-    error("Download failed: "..tostring(lastError),0)
-end
+local DevilDownload=DevilCompat.Download
 -- DEVIL HUB / Break and Steal an Egg loader
 local Loading=(function()
 -- Release loading overlay shared by the small loader and protected entry point.
@@ -107,7 +206,7 @@ function Loading.Begin()
         controller:SetStage("Downloading Break and Steal an Egg...",.08)
         task.spawn(function()
             local ok,err = pcall(function()
-                local run,parseError = loadstring(DevilDownload("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/break-and-steal-an-egg.lua?v=satbiz-16"),"Devil Hub / Retry")
+                local run,parseError = loadstring(DevilDownload("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/break-and-steal-an-egg.lua?v=satbiz-16&compat=1"),"Devil Hub / Retry")
                 assert(run,parseError)
                 if not screen.Parent then return end
                 controller:Destroy()
@@ -146,7 +245,7 @@ task.wait()
 local args=table.pack(...)
 local ok,result=xpcall(function()
 assert(game.PlaceId==114326934417838 or game.GameId==10765288803,"Open Break and Steal an Egg first.")
-local source=DevilDownload("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/break-and-steal-an-egg-runtime.lua?v=satbiz-16")
+local source=DevilDownload("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/break-and-steal-an-egg-runtime.lua?v=satbiz-16&compat=1")
 local run,err=loadstring(source,"DEVIL HUB / Break Egg")assert(run,err)
 return run(table.unpack(args,1,args.n))
 end,function(err)return debug.traceback(tostring(err),2)end)
