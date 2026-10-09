@@ -1,7 +1,7 @@
 # Devil Hub / Loot to Forge
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-reroll-10"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-reroll-11"))()
 ```
 
 Uses the gameplay from the supplied [2KScripts LootToForge reference](https://github.com/hxrendontcry/2kscripts/blob/main/LootToForge.luau)
@@ -128,3 +128,11 @@ Reroll lookup now follows the supplied NAPHUB `getRemote` helper exactly: first 
 Race rerolls use `Remote.Class_Server.LuckOnceRE` with the selected string slot. Skill rerolls use `Remote.Backpack_Server.LuckSkillCell_2RE` without arguments. Exact-target locking and equipping use the same Class_Server folder. No guessed remote names or ClassData.LuckOnce signatures were added. Class IDs are the internal race IDs; the selected slot is a separate value.
 
 Validation: 29 controller checks and full-engine integration passed with both server folders and the plain-folder fallback. The server-folder fixture also contains a decoy plain Backpack remote, verifying that the source's folder precedence is respected. Existing 70 controls, stop/unload behavior, Luau compilation and packed source roundtrips passed. Live game responses remain unverified.
+
+## Simple colored stop selection: loot-reroll-11
+
+Select **Stop when obtained**, then enable **Auto Reroll Race**. One menu replaces the three separate stop-mode, rarity and race menus. Colored rarity entries stop at that tier or higher; specific race entries stop at the exact race and request locking/equipping, matching the NAPHUB reference. The final Keep rolling option disables target stopping. The equipped slot initializes from the game and remains selectable.
+
+Rarity options now include Common, Uncommon, Rare, Epic, Legendary, Mythic, Eternal, Secret, Ancient, Infinite and Exclusive. The upper-tier fallback order follows the source's Eternal / Secret / Ancient / Infinite sequence. Current rarity accepts Rarity, RarityLevel or RareLevel fields. Race entries come from Helper.GetConfig(), show their rarity marker when known and use names provided by the config. No race-name mapping is invented when config provides only IDs.
+
+The selected stopping rule is saved as RaceStopChoice; legacy mode/rarity/ID settings are synchronized after configuration loading. Validation: 34 controller checks, every colored dropdown selection, exact-race selection, continuous mode, independent loops, server-folder precedence and existing spawners passed across 68 controls. Luau compilation and packed source roundtrips passed. Live reroll behavior was reported working by the user before this UI change; this version's UI has been checked with mocks.
