@@ -3,14 +3,16 @@
 ## Universal loader: 4 games
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?v=vm-1"))()
 ```
 
 Automatically selects Ride a Pet, Break and Steal an Egg, Loot to Forge, or Build An Ant Empire
 using the Roblox universe/root place ID. Each game keeps its own production
 script, UI, features and configuration; only its module is downloaded.
-Unsupported games fail before fetching a module. The universal loader is
-packed, like the game runtimes. Client-side packing cannot guarantee secrecy.
+Unsupported games fail before fetching a module. The universal loader and all
+seven routed production entries/runtimes now use bytecode virtualization with
+per-build opcode permutation. See [VM release details](vm-protection-README.md).
+Client-side virtualization cannot guarantee secrecy.
 
 Validated with all four universe/place mappings, scoped downloads, argument
 forwarding, startup guards, failure recovery, packed integrity and Luau
