@@ -1,7 +1,7 @@
 # Devil Hub / Loot to Forge
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-2k-6"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-spawner-7"))()
 ```
 
 Uses the gameplay from the supplied [2KScripts LootToForge reference](https://github.com/hxrendontcry/2kscripts/blob/main/LootToForge.luau)
@@ -15,7 +15,7 @@ reference engine, rather than two overlapping farm implementations.
 
 ## Reference systems
 
-The eight reference tabs and 59 named controls are connected to the original
+The eight reference tabs and 64 named controls are connected to the original
 State callbacks, including:
 
 - Power training, automatic stage clears, dungeon farming, Super Loot and World
@@ -23,7 +23,7 @@ State callbacks, including:
 - Gear/ore/enchant-stone selling, selectable rarity filters and reward claims.
 - Forge options, equip best and automatic enchanting.
 - Upgrades, rebirth and class rolling with target rarity.
-- God Spawner: four armor/hat sets, four weapons and the Ember Stone routine.
+- God Spawner: Apocalypse, The Tri-Wyrm, Cataclysm and Void Overlord sets, Apex Ore, tier II/III runes, Ember Stone and Race Roll requests.
 - FPS/graphics controls, Anti-AFK, character movement, scale/theme settings,
   and reference configuration save/load.
 
@@ -31,7 +31,7 @@ The reference uses **ReplicatedStorage.Remote** (singular). Previous optional
 additions incorrectly searched `Remotes`, causing supported requests to be
 missed. The full engine now uses the original root and remote names directly.
 Spawner buttons always appear, as in the reference. GetArmorRE/GetWeaponRE
-requests and subsequent inventory/equip actions retain the original IDs.
+requests and subsequent inventory/equip actions now use the IDs in the supplied NAPHUB spawner reference.
 
 The new engine stores configuration in `DevilHub_LootToForge_2K_Config.json`.
 The previous Ouroboros engine's configuration schema is not imported. Requests
@@ -75,3 +75,22 @@ ranges to OuroFlow, including numeric values when applying saved settings.
 English DEVIL HUB labels and dropdowns preserve original gameplay/config values.
 Community links use https://discord.gg/rZxnEE4Jnp. The logo uses a cached custom
 asset when supported, with the original image URL as fallback.
+
+## Spawner update: loot-spawner-7
+
+Only the God Spawner segment was replaced, using the supplied [NAPHUB reference](https://raw.githubusercontent.com/Anyarin29/NAPHUB/refs/heads/main/LOOT_TO_FORGE-NAPHUB29.lua.txt). The existing OuroFlow GUI, host compatibility adapters, other tabs and gameplay are preserved.
+
+- Apocalypse: K_1101 / HHat_1101 / HArmor_1101.
+- The Tri-Wyrm: K_1001 / HHat_1001 / HArmor_1001.
+- Cataclysm: K_1002 / HHat_1002 / HArmor_1002.
+- Void Overlord: K_26 / LHat_16 / LArmor_16.
+- Apex Ore (Ore_48): choose 1-100 requests, default 10.
+- Poison / Ice / Fire / Thunder runes: choose tier II, III, or both.
+- Ember Stone: choose target increase 1-5,000. Collects only returned EnhantStone_1 drop UUIDs from Stage_27; capped at 35 seconds / 200 sequential stage requests. Counts all observed real stacks and excludes the old synthetic display entries.
+- Race Roll: an explicit on/off control and 0.1-5 second interval (default 0.5), using the source's reward 4/5/6 payload format at Remote.UpdateLog_Server.TryClaimUPDRewardRE. This is separate from the unchanged Auto Roll Class control.
+
+Inventory observations and exact received UUIDs drive the set equip requests. Request transmission alone is not shown as a confirmed grant. Stop all spawner actions cancels future batch and Race Roll requests; unloading stops the spawner and the existing engine. Already transmitted requests cannot be recalled. Only one batch spawner job can run at a time, and repeated Race Roll enabling cannot duplicate its worker.
+
+Validation: the updated engine ran with Roblox/API mocks across all eight tabs and 64 controls; every set ID, equip UUID, Apex quantity, rune tier, Ember drop filtering/count, Race Roll payload, stop and unload was exercised. Seventeen additional failure/lifecycle checks passed. Luau compilation and all packed checksum/byte-for-byte roundtrips passed. Checks assert that the engine outside the spawner segment and the host/GUI wrappers are unchanged. Live Roblox/server acceptance and persistence have not been verified.
+
+Spawner source credit: Anyarin29 / NAPHUB. Existing engine source credit remains clack / 2K Script Studio.
