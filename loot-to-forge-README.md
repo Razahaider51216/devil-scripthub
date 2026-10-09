@@ -1,7 +1,7 @@
 # Devil Hub / Loot to Forge
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-reroll-8"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-reroll-9"))()
 ```
 
 Uses the gameplay from the supplied [2KScripts LootToForge reference](https://github.com/hxrendontcry/2kscripts/blob/main/LootToForge.luau)
@@ -15,7 +15,7 @@ reference engine, rather than two overlapping farm implementations.
 
 ## Reference systems
 
-The eight reference tabs and 69 named controls are connected to the original
+The eight reference tabs and 70 named controls are connected to the original
 State callbacks, including:
 
 - Power training, automatic stage clears, dungeon farming, Super Loot and World
@@ -106,3 +106,17 @@ Auto Reroll Skills calls Remote.Backpack.LuckSkillCell_2RE without arguments, ma
 Stop All Rerolls disables both, and unload prevents future sends. Both use the game's reroll currency and server rules. The old reward-claim panel is now explicitly titled Update Reward Requests; it is not Auto Reroll.
 
 Validation: 25 controller checks passed, including exact argument types, independent cooldowns, initial/periodic deduplication, rarity/ID stops, slot locks, continuous mode, no tickets/resume, missing data/remotes and unload. Full-engine mocks exercise both actual rerolls and all prior spawners across eight tabs and 69 controls, including periodic loops and stopping. Packed source/checksum roundtrips and Luau compilation passed. Real server acceptance remains unverified.
+
+## Race screen / reference alignment: loot-reroll-9
+
+The supplied NAPHUB source discovers races with Config.Class.Helper.GetConfig(), compares ClassData.GetEquipedClass() to the target ID, and sends a string argument to Class.LuckOnceRE. Its hardcoded value is "1". This build adds a Race slot selector for 1/2/3, forwarding the selected string instead of always using 1. Slot 3 is the fallback default matching the supplied screenshot; when the module exposes GetEquipedIndex, that actual index initializes the selector.
+
+Select the same slot currently equipped in the game's Races menu, and ensure that slot is unlocked there. The supplied reference's target getter reads the equipped race; it does not establish a getter for every saved slot. Extra paid slots are not included, and the script does not automatically unlock a slot.
+
+Target Race is a dropdown populated from the reference's Helper.GetConfig() API, with real names when the returned rows provide them and raw Class IDs otherwise. The reference's Class_1 through Class_9 fallback is used only if config cannot be read. Refresh Race List retries loading the helper. Exact Class is the default stop mode, matching the reference's target-ID algorithm.
+
+GetLuckTimes() is now informational only, matching NAPHUB's lack of this precondition. The relationship between that legacy getter and the visible Race Roll balance is not verified, so a reported zero no longer blocks the outgoing reroll request. The game server still determines whether a reroll is allowed and consumes currency.
+
+Copy Reroll Status exports the selected slot, module methods, equipped race, legacy ticket getter, current statuses and transmitted request counters for diagnosis. Auto Skill Reroll remains a separate Backpack.LuckSkillCell_2RE request.
+
+Validation: 29 controller checks plus full-engine integration across 70 controls passed. Integration covers selected string slot 3, config-helper race discovery, race label-to-ID mapping, stop rules, independent Class/Skill loops, existing spawners and unload. Luau compilation and exact packed roundtrips passed. The interpretation of the selected slot and live game responses still require in-game verification; the source itself only demonstrates the value "1".
