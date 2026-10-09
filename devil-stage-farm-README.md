@@ -1,6 +1,6 @@
 # DEVIL Stage Farm
 
-ไฟล์หลัก: `devil-stage-farm.lua` — standalone ไม่มี UI library ภายนอกหรือระบบ key
+ไฟล์หลัก: `devil-stage-farm.lua` — ไม่มีระบบ key; ใช้ OuroFlow revision `c8251f76f74d9942114ebccb0564aa0ac196320a` และธีม Crimson ชุดเดียวกับ GUI ตัวหลักใน Git
 รองรับเฉพาะ Place ID `120731410233153` ตามดัมป์ที่ให้มา ไม่ใช่ Anime Zero จากงานก่อน
 
 ## สิ่งที่สร้าง
@@ -11,9 +11,11 @@
 - นับการเพิ่มของ `leaderstats.Wins`; หยุดหลังเก็บไม่สำเร็จ 3 รอบ
 - รอเกิดใหม่แล้วทำต่อได้; เปลี่ยนเป้าหมายจะหยุดให้เริ่มรอบใหม่
 - Travel World ผ่านปุ่มเดิมของเกม, Go to Stage และ Rescan / Follow my area
-- Auto Equip / Activate Tool
+- Auto Attack / Equip Tool และตามมอนที่อยู่ภายใน Floor ของ Stage ที่เลือก
+- Combat training preset เปิด Tool attack ทุก 0.1 วินาที และเร่ง learned Train เมื่อมี recipe
+- แสดง Strength จริงจาก leaderstats; Record combat messages บันทึกข้อความจาก Arena/Remotos แยก incoming/outgoing แล้ว Copy combat report
 - Learn actions เพื่อจำ arguments ที่เกมส่งจริง แล้วใช้ Auto Train, Daily Reward, Timed Gifts, Quest Action, Rebirth, Boss Action, Hatch และ Offline Claim
-- ปรับช่วงเวลาของแต่ละออโต้, บันทึกการตั้งค่า, ลาก/ย่อหน้าต่าง, Right Ctrl ซ่อน/แสดง, Copy status report และ STOP ALL
+- ปรับช่วงเวลาของแต่ละออโต้, บันทึกการตั้งค่า, GUI แบบตัวหลักพร้อมแท็บ Farm/Combat/Auto/Settings และปุ่มโลโก้ลอยสำหรับซ่อน/แสดง และ STOP ALL
 
 ## วิธีเริ่ม
 
@@ -22,6 +24,18 @@
 3. กด Rescan / Follow my area เพื่อเลือกบริเวณที่โหลดจริง แล้วเลือกโซนกับ Stage
 4. ตั้ง Fight time ให้พอกับการผ่านด่าน แล้วกด Start Farm
 5. สำหรับออโต้เสริม: กด Learn actions ON, กดปุ่มของเกมจริงหนึ่งครั้ง เช่น Train / รับรางวัล / Rebirth, จากนั้นปิด Learn แล้วเปิดออโต้ที่มีรายการ learned
+
+## ตรวจดาเมจ
+
+ยังไม่มี one-hit หรือ damage bypass ที่ยืนยันว่าใช้งานได้ ดัมป์ไม่มีสูตรดาเมจและโค้ดตรวจฝั่งเซิร์ฟเวอร์
+Tool attack เรียกการโจมตีปกติของ Tool; damage และ cooldown ยังถูกกำหนดโดยเกม
+ตามมอนใช้เฉพาะ `_MobsLocal` และตรวจ bounds ของ Floor ที่เลือก ไม่ตามผู้เล่นหรือมอนข้ามด่าน
+ถ้าเกมไม่มี Tool ให้ใช้ learned Train สำหรับ action ที่จับได้; ชื่อ Auto Attack ไม่ได้แปลว่ารับประกันทุกระบบ combat ของเกม
+
+เปิด Combat → Record combat messages, เล่นด่านและตีมอนตามปกติหนึ่งรอบ แล้วกด Copy combat report
+รายงานเก็บเฉพาะ 30 ข้อความล่าสุดและตัดความลึก/ความยาวของข้อมูล ไม่แก้ไขคำสั่งเดิม
+ส่งข้อความรายงานนี้เพื่อวิเคราะห์ contract ของ combat ต่อได้ แต่ตัวรายงานเองไม่ข้ามการตรวจของเซิร์ฟเวอร์
+ระบบบันทึกขาออกต้องใช้ namecall hook และเห็นเฉพาะคำสั่งที่ผ่าน namecall; ขาเข้าใช้ OnClientEvent ของ remotes ที่พบตอนเริ่ม
 
 Rebirth รีเซ็ตความคืบหน้าและ Hatch ใช้เงินในเกมตามคำสั่งที่คุณกดไว้ ทุกออโต้เริ่มปิดเมื่อรันไฟล์ใหม่
 ไม่มีการทำ Auto ซื้อ Robux, ลบ pets, ปลดล็อก World หรือส่ง Admin remote
@@ -47,6 +61,8 @@ Wins ที่เพิ่มเป็นผลสังเกตหลังไ
 
 - Luau compile ผ่านทั้งไฟล์รวม
 - Core checks ผ่าน 28 ข้อ: World/Stage boundaries, route filtering, ไม่มี World/geometry ที่แต่งขึ้น, argument snapshot, nil/false, signature, numeric validation และ cooldown/concurrent invoke guard
+- Frontend integration checks ผ่าน 18 ข้อ: GUI branding/theme/pin, initial values, World/Stage switching, learned-auto guard, STOP ALL, silent sync และ unload
+- Combat/report checks ผ่าน 12 ข้อ: เลือกมอนมีชีวิตในด่าน, bounds, missing geometry และรูปแบบรายงาน
 - ยังไม่ได้ทดสอบในเกมจริง จึงยังยืนยันผลการฟาร์มหรือการรับรางวัลฝั่งเซิร์ฟเวอร์ไม่ได้
 
 ## สร้างใหม่
