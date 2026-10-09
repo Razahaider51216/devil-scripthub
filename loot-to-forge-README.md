@@ -1,7 +1,7 @@
 # Devil Hub / Loot to Forge
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-spawner-7"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-reroll-8"))()
 ```
 
 Uses the gameplay from the supplied [2KScripts LootToForge reference](https://github.com/hxrendontcry/2kscripts/blob/main/LootToForge.luau)
@@ -15,7 +15,7 @@ reference engine, rather than two overlapping farm implementations.
 
 ## Reference systems
 
-The eight reference tabs and 64 named controls are connected to the original
+The eight reference tabs and 69 named controls are connected to the original
 State callbacks, including:
 
 - Power training, automatic stage clears, dungeon farming, Super Loot and World
@@ -23,7 +23,7 @@ State callbacks, including:
 - Gear/ore/enchant-stone selling, selectable rarity filters and reward claims.
 - Forge options, equip best and automatic enchanting.
 - Upgrades, rebirth and class rolling with target rarity.
-- God Spawner: Apocalypse, The Tri-Wyrm, Cataclysm and Void Overlord sets, Apex Ore, tier II/III runes, Ember Stone and Race Roll requests.
+- God Spawner: Apocalypse, The Tri-Wyrm, Cataclysm and Void Overlord sets, Apex Ore, tier II/III runes, Ember Stone and update-reward requests.
 - FPS/graphics controls, Anti-AFK, character movement, scale/theme settings,
   and reference configuration save/load.
 
@@ -94,3 +94,15 @@ Inventory observations and exact received UUIDs drive the set equip requests. Re
 Validation: the updated engine ran with Roblox/API mocks across all eight tabs and 64 controls; every set ID, equip UUID, Apex quantity, rune tier, Ember drop filtering/count, Race Roll payload, stop and unload was exercised. Seventeen additional failure/lifecycle checks passed. Luau compilation and all packed checksum/byte-for-byte roundtrips passed. Checks assert that the engine outside the spawner segment and the host/GUI wrappers are unchanged. Live Roblox/server acceptance and persistence have not been verified.
 
 Spawner source credit: Anyarin29 / NAPHUB. Existing engine source credit remains clack / 2K Script Studio.
+
+## Actual Auto Reroll: loot-reroll-8
+
+Use the Upgrade tab's Auto Reroll Class / Race and Auto Reroll Skills controls. These perform rerolls, separately from claiming update rewards.
+
+Class reroll now sends the reference's string slot argument "1" to Remote.Class.LuckOnceRE, including the manual reroll button. Choose Target rarity (Epic / Legendary / Mythic), Exact Class (enter an ID such as Class_9), or Continuous. Exact targets also request slot 1 locking/equipping when those remotes exist. A current class that already meets the selected rarity is intentionally preserved, with a visible status message. Select Continuous when you want to keep rerolling that class.
+
+Auto Reroll Skills calls Remote.Backpack.LuckSkillCell_2RE without arguments, matching the supplied reference. Class and Skill have independent 0.75-5 second intervals and request counters. Known zero Class tickets wait for more; unavailable class/rarity data and remotes produce visible status. Successful transmission is reported as a request, not a confirmed result.
+
+Stop All Rerolls disables both, and unload prevents future sends. Both use the game's reroll currency and server rules. The old reward-claim panel is now explicitly titled Update Reward Requests; it is not Auto Reroll.
+
+Validation: 25 controller checks passed, including exact argument types, independent cooldowns, initial/periodic deduplication, rarity/ID stops, slot locks, continuous mode, no tickets/resume, missing data/remotes and unload. Full-engine mocks exercise both actual rerolls and all prior spawners across eight tabs and 69 controls, including periodic loops and stopping. Packed source/checksum roundtrips and Luau compilation passed. Real server acceptance remains unverified.
