@@ -1,7 +1,7 @@
 # Devil Hub / Loot to Forge
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-reroll-11"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-reroll-12"))()
 ```
 
 Uses the gameplay from the supplied [2KScripts LootToForge reference](https://github.com/hxrendontcry/2kscripts/blob/main/LootToForge.luau)
@@ -136,3 +136,13 @@ Select **Stop when obtained**, then enable **Auto Reroll Race**. One menu replac
 Rarity options now include Common, Uncommon, Rare, Epic, Legendary, Mythic, Eternal, Secret, Ancient, Infinite and Exclusive. The upper-tier fallback order follows the source's Eternal / Secret / Ancient / Infinite sequence. Current rarity accepts Rarity, RarityLevel or RareLevel fields. Race entries come from Helper.GetConfig(), show their rarity marker when known and use names provided by the config. No race-name mapping is invented when config provides only IDs.
 
 The selected stopping rule is saved as RaceStopChoice; legacy mode/rarity/ID settings are synchronized after configuration loading. Validation: 34 controller checks, every colored dropdown selection, exact-race selection, continuous mode, independent loops, server-folder precedence and existing spawners passed across 68 controls. Luau compilation and packed source roundtrips passed. Live reroll behavior was reported working by the user before this UI change; this version's UI has been checked with mocks.
+
+## Race-only multi-selection: loot-reroll-12
+
+**Stop at selected rarities** now supports multiple selections. Auto Reroll Race stops when the equipped race's level matches any selected rarity exactly. For example, selecting Secret and Infinite stops on either result; an unselected Ancient result continues. This replaces the earlier single-threshold rule.
+
+The menu contains only the eleven colored rarity levels. Specific Class/race targets, locking/equipping on an exact Class target, the continuous option and the refresh-race button have been removed. Auto Reroll Skill, its interval, manual skill reroll and its worker/controller implementation are removed as well. The race slot selector remains because it selects which equipped slot receives the reroll request.
+
+At least one rarity must be selected to enable auto reroll; an empty selection switches it off without sending a request. Unknown current rarity waits without rolling. Manual Reroll Race Once, Stop Reroll and status copying remain available. Settings store the canonical list as RaceStopRarities and restore all selections; older rarity settings migrate to a one-element selection. Legacy AutoRollSkills settings cannot restore the removed worker.
+
+Validation: 25 controller checks and full-engine integration across 66 controls passed. Tests cover stopping on either selected level, continuing on an unselected higher level, empty selections, unknown rarity, multi-selection persistence and legacy migration, race-slot arguments, no Class entries, no skill requests or target-lock requests, cooldowns and cleanup. Luau compilation and packed roundtrips passed. The changed selection behavior still requires live game verification.
