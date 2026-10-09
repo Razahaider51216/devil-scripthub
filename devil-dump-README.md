@@ -4,7 +4,7 @@ Independent universal client utility based on ValenHub. Uses the same OuroFlow
 Abyss blue/black interface, Devil logo and Discord invite as Devil Hub.
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-dump.lua?v=5"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-dump.lua?v=dump-6"))()
 ```
 
 Rejoin before switching from an already running ValenHub version. The previous
@@ -66,3 +66,54 @@ Original attribution: VALEN HUB / valen_vct. Recovery provenance is recorded in
 [valen-standalone-README.md](valen-standalone-README.md). UI dependencies:
 [OuroFlow c8251f7](https://github.com/joustingmatch/OuroFlow/tree/c8251f76f74d9942114ebccb0564aa0ac196320a),
 [Rayfield-Plus c89802b](https://github.com/72msreal-pixel/MySoure/blob/c89802b88f4c6e1cb1bff1bd4585367247d17434/Rayfield-Plus.luau).
+
+## Map Analyst: dump-6
+
+The new Map Analyst tab automatically analyzes accessible client instances and
+exports a report on launch. It uses local, name-based analysis; it is not a
+language model and does not call an AI API. Remote purposes are explicitly
+marked as inferred, and accepted arguments/server validation remain unknown.
+
+Exports go to the executor's file workspace, normally under
+`DevilDump_Dumps/Map_<place>_<UTC timestamp>_<scan>/`:
+
+- metadata.json: place/universe, capabilities, streaming, limits and scan errors.
+- remotes.json: RemoteEvent, RemoteFunction and UnreliableRemoteEvent inventory,
+  path segments, inferred category and observed argument-type shapes.
+- map.json: accessible object hierarchy as path/class/name records.
+- scripts.json: client-visible script metadata and source-export results.
+- analysis.md: a readable summary and evidence/coverage notes.
+- Optional source_*.lua files when Include accessible client script sources is on.
+
+Sources are off by default. Source reads/decompilation depend on executor APIs;
+each exported source is capped at 1 MB. ModuleScripts are not required or
+executed by the analyst. No remote is fired/invoked by this scan. To add observed
+usage, enable the existing Remotes recorder, interact with the game, then scan
+again. The analyst keeps argument types/counts, including nil positions, and
+does not retain argument values. The original recorder is unchanged apart from
+feeding these observations and retains its existing full-record export behavior.
+
+Analyze & Dump starts another scan; Export last analysis writes the last result.
+Cancel scan stops further traversal/writes. Already written files remain listed
+as partial output. Copy summary and Copy JSON work when setclipboard is available,
+including executors that cannot write files. Use a relative export folder; path
+traversal and absolute paths are rejected. Auto dump on launch can be disabled
+for the current session. Source/folder choices are session settings.
+
+Traversal yields every 100 objects and is bounded at 50,000 queued nodes. The
+report marks truncation and inaccessible services/subtrees. Export files are
+capped at 12 MB; write failures remain visible and the result can still be copied.
+GUI unload cancels the analyst and prevents subsequent writes/jobs. These limits
+keep the tool responsive and do not constitute a complete server/map dump.
+
+There is no place allowlist, but client APIs cannot reveal server-only source or
+provide a universal bypass. Streaming and executor differences affect coverage.
+Connecting a real AI model requires a separately configured model/service; this
+release sends no map data to an external service.
+
+Validation: 25 analyst checks cover discovery, observed nil/type shapes, inferred
+evidence, optional sources, export/read-only modes, relative paths, file failures,
+limits, inaccessible trees, cancellation, partial output, GUI callbacks and unload.
+Six integration checks exercise the existing frontend and recorder implementations
+with the analyst attached. Official Luau compilation and exact packed source
+roundtrip passed. Live Roblox/executor behavior remains unverified.
