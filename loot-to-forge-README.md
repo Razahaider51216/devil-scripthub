@@ -1,7 +1,7 @@
 # Devil Hub / Loot to Forge
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-reroll-12"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-reroll-13"))()
 ```
 
 Uses the gameplay from the supplied [2KScripts LootToForge reference](https://github.com/hxrendontcry/2kscripts/blob/main/LootToForge.luau)
@@ -146,3 +146,7 @@ The menu contains only the eleven colored rarity levels. Specific Class/race tar
 At least one rarity must be selected to enable auto reroll; an empty selection switches it off without sending a request. Unknown current rarity waits without rolling. Manual Reroll Race Once, Stop Reroll and status copying remain available. Settings store the canonical list as RaceStopRarities and restore all selections; older rarity settings migrate to a one-element selection. Legacy AutoRollSkills settings cannot restore the removed worker.
 
 Validation: 25 controller checks and full-engine integration across 66 controls passed. Tests cover stopping on either selected level, continuing on an unselected higher level, empty selections, unknown rarity, multi-selection persistence and legacy migration, race-slot arguments, no Class entries, no skill requests or target-lock requests, cooldowns and cleanup. Luau compilation and packed roundtrips passed. The changed selection behavior still requires live game verification.
+
+## Get Roll labels: loot-reroll-13
+
+Renames the former Update Reward Requests panel to Get Roll, its toggle to Get Reroll Tickets, and its interval to Get Roll interval. The description now identifies reroll-ticket requests. This is a label-only change; the existing request payloads are retained.
