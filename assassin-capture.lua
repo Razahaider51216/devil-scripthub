@@ -103,7 +103,8 @@ function Capture.graph(deps, options)
             -- Do not call the function or inspect authorization closure contents.
             local ok, source = pcall(deps.source, value)
             node.runtime = ok and Capture.runtimeSource(source) or false
-            if node.runtime and deps.upvalues then
+            node.uiScope = deps.allow and deps.allow(value) or false
+            if (node.runtime or node.uiScope) and deps.upvalues then
                 local read, values = pcall(deps.upvalues, value)
                 if read and type(values) == "table" then
                     node.upvalues = {}
@@ -127,7 +128,6 @@ return Capture
 end)()
 assert(game.PlaceId == 120731410233153 or game.GameId == 10767824942, "Open +1 Assassin Leveling first")
 assert(type(writefile) == "function", "This capture needs writefile")
-assert(type(getgc) == "function", "This capture needs getgc")
 local env = (type(getgenv) == "function" and getgenv()) or _G
 if env.DevilAssassinCaptureRunning then return warn("[DEVIL Capture] Capture already running") end
 env.DevilAssassinCaptureRunning = true
@@ -138,7 +138,7 @@ if type(makefolder) == "function" then
     local created = pcall(makefolder, folder)
     if not created then prefix = folder .. "_" end
 else prefix = folder .. "_" end
-local report = {schema = "devil-assassin-capture-1", placeId = game.PlaceId, universeId = game.GameId,
+local report = {schema = "devil-assassin-capture-2", placeId = game.PlaceId, universeId = game.GameId,
     sources = {}, functions = 0, runtimeFunctions = 0, constantsInspected = 0, constantReadFailures = 0, sourceBytes = 0,
     devirtualized = false, hooksInstalled = false, inspectedFunctionsExecuted = false, complete = false}
 local function message(text) print("[DEVIL Capture] " .. text) end
@@ -154,7 +154,7 @@ local dbg = debug or {}
 local function sourceOf(fn)
     if type(dbg.info) == "function" then
         local ok, source = pcall(dbg.info, fn, "s")
-        if ok and type(source) == "string" then return source end
+        if ok and type(source) == "string" and source ~= "=[C]" and source ~= "[C]" and source ~= "" then return source end
     end
     if type(dbg.getinfo) == "function" then
         local ok, info = pcall(dbg.getinfo, fn)
@@ -163,12 +163,25 @@ local function sourceOf(fn)
 end
 local getUpvalues = dbg.getupvalues or getupvalues
 local getConstants = dbg.getconstants or getconstants
+local getConnections = getconnections
+local selected, selectedSources = {}, {}
 local graph = Capture.graph({typeof = typeof, hex = hex, source = sourceOf,
+    allow = function(fn)
+        if selected[fn] then return true end
+        local source = sourceOf(fn)
+        return type(source) == "string" and selectedSources[source] == true
+    end,
     yield = function() task.wait() end,
     upvalues = type(getUpvalues) == "function" and getUpvalues or nil,
     bufferString = type(buffer) == "table" and buffer.tostring or nil})
-report.capabilities = {getgc = true, debugInfo = type(dbg.info) == "function", getinfo = type(dbg.getinfo) == "function",
-    upvalues = type(getUpvalues) == "function", constants = type(getConstants) == "function"}
+report.capabilities = {getgc = type(getgc) == "function", debugInfo = type(dbg.info) == "function", getinfo = type(dbg.getinfo) == "function",
+    upvalues = type(getUpvalues) == "function", constants = type(getConstants) == "function", connections = type(getConnections) == "function"}
+local executorName = identifyexecutor or getexecutorname
+if type(executorName) == "function" then
+    local ok, name, version = pcall(executorName)
+    if ok and type(name) == "string" then report.executor = name:sub(1, 80) end
+    if ok and type(version) == "string" then report.executorVersion = version:sub(1, 80) end
+end
 local seen = {}
 local function saveSource(text, origin)
     local classification = Capture.candidate(text)
@@ -188,19 +201,21 @@ local function saveSource(text, origin)
         message("Saved " .. name .. " (candidate; still needs inspection)")
     else report.sourceWriteFailed = true end
 end
-local function perform()
-    message("Inspecting loaded functions after normal authentication")
-    local good, objects = pcall(getgc, true)
-    if not good or type(objects) ~= "table" then good, objects = pcall(getgc) end
-    assert(good and type(objects) == "table", "getgc failed")
-    report.gcObjects = #objects
-    for i, value in ipairs(objects) do
-        if type(value) == "function" then
+local visited = {}
+local function inspect(value, origin, owned)
+        if type(value) == "function" and not visited[value] then
+            visited[value] = true
             report.functions += 1
             local source = sourceOf(value)
-            saveSource(source, "debug source")
-            if Capture.runtimeSource(source) then
-                report.runtimeFunctions += 1
+            saveSource(source, origin)
+            if owned then
+                selected[value] = true
+                if type(source) == "string" and source ~= "=[C]" and source ~= "[C]"
+                    and source ~= ""
+                    and not source:lower():find("flowauthinit", 1, true) then selectedSources[source] = true end
+            end
+            if Capture.runtimeSource(source) or owned then
+                if Capture.runtimeSource(source) then report.runtimeFunctions += 1 end
                 graph.add(value)
                 if type(getConstants) == "function" and report.constantsInspected < 1000 then
                     local ok, constants = pcall(getConstants, value)
@@ -213,9 +228,122 @@ local function perform()
                 end
             end
         end
-        if i % 100 == 0 then task.wait() end
-        if i >= 60000 then report.gcTruncated = true break end
+end
+local function connectionFunction(connection)
+    local ok, value = pcall(function() return connection.Function or connection.Callback end)
+    return ok and type(value) == "function" and value or nil
+end
+local function apiProbe()
+    local marker = {value = 72491}
+    local function probe() return marker.value, "DEVIL_CAPTURE_CONST_PROBE" end
+    report.probes = {getgcSeesOwnFunction = false, upvaluesExposeOwnCapture = false,
+        constantsExposeOwnLiteral = false, connectionsExposeOwnCallback = false}
+    if type(getgc) == "function" then
+        local ok, objects = pcall(getgc, true)
+        if ok and type(objects) == "table" then
+            for _, value in next, objects do if value == probe then report.probes.getgcSeesOwnFunction = true end end
+        end
     end
+    if type(getUpvalues) == "function" then
+        local ok, values = pcall(getUpvalues, probe)
+        if ok and type(values) == "table" then
+            for _, value in next, values do if value == marker then report.probes.upvaluesExposeOwnCapture = true end end
+        end
+    end
+    if type(getConstants) == "function" then
+        local ok, values = pcall(getConstants, probe)
+        if ok and type(values) == "table" then
+            for _, value in next, values do if value == "DEVIL_CAPTURE_CONST_PROBE" then report.probes.constantsExposeOwnLiteral = true end end
+        end
+    end
+    if type(getConnections) == "function" then
+        local event = Instance.new("BindableEvent")
+        local connection = event.Event:Connect(probe)
+        local ok, values = pcall(getConnections, event.Event)
+        if ok and type(values) == "table" then
+            for _, value in next, values do
+                if connectionFunction(value) == probe then report.probes.connectionsExposeOwnCallback = true end
+            end
+        end
+        connection:Disconnect()
+        event:Destroy()
+    end
+end
+local function uiCallbacks()
+    report.uiRoots, report.uiButtons, report.uiCallbacks, report.uiReadFailures = 0, 0, 0, 0
+    if type(getConnections) ~= "function" or not report.probes.connectionsExposeOwnCallback then return end
+    local containers = {}
+    local function add(value) if value and not table.find(containers, value) then containers[#containers + 1] = value end end
+    pcall(function() add(game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")) end)
+    pcall(function() add(game:GetService("CoreGui")) end)
+    if type(gethui) == "function" then pcall(function() add(gethui()) end) end
+    local seenRoots, seenCallbacks = {}, {}
+    for _, container in ipairs(containers) do
+        local ok, all = pcall(function() return container:GetDescendants() end)
+        if not ok then report.uiReadFailures += 1 else
+            local readRoot, rootIsScreen = pcall(function() return container:IsA("ScreenGui") end)
+            if readRoot and rootIsScreen then table.insert(all, 1, container) end
+            for _, root in ipairs(all) do
+                if root:IsA("ScreenGui") and not seenRoots[root] then
+                    seenRoots[root] = true
+                    local read, nodes = pcall(function() return root:GetDescendants() end)
+                    if read and #nodes < 12000 then
+                        local marked, auth = false, false
+                        for _, node in ipairs(nodes) do
+                            if node:IsA("TextLabel") or node:IsA("TextButton") then
+                                local text = node.Text:lower()
+                                if text:find("ouroboros", 1, true) then marked = true end
+                                if text:find("flowauth", 1, true) or text:find("key system", 1, true) then auth = true end
+                            end
+                        end
+                        if marked and not auth then
+                            report.uiRoots += 1
+                            for _, node in ipairs(nodes) do
+                                if node:IsA("GuiButton") then
+                                    report.uiButtons += 1
+                                    for _, eventName in ipairs({"Activated", "MouseButton1Click"}) do
+                                        local got, connections = pcall(function() return getConnections(node[eventName]) end)
+                                        if got and type(connections) == "table" then
+                                            for _, connection in next, connections do
+                                                local callback = connectionFunction(connection)
+                                                if callback and not seenCallbacks[callback] and report.uiCallbacks < 400 then
+                                                    seenCallbacks[callback] = true
+                                                    report.uiCallbacks += 1
+                                                    inspect(callback, "recognized hub UI callback", true)
+                                                end
+                                            end
+                                        end
+                                    end
+                                    if report.uiButtons % 20 == 0 then task.wait() end
+                                end
+                            end
+                        end
+                    elseif not read then report.uiReadFailures += 1 end
+                end
+            end
+        end
+    end
+end
+local function perform()
+    message("Probing real inspection behavior; inspected functions are never called")
+    apiProbe()
+    message("Inspecting loaded functions and recognized hub button callbacks")
+    local good, objects = false, nil
+    if type(getgc) == "function" then
+        good, objects = pcall(getgc, true)
+        if not good or type(objects) ~= "table" then good, objects = pcall(getgc) end
+    end
+    if good and type(objects) == "table" then
+        local count = 0
+        for _, value in next, objects do
+            count += 1
+            inspect(value, "debug source", false)
+            if count % 100 == 0 then task.wait() end
+            if count >= 60000 then report.gcTruncated = true break end
+        end
+        report.gcObjects = count
+    else report.gcObjects = 0 end
+    uiCallbacks()
     graph.result.note = "Live VM data; not devirtualized source. Redactions/limits can prevent full reconstruction."
     if #graph.result.roots > 0 then
         local ok = pcall(function()
@@ -226,7 +354,7 @@ local function perform()
     end
     report.complete = true
     report.result = #report.sources > 0 and "Source candidates saved; inspect before editing/running"
-        or (report.runtimeFunctions > 0 and "VM state found; no game source recovered yet" or "Executor exposes no matching source/runtime functions")
+        or (#graph.result.roots > 0 and "Runtime/UI state found; no game source recovered yet" or "Executor exposes no matching source/runtime functions")
 end
 local ok = pcall(perform)
 if not ok then report.result = "Capture failed; inspect capability flags" end
