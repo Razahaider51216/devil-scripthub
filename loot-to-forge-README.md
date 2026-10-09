@@ -1,7 +1,7 @@
 # Devil Hub / Loot to Forge
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-reroll-9"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loot-to-forge.lua?v=loot-reroll-10"))()
 ```
 
 Uses the gameplay from the supplied [2KScripts LootToForge reference](https://github.com/hxrendontcry/2kscripts/blob/main/LootToForge.luau)
@@ -120,3 +120,11 @@ GetLuckTimes() is now informational only, matching NAPHUB's lack of this precond
 Copy Reroll Status exports the selected slot, module methods, equipped race, legacy ticket getter, current statuses and transmitted request counters for diagnosis. Auto Skill Reroll remains a separate Backpack.LuckSkillCell_2RE request.
 
 Validation: 29 controller checks plus full-engine integration across 70 controls passed. Integration covers selected string slot 3, config-helper race discovery, race label-to-ID mapping, stop rules, independent Class/Skill loops, existing spawners and unload. Luau compilation and exact packed roundtrips passed. The interpretation of the selected slot and live game responses still require in-game verification; the source itself only demonstrates the value "1".
+
+## Reference remote lookup fix: loot-reroll-10
+
+Reroll lookup now follows the supplied NAPHUB `getRemote` helper exactly: first select `Remote.<Name>_Server`, falling back to `Remote.<Name>` only when the server folder is absent. The previous reroll adapter searched only the plain folder, producing the reported Unavailable messages and zero requests.
+
+Race rerolls use `Remote.Class_Server.LuckOnceRE` with the selected string slot. Skill rerolls use `Remote.Backpack_Server.LuckSkillCell_2RE` without arguments. Exact-target locking and equipping use the same Class_Server folder. No guessed remote names or ClassData.LuckOnce signatures were added. Class IDs are the internal race IDs; the selected slot is a separate value.
+
+Validation: 29 controller checks and full-engine integration passed with both server folders and the plain-folder fallback. The server-folder fixture also contains a decoy plain Backpack remote, verifying that the source's folder precedence is respected. Existing 70 controls, stop/unload behavior, Luau compilation and packed source roundtrips passed. Live game responses remain unverified.
