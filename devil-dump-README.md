@@ -4,7 +4,7 @@ Independent universal client utility based on ValenHub. Uses the same OuroFlow
 Abyss blue/black interface, Devil logo and Discord invite as Devil Hub.
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-dump.lua?v=dump-6"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-dump.lua?v=dump-7"))()
 ```
 
 Rejoin before switching from an already running ValenHub version. The previous
@@ -117,3 +117,33 @@ limits, inaccessible trees, cancellation, partial output, GUI callbacks and unlo
 Six integration checks exercise the existing frontend and recorder implementations
 with the analyst attached. Official Luau compilation and exact packed source
 roundtrip passed. Live Roblox/executor behavior remains unverified.
+
+## Recorder forwarding fix: dump-7
+
+The recovered recorder hook inspected the remote path and redrew its UI before
+forwarding the original namecall. Nested Instance method calls could clobber the
+active method, causing the forwarded game call to fail. Both hookmetamethod and
+raw-metatable handlers now capture the method/arguments, call the original first,
+and return its exact results. Original errors and InvokeServer yields propagate
+unchanged. Instance inspection, logging and UI updates run in a deferred queue;
+recorder errors cannot prevent the original game call.
+
+The pending queue is capped at 512 records. Overflow increments state.Dropped
+and skips recording without blocking game traffic. Unload discards pending
+records, and recorder-generated calls are excluded during deferred dispatch to
+avoid recursive recording. Existing 5,000-log pause and hook ownership checks
+remain in place. An original call that raises an error is not added to this queue.
+
+Map Analyst now identifies the exact `-- decompilation panicked` error stub as
+failed source recovery instead of exporting it as an available source file.
+The previous files containing only that comment cannot recover any script logic.
+
+Validation: 28 hook/queue regression checks reproduce the old namecall-clobber
+failure and verify both updated handlers, argument/result nil positions,
+InvokeServer yielding, original error propagation, deferred recorder failure,
+disabled recording, overflow, scheduling failure and unload. The 26 analyst and
+six existing frontend/recorder integration checks also pass. Official compilation
+and exact packed roundtrip pass. Real executor behavior requires a live run.
+
+Rejoin before testing this release after a recorder session that blocked game
+buttons, so the older installed hook does not remain active.
