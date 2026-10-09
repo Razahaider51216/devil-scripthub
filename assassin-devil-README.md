@@ -1,5 +1,9 @@
 # DEVIL HUB / +1 Assassin Leveling presentation
 
+Live status: the user reported that this adapter did not change the observed
+Ouroboros v0.2 UI. It is not a confirmed working branding release. See
+[post-auth capture](assassin-capture-README.md) for the next source-analysis step.
+
 Run in +1 Assassin Leveling:
 
 ```lua
