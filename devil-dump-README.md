@@ -4,7 +4,7 @@ Independent universal client utility based on ValenHub. Uses the same OuroFlow
 Abyss blue/black interface, Devil logo and Discord invite as Devil Hub.
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-dump.lua?v=dump-7"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-dump.lua?v=dump-8"))()
 ```
 
 Rejoin before switching from an already running ValenHub version. The previous
@@ -21,6 +21,23 @@ specialized layout with updated branding and colors.
 Discord and community links: https://discord.gg/ZY7PRcVJe2
 Default export/config folders are `DevilDump_Dumps` and `DevilDump_service`.
 Existing `ValenHub_service` configurations are not automatically migrated.
+
+## Runtime Capture: dump-8
+
+The supplied Delta ClientRuntime export contained 615 files whose entire contents were `-- decompilation panicked`. Those files are decompiler errors, not recovered script source. Runtime Capture adds independent read paths; it cannot guarantee source recovery or server-only access.
+
+Use **Runtime Capture → Dump Client Runtime v8**. The existing **Dump Client Runtime** button also redirects to this collector. Each run writes a separate folder under `DevilDump_Dumps/ClientRuntimeV8/Run_<timestamp>_<generation>/` inside the executor workspace:
+
+- Usable `.lua` source files, only when accessible Source or the executor decompiler actually returns code. Panic/comment-only stubs are recorded as failures and are not written as recovered source.
+- `.bytecode.bin` files when `getscriptbytecode` works. These preserve raw binary bytes; bytecode is not readable/recovered source.
+- `Runtime_*.json`: script paths, individual failures, API availability and local constants/upvalue probes, script-closure metadata, constants/upvalue type summaries, LocalScript environment methods, cached loaded-module exports, and matching GC functions attributed through `getfenv(fn).script`.
+- `Summary_*.txt`: counts of source, failures, bytecode, runtime functions and loaded exports, plus the JSON report path.
+
+Only modules reported by `getloadedmodules` are passed to cached `require`; arbitrary uninitialized modules are skipped. This option can be turned off. Captured functions are inspected, never invoked; no new remote calls or capture hooks are installed. Existing remote recording remains optional and retains the forward-first/deferred behavior from dump-7.
+
+Limits: 3,000 scripts, 1 MB per source file, 2 MB per bytecode file/32 MB total bytecode, 1,200 unique functions, bounded constants/upvalue/table summaries. Export writes use readback verification when available. Unsupported APIs and empty/wrong results remain visible in the report. The collector cannot fix the executor's native decompiler or read code absent from the client. Source/bytecode/runtime capture may all remain unavailable on a restricted executor.
+
+Validation: 16 runtime-capture checks, 8 frontend/recorder integration checks (including legacy button redirection), 28 remote forwarding/queue checks, and 26 Map Analyst checks passed. Official Luau compilation and packed-payload roundtrip passed. The new collector has not yet been validated live in Delta/Roblox.
 
 Changes in this release:
 
