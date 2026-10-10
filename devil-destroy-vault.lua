@@ -80,7 +80,7 @@ local function remoteCall(name, ...)
     end
     return nil, name .. ": " .. tostring(result) .. " (ยังไม่ยืนยันผลสำเร็จ)"
 end
-local function interact(prompt, feedback, valid, walk, stationary, fastWarp, expandClientRange)
+local function interact(prompt, feedback, valid, walk, stationary, fastWarp, expandClientRange, warpReturn)
     if stopped or not valid() or not prompt.Parent or not prompt.Enabled then return nil, "หยุด หรือ Prompt ยังไม่พร้อม" end
     local parent = prompt.Parent
     local position = parent:IsA("Attachment") and parent.WorldPosition or parent:IsA("BasePart") and parent.Position
@@ -112,6 +112,7 @@ local function interact(prompt, feedback, valid, walk, stationary, fastWarp, exp
         if restoreWarp==returnHome then restoreWarp=nil end
     end
     local function finish(ok,message)
+        if ok == true and warpReturn == false then returnPosition=nil end
         pcall(returnHome)
         return ok,message
     end
@@ -199,8 +200,9 @@ end
 local factory = (function()
 -- DEVIL HUB Destroy a Vault controller. Only observed interactions are used.
 return function(env)
-    local api = {running = true, flags = {}, settings = {interval = 0.5, minimumOdds = 1, reserve = 0, walk = false, stationary = false, fastWarp = true, freeRoamRoll = true, stopAtRarity = false, stopRarities = {}}, status = {}, nextRun = {}, failures = {}}
+    local api = {running = true, flags = {}, settings = {interval = 0.5, minimumOdds = 1, reserve = 0, walk = false, stationary = false, fastWarp = true, warpReturn = false, freeRoamRoll = false, stopAtRarity = false, stopRarities = {}}, status = {}, nextRun = {}, failures = {}}
     local claimed = {}
+    local revisions = {}
     local cursor = 0
     local jobs = {"gold", "claim", "roll", "holders", "damage", "battery", "luck", "spots", "daily"}
     local boards = {
@@ -231,6 +233,7 @@ return function(env)
         return nil
     end
     function api.Set(key, enabled)
+        revisions[key] = (revisions[key] or 0) + 1
         api.flags[key] = enabled == true
         api.nextRun[key] = 0
         api.failures[key] = 0
@@ -255,10 +258,12 @@ return function(env)
     end
     local function interact(job, plot, item, sequence, success, result)
         if not item then return nil, "ไม่พบ Prompt ที่เปิดใช้งาน" end
+        local revision = revisions[job]
+        local function stillValid() return revisions[job] == revision and valid(job, plot) end
         if job=="roll" and api.settings.freeRoamRoll then
-            return env.interact(item,{sequence=sequence,success=success,result=result},function() return valid(job,plot) end,false,true,false,true)
+            return env.interact(item,{sequence=sequence,success=success,result=result},stillValid,false,true,false,true)
         end
-        return env.interact(item, {sequence = sequence, success = success, result = result}, function() return valid(job, plot) end, api.settings.walk, api.settings.stationary, api.settings.fastWarp)
+        return env.interact(item, {sequence = sequence, success = success, result = result}, stillValid, api.settings.walk, api.settings.stationary, api.settings.fastWarp, false, api.settings.warpReturn)
     end
     local function withinBudget(price)
         local cash = env.cash()
@@ -464,7 +469,7 @@ local ok, errorText = xpcall(function()
     local holders=progression:CreateGroupbox({Name="Robot Slots",Icon="layout-grid",Side="Right"})
     local movement=settings:CreateGroupbox({Name="Movement & Timing",Icon="navigation",Side="Left"})
     local session=settings:CreateGroupbox({Name="Session",Icon="activity",Side="Right"})
-    local modeControl,speedControl
+    local modeControl,speedControl,freeRoamControl
     local function toggle(group,key,title)
         local ready=false
         controls[key]=group:CreateToggle({Name=title,CurrentValue=false,Callback=function(value) if ready and not stopped then controller.Set(key,value) end end})
@@ -472,16 +477,19 @@ local ok, errorText = xpcall(function()
     end
     farm:CreateParagraph({Name="Owned base only",Content="เลือกฐานจากเจ้าของจริง • ซื้อหุ่นใช้เงินในเกม • ทุก Auto เริ่มปิด"})
     toggle(farm,"roll","Auto Roll")
-    farm:CreateToggle({Name="Roll อิสระ • ไม่เดิน/ไม่วาร์ป",CurrentValue=true,Callback=function(value) controller.settings.freeRoamRoll=value==true end})
+    freeRoamControl=farm:CreateToggle({Name="Roll อิสระ • ไม่เดิน/ไม่วาร์ป",CurrentValue=false,Callback=function(value) controller.settings.freeRoamRoll=value==true end})
     farm:CreateParagraph({Name="Free-roam Roll",Content="Roll แยกจากโหมดวาร์ป • เคลื่อนไหวเองได้ • ขยายระยะเฉพาะ Client และรอผลจากเกม • ถ้าเกมปฏิเสธจะพักงาน"})
     toggle(farm,"claim","Auto รับ / ซื้อหุ่นที่สุ่มได้")
     farm:CreateButton({Name="เริ่มฟาร์มเร็ว • Roll + รับหุ่น + ทอง",Callback=function()
         if stopped then return end
         controller.settings.fastWarp=true
+        controller.settings.warpReturn=false
+        controller.settings.freeRoamRoll=false
+        freeRoamControl:Set(false,true)
         controller.settings.stationary=false
         controller.settings.walk=false
         controller.settings.interval=0.5
-        if modeControl then modeControl:Set({"Fast • วาร์ปไปกดแล้วกลับ"},true) end
+        if modeControl then modeControl:Set({"Fast • วาร์ปต่อจุดฟาร์ม"},true) end
         if speedControl then speedControl:Set(0.5,true) end
         for _,key in ipairs({"roll","claim","gold"}) do
             controller.Set(key,true)
@@ -524,14 +532,39 @@ local ok, errorText = xpcall(function()
         if not found then library:Notify({Title="DEVIL HUB",Content="ไม่พบช่องที่ปลดล็อกในฐานของเรา"});return end
         task.spawn(function() local _,message=remoteCall("RobotHolderAction","Upgrade",holderId,1);if not stopped then library:Notify({Title="DEVIL HUB",Content=message}) end end)
     end})
-    modeControl=movement:CreateDropdown({Name="โหมดทำงาน",Options={"Fast • วาร์ปไปกดแล้วกลับ","ยืนฟาร์ม (ไม่เดิน)","เดินเข้าใกล้ Prompt","เฉพาะจุดที่อยู่ในระยะ"},CurrentOption={"Fast • วาร์ปไปกดแล้วกลับ"},Callback=function(value)
+    local preset="ครบวงจร • Roll + รับหุ่น + ทอง"
+    local presets={
+        ["ครบวงจร • Roll + รับหุ่น + ทอง"]={"roll","claim","gold"},
+        ["Roll + รับหุ่น"]={"roll","claim"},
+        ["เก็บทอง + ฝากหลอม"]={"gold"},
+        ["Auto Upgrade + ซื้อช่อง"]={"damage","battery","luck","spots","holders"},
+    }
+    local modes=main:CreateGroupbox({Name="Farm Modes",Icon="layers",Side="Left"})
+    modes:CreateDropdown({Name="เลือกชุดฟาร์ม",Options={"ครบวงจร • Roll + รับหุ่น + ทอง","Roll + รับหุ่น","เก็บทอง + ฝากหลอม","Auto Upgrade + ซื้อช่อง"},CurrentOption={preset},Callback=function(value)
+        if type(value)=="table" then value=value[1] end
+        if presets[value] then preset=value end
+    end})
+    modes:CreateParagraph({Name="เลือกแล้วกดเริ่ม",Content="เริ่มชุดใหม่จะหยุด Auto ชุดเดิม • รับหุ่นและ Upgrade ใช้เงินในเกม • ตั้งระดับหยุด Roll ได้หลายระดับใน Roll & Robots"})
+    modes:CreateButton({Name="เริ่มชุดฟาร์มที่เลือก",Callback=function()
+        if stopped then return end
+        controller.StopAll()
+        for _,control in pairs(controls) do control:Set(false,true) end
+        controller.settings.freeRoamRoll=false
+        freeRoamControl:Set(false,true)
+        for _,key in ipairs(presets[preset]) do controller.Set(key,true);controls[key]:Set(true,true) end
+        library:Notify({Title="DEVIL HUB",Content="เริ่ม "..preset,Duration=4})
+    end})
+    modeControl=movement:CreateDropdown({Name="โหมดทำงาน",Options={"Fast • วาร์ปต่อจุดฟาร์ม","Fast • วาร์ปไปกดแล้วกลับ","ยืนฟาร์ม (ไม่เดิน)","เดินเข้าใกล้ Prompt","เฉพาะจุดที่อยู่ในระยะ"},CurrentOption={"Fast • วาร์ปต่อจุดฟาร์ม"},Callback=function(value)
         if type(value)=="table" then value=value[1] end
         controller.settings.stationary=value=="ยืนฟาร์ม (ไม่เดิน)"
         controller.settings.walk=value=="เดินเข้าใกล้ Prompt"
-        controller.settings.fastWarp=value=="Fast • วาร์ปไปกดแล้วกลับ"
+        controller.settings.fastWarp=value=="Fast • วาร์ปไปกดแล้วกลับ" or value=="Fast • วาร์ปต่อจุดฟาร์ม"
+        controller.settings.warpReturn=value=="Fast • วาร์ปไปกดแล้วกลับ"
+        controller.settings.freeRoamRoll=false
+        freeRoamControl:Set(false,true)
         stopMovement()
     end})
-    movement:CreateParagraph({Name="Fast farming",Content="วาร์ปเข้าใกล้จุดกดแล้วกลับตำแหน่งเดิม • ไม่วิ่ง • รอผลจากเกมก่อนรอบถัดไป"})
+    movement:CreateParagraph({Name="Fast farming",Content="วาร์ปต่อจุดฟาร์ม: อยู่จุดที่ทำสำเร็จแล้วไปงานถัดไป • วาร์ปไปกดแล้วกลับ: กลับตำแหน่งก่อนกด • งานล้มเหลวหรือยกเลิกจะกลับตำแหน่งก่อนวาร์ป"})
     speedControl=movement:CreateSlider({Name="ช่วงพักงาน (วินาที)",Range={0.35,15},CurrentValue=0.5,Increment=0.05,Callback=function(value) controller.settings.interval=math.max(0.35,value) end})
     movement:CreateButton({Name="หยุด Auto ทั้งหมด",Callback=function()
         controller.StopAll()
