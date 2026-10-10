@@ -358,7 +358,11 @@ return function(createLibrary,restoreStartup)
             KeepOnScreen=true,ConfigurationSaving={Enabled=false},
             Home={Title="DEVIL HUB / Steal an Egg",Discord="https://discord.gg/ZY7PRcVJe2"},
             ToggleButton={Title="DEVIL HUB",Icon=logo,Platform="Both",Keybind=Enum.KeyCode.K}})
-        if typeof(library.Gui)=="Instance" then library.Gui:SetAttribute("DevilHubPresentation",true) end
+        -- OuroFlow owns its ScreenGui on the returned WINDOW, not the library.
+        if typeof(window.Gui)=="Instance" then
+            window.Gui:SetAttribute("DevilHubPresentation",true)
+            window.Gui.Enabled=true
+        end
         populate();mounted=true;session.Sync()
         invoke(nativeWindow,"Close")
         hideOriginalScreens()
@@ -369,7 +373,7 @@ return function(createLibrary,restoreStartup)
         settings:CreateButton({Name="Remove DEVIL HUB UI",Callback=session.Destroy})
         local nativeFrame=nativeRoot:FindFirstChild("Frame")
         if nativeFrame then table.insert(connections,nativeRoot.Destroying:Connect(session.Destroy)) end
-        if library.Gui and library.Gui.Destroying then table.insert(connections,library.Gui.Destroying:Connect(session.Destroy)) end
+        if window.Gui and window.Gui.Destroying then table.insert(connections,window.Gui.Destroying:Connect(session.Destroy)) end
         local elapsed=0
         table.insert(connections,game:GetService("RunService").Heartbeat:Connect(function(dt)
             elapsed+=dt
@@ -393,7 +397,7 @@ return function()
     local hidden,connections,containers={},{},{}
     local stopped=false
     local function nativeScreen(screen)
-        if screen:GetAttribute("DevilHubPresentation")==true then return false end
+        if screen.Name=="DEVIL HUB" or screen:GetAttribute("DevilHubPresentation")==true then return false end
         if screen.Name=="ChilliHubLoading" or screen:GetAttribute("ChilliLibraryOwned")==true then return true end
         local fps,ms=false,false
         for _,child in ipairs(screen:GetDescendants()) do
@@ -414,7 +418,7 @@ return function()
         hidden[screen]=screen.Enabled
         screen.Enabled=false
         table.insert(connections,screen:GetPropertyChangedSignal("Enabled"):Connect(function()
-            if not stopped and screen.Enabled then screen.Enabled=false end
+            if not stopped and screen.Enabled and screen.Name~="DEVIL HUB" and screen:GetAttribute("DevilHubPresentation")~=true then screen.Enabled=false end
         end))
     end
     local tracked={}

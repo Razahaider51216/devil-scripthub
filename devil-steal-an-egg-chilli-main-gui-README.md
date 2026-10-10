@@ -1,7 +1,7 @@
 # DEVIL HUB / Chilli — main GUI, embedded native panels
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-steal-an-egg-chilli-main-gui.lua?v=main-gui-4"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-steal-an-egg-chilli-main-gui.lua?v=main-gui-5"))()
 ```
 
 Steal an Egg uses the existing DEVIL HUB OuroFlow frontend. Release 2 expands the left sidebar, puts icons beside readable tab names, and keeps the original tab/section grouping. It does not build an unrelated GUI or replace the protected gameplay engine.
@@ -23,3 +23,5 @@ Validation: official Luau compilation; native-source bridge tests for callbacks,
 Release 3 installs a presentation guard before launching the unchanged runtime. It hides the exact ChilliHubLoading screen and owned native window/launcher in CoreGui, gethui and PlayerGui, including screens created later. The guard restores visibility on runtime failure or adapter removal; native Instances and controllers remain intact. Use the main-gui entry above, not the old full-runtime-test entry, which intentionally displays the original interface.
 
 Release 4 also covers supplemental native GUIs with randomized names: the verified Chilli fire image asset, exact Chilli Hub title, native performance screen footprint, and every ChilliLibraryOwned screen (including Quick Bars). Screens populated after parenting are watched. DEVIL HUB marks its own GUI exempt before embedding rich native rows. The original game HUD is preserved. No native widgets are destroyed and no feature toggle is changed.
+
+Release 5 fixes the ownership exemption: OuroFlow returns ScreenGui on window.Gui, not library.Gui. The window is marked exempt and enabled before native rich panels are embedded, and its exact DEVIL HUB screen name is exempt during construction. The adapter fixture now mirrors the actual Window/Library API instead of giving the library a fictional Gui property. Window destruction cleanup uses window.Gui as well. Native Chilli gameplay remains unchanged.
