@@ -1,6 +1,6 @@
 # Devil Hub VM release vm-1
 
-The universal loader and all production files used by its four game routes are
+The universal loader and all production files used by its five game routes are
 distributed through a Luau bytecode interpreter:
 
 - Ride a Pet: ride-a-pet.lua and ride-a-pet-delta.lua.
@@ -9,13 +9,14 @@ distributed through a Luau bytecode interpreter:
   multiple rarity stopping selections.
 - Build An Ant Empire: build-an-ant-empire.lua.
 - Universal entry: loader.
+- Steal An Egg: devil-steal-an-egg.lua, including its gameplay and DEVIL frontend.
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?v=ride-vm-2"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?v=hub-5-vm-1"))()
 ```
 
 This is bytecode virtualization rather than only source-string packing. The
-private build compiles 14 layers with debug information removed, including
+private build compiles 15 layers with debug information removed, including
 embedded game sources and the existing startup wrappers. Instruction opcode
 bytes use a per-build permutation; dispatch uses separately randomized handler
 IDs. Encoded payloads have size/checksum verification. Checksums detect damage;
@@ -28,9 +29,9 @@ Each release includes the required copyright and license notice. It supports
 the compiler's bytecode version 14. VM execution needs the standard Luau buffer,
 bit32 and table APIs, plus the executor APIs already required by each game.
 
-Local validation compiles all seven artifacts, executes the public universal
-loader across all four mappings, and exercises retries, argument forwarding,
-unsupported/duplicate load rejection and six entry files redirecting across
+Local validation compiles all eight artifacts, executes the public universal
+loader across all five mappings, and exercises retries, argument forwarding,
+unsupported/duplicate load rejection and seven entry files redirecting across
 maps. The full public Loot artifact is tested with its actual host and nested
 VM, including the 66 controls, multiple rarity selections, configuration,
 spawners and cleanup. Its game source is not passed as readable Lua to native

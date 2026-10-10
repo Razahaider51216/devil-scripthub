@@ -1,22 +1,27 @@
 # Devil Hub
 
-## Universal loader: 4 games
+## Universal loader: 5 games
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?v=vm-1"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?v=hub-5-vm-1"))()
 ```
 
-Automatically selects Ride a Pet, Break and Steal an Egg, Loot to Forge, or Build An Ant Empire
+Automatically selects Steal An Egg, Ride a Pet, Break and Steal an Egg, Loot to Forge, or Build An Ant Empire
 using the Roblox universe/root place ID. Each game keeps its own production
 script, UI, features and configuration; only its module is downloaded.
 Unsupported games fail before fetching a module. The universal loader and all
-seven routed production entries/runtimes now use bytecode virtualization with
+eight routed production entries/runtimes now use bytecode virtualization with
 per-build opcode permutation. See [VM release details](vm-protection-README.md).
 Client-side virtualization cannot guarantee secrecy.
 
-Validated with all four universe/place mappings, scoped downloads, argument
+Validated with all five universe/place mappings, scoped downloads, argument
 forwarding, startup guards, failure recovery, packed integrity and Luau
 compilation. Actual combined-loader behavior still needs an in-game run.
+
+Steal An Egg is mapped to universe `10563114921` / root place `107778070777162`,
+verified through the Roblox APIs. Its DEVIL HUB frontend and readable gameplay
+implementation now ship together as virtualized bytecode in
+`devil-steal-an-egg.lua`. See [Steal An Egg details](devil-steal-an-egg-README.md).
 
 2026-10-08 startup fixes: all six production entry points (the four games plus
 Ride/Break runtime entries) check the current universe/place before creating
