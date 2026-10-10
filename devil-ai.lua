@@ -2736,9 +2736,11 @@ end
 			uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 			uiListLayout.Parent = scrollingFrame
 
-			uiListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-				scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, uiListLayout.AbsoluteContentSize.Y + 40)
-			end)
+			local function refreshNavigationCanvas()
+				scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, uiListLayout.AbsoluteContentSize.Y / math.max(uiScale.Scale, 0.1) + 40)
+			end
+			uiListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(refreshNavigationCanvas)
+			uiScale:GetPropertyChangedSignal("Scale"):Connect(refreshNavigationCanvas)
 
 			local frame12 = Instance.new("Frame")
 			frame12.Size = UDim2.new(1, -24, 0, 36)
@@ -3047,7 +3049,9 @@ end
 					scrollingFrame2.Name = "Page_" .. title
 					scrollingFrame2.Size = UDim2.fromScale(1, 1)
 					scrollingFrame2.BackgroundTransparency = 1
-					scrollingFrame2.ScrollBarThickness = 6
+					scrollingFrame2.ScrollBarThickness = 10
+					scrollingFrame2.Active = true
+					scrollingFrame2.VerticalScrollBarInset = Enum.ScrollBarInset.Always
 					scrollingFrame2.ScrollBarImageColor3 = tbl6.primary
 					scrollingFrame2.ScrollingDirection = Enum.ScrollingDirection.Y
 					scrollingFrame2.ElasticBehavior = Enum.ElasticBehavior.Always
@@ -3063,9 +3067,11 @@ end
 					uiListLayout2.SortOrder = Enum.SortOrder.LayoutOrder
 					uiListLayout2.Parent = scrollingFrame2
 
-					uiListLayout2:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-						scrollingFrame2.CanvasSize = UDim2.new(0, 0, 0, uiListLayout2.AbsoluteContentSize.Y + 120)
-					end)
+					local function refreshPageCanvas()
+						scrollingFrame2.CanvasSize = UDim2.new(0, 0, 0, uiListLayout2.AbsoluteContentSize.Y / math.max(uiScale.Scale, 0.1) + 120)
+					end
+					uiListLayout2:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(refreshPageCanvas)
+					uiScale:GetPropertyChangedSignal("Scale"):Connect(refreshPageCanvas)
 
 					local function fn10()
 						fn5()
@@ -5111,7 +5117,7 @@ do
 			return
 		end
 		local n2 = arg3.n or #arg3
-		local tbl11 = {}
+		local tbl11 = {n = n2}
 
 		for i = 1, n2 do
 			tbl11[i] = arg3[i]
@@ -5136,7 +5142,7 @@ do
 			Source = fn10(arg, arg2, tbl11),
 		})
 
-		while #tbl8 > 200 do
+		while #tbl8 > 2000 do
 			table.remove(tbl8)
 		end
 
@@ -5652,6 +5658,173 @@ v5:AddButton({
 		tbl7:Notify({ Title = "Cleared", Content = "Remote Spy log buffer cleared.", Duration = 2 })
 	end,
 })
+
+
+do
+	local factory = (function()
+-- Read-only remote inventory and captured-call exporter. Never invokes remotes.
+return function(env)
+    local api = {}
+    local game = env.game
+    local encode = env.encode
+    local kindOf = env.typeof or typeof
+    local date = env.date or os.date
+    local serial = 0
+
+    local function describe(value, seen, depth)
+        local kind = kindOf(value)
+        if kind == "nil" then return {type = "nil"} end
+        if kind == "boolean" or kind == "string" then return {type = kind, value = value} end
+        if kind == "number" then
+            return {type = kind, value = (value == value and math.abs(value) < math.huge) and value or tostring(value)}
+        end
+        if kind == "Instance" then
+            local ok, path = pcall(function() return value:GetFullName() end)
+            return {type = kind, path = ok and path or "<unavailable>", class = value.ClassName}
+        end
+        if kind == "table" then
+            if seen[value] then return {type = "table", cycle = true} end
+            if depth >= 8 then return {type = "table", truncated = "depth limit"} end
+            seen[value] = true
+            local entries = {}
+            local result = {type = "table", entries = entries}
+            for key, item in pairs(value) do
+                if #entries >= 200 then result.truncated = "entry limit"; break end
+                entries[#entries + 1] = {key = describe(key, seen, depth + 1), value = describe(item, seen, depth + 1)}
+            end
+            seen[value] = nil
+            return result
+        end
+        return {type = kind, value = tostring(value)}
+    end
+
+    function api.Calls()
+        local source = env.getCalls()
+        local calls = {}
+        -- The recorder keeps newest first; export chronological order.
+        for i = #source, 1, -1 do
+            local call = source[i]
+            local args = call.Args or {}
+            local count = args.n or #args
+            local values = {}
+            for index = 1, count do values[index] = describe(args[index], {}, 0) end
+            calls[#calls + 1] = {
+                index = #calls + 1, name = call.Name, class = call.Class,
+                path = call.Path, method = call.Method, time = call.Time,
+                argumentCount = count, arguments = values, source = call.Source,
+            }
+        end
+        return calls
+    end
+
+    function api.Inventory()
+        local found = {}
+        local ok, descendants = pcall(function() return game:GetDescendants() end)
+        if not ok then return nil, tostring(descendants) end
+        for index, item in ipairs(descendants) do
+            local success, record = pcall(function()
+                if item:IsA("RemoteEvent") or item:IsA("RemoteFunction") or item:IsA("UnreliableRemoteEvent") then
+                    return {name = item.Name, class = item.ClassName, path = item:GetFullName()}
+                end
+                return nil
+            end)
+            if success and record then found[#found + 1] = record end
+            if env.yield and index % 250 == 0 then env.yield() end
+        end
+        table.sort(found, function(a, b) return a.path < b.path end)
+        return found
+    end
+
+    function api.Export()
+        if type(env.writefile) ~= "function" then
+            return false, "ตัวรันไม่รองรับ writefile จึงยังไม่ได้สร้างไฟล์ / writefile unavailable"
+        end
+        local inventory, errorText = api.Inventory()
+        if not inventory then return false, "อ่านรายการ Remote ไม่สำเร็จ: " .. errorText end
+        local calls = api.Calls()
+        serial += 1
+        local stem = date("%Y%m%d_%H%M%S") .. "_" .. tostring(serial)
+        local directory = "DevilHub_Dumps/Place_" .. tostring(game.PlaceId)
+        local metadata = {
+            schema = "devil-ai-remotes-1", placeId = game.PlaceId, universeId = game.GameId,
+            exportedAt = date("%Y-%m-%d %H:%M:%S"), retainedCallCount = #calls,
+            callBufferLimit = 2000, inventoryCount = #inventory,
+            note = "Client-visible remote inventory; captured calls only. No server source or acceptance verification.",
+        }
+        local payloads = {}
+        local ok, result = pcall(function()
+            payloads[1] = {name = "Remotes_" .. stem .. ".json", content = encode({metadata = metadata, remotes = inventory})}
+            payloads[2] = {name = "RemoteCalls_" .. stem .. ".json", content = encode({metadata = metadata, calls = calls})}
+            local text = {"DEVIL HUB REMOTE EXPORT", "Place: " .. tostring(game.PlaceId), "Universe: " .. tostring(game.GameId),
+                "Visible remotes: " .. #inventory, "Captured calls retained: " .. #calls .. " / 2000", "", "REMOTE INVENTORY"}
+            for _, remote in ipairs(inventory) do text[#text + 1] = remote.class .. " | " .. remote.path end
+            text[#text + 1] = "\nCAPTURED CALLS (oldest first; text for inspection only)"
+            for _, call in ipairs(calls) do
+                text[#text + 1] = string.format("[%d] %s | %s | %s | %d args\n%s", call.index, call.time or "", call.path or "", call.method or "", call.argumentCount, call.source or "")
+            end
+            payloads[3] = {name = "RemoteSummary_" .. stem .. ".txt", content = table.concat(text, "\n")}
+        end)
+        if not ok then return false, "แปลงข้อมูลไม่สำเร็จ: " .. tostring(result) end
+
+        if type(env.makefolder) == "function" then
+            for _, folder in ipairs({"DevilHub_Dumps", directory}) do
+                local exists = false
+                if type(env.isfolder) == "function" then
+                    local checked, present = pcall(env.isfolder, folder)
+                    exists = checked and present
+                end
+                if not exists then pcall(env.makefolder, folder) end
+            end
+        end
+        local written, failures = {}, {}
+        for _, payload in ipairs(payloads) do
+            local path = directory .. "/" .. payload.name
+            local saved, reason = pcall(env.writefile, path, payload.content)
+            if not saved then
+                -- Some executors support writes only at workspace root.
+                path = "DevilHub_Place_" .. tostring(game.PlaceId) .. "_" .. payload.name
+                saved, reason = pcall(env.writefile, path, payload.content)
+            end
+            if saved and type(env.readfile) == "function" then
+                local readOk, contents = pcall(env.readfile, path)
+                saved = readOk and contents == payload.content
+                if not saved then reason = "readback did not match" end
+            end
+            if saved then written[#written + 1] = path else failures[#failures + 1] = payload.name .. ": " .. tostring(reason) end
+        end
+        local message = "บันทึก " .. #written .. "/3 ไฟล์ • " .. #inventory .. " Remotes • " .. #calls .. " Calls\n" .. table.concat(written, "\n")
+        if #calls == 0 then message ..= "\nยังไม่มี Calls: เปิด Remote Spy แล้วกดปุ่มในเกม จากนั้นบันทึกอีกครั้ง" end
+        if #failures > 0 then message ..= "\nเขียนไม่สำเร็จ: " .. table.concat(failures, "\n") end
+        return #written == 3, message, {paths = written, failures = failures, inventoryCount = #inventory, callCount = #calls}
+    end
+    return api
+end
+
+	end)()
+	local exporter = factory({
+		game = game,
+		getCalls = function() return tbl8 end,
+		encode = function(value) return game:GetService("HttpService"):JSONEncode(value) end,
+		writefile = writefile, readfile = readfile, makefolder = makefolder, isfolder = isfolder,
+		yield = function() task.wait() end,
+	})
+	local busy = false
+	local function saveAll()
+		if busy then return end
+		busy = true
+		task.spawn(function()
+			local executed, saved, message = pcall(exporter.Export)
+			busy = false
+			if not executed then message = tostring(saved); saved = false end
+			tbl7:Notify({Title = saved and "DEVIL HUB • Files Saved" or "DEVIL HUB • Export Status", Content = message, Duration = 12})
+			fn2(saved and "INFO" or "WARN", "REMOTE_EXPORT", message)
+		end)
+	end
+	for _, page in ipairs({v5, v4, v7}) do
+		local button = page:AddButton({Title = "บันทึก Remote ทั้งหมด + Calls ลงไฟล์ / Save All Remotes", Style = "primary", Callback = saveAll})
+		button.LayoutOrder = -100
+	end
+end
 
 local str
 str = ""
@@ -8788,7 +8961,7 @@ do
 	uiListLayout.Parent = scrollingFrame4
 
 	uiListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-		scrollingFrame4.CanvasSize = UDim2.new(0, 0, 0, uiListLayout.AbsoluteContentSize.Y + 10)
+		scrollingFrame4.CanvasSize = UDim2.new(0, 0, 0, uiListLayout.AbsoluteContentSize.Y / math.max(v.UIScale.Scale, 0.1) + 10)
 	end)
 
 	fn17 = function()
