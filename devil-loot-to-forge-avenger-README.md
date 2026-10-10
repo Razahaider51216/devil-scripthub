@@ -1,7 +1,7 @@
 # DEVIL HUB / Loot to Forge — separate custom GUI
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-loot-to-forge-avenger.lua?v=devil-blue-3"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-loot-to-forge-avenger.lua?v=devil-blue-4"))()
 ```
 
 This separate entry contains a newly written Roblox instance GUI. It does not
@@ -17,8 +17,19 @@ Landscape screens use a 1160-pixel design canvas scaled as a whole to the
 available screen, including low logical resolutions such as 640 by 320.
 Both columns remain visible with a narrower sidebar and scaled text/controls.
 Window dragging uses the scaled screen bounds. Tab switches return to the
-top of the page. Number badges and an ASCII dropdown arrow avoid missing
-font glyphs appearing as square boxes on mobile.
+top of the page. Function icons are native vector paths: home, sword, crossed
+swords, forge hammer, sell coin, upgrade sliders, tower, target, player and
+settings. They require no icon download or Unicode font glyph. The ASCII
+dropdown arrow avoids missing font glyphs appearing as square boxes on mobile.
+The main background is now 92 percent opaque for readable controls.
+The profile card displays the player's headshot, display name, username and
+Loot to Forge map name, with a fallback avatar while the thumbnail loads.
+It stays visible below the content on portrait phones.
+
+A blue DEVIL HUB loading card displays the logo, animated highlight and
+progress for actual host initialization stages. The gameplay window stays
+hidden until all ten tabs have initialized. Startup failure, unload and
+restart clean up the loading card and animation connection.
 Visible branding uses DEVIL HUB and Loot to Forge, without decorative theme
 names. Animation can be disabled from Settings. Roblox's default rectangular
 borders are disabled, strokes use Border mode, and control rows are transparent
@@ -56,11 +67,12 @@ Named configuration profiles/autoload are stored separately under
 GUI, adapter, gameplay and host are compiled through the existing VM pipeline
 (four compiled layers). Runtime virtualization does not guarantee source secrecy.
 
-Validation: 401 checks construct the actual custom GUI instance tree through all
+Validation: 418 checks construct the actual custom GUI instance tree through all
 ten reference interface builders, test 70 options, mobile reparenting/scroll
 configuration, image previews and rows, multi-selection, profile save/load,
 path validation, icon motion, named mobile navigation, translucent backgrounds,
 border defaults, both columns and screen bounds at six landscape resolutions,
+vector icons, profile names, loading progress/reveal/cleanup,
 clean branding and connection cleanup. The same
 checks pass with renderer, adapter and interface executing as VM bytecode.
 Official Luau compilation and packed payload roundtrip pass. Layout previews
