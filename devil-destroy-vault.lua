@@ -11,11 +11,13 @@ local controls = {}
 local player = game:GetService("Players").LocalPlayer
 local storage = game:GetService("ReplicatedStorage")
 local connection
+local restoreWarp
 local function rootPart()
     local character = player.Character
     return character and character:FindFirstChild("HumanoidRootPart"), character and character:FindFirstChildOfClass("Humanoid")
 end
 local function stopMovement()
+    if restoreWarp then pcall(restoreWarp) end
     local root, humanoid = rootPart()
     if root and humanoid then humanoid:MoveTo(root.Position) end
 end
@@ -78,7 +80,7 @@ local function remoteCall(name, ...)
     end
     return nil, name .. ": " .. tostring(result) .. " (ยังไม่ยืนยันผลสำเร็จ)"
 end
-local function interact(prompt, feedback, valid, walk, stationary)
+local function interact(prompt, feedback, valid, walk, stationary, fastWarp)
     if stopped or not valid() or not prompt.Parent or not prompt.Enabled then return nil, "หยุด หรือ Prompt ยังไม่พร้อม" end
     local parent = prompt.Parent
     local position = parent:IsA("Attachment") and parent.WorldPosition or parent:IsA("BasePart") and parent.Position
@@ -86,8 +88,41 @@ local function interact(prompt, feedback, valid, walk, stationary)
     local root, humanoid = rootPart()
     if not root or not humanoid or humanoid.Health <= 0 then return nil, "รอตัวละครเกิด" end
     local radius = math.max(1, prompt.MaxActivationDistance - 1)
+    local returnPosition
+    local targetPosition
+    local originalRoot=root
+    local function returnHome()
+        if returnPosition then
+            local currentRoot=rootPart()
+            if currentRoot==originalRoot and originalRoot.Parent then
+                originalRoot.CFrame=returnPosition
+                originalRoot.AssemblyLinearVelocity=Vector3.new(0,0,0)
+            end
+            returnPosition=nil
+        end
+        if restoreWarp==returnHome then restoreWarp=nil end
+    end
+    local function finish(ok,message)
+        pcall(returnHome)
+        return ok,message
+    end
     if (root.Position - position).Magnitude > radius then
-        if stationary then
+        if fastWarp then
+            returnPosition=root.CFrame
+            targetPosition=position+Vector3.new(0,math.min(2,radius*0.25),0)
+            restoreWarp=returnHome
+            local warped,reason=pcall(function()
+                root.CFrame=CFrame.new(targetPosition)*returnPosition.Rotation
+                root.AssemblyLinearVelocity=Vector3.new(0,0,0)
+                root.AssemblyAngularVelocity=Vector3.new(0,0,0)
+            end)
+            if not warped then return finish(false,"วาร์ปไม่สำเร็จ: "..tostring(reason)) end
+            task.wait(0.2)
+            if stopped or not valid() then return finish(nil,"หยุดแล้ว") end
+            local currentRoot,currentHumanoid=rootPart()
+            if currentRoot~=originalRoot or not currentHumanoid or currentHumanoid.Health<=0 then return finish(nil,"ตัวละครเปลี่ยน รอเกิดใหม่") end
+            if (root.Position-position).Magnitude>radius then return finish(false,"ตำแหน่งถูกดึงกลับก่อนกด Prompt") end
+        elseif stationary then
             if type(fireproximityprompt) ~= "function" then return nil, "โหมดยืนฟาร์มต้องใช้ fireproximityprompt ของตัวรัน" end
         else
         if not walk then return nil, "เดินเข้าใกล้ " .. prompt.Name .. " ก่อน" end
@@ -105,7 +140,7 @@ local function interact(prompt, feedback, valid, walk, stationary)
         if (root.Position - position).Magnitude > radius then return false, "เดินไปไม่ถึง " .. prompt.Name .. " ลองยืนใกล้จุดนั้น" end
         end
     end
-    if not valid() or not prompt.Enabled then return nil, "Prompt ยังไม่พร้อม" end
+    if not valid() or not prompt.Enabled then return finish(nil, "Prompt ยังไม่พร้อม") end
     local before = prompt:GetAttribute(feedback.sequence)
     local ok, reason = pcall(function()
         if type(fireproximityprompt) == "function" then
@@ -117,18 +152,18 @@ local function interact(prompt, feedback, valid, walk, stationary)
             prompt:InputHoldEnd()
         end
     end)
-    if not ok then return false, tostring(reason) end
-    local deadline = os.clock() + 3
+    if not ok then return finish(false, tostring(reason)) end
+    local deadline = os.clock() + (fastWarp and 1.5 or 3)
     repeat
-        if stopped or not valid() then return nil, "หยุดแล้ว" end
-        if not prompt.Parent then return nil, "Prompt เปลี่ยน รอรอบถัดไป" end
+        if stopped or not valid() then return finish(nil, "หยุดแล้ว") end
+        if not prompt.Parent then return finish(nil, "Prompt เปลี่ยน รอรอบถัดไป") end
         if prompt:GetAttribute(feedback.sequence) ~= before then
             local success = prompt:GetAttribute(feedback.success)
-            return success == true, tostring(prompt:GetAttribute(feedback.result) or "ผลตอบกลับเปลี่ยนแล้ว")
+            return finish(success == true, tostring(prompt:GetAttribute(feedback.result) or "ผลตอบกลับเปลี่ยนแล้ว"))
         end
-        task.wait(0.1)
+        task.wait(fastWarp and 0.05 or 0.1)
     until os.clock() >= deadline
-    return false, (stationary and "โหมดยืนฟาร์มไม่มีผลยืนยัน เกมอาจตรวจระยะ: " or "ยังไม่มีผลยืนยันจากเกม: ") .. prompt.Name
+    return finish(false, (stationary and "โหมดยืนฟาร์มไม่มีผลยืนยัน เกมอาจตรวจระยะ: " or "ยังไม่มีผลยืนยันจากเกม: ") .. prompt.Name)
 end
 local rarityNames={"Common","Uncommon","Rare","Epic","Legendary","Mythic","Divine","Secret","Omnipotent","Transcendant","Indestructible","Limited"}
 local function offerRarity(surface)
@@ -147,7 +182,7 @@ end
 local factory = (function()
 -- DEVIL HUB Destroy a Vault controller. Only observed interactions are used.
 return function(env)
-    local api = {running = true, flags = {}, settings = {interval = 4, minimumOdds = 1, reserve = 0, walk = false, stationary = true, stopAtRarity = false, stopRarities = {}}, status = {}, nextRun = {}, failures = {}}
+    local api = {running = true, flags = {}, settings = {interval = 0.5, minimumOdds = 1, reserve = 0, walk = false, stationary = false, fastWarp = true, stopAtRarity = false, stopRarities = {}}, status = {}, nextRun = {}, failures = {}}
     local claimed = {}
     local cursor = 0
     local jobs = {"gold", "claim", "roll", "holders", "damage", "battery", "luck", "spots", "daily"}
@@ -203,7 +238,7 @@ return function(env)
     end
     local function interact(job, plot, item, sequence, success, result)
         if not item then return nil, "ไม่พบ Prompt ที่เปิดใช้งาน" end
-        return env.interact(item, {sequence = sequence, success = success, result = result}, function() return valid(job, plot) end, api.settings.walk, api.settings.stationary)
+        return env.interact(item, {sequence = sequence, success = success, result = result}, function() return valid(job, plot) end, api.settings.walk, api.settings.stationary, api.settings.fastWarp)
     end
     local function withinBudget(price)
         local cash = env.cash()
@@ -337,7 +372,13 @@ return function(env)
     end
     function api.Inspect()
         local plot = api.Plot()
-        local prompts, holders, offers = {}, {}, {}
+        local prompts, holders, offers, plots = {}, {}, {}, {}
+        local plotRoot = env.plotRoot()
+        if plotRoot then
+            for _, candidate in ipairs(plotRoot:GetChildren()) do
+                if candidate.Name:match("^Plot_%d+$") then plots[#plots+1]={name=candidate.Name,owner=attr(candidate,"OwnerUserId")} end
+            end
+        end
         if plot then
             for _, item in ipairs(plot:GetDescendants()) do
                 if item:IsA("ProximityPrompt") then prompts[#prompts + 1] = {name = item.Name, path = item:GetFullName(), enabled = item.Enabled, distance = item.MaxActivationDistance, hold = item.HoldDuration} end
@@ -347,7 +388,7 @@ return function(env)
                 end
             end
         end
-        return {placeId = env.placeId, plot = plot and plot:GetFullName() or "Not found", cash = env.cash(), prompts = prompts, holders = holders, offers = offers, status = api.status, settings = api.settings}
+        return {placeId = env.placeId, userId = env.userId, plot = plot and plot:GetFullName() or "Not found", plots = plots, cash = env.cash(), prompts = prompts, holders = holders, offers = offers, status = api.status, settings = api.settings}
     end
     return api
 end
@@ -403,6 +444,7 @@ local ok, errorText = xpcall(function()
     local holders=progression:CreateGroupbox({Name="Robot Slots",Icon="layout-grid",Side="Right"})
     local movement=settings:CreateGroupbox({Name="Movement & Timing",Icon="navigation",Side="Left"})
     local session=settings:CreateGroupbox({Name="Session",Icon="activity",Side="Right"})
+    local modeControl,speedControl
     local function toggle(group,key,title)
         local ready=false
         controls[key]=group:CreateToggle({Name=title,CurrentValue=false,Callback=function(value) if ready and not stopped then controller.Set(key,value) end end})
@@ -411,6 +453,20 @@ local ok, errorText = xpcall(function()
     farm:CreateParagraph({Name="Owned base only",Content="เลือกฐานจากเจ้าของจริง • ซื้อหุ่นใช้เงินในเกม • ทุก Auto เริ่มปิด"})
     toggle(farm,"roll","Auto Roll")
     toggle(farm,"claim","Auto รับ / ซื้อหุ่นที่สุ่มได้")
+    farm:CreateButton({Name="เริ่มฟาร์มเร็ว • Roll + รับหุ่น + ทอง",Callback=function()
+        if stopped then return end
+        controller.settings.fastWarp=true
+        controller.settings.stationary=false
+        controller.settings.walk=false
+        controller.settings.interval=0.5
+        if modeControl then modeControl:Set({"Fast • วาร์ปไปกดแล้วกลับ"},true) end
+        if speedControl then speedControl:Set(0.5,true) end
+        for _,key in ipairs({"roll","claim","gold"}) do
+            controller.Set(key,true)
+            controls[key]:Set(true,true)
+        end
+        library:Notify({Title="DEVIL HUB",Content="เปิดฟาร์มเร็วแล้ว • รับหุ่นใช้เงินในเกม",Duration=4})
+    end})
     farm:CreateInput({Name="รับเฉพาะ Odds 1 ใน X ขึ้นไป",CurrentValue="1",PlaceholderText="เช่น 1000",Numeric=true,Callback=function(value)
         controller.settings.minimumOdds=math.max(1,tonumber(value) or 1)
     end})
@@ -446,14 +502,15 @@ local ok, errorText = xpcall(function()
         if not found then library:Notify({Title="DEVIL HUB",Content="ไม่พบช่องที่ปลดล็อกในฐานของเรา"});return end
         task.spawn(function() local _,message=remoteCall("RobotHolderAction","Upgrade",holderId,1);if not stopped then library:Notify({Title="DEVIL HUB",Content=message}) end end)
     end})
-    movement:CreateDropdown({Name="โหมดทำงาน",Options={"ยืนฟาร์ม (ไม่เดิน)","เดินเข้าใกล้ Prompt","เฉพาะจุดที่อยู่ในระยะ"},CurrentOption={"ยืนฟาร์ม (ไม่เดิน)"},Callback=function(value)
+    modeControl=movement:CreateDropdown({Name="โหมดทำงาน",Options={"Fast • วาร์ปไปกดแล้วกลับ","ยืนฟาร์ม (ไม่เดิน)","เดินเข้าใกล้ Prompt","เฉพาะจุดที่อยู่ในระยะ"},CurrentOption={"Fast • วาร์ปไปกดแล้วกลับ"},Callback=function(value)
         if type(value)=="table" then value=value[1] end
         controller.settings.stationary=value=="ยืนฟาร์ม (ไม่เดิน)"
         controller.settings.walk=value=="เดินเข้าใกล้ Prompt"
+        controller.settings.fastWarp=value=="Fast • วาร์ปไปกดแล้วกลับ"
         stopMovement()
     end})
-    movement:CreateParagraph({Name="Stationary farming",Content="เริ่มในโหมดไม่เดิน • เก็บทอง/ฝากหลอมเรียก Prompt ของฐานเรา • ถ้าเกมตรวจระยะ จะรายงานและพักงานเมื่อไม่สำเร็จ"})
-    movement:CreateSlider({Name="ช่วงพักงาน (วินาที)",Range={2,15},CurrentValue=4,Increment=1,Callback=function(value) controller.settings.interval=value end})
+    movement:CreateParagraph({Name="Fast farming",Content="วาร์ปเข้าใกล้จุดกดแล้วกลับตำแหน่งเดิม • ไม่วิ่ง • รอผลจากเกมก่อนรอบถัดไป"})
+    speedControl=movement:CreateSlider({Name="ช่วงพักงาน (วินาที)",Range={0.35,15},CurrentValue=0.5,Increment=0.05,Callback=function(value) controller.settings.interval=math.max(0.35,value) end})
     movement:CreateButton({Name="หยุด Auto ทั้งหมด",Callback=function()
         controller.StopAll()
         for _,control in pairs(controls) do control:Set(false,true) end
@@ -464,6 +521,12 @@ local ok, errorText = xpcall(function()
         local path="DevilVault_Report_"..os.date("%Y%m%d_%H%M%S")..".json"
         local saved,reason=pcall(function() writefile(path,game:GetService("HttpService"):JSONEncode(report)) end)
         library:Notify({Title="DEVIL HUB",Content=saved and ("บันทึกใน Workspace ตัวรัน: "..path) or tostring(reason)})
+    end})
+    session:CreateButton({Name="ตรวจระบบตอนนี้",Callback=function()
+        local report=controller.Inspect()
+        local enabled=0
+        for _,item in ipairs(report.prompts) do if item.enabled then enabled+=1 end end
+        library:Notify({Title="DEVIL HUB • ตรวจระบบ",Content="ฐาน: "..report.plot.."\nUserId: "..player.UserId.." • Prompts เปิด: "..enabled.."/"..#report.prompts.."\nVaultRemotes: "..tostring(storage:FindFirstChild("VaultRemotes")~=nil).."\nfireproximityprompt: "..tostring(type(fireproximityprompt)=="function"),Duration=12})
     end})
     session:CreateButton({Name="Discord DEVIL HUB",Callback=function()
         if type(setclipboard)=="function" then setclipboard("https://discord.gg/ZY7PRcVJe2") end
@@ -485,7 +548,7 @@ local ok, errorText = xpcall(function()
     task.spawn(function()
         while not stopped do
             controller.Step()
-            task.wait(0.2)
+            task.wait(0.05)
         end
     end)
     library:Notify({Title="DEVIL HUB",Content="Destroy a Vault พร้อมแล้ว • เปิด Auto ที่ต้องการ",Duration=5})
