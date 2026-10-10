@@ -80,7 +80,7 @@ local function remoteCall(name, ...)
     end
     return nil, name .. ": " .. tostring(result) .. " (ยังไม่ยืนยันผลสำเร็จ)"
 end
-local function interact(prompt, feedback, valid, walk, stationary, fastWarp)
+local function interact(prompt, feedback, valid, walk, stationary, fastWarp, expandClientRange)
     if stopped or not valid() or not prompt.Parent or not prompt.Enabled then return nil, "หยุด หรือ Prompt ยังไม่พร้อม" end
     local parent = prompt.Parent
     local position = parent:IsA("Attachment") and parent.WorldPosition or parent:IsA("BasePart") and parent.Position
@@ -89,9 +89,18 @@ local function interact(prompt, feedback, valid, walk, stationary, fastWarp)
     if not root or not humanoid or humanoid.Health <= 0 then return nil, "รอตัวละครเกิด" end
     local radius = math.max(1, prompt.MaxActivationDistance - 1)
     local returnPosition
+    local savedPrompt
     local targetPosition
     local originalRoot=root
     local function returnHome()
+        if savedPrompt then
+            local properties=savedPrompt
+            savedPrompt=nil
+            pcall(function()
+                prompt.MaxActivationDistance=properties.distance
+                prompt.RequiresLineOfSight=properties.lineOfSight
+            end)
+        end
         if returnPosition then
             local currentRoot=rootPart()
             if currentRoot==originalRoot and originalRoot.Parent then
@@ -141,6 +150,14 @@ local function interact(prompt, feedback, valid, walk, stationary, fastWarp)
         end
     end
     if not valid() or not prompt.Enabled then return finish(nil, "Prompt ยังไม่พร้อม") end
+    if expandClientRange then
+        savedPrompt={distance=prompt.MaxActivationDistance,lineOfSight=prompt.RequiresLineOfSight}
+        local adjusted,reason=pcall(function()
+            prompt.MaxActivationDistance=math.max(prompt.MaxActivationDistance,(root.Position-position).Magnitude+20)
+            prompt.RequiresLineOfSight=false
+        end)
+        if not adjusted then return finish(false,"ปรับระยะฝั่ง Client ไม่สำเร็จ: "..tostring(reason)) end
+    end
     local before = prompt:GetAttribute(feedback.sequence)
     local ok, reason = pcall(function()
         if type(fireproximityprompt) == "function" then
@@ -163,7 +180,7 @@ local function interact(prompt, feedback, valid, walk, stationary, fastWarp)
         end
         task.wait(fastWarp and 0.05 or 0.1)
     until os.clock() >= deadline
-    return finish(false, (stationary and "โหมดยืนฟาร์มไม่มีผลยืนยัน เกมอาจตรวจระยะ: " or "ยังไม่มีผลยืนยันจากเกม: ") .. prompt.Name)
+    return finish(false, (expandClientRange and "Roll ระยะไกลไม่มีผลยืนยัน: การขยายระยะ Client ยังไม่ผ่านเกม • กดเก็บโค้ดระบบ Roll" or (stationary and "โหมดยืนฟาร์มไม่มีผลยืนยัน เกมอาจตรวจระยะ: " or "ยังไม่มีผลยืนยันจากเกม: ") .. prompt.Name))
 end
 local rarityNames={"Common","Uncommon","Rare","Epic","Legendary","Mythic","Divine","Secret","Omnipotent","Transcendant","Indestructible","Limited"}
 local function offerRarity(surface)
@@ -182,7 +199,7 @@ end
 local factory = (function()
 -- DEVIL HUB Destroy a Vault controller. Only observed interactions are used.
 return function(env)
-    local api = {running = true, flags = {}, settings = {interval = 0.5, minimumOdds = 1, reserve = 0, walk = false, stationary = false, fastWarp = true, stopAtRarity = false, stopRarities = {}}, status = {}, nextRun = {}, failures = {}}
+    local api = {running = true, flags = {}, settings = {interval = 0.5, minimumOdds = 1, reserve = 0, walk = false, stationary = false, fastWarp = true, freeRoamRoll = true, stopAtRarity = false, stopRarities = {}}, status = {}, nextRun = {}, failures = {}}
     local claimed = {}
     local cursor = 0
     local jobs = {"gold", "claim", "roll", "holders", "damage", "battery", "luck", "spots", "daily"}
@@ -238,6 +255,9 @@ return function(env)
     end
     local function interact(job, plot, item, sequence, success, result)
         if not item then return nil, "ไม่พบ Prompt ที่เปิดใช้งาน" end
+        if job=="roll" and api.settings.freeRoamRoll then
+            return env.interact(item,{sequence=sequence,success=success,result=result},function() return valid(job,plot) end,false,true,false,true)
+        end
         return env.interact(item, {sequence = sequence, success = success, result = result}, function() return valid(job, plot) end, api.settings.walk, api.settings.stationary, api.settings.fastWarp)
     end
     local function withinBudget(price)
@@ -452,6 +472,8 @@ local ok, errorText = xpcall(function()
     end
     farm:CreateParagraph({Name="Owned base only",Content="เลือกฐานจากเจ้าของจริง • ซื้อหุ่นใช้เงินในเกม • ทุก Auto เริ่มปิด"})
     toggle(farm,"roll","Auto Roll")
+    farm:CreateToggle({Name="Roll อิสระ • ไม่เดิน/ไม่วาร์ป",CurrentValue=true,Callback=function(value) controller.settings.freeRoamRoll=value==true end})
+    farm:CreateParagraph({Name="Free-roam Roll",Content="Roll แยกจากโหมดวาร์ป • เคลื่อนไหวเองได้ • ขยายระยะเฉพาะ Client และรอผลจากเกม • ถ้าเกมปฏิเสธจะพักงาน"})
     toggle(farm,"claim","Auto รับ / ซื้อหุ่นที่สุ่มได้")
     farm:CreateButton({Name="เริ่มฟาร์มเร็ว • Roll + รับหุ่น + ทอง",Callback=function()
         if stopped then return end
@@ -527,6 +549,44 @@ local ok, errorText = xpcall(function()
         local enabled=0
         for _,item in ipairs(report.prompts) do if item.enabled then enabled+=1 end end
         library:Notify({Title="DEVIL HUB • ตรวจระบบ",Content="ฐาน: "..report.plot.."\nUserId: "..player.UserId.." • Prompts เปิด: "..enabled.."/"..#report.prompts.."\nVaultRemotes: "..tostring(storage:FindFirstChild("VaultRemotes")~=nil).."\nfireproximityprompt: "..tostring(type(fireproximityprompt)=="function"),Duration=12})
+    end})
+    session:CreateButton({Name="เก็บโค้ดระบบ Roll ลงไฟล์",Callback=function()
+        if type(writefile)~="function" then library:Notify({Title="DEVIL HUB",Content="ตัวรันไม่รองรับ writefile"});return end
+        task.spawn(function()
+            local report=controller.Inspect()
+            local records={}
+            local remoteNames={}
+            local roots={storage}
+            local scripts=player:FindFirstChild("PlayerScripts")
+            if scripts then roots[#roots+1]=scripts end
+            local folder=storage:FindFirstChild("VaultRemotes")
+            if folder then for _,item in ipairs(folder:GetDescendants()) do
+                if item:IsA("RemoteEvent") or item:IsA("RemoteFunction") then remoteNames[#remoteNames+1]={name=item.Name,path=item:GetFullName(),class=item.ClassName} end
+            end end
+            for _,container in ipairs(roots) do
+                for _,item in ipairs(container:GetDescendants()) do
+                    if stopped then return end
+                    if item:IsA("LocalScript") or item:IsA("ModuleScript") then
+                        local name=item.Name:lower()
+                        if name:find("roll",1,true) or name:find("prompt",1,true) or name:find("interact",1,true) or name=="main" or name=="bootstrap" or name=="init" then
+                            local record={path=item:GetFullName(),class=item.ClassName,source=""}
+                            local readOK,source=pcall(function() return item.Source end)
+                            if readOK and type(source)=="string" and source~="" then record.source=source
+                            elseif type(decompile)=="function" then
+                                local decoded,result=pcall(decompile,item)
+                                if decoded and type(result)=="string" then record.source=result else record.error=tostring(result) end
+                            else record.error="Source unavailable; decompile unsupported" end
+                            if #record.source>500000 then record.source=record.source:sub(1,500000);record.truncated=true end
+                            records[#records+1]=record
+                            task.wait()
+                        end
+                    end
+                end
+            end
+            local path="DevilVault_RollCapture_"..os.date("%Y%m%d_%H%M%S")..".json"
+            local saved,reason=pcall(function() writefile(path,game:GetService("HttpService"):JSONEncode({schema="devil-vault-roll-capture-1",report=report,remotes=remoteNames,scripts=records})) end)
+            if not stopped then library:Notify({Title="DEVIL HUB",Content=saved and ("บันทึก "..#records.." Scripts: "..path) or tostring(reason),Duration=10}) end
+        end)
     end})
     session:CreateButton({Name="Discord DEVIL HUB",Callback=function()
         if type(setclipboard)=="function" then setclipboard("https://discord.gg/ZY7PRcVJe2") end
