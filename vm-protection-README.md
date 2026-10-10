@@ -16,7 +16,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil
 ```
 
 This is bytecode virtualization rather than only source-string packing. The
-private build compiles 15 layers with debug information removed, including
+private build compiles 16 layers with debug information removed, including
 embedded game sources and the existing startup wrappers. Instruction opcode
 bytes use a per-build permutation; dispatch uses separately randomized handler
 IDs. Encoded payloads have size/checksum verification. Checksums detect damage;
@@ -44,6 +44,10 @@ outer VM. This Ride-only startup correction and version-query update do not
 replace other published gameplay artifacts. Real-device startup time and gameplay
 performance require in-game verification. These checks use API mocks and do
 not establish live executor compatibility for every device.
+
+The `ride-egg-return-1` route also includes an additional compiled VM controller
+for egg pickup and return, exposed through the DEVIL GUI. Its behavior and
+validation limits are documented in [Egg Return](ride-egg-return-README.md).
 
 Client-executed code can still be inspected, dumped or reverse-engineered. The
 payload encoding, opcode permutation and VM increase inspection effort but do

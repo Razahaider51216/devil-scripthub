@@ -23,6 +23,11 @@ verified through the Roblox APIs. Its DEVIL HUB frontend and readable gameplay
 implementation now ship together as virtualized bytecode in
 `devil-steal-an-egg.lua`. See [Steal An Egg details](devil-steal-an-egg-README.md).
 
+Ride a Pet now includes an **Egg Return** tab with Auto Collect & Return,
+multiple egg-type filters, travel speed and manual pickup/home/stop controls.
+The added controller is virtualized; the original protected runtime remains
+byte-identical. See [Egg Return details](ride-egg-return-README.md).
+
 2026-10-08 startup fixes: all six production entry points (the four games plus
 Ride/Break runtime entries) check the current universe/place before creating
 their GUI. Launching a game-specific entry in another supported map redirects
