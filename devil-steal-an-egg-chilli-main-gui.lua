@@ -358,6 +358,7 @@ return function(createLibrary,restoreStartup)
             KeepOnScreen=true,ConfigurationSaving={Enabled=false},
             Home={Title="DEVIL HUB / Steal an Egg",Discord="https://discord.gg/ZY7PRcVJe2"},
             ToggleButton={Title="DEVIL HUB",Icon=logo,Platform="Both",Keybind=Enum.KeyCode.K}})
+        if typeof(library.Gui)=="Instance" then library.Gui:SetAttribute("DevilHubPresentation",true) end
         populate();mounted=true;session.Sync()
         invoke(nativeWindow,"Close")
         hideOriginalScreens()
@@ -391,29 +392,53 @@ local startNativeUiGuard=(function()
 return function()
     local hidden,connections,containers={},{},{}
     local stopped=false
+    local function nativeScreen(screen)
+        if screen:GetAttribute("DevilHubPresentation")==true then return false end
+        if screen.Name=="ChilliHubLoading" or screen:GetAttribute("ChilliLibraryOwned")==true then return true end
+        local fps,ms=false,false
+        for _,child in ipairs(screen:GetDescendants()) do
+            if child:IsA("TextLabel") or child:IsA("TextButton") then
+                if child.Text=="Chilli Hub" then return true end
+                fps=fps or child.Text=="FPS";ms=ms or child.Text=="ms"
+            elseif child:IsA("ImageLabel") or child:IsA("ImageButton") then
+                if child.Image=="rbxassetid://128961717706452" then return true end
+            end
+        end
+        -- Exact footprint of the native random-name performance screen.
+        return fps and ms and screen.DisplayOrder==58 and screen.Archivable==false and screen.ResetOnSpawn==false
+    end
     local function hide(screen)
         if stopped or not screen:IsA("ScreenGui") then return end
-        local owned=screen:GetAttribute("ChilliLibraryOwned")==true
-        local name=screen.Name
-        if name~="ChilliHubLoading" and not (owned and (name=="Settings" or name=="ChilliLeftCenter")) then return end
         if hidden[screen]~=nil then return end
+        if not nativeScreen(screen) then return end
         hidden[screen]=screen.Enabled
         screen.Enabled=false
         table.insert(connections,screen:GetPropertyChangedSignal("Enabled"):Connect(function()
             if not stopped and screen.Enabled then screen.Enabled=false end
         end))
     end
+    local tracked={}
+    local function track(child)
+        if not child:IsA("ScreenGui") or tracked[child] then return end
+        tracked[child]=true
+        hide(child)
+        if hidden[child]~=nil or child:GetAttribute("DevilHubPresentation")==true then return end
+        table.insert(connections,child:GetPropertyChangedSignal("Name"):Connect(function()hide(child)end))
+        table.insert(connections,child:GetAttributeChangedSignal("ChilliLibraryOwned"):Connect(function()hide(child)end))
+        local function inspect(node,initial)
+            if not initial then hide(child) end
+            local property=(node:IsA("TextLabel") or node:IsA("TextButton")) and "Text"
+                or (node:IsA("ImageLabel") or node:IsA("ImageButton")) and "Image"
+            if property and node[property]=="" then table.insert(connections,node:GetPropertyChangedSignal(property):Connect(function()hide(child)end)) end
+        end
+        table.insert(connections,child.DescendantAdded:Connect(inspect))
+        for _,node in ipairs(child:GetDescendants()) do inspect(node,true) end
+    end
     local function watch(container)
         if typeof(container)~="Instance" or containers[container] then return end
         containers[container]=true
-        table.insert(connections,container.ChildAdded:Connect(function(child)
-            hide(child)
-            if child:IsA("ScreenGui") then
-                table.insert(connections,child:GetPropertyChangedSignal("Name"):Connect(function()hide(child)end))
-                table.insert(connections,child:GetAttributeChangedSignal("ChilliLibraryOwned"):Connect(function()hide(child)end))
-            end
-        end))
-        for _,child in ipairs(container:GetChildren()) do hide(child) end
+        table.insert(connections,container.ChildAdded:Connect(track))
+        for _,child in ipairs(container:GetChildren()) do track(child) end
     end
     pcall(function()watch(game:GetService("CoreGui"))end)
     pcall(function()if type(gethui)=="function" then watch(gethui()) end end)
@@ -423,7 +448,7 @@ return function()
         stopped=true
         for _,connection in ipairs(connections) do connection:Disconnect() end
         for screen,enabled in pairs(hidden) do pcall(function()screen.Enabled=enabled end) end
-        table.clear(connections);table.clear(hidden);table.clear(containers)
+        table.clear(connections);table.clear(hidden);table.clear(containers);table.clear(tracked)
     end
 end
 
@@ -436,7 +461,7 @@ if correctMap and env.DevilChilliFullRuntimeTest then
     return attach(existingDevilHubLibrary,restoreStartup)
 end
 local result=table.pack(pcall(function()
--- BEGIN UNCHANGED FULL-RUNTIME WRAPPER
+-- BEGIN FULL-RUNTIME WRAPPER (LOADING NOTICE REMOVED)
 -- DEVIL HUB: full Chilli runtime test, separate from the main loader.
 -- Original protected engine/frontend retained; not a devirtualized migration.
 if game.GameId~=10563114921 and game.PlaceId~=107778070777162 then
@@ -468,7 +493,7 @@ local outcome=table.pack(xpcall(function()
     if env.DevilStealEggSession and type(env.DevilStealEggSession.Destroy)=="function"then
         env.DevilStealEggSession.Destroy()
     end
-    notify("Loading the complete Chilli runtime; its own menu will open")
+    warn("DEVIL HUB: loading the original systems into the main GUI")
     local originalGameSource=game:HttpGet("https://raw.githubusercontent.com/tienkhanh1/Chilli-Hub-Script/5718ad8818f412ccca12d67dc18dbc2964b7a829/StealAnEgg")
     assert(type(originalGameSource)=="string"and #originalGameSource==848305,"Pinned runtime download has an unexpected size")
     local checksum=0
@@ -485,7 +510,7 @@ if not report.ok then report.error=tostring(outcome[2])end
 save()
 if not report.ok then notify(report.error:sub(1,250));error(report.error,0)end
 return table.unpack(outcome,2,outcome.n)
--- END UNCHANGED FULL-RUNTIME WRAPPER
+-- END FULL-RUNTIME WRAPPER
 end))
 if not result[1] then
     if restoreStartup then restoreStartup() end
