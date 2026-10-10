@@ -31,7 +31,13 @@ Upgrade prices are read from the matched native GUI's `BuyButton.PriceLabel` whe
 
 Player controls restore captured speed, collision, prompt hold duration, shadows/effect states, and rendering on disable/cleanup. Repeated enable does not overwrite the saved original state. Reconnect waits ten seconds after an English kick/disconnection/connection message and makes one teleport attempt; disabling the option or destroying the script cancels the pending attempt. Hide UI on Start is remembered only for later runs in the same executor environment and can be reopened with the logo/K. GameplayPaused is not modified. These client features are not server bypasses.
 
-Auto Place Robots, Auto Replace With Better (DPS/minimum place rarity), Auto Unlock Islands, Auto Upgrade Gold Vault, and Auto Buy Gem Shop are displayed as unavailable descriptions, not working switches. The source dumps failed to decompile, and observed logs do not provide complete placement/replacement, island, gem-item, or next-vault-tier contracts. The current version does not provide all automation in the reference screenshots.
+Auto Place Robots, Auto Replace With Better (DPS/minimum place rarity), Auto Unlock Islands, Auto Upgrade Gold Vault, and Auto Buy Gem Shop are grouped in Settings → Not Supported Yet as unavailable descriptions, not working switches. These descriptions have been removed from beside the working Tank Slots control to avoid suggesting that Auto Buy Tank Slots is unavailable. The current version does not provide all automation in the reference screenshots.
+
+## Tank Slots cash correction
+
+The supplied live Status Report showed three locked holder slots priced at 85,000, but omitted cash entirely. The old cash reader only looked at leaderstats/Stats and a player attribute; holder purchases deliberately waited when that balance was unreadable. The supplied map dump identifies the actual cash label at `LocalPlayer.PlayerGui.ScreenGui.SafeRoot.BottomLeftHud.Cash`, so the reader now falls back to that exact HUD path. It supports dollar/comma formatting, rich text, zero, and compact suffixes. Compact rounded balances use a conservative lower bound for affordability and reserve checks; this can postpone a purchase near the displayed balance. Stats/attribute values take precedence when available.
+
+Auto Buy Tank Slots remains opt-in and sends the observed `RobotHolderPurchaseRequest(holderId)` only for an affordable unsold holder on an unlocked owned island. Waiting messages now distinguish missing cash, insufficient cash (with price/reserve), and no eligible slots. Status Report includes `cashDetails` with the chosen source, HUD text, and approximation flag. These corrections have been verified in mocks, not live Roblox.
 
 ## Free-roam Roll
 
@@ -56,7 +62,7 @@ The script reads `Rarity` only from a displayed robot with `RollOfferId` and `Ro
 ## Practical limits
 
 - This entry is compiled and tested offline, **not yet verified live in Delta/Roblox**.
-- Cash is read from numeric Cash/Money values in the player's leaderstats/Stats or a Cash player attribute. If cash is not readable, Auto Holder purchase waits. Use Settings → Status Report to inspect what the client exposes.
+- Cash is read from Cash/Money values in the player's leaderstats/Stats, a Cash player attribute, or the exact Cash HUD path captured in the supplied map dump. If cash is not readable, Auto Holder purchase waits. Use Settings → Status Report to inspect `cash` and `cashDetails`.
 - Minimum odds uses the live `RollRobotOddsDenominator` attribute: e.g. 1000 accepts denominators at least 1000. It is not a rarity-name filter.
 - Holder prices and island locks come from replicated attributes. Robot purchase prices remain unknown, so a positive reserve pauses Auto Claim. Upgrade prices are read from the live owned-board label when available; a positive reserve pauses an upgrade whose price cannot be read. Reserve is enforced for known-price purchases.
 - Missing/disabled prompts and absent owned plots wait. Failed jobs back off; three consecutive failures turn that job off. Movement/ownership changes are checked before prompt activation. Remote calls have a ten-second response timeout. A previously sent purchase cannot be undone by Stop All. Settings → Check System displays owned plot, user ID, enabled prompt count, remote-folder presence, and executor prompt-helper availability. Status Report includes candidate plot owners and live offer details.

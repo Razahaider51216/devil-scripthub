@@ -10,6 +10,51 @@ local controller, library, window, playerTools
 local controls = {}
 local player = game:GetService("Players").LocalPlayer
 local storage = game:GetService("ReplicatedStorage")
+local cashReader=(function()
+-- Cash fallback is restricted to the exact Cash HUD found in the supplied dump.
+local reader={}
+function reader.Parse(value)
+    if type(value)=="number" then
+        if value==value and value>=0 and value<math.huge then return value,false end
+        return nil
+    end
+    if type(value)~="string" then return nil end
+    local text=value:gsub("</?[%a][^>]*>",""):gsub("[$,%s]",""):upper()
+    local digits,suffix=text:match("^(%d+%.?%d*)([KMBT]?)$")
+    local amount=tonumber(digits)
+    if not amount then return nil end
+    if suffix~="" then
+        local decimals=digits:match("%.(%d+)$")
+        local scale=({K=1000,M=1000000,B=1000000000,T=1000000000000})[suffix]
+        -- Compact display can round: use a lower bound for budget checks.
+        amount=math.max(0,(amount-0.5*10^(-(decimals and #decimals or 0)))*scale)
+    end
+    if amount<math.huge then return math.floor(amount),suffix~="" end
+end
+function reader.Read(player)
+    for _,folderName in ipairs({"leaderstats","Stats"}) do
+        local folder=player:FindFirstChild(folderName)
+        if folder then for _,name in ipairs({"Cash","Money"}) do
+            local item=folder:FindFirstChild(name)
+            if item and (item:IsA("NumberValue") or item:IsA("IntValue") or item:IsA("StringValue")) then
+                local amount,approximate=reader.Parse(item.Value)
+                if amount then return amount,{source=item:GetFullName(),approximate=approximate} end
+            end
+        end end
+    end
+    local amount,attributeApproximate=reader.Parse(player:GetAttribute("Cash"))
+    if amount then return amount,{source="LocalPlayer.Cash attribute",approximate=attributeApproximate} end
+    local item=player:FindFirstChild("PlayerGui")
+    for _,name in ipairs({"ScreenGui","SafeRoot","BottomLeftHud","Cash"}) do item=item and item:FindFirstChild(name) end
+    if item and item:IsA("TextLabel") then
+        local money,approximate=reader.Parse(item.Text)
+        if money then return money,{source=item:GetFullName(),display=item.Text,approximate=approximate} end
+    end
+    return nil,{source="Unavailable",reason="ยังอ่าน Cash จาก Stats/attribute/HUD ไม่ได้"}
+end
+return reader
+
+end)()
 local connection
 local restoreWarp
 local function rootPart()
@@ -40,19 +85,7 @@ local function resolve(path)
     return item
 end
 local function cash()
-    for _, folderName in ipairs({"leaderstats", "Stats"}) do
-        local folder = player:FindFirstChild(folderName)
-        if folder then
-            for _, name in ipairs({"Cash", "Money"}) do
-                local value = folder:FindFirstChild(name)
-                if value and (value:IsA("NumberValue") or value:IsA("IntValue") or value:IsA("StringValue")) then
-                    local result = tonumber(value.Value)
-                    if result then return result end
-                end
-            end
-        end
-    end
-    return tonumber(player:GetAttribute("Cash"))
+    return cashReader.Read(player)
 end
 local function remoteCall(name, ...)
     local remotes = storage:FindFirstChild("VaultRemotes")
@@ -347,13 +380,21 @@ return function(env)
                 if unlocked then candidates[#candidates + 1] = {id = id, price = price} end
             end
         end
-        table.sort(candidates, function(a,b) return a.price < b.price end)
+        table.sort(candidates, function(a,b)
+            if a.price~=b.price then return a.price<b.price end
+            local ai,bi=tonumber(a.id:match("(%d+)$")),tonumber(b.id:match("(%d+)$"))
+            if ai and bi and ai~=bi then return ai<bi end
+            return a.id<b.id
+        end)
+        if #candidates==0 then return nil,"ไม่มีช่องขายบนเกาะที่เปิดแล้ว" end
+        local cash=env.cash()
+        if not cash then return nil,"ยังอ่านเงินไม่ได้ • รอ Cash HUD ของเกม" end
         for _, item in ipairs(candidates) do
             local allowed = withinBudget(item.price)
             local cash = env.cash()
             if allowed and cash and cash >= item.price + api.settings.reserve then return invoke("RobotHolderPurchaseRequest", item.id) end
         end
-        return nil, "ไม่มีช่องที่ซื้อได้ตอนนี้ หรือยังอ่านเงินไม่ได้"
+        return nil, "รอเงินซื้อช่อง • เงิน "..tostring(cash).." / ราคาต่ำสุด "..tostring(candidates[1].price).." / สำรอง "..tostring(api.settings.reserve)
     end
     local function upgrade(job,plot)
         local board = boards[job]
@@ -457,7 +498,7 @@ return function(env)
                 else upgrades[job].reason=ok and reason or tostring(data) end
             end
         end
-        return {placeId = env.placeId, userId = env.userId, plot = plot and plot:GetFullName() or "Not found", plots = plots, cash = env.cash(), prompts = prompts, holders = holders, offers = offers, upgrades = upgrades, status = api.status, settings = api.settings}
+        return {placeId = env.placeId, userId = env.userId, plot = plot and plot:GetFullName() or "Not found", plots = plots, cash = env.cash(), cashDetails=env.cashDetails and env.cashDetails() or nil, prompts = prompts, holders = holders, offers = offers, upgrades = upgrades, status = api.status, settings = api.settings}
     end
     return api
 end
@@ -791,6 +832,7 @@ controller = factory({
     userId = player.UserId, placeId = game.PlaceId,
     plotRoot = function() return workspace:FindFirstChild("playable") end,
     now = os.clock, cash = cash, interact = interact, invoke = remoteCall,
+    cashDetails=function() local _,details=cashReader.Read(player);return details end,
     offerRarity = offerRarity,
     readUpgrade = upgradeButtons.Read,
     activateUpgrade = upgradeButtons.Buy,
@@ -841,6 +883,7 @@ local ok, errorText = xpcall(function()
     local detailedUpgrades=settings:CreateGroupbox({Name="Individual Upgrades",Icon="trending-up",Side="Right"})
     local movement=settings:CreateGroupbox({Name="Movement & Timing",Icon="navigation",Side="Left"})
     local session=settings:CreateGroupbox({Name="Session",Icon="activity",Side="Right"})
+    local unavailable=settings:CreateGroupbox({Name="Not Supported Yet",Icon="info",Side="Right"})
     local modeControl,speedControl,freeRoamControl,rollDelayControl
     local hideOnStart=shared.DevilVaultHideUIOnStart==true
     playerTools=playerFactory({player=player,world=workspace,placeId=game.PlaceId,hideOnStart=hideOnStart,
@@ -927,11 +970,12 @@ local ok, errorText = xpcall(function()
         if active then setUpgrades(true) end
     end})
     upgrades:CreateParagraph({Name="Upgrade control",Content="ใช้ปุ่มซื้อเดิมของเกม • ถ้าขึ้นรอปุ่ม ให้เข้าใกล้ป้าย Upgrade ก่อน • ถ้าไม่มีเงินหรือถึง MAX จะรอ"})
-    upgrades:CreateParagraph({Name="Auto Upgrade Gold Vault",Content="ยังไม่พร้อมใช้งานในเวอร์ชันนี้ • Upgrade ด้านบนใช้ได้เฉพาะรายการที่เลือก"})
-    holders:CreateParagraph({Name="Auto Place Robots / Auto Replace With Better",Content="ยังไม่พร้อมใช้งานในเวอร์ชันนี้ • Auto Buy Rolled Robots รับหุ่นที่สุ่มได้ แต่ยังไม่จัดหุ่นลงช่องหรือแทนตัวเดิม"})
+    unavailable:CreateParagraph({Name="Auto Upgrade Gold Vault",Content="ยังไม่รองรับ • Auto Buy Upgrades บนหน้า Main ใช้ได้เฉพาะรายการที่เลือก"})
+    unavailable:CreateParagraph({Name="Auto Place Robots / Auto Replace With Better",Content="ยังไม่รองรับ • Auto Buy Rolled Robots รับหุ่นที่สุ่มได้ แต่ยังไม่จัดหุ่นลงช่องหรือแทนตัวเดิม"})
     toggle(holders,"holders","Auto Buy Tank Slots")
-    holders:CreateParagraph({Name="Auto Unlock Islands",Content="ยังไม่พร้อมใช้งานในเวอร์ชันนี้ • Auto Buy Tank Slots ซื้อเฉพาะช่องบนเกาะที่ปลดล็อกแล้ว"})
-    economy:CreateParagraph({Name="Auto Buy Gem Shop",Content="ยังไม่พร้อมใช้งานในเวอร์ชันนี้ • Auto Collect Gold เก็บแล้วฝากหลอมให้อัตโนมัติ"})
+    holders:CreateParagraph({Name="Tank Slots",Content="ซื้อช่องวางหุ่นเมื่อเงินพอ • เฉพาะเกาะที่เปิดแล้ว • ตั้งเงินสำรองได้ใน Settings • ดูสถานะการซื้อใน Economy"})
+    unavailable:CreateParagraph({Name="Auto Unlock Islands",Content="ยังไม่รองรับ • Auto Buy Tank Slots ซื้อเฉพาะช่องบนเกาะที่ปลดล็อกแล้ว"})
+    unavailable:CreateParagraph({Name="Auto Buy Gem Shop",Content="ยังไม่รองรับ • Auto Collect Gold เก็บแล้วฝากหลอมให้อัตโนมัติ"})
     session:CreateInput({Name="เงินสำรอง",CurrentValue="0",Numeric=true,Callback=function(value) controller.settings.reserve=math.max(0,tonumber(value) or 0) end})
     session:CreateParagraph({Name="Budget",Content="เงินสำรองใช้กับช่องวาง/Upgrade ที่อ่านราคาได้ • ถ้าราคาไม่ชัดจะรอ • ตั้งมากกว่า 0 จะพักการซื้อหุ่นที่ยังไม่ทราบราคา"})
     local holderId=""
