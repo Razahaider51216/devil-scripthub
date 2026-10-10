@@ -204,6 +204,7 @@ local factory = (function()
 return function(env)
     local api = {running = true, flags = {}, settings = {interval = 0.5, minimumOdds = 1, reserve = 0, walk = false, stationary = false, fastWarp = true, warpReturn = false, freeRoamRoll = false, stopAtRarity = false, stopRarities = {}}, status = {}, nextRun = {}, failures = {}}
     local claimed = {}
+    local purchasedUpgrades = {}
     api.settings.rollDelay = 0.5
     api.settings.buyRarities = nil
     api.settings.maxBuyPrice = nil
@@ -354,11 +355,20 @@ return function(env)
         end
         return nil, "ไม่มีช่องที่ซื้อได้ตอนนี้ หรือยังอ่านเงินไม่ได้"
     end
-    local function upgrade(job)
-        if api.settings.reserve > 0 then return nil, "ราคา Upgrade ยังอ่านไม่ครบ: ตั้งเงินสำรองเป็น 0 เพื่อเปิดการซื้อ" end
+    local function upgrade(job,plot)
         local board = boards[job]
         if not env.pathExists(board[2]) then return nil, "ไม่พบป้าย Upgrade ตามข้อมูลที่จับไว้" end
-        return invoke("UpgradeBoardAction", board[1], board[2], 1)
+        if not env.readUpgrade then return nil,"รอข้อมูลค่าถัดไปจากป้าย Upgrade" end
+        local data,reason=env.readUpgrade(plot,board[1])
+        if not data or type(data.target)~="number" or data.target%1~=0 or data.target<1 then return nil,reason or "ยังอ่านค่า Upgrade ถัดไปไม่ได้" end
+        local previous=purchasedUpgrades[job]
+        if previous and previous.plot==plot and previous.target==data.target then return nil,"ซื้อสำเร็จแล้ว รอป้ายแสดงค่าถัดไป" end
+        if api.settings.reserve>0 and type(data.price)~="number" then return nil,"ยังอ่านราคา Upgrade ไม่ได้ จึงรักษาเงินสำรองไว้" end
+        local allowed,message=withinBudget(data.price)
+        if not allowed then return nil,message end
+        local ok,result=invoke("UpgradeBoardAction",board[1],board[2],data.target)
+        if ok==true then purchasedUpgrades[job]={plot=plot,target=data.target} end
+        return ok,(result or "ยังไม่มีผลตอบกลับ").." • ค่าที่ส่ง: "..tostring(data.target)
     end
     function api.CheckTargets(plot)
         if not api.flags.roll or not api.settings.stopAtRarity or not env.offerRarity or not plot then return end
@@ -394,7 +404,7 @@ return function(env)
                     if job == "roll" then return roll(plot) end
                     if job == "holders" then return holders(plot) end
                     if job == "daily" then return invoke("DailyRewardsAction", "Claim") end
-                    return upgrade(job)
+                    return upgrade(job,plot)
                 end)
                 if not executed then message, ok = tostring(ok), false end
                 if not api.running or not api.flags[job] then return end
@@ -413,7 +423,7 @@ return function(env)
     end
     function api.Inspect()
         local plot = api.Plot()
-        local prompts, holders, offers, plots = {}, {}, {}, {}
+        local prompts, holders, offers, plots, upgrades = {}, {}, {}, {}, {}
         local plotRoot = env.plotRoot()
         if plotRoot then
             for _, candidate in ipairs(plotRoot:GetChildren()) do
@@ -429,7 +439,17 @@ return function(env)
                 end
             end
         end
-        return {placeId = env.placeId, userId = env.userId, plot = plot and plot:GetFullName() or "Not found", plots = plots, cash = env.cash(), prompts = prompts, holders = holders, offers = offers, status = api.status, settings = api.settings}
+        if plot and env.readUpgrade then
+            for job,board in pairs(boards) do
+                local ok,data,reason=pcall(env.readUpgrade,plot,board[1])
+                upgrades[job]={action=board[1],requestPath=board[2]}
+                if ok and data then
+                    upgrades[job].target=data.target;upgrades[job].current=data.current;upgrades[job].price=data.price;upgrades[job].valueText=data.valueText
+                    upgrades[job].liveBoard=data.part and data.part:GetFullName() or nil
+                else upgrades[job].reason=ok and reason or tostring(data) end
+            end
+        end
+        return {placeId = env.placeId, userId = env.userId, plot = plot and plot:GetFullName() or "Not found", plots = plots, cash = env.cash(), prompts = prompts, holders = holders, offers = offers, upgrades = upgrades, status = api.status, settings = api.settings}
     end
     return api
 end
@@ -613,12 +633,58 @@ return function(env)
 end
 
 end)()
+local upgradeReader = (function()
+-- Read an observed upgrade board's current display; never scan numeric targets.
+local reader = {}
+local function plain(value)
+    return tostring(value or ""):gsub("</?[%a][^>]*>", ""):gsub("→", ">"):gsub("➜", ">"):gsub("&gt;", ">")
+end
+function reader.Target(text)
+    local current, nextValue = plain(text):match("^%s*(%d+)%s*>%s*(%d+)%s*$")
+    current, nextValue = tonumber(current), tonumber(nextValue)
+    if not current or not nextValue or nextValue <= current then return nil end
+    return nextValue, current
+end
+function reader.Price(text)
+    local value=plain(text):gsub("[$,%s]", ""):upper()
+    local number,suffix=value:match("^(%d+%.?%d*)([KMB]?)$")
+    number=tonumber(number)
+    if not number then return nil end
+    return number * (({K=1000,M=1000000,B=1000000000})[suffix] or 1)
+end
+function reader.Read(plot, action)
+    if not plot then return nil,"รอฐานของผู้เล่น" end
+    local candidates={}
+    local displays={}
+    for _,item in ipairs(plot:GetDescendants()) do
+        if item:IsA("SurfaceGui") and item:GetAttribute("UpgradeBoardAction")==action then
+            local part=item.Parent
+            if part and part:IsA("BasePart") and part:IsDescendantOf(plot) then
+                local value=item:FindFirstChild("ValueLabel")
+                local buy=item:FindFirstChild("BuyButton")
+                local price=buy and buy:FindFirstChild("PriceLabel")
+                local text=value and value:IsA("TextLabel") and value.Text or ""
+                displays[#displays+1]=text:sub(1,100)
+                local nextValue,current=reader.Target(text)
+                if nextValue then candidates[#candidates+1]={part=part,target=nextValue,current=current,valueText=text,
+                    price=price and price:IsA("TextLabel") and reader.Price(price.Text) or nil} end
+            end
+        end
+    end
+    if #candidates==1 then return candidates[1] end
+    if #candidates>1 then return nil,"พบป้าย Upgrade ซ้ำในฐาน รอระบุป้ายที่ใช้งาน" end
+    return nil,"รอป้าย Upgrade ที่แสดงค่าเดิม > ค่าถัดไปเป็นจำนวนเต็ม • อ่านได้: "..table.concat(displays," / ")
+end
+return reader
+
+end)()
 local names = {gold="เก็บทอง / ฝากหลอม",claim="รับ / ซื้อหุ่น",roll="Roll",holders="ซื้อช่องวางหุ่น",damage="Damage",battery="Battery",luck="Roll Luck",spots="Roll Spots",daily="Daily"}
 controller = factory({
     userId = player.UserId, placeId = game.PlaceId,
     plotRoot = function() return workspace:FindFirstChild("playable") end,
     now = os.clock, cash = cash, interact = interact, invoke = remoteCall,
     offerRarity = offerRarity,
+    readUpgrade = upgradeReader.Read,
     pathExists = function(path) return resolve(path) ~= nil end,
     cancelMovement = stopMovement,
     disabled = function(key, reason)
@@ -756,7 +822,7 @@ local ok, errorText = xpcall(function()
     holders:CreateParagraph({Name="Auto Unlock Islands",Content="ยังไม่พร้อมใช้งานในเวอร์ชันนี้ • Auto Buy Tank Slots ซื้อเฉพาะช่องบนเกาะที่ปลดล็อกแล้ว"})
     economy:CreateParagraph({Name="Auto Buy Gem Shop",Content="ยังไม่พร้อมใช้งานในเวอร์ชันนี้ • Auto Collect Gold เก็บแล้วฝากหลอมให้อัตโนมัติ"})
     session:CreateInput({Name="เงินสำรอง",CurrentValue="0",Numeric=true,Callback=function(value) controller.settings.reserve=math.max(0,tonumber(value) or 0) end})
-    session:CreateParagraph({Name="Budget",Content="เงินสำรองใช้กับช่องวางที่อ่านราคาได้ หากตั้งมากกว่า 0 จะพักการซื้อหุ่นและ Upgrade ซึ่งยังอ่านราคาไม่ครบ"})
+    session:CreateParagraph({Name="Budget",Content="เงินสำรองใช้กับช่องวาง/Upgrade ที่อ่านราคาได้ • ถ้าราคาไม่ชัดจะรอ • ตั้งมากกว่า 0 จะพักการซื้อหุ่นที่ยังไม่ทราบราคา"})
     local holderId=""
     session:CreateInput({Name="ID ช่องสำหรับ Upgrade ครั้งเดียว",CurrentValue="",PlaceholderText="robot_holder_6",Callback=function(value) holderId=tostring(value) end})
     session:CreateButton({Name="Upgrade ช่องที่ระบุครั้งเดียว",Callback=function()
