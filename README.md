@@ -34,8 +34,9 @@ tabs are included, along with Get Roll and old-server search. A patched server
 that fails the roll-balance probe is not treated as accepting repeat grants.
 See [Loot update details](loot-mario-update-README.md).
 
-A separate Loot to Forge entry now offers an original DEVIL HUB GUI with light
-silver cards, red/gold accents, animated icons and game item images. It keeps
+A separate Loot to Forge entry now offers a wide original DEVIL HUB GUI with
+translucent black panels, blue accents, named tabs, a transparent silver logo,
+animated icons and game item images. It keeps
 the complete reference gameplay set. See [custom Loot GUI](devil-loot-to-forge-avenger-README.md)
 for its standalone launch command.
 
