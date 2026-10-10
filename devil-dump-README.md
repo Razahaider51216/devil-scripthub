@@ -4,11 +4,11 @@ Independent universal client utility based on ValenHub. Uses the same OuroFlow
 Abyss blue/black interface, Devil logo and Discord invite as Devil Hub.
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-dump.lua?v=dump-8"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-dump.lua?v=5"))()
 ```
 
 Rejoin before switching from an already running ValenHub version. The previous
-`valen-standalone.lua` entry forwards here. The four-game `loader` is unchanged;
+`valen-standalone.lua` entry forwards here. The five-game `loader` is unchanged;
 DEVIL DUMP is a separate script with no Place ID allowlist.
 
 Original categories and controllers remain: Player, Dumper, Remotes, Explorer,
@@ -21,6 +21,33 @@ specialized layout with updated branding and colors.
 Discord and community links: https://discord.gg/ZY7PRcVJe2
 Default export/config folders are `DevilDump_Dumps` and `DevilDump_service`.
 Existing `ValenHub_service` configurations are not automatically migrated.
+
+## Item and reward Remote finder: dump-9
+
+The existing `devil-dump.lua?v=5` link still loads this entry; the query is not a pinned Git version.
+
+Open **Map Analyst → Item & Reward Remotes → Find Item / Reward Remotes & Dump**. Automatic Map Analyst scans also include this finder. It recognizes the seven requested names and related aliases, including underscores and RE/RF suffixes:
+
+| Example name | Possible purpose |
+| --- | --- |
+| SpawnItem | Request item creation |
+| GiveItem | Request or handle an item grant |
+| PurchaseItem | Item purchase |
+| ClaimReward | Reward claim |
+| InventoryEvent | Inventory management/update |
+| EquipItem | Item equipment |
+| CraftItem | Item crafting |
+
+Each matching client-visible Remote record includes its actual name, full path, class, matched alias, match type, possible purpose and existing observed call count/argument type shapes. Names are evaluated on the Remote itself; matching parent-folder names do not fabricate candidates. Unequip/Despawn names are excluded from EquipItem/SpawnItem classification.
+
+The regular scan exports two additional files in its `DevilDump_Dumps/Map_.../` folder:
+
+- `remote-candidates.json`: complete candidate list, map IDs and scan/truncation information.
+- `remote-candidates.md`: seven-name match counts and up to 200 actual instances with their paths and possible purposes.
+
+The GUI previews up to 12 matches and can copy the complete matching list as JSON. All purposes remain explicitly inferred (`purposeConfirmed=false`), including when a call has been observed. Accepted arguments, client/server direction and permissions are not established by a name. The finder does not fire remotes, require modules or send requests to an external AI service.
+
+Validation: 38 analyst checks, 8 frontend/recorder integration checks, 28 forwarding/deferred-recorder checks, 16 runtime-capture checks, official Luau compilation and packed-source round-trip integrity. Live Roblox/Delta behavior remains unverified.
 
 ## Runtime Capture: dump-8
 
