@@ -191,3 +191,31 @@ and exact packed roundtrip pass. Real executor behavior requires a live run.
 
 Rejoin before testing this release after a recorder session that blocked game
 buttons, so the older installed hook does not remain active.
+
+## Targeted online reward capture: dump-10
+
+Open the Loot to Forge online rewards screen, run the latest Dump, then use
+**Runtime Capture → Dump Online Rewards Only**. Keep the loaded-module exports
+toggle enabled. The capture writes its JSON, summary, and available source or
+bytecode automatically under
+`DevilDump_Dumps/ClientRuntimeV8/OnlineRewards_<timestamp>_<run>/`.
+There is no need to wait until a reward becomes claimable or enable Remote
+Recorder for this capture. Recorder logs remain useful for actual claim calls.
+
+This mode selects only `ReplicatedStorage.LocalData.OnlineData`,
+`ReplicatedStorage.GuiUtils.OnlineGift`, `ReplicatedStorage.Config.Online.Reward`,
+`ReplicatedStorage.Config.Online.Helper`, and scripts beneath those paths.
+OnlineData and OnlineGift take priority. Unrelated scripts cannot consume the
+function budget. Table inspection gets a fresh budget per selected script and
+reads four nested levels; function constants/upvalues are capped at 256/64.
+Missing modules and truncation remain explicit in the report. The ordinary
+full-client capture retains its existing limits.
+
+Only modules already reported as loaded are read through cached require.
+Inspected game methods are not called, and no reward remote is fired. Executor
+decompilation can still fail; raw bytecode and metadata do not constitute
+recovered source or proof that early claims are possible.
+
+Validation: 17 targeted capture checks and the existing runtime, analyst,
+recorder and integration regressions pass, alongside official Luau compilation
+and an exact packed payload roundtrip. Live Delta behavior needs a user run.
