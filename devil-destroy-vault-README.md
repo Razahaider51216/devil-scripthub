@@ -31,7 +31,13 @@ Upgrade prices are read from the matched native GUI's `BuyButton.PriceLabel` whe
 
 Player controls restore captured speed, collision, prompt hold duration, shadows/effect states, and rendering on disable/cleanup. Repeated enable does not overwrite the saved original state. Reconnect waits ten seconds after an English kick/disconnection/connection message and makes one teleport attempt; disabling the option or destroying the script cancels the pending attempt. Hide UI on Start is remembered only for later runs in the same executor environment and can be reopened with the logo/K. GameplayPaused is not modified. These client features are not server bypasses.
 
-Auto Place Robots, Auto Replace With Better (DPS/minimum place rarity), Auto Unlock Islands, Auto Upgrade Gold Vault, and Auto Buy Gem Shop are grouped in Settings → Not Supported Yet as unavailable descriptions, not working switches. These descriptions have been removed from beside the working Tank Slots control to avoid suggesting that Auto Buy Tank Slots is unavailable. The current version does not provide all automation in the reference screenshots.
+Auto Place Robots, Auto Replace With Better (DPS/minimum place rarity), Auto Unlock Islands, and Auto Buy Gem Shop are grouped in Settings → Not Supported Yet as unavailable descriptions, not working switches. These descriptions have been removed from beside the working Tank Slots control to avoid suggesting that Auto Buy Tank Slots is unavailable. The current version does not provide all automation in the reference screenshots.
+
+## Auto Upgrade Vault
+
+Main → Upgrades → **Auto Upgrade Vault** is a separate, default-off switch. The newly supplied log confirms the game's `PurchaseVaultTier` action, matching template path, and `UpgradeVaultUpgradeInteraction.BuyButton`; it sends `vault_tier_2` in that snapshot. Automation activates this bound native button using the existing owned-board, budget, cancellation, and confirmation checks, letting the game choose its current tier. It never repeats a hardcoded `vault_tier_2` or guesses the next tier from numeric display values. Damage and Battery already exist under Auto Buy Upgrades, so no duplicate jobs were added.
+
+Gold Value is shown alongside the Vault control as requested. No separate Gold Value purchase action appears in the supplied log or board-action inventory, so no independent Gold Value automation was invented. If the game has a distinct Gold Value buy button, its actual request or native GUI binding is still needed.
 
 ## Tank Slots cash correction
 
@@ -67,7 +73,7 @@ The script reads `Rarity` only from a displayed robot with `RollOfferId` and `Ro
 - Holder prices and island locks come from replicated attributes. Robot purchase prices remain unknown, so a positive reserve pauses Auto Claim. Upgrade prices are read from the live owned-board label when available; a positive reserve pauses an upgrade whose price cannot be read. Reserve is enforced for known-price purchases.
 - Missing/disabled prompts and absent owned plots wait. Failed jobs back off; three consecutive failures turn that job off. Movement/ownership changes are checked before prompt activation. Remote calls have a ten-second response timeout. A previously sent purchase cannot be undone by Stop All. Settings → Check System displays owned plot, user ID, enabled prompt count, remote-folder presence, and executor prompt-helper availability. Status Report includes candidate plot owners and live offer details.
 - Unknown remote responses are shown as unconfirmed, not reported as successful. Daily claims are spaced at least two minutes apart.
-- Fusion, Mutation, auto best equip, Spin, and automatic next Vault tier are not implemented because their complete selection/state contracts have not been captured.
+- Fusion, Mutation, auto best equip, and Spin remain unimplemented. Vault tier advancement uses only the game's own buy button and requires a bound, accessible native GUI plus live confirmation.
 
 ## Validation and dependencies
 

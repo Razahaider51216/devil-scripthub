@@ -243,12 +243,13 @@ return function(env)
     api.settings.maxBuyPrice = nil
     local revisions = {}
     local cursor = 0
-    local jobs = {"gold", "claim", "roll", "holders", "damage", "battery", "luck", "spots", "daily"}
+    local jobs = {"gold", "claim", "roll", "holders", "damage", "battery", "luck", "spots", "vault", "daily"}
     local boards = {
         damage = {"PurchaseRobotDamage", "ReplicatedStorage.SharedUpgradeBoardTemplates.RobotUpgrades.RobotUpgrades.RobotDamage.BoardPart"},
         battery = {"PurchaseRobotBattery", "ReplicatedStorage.SharedUpgradeBoardTemplates.RobotUpgrades.RobotUpgrades.RobotBattery.BoardPart"},
         luck = {"PurchaseRollLuck", "ReplicatedStorage.SharedUpgradeBoardTemplates.RollUpgrades.RollUpgrades.RobotLuck.BoardPart"},
         spots = {"PurchaseRollSpots", "ReplicatedStorage.SharedUpgradeBoardTemplates.RollUpgrades.RollUpgrades.RobotRolls.BoardPart"},
+        vault = {"PurchaseVaultTier", "ReplicatedStorage.SharedUpgradeBoardTemplates.UpgradeVault.UpgradeVault.BoardPart"},
     }
     local function attr(item, key) return item and item:GetAttribute(key) end
     local function number(value) return tonumber(value) end
@@ -408,6 +409,7 @@ return function(env)
             local revision=revisions[job]
             return env.activateUpgrade(data,board[1],function() return revisions[job]==revision and valid(job,plot) end)
         end
+        if job=="vault" then return nil,"Upgrade Vault ต้องใช้ปุ่มซื้อของเกม • ไม่เดา vault_tier ถัดไป" end
         if not data or type(data.target)~="number" or data.target%1~=0 or data.target<1 then return nil,reason or "ยังอ่านค่า Upgrade ถัดไปไม่ได้" end
         local previous=purchasedUpgrades[job]
         if previous and previous.plot==plot and previous.target==data.target then return nil,"ซื้อสำเร็จแล้ว รอป้ายแสดงค่าถัดไป" end
@@ -731,7 +733,8 @@ local upgradeButtonsFactory = (function()
 -- Activate only the game's existing local upgrade button, bound to an owned board.
 return function(env)
     local names={PurchaseRollLuck="RobotLuckUpgradeInteraction",PurchaseRollSpots="RobotRollsUpgradeInteraction",
-        PurchaseRobotDamage="RobotDamageUpgradeInteraction",PurchaseRobotBattery="RobotBatteryUpgradeInteraction"}
+        PurchaseRobotDamage="RobotDamageUpgradeInteraction",PurchaseRobotBattery="RobotBatteryUpgradeInteraction",
+        PurchaseVaultTier="UpgradeVaultUpgradeInteraction"}
     local function gui(data,action)
         local root=env.playerGui()
         local item=root and root:FindFirstChild(names[action] or "")
@@ -827,7 +830,7 @@ end)()
 local upgradeButtons=upgradeButtonsFactory({playerGui=function() return player:FindFirstChild("PlayerGui") end,
     userId=player.UserId,now=os.clock,wait=task.wait,firesignal=firesignal,getconnections=getconnections,
     readBoard=upgradeReader.Read,parsePrice=upgradeReader.Price})
-local names = {gold="เก็บทอง / ฝากหลอม",claim="รับ / ซื้อหุ่น",roll="Roll",holders="ซื้อช่องวางหุ่น",damage="Damage",battery="Battery",luck="Roll Luck",spots="Roll Spots",daily="Daily"}
+local names = {gold="เก็บทอง / ฝากหลอม",claim="รับ / ซื้อหุ่น",roll="Roll",holders="ซื้อช่องวางหุ่น",damage="Damage",battery="Battery",luck="Roll Luck",spots="Roll Spots",vault="Upgrade Vault",daily="Daily"}
 controller = factory({
     userId = player.UserId, placeId = game.PlaceId,
     plotRoot = function() return workspace:FindFirstChild("playable") end,
@@ -970,7 +973,8 @@ local ok, errorText = xpcall(function()
         if active then setUpgrades(true) end
     end})
     upgrades:CreateParagraph({Name="Upgrade control",Content="ใช้ปุ่มซื้อเดิมของเกม • ถ้าขึ้นรอปุ่ม ให้เข้าใกล้ป้าย Upgrade ก่อน • ถ้าไม่มีเงินหรือถึง MAX จะรอ"})
-    unavailable:CreateParagraph({Name="Auto Upgrade Gold Vault",Content="ยังไม่รองรับ • Auto Buy Upgrades บนหน้า Main ใช้ได้เฉพาะรายการที่เลือก"})
+    toggle(upgrades,"vault","Auto Upgrade Vault")
+    upgrades:CreateParagraph({Name="Gold Value",Content="Auto Upgrade Vault ใช้ปุ่มอัปเกรด Vault ของเกม • ยังไม่มีคำสั่ง Gold Value แยกใน log • Damage/Battery เลือกใน Upgrades ด้านบน"})
     unavailable:CreateParagraph({Name="Auto Place Robots / Auto Replace With Better",Content="ยังไม่รองรับ • Auto Buy Rolled Robots รับหุ่นที่สุ่มได้ แต่ยังไม่จัดหุ่นลงช่องหรือแทนตัวเดิม"})
     toggle(holders,"holders","Auto Buy Tank Slots")
     holders:CreateParagraph({Name="Tank Slots",Content="ซื้อช่องวางหุ่นเมื่อเงินพอ • เฉพาะเกาะที่เปิดแล้ว • ตั้งเงินสำรองได้ใน Settings • ดูสถานะการซื้อใน Economy"})
@@ -1090,7 +1094,7 @@ local ok, errorText = xpcall(function()
             upgradeMaster:Set(upgradesActive,true)
             local lines={"ฐาน: "..(plot and plot.Name or "รอเจ้าของฐาน"),"เงิน: "..tostring(cash() or "ยังอ่านไม่ได้")}
             if controller.status.roll and not controller.flags.roll then lines[#lines+1]=controller.status.roll end
-            for _,key in ipairs({"roll","claim","gold","holders","damage","battery","luck","spots","daily"}) do
+            for _,key in ipairs({"roll","claim","gold","holders","damage","battery","luck","spots","vault","daily"}) do
                 if controller.flags[key] then lines[#lines+1]=(names[key] or key)..": "..(controller.status[key] or "พร้อม") end
             end
             pcall(function() statusWidget:Set(table.concat(lines,"\n"),true) end)
