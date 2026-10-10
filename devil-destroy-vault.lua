@@ -360,6 +360,13 @@ return function(env)
         if not env.pathExists(board[2]) then return nil, "ไม่พบป้าย Upgrade ตามข้อมูลที่จับไว้" end
         if not env.readUpgrade then return nil,"รอข้อมูลค่าถัดไปจากป้าย Upgrade" end
         local data,reason=env.readUpgrade(plot,board[1])
+        if data and env.activateUpgrade then
+            if api.settings.reserve>0 and type(data.price)~="number" then return nil,"ยังอ่านราคา Upgrade ไม่ได้ จึงรักษาเงินสำรองไว้" end
+            local allowed,message=withinBudget(data.price)
+            if not allowed then return nil,message end
+            local revision=revisions[job]
+            return env.activateUpgrade(data,board[1],function() return revisions[job]==revision and valid(job,plot) end)
+        end
         if not data or type(data.target)~="number" or data.target%1~=0 or data.target<1 then return nil,reason or "ยังอ่านค่า Upgrade ถัดไปไม่ได้" end
         local previous=purchasedUpgrades[job]
         if previous and previous.plot==plot and previous.target==data.target then return nil,"ซื้อสำเร็จแล้ว รอป้ายแสดงค่าถัดไป" end
@@ -446,6 +453,7 @@ return function(env)
                 if ok and data then
                     upgrades[job].target=data.target;upgrades[job].current=data.current;upgrades[job].price=data.price;upgrades[job].valueText=data.valueText
                     upgrades[job].liveBoard=data.part and data.part:GetFullName() or nil
+                    if env.inspectUpgradeButton then upgrades[job].gameButton=env.inspectUpgradeButton(data,board[1]) end
                 else upgrades[job].reason=ok and reason or tostring(data) end
             end
         end
@@ -666,8 +674,8 @@ function reader.Read(plot, action)
                 local text=value and value:IsA("TextLabel") and value.Text or ""
                 displays[#displays+1]=text:sub(1,100)
                 local nextValue,current=reader.Target(text)
-                if nextValue then candidates[#candidates+1]={part=part,target=nextValue,current=current,valueText=text,
-                    price=price and price:IsA("TextLabel") and reader.Price(price.Text) or nil} end
+                candidates[#candidates+1]={part=part,surface=item,target=nextValue,current=current,valueText=text,
+                    price=price and price:IsA("TextLabel") and reader.Price(price.Text) or nil}
             end
         end
     end
@@ -678,13 +686,115 @@ end
 return reader
 
 end)()
+local upgradeButtonsFactory = (function()
+-- Activate only the game's existing local upgrade button, bound to an owned board.
+return function(env)
+    local names={PurchaseRollLuck="RobotLuckUpgradeInteraction",PurchaseRollSpots="RobotRollsUpgradeInteraction",
+        PurchaseRobotDamage="RobotDamageUpgradeInteraction",PurchaseRobotBattery="RobotBatteryUpgradeInteraction"}
+    local function gui(data,action)
+        local root=env.playerGui()
+        local item=root and root:FindFirstChild(names[action] or "")
+        if item and item:IsA("SurfaceGui") and item.Adornee==data.part then return item end
+        return nil
+    end
+    local function callback(button)
+        if type(env.getconnections)=="function" then
+            for _,signal in ipairs({button.MouseButton1Click,button.Activated}) do
+                local ok,links=pcall(env.getconnections,signal)
+                local callbacks={}
+                if ok and type(links)=="table" then for _,link in ipairs(links) do
+                    if link.Enabled~=false then
+                        local fire=link.Fire
+                        local fn=link.Function
+                        if type(fire)=="function" then callbacks[#callbacks+1]=function() fire(link) end
+                        elseif type(fn)=="function" then callbacks[#callbacks+1]=fn end
+                    end
+                end end
+                if #callbacks>0 then
+                    if type(env.firesignal)=="function" then return function() env.firesignal(signal) end end
+                    return function() for _,fn in ipairs(callbacks) do fn() end end
+                end
+            end
+        end
+        if type(env.firesignal)=="function" then return function() env.firesignal(button.MouseButton1Click) end end
+        return nil
+    end
+    local api={}
+    function api.Inspect(data,action)
+        local surface=gui(data,action)
+        if not surface then
+            local root=env.playerGui()
+            local observed=root and root:FindFirstChild(names[action] or "")
+            return {bound=false,path=observed and observed:GetFullName() or nil,
+                adornee=observed and observed.Adornee and observed.Adornee:GetFullName() or nil,
+                signalSupport=type(env.firesignal)=="function",connectionsSupport=type(env.getconnections)=="function"}
+        end
+        local button=surface:FindFirstChild("BuyButton")
+        local value=surface:FindFirstChild("ValueLabel")
+        return {bound=true,path=surface:GetFullName(),enabled=surface.Enabled,
+            valueText=value and value.Text or nil,buttonVisible=button and button.Visible or nil,
+            buttonActive=button and button.Active or nil,signalSupport=type(env.firesignal)=="function",connectionsSupport=type(env.getconnections)=="function"}
+    end
+    function api.Read(plot,action)
+        local data,reason=env.readBoard(plot,action)
+        if not data then return nil,reason end
+        local surface=gui(data,action)
+        if surface then
+            local value=surface:FindFirstChild("ValueLabel")
+            local buy=surface:FindFirstChild("BuyButton")
+            local price=buy and buy:FindFirstChild("PriceLabel")
+            if value then data.valueText=value.Text end
+            if price then data.price=env.parsePrice(price.Text) end
+        end
+        return data
+    end
+    function api.Buy(data,action,valid)
+        if not valid() then return nil,"หยุดแล้ว" end
+        local surface=gui(data,action)
+        if not surface then return nil,"รอปุ่มเกมที่ผูกกับป้าย Upgrade ในฐานเรา" end
+        local button=surface:FindFirstChild("BuyButton")
+        local value=surface:FindFirstChild("ValueLabel")
+        if not surface.Enabled or not button or not button:IsA("GuiButton") or not button.Visible or not button.Active then return nil,"ปุ่ม Upgrade ของเกมยังไม่พร้อม" end
+        local run=callback(button)
+        if not run then return nil,"ตัวรันยังไม่เปิด callback ปุ่มเกม • ต้องมี firesignal หรือ getconnections" end
+        local display=value and value.Text or ""
+        if display=="" or display:upper():find("MAX",1,true) then return nil,"รอค่าบนป้าย หรือ Upgrade ถึง MAX แล้ว" end
+        local sequence=data.surface:GetAttribute("UpgradeVfxFeedbackSequence")
+        local executed,err=pcall(run)
+        if not executed then return false,"ปุ่มเกมทำงานผิดพลาด: "..tostring(err) end
+        local deadline=env.now()+2
+        repeat
+            if not valid() then return nil,"หยุดแล้ว" end
+            if surface.Adornee~=data.part then return nil,"ป้ายของปุ่มเกมเปลี่ยน รอรอบถัดไป" end
+            if data.surface:GetAttribute("UpgradeVfxFeedbackSequence")~=sequence then
+                local recipient=data.surface:GetAttribute("UpgradeVfxRecipientUserId")
+                if recipient==nil or tonumber(recipient)==env.userId then
+                    local success=data.surface:GetAttribute("UpgradeVfxSucceeded")
+                    if success==true then return true,"Upgrade ผ่านปุ่มเกมสำเร็จ" end
+                    if success==false then return false,"เกมไม่รับการซื้อ Upgrade" end
+                end
+            end
+            if value and value.Parent and value.Text~=display then return true,"ค่า Upgrade บนป้ายเกมเปลี่ยนแล้ว: "..value.Text end
+            env.wait(0.05)
+        until env.now()>=deadline
+        return nil,"กดปุ่มเกมแล้ว ยังไม่มีผลยืนยัน • ป้าย: "..display
+    end
+    return api
+end
+
+end)()
+local upgradeButtons=upgradeButtonsFactory({playerGui=function() return player:FindFirstChild("PlayerGui") end,
+    userId=player.UserId,now=os.clock,wait=task.wait,firesignal=firesignal,getconnections=getconnections,
+    readBoard=upgradeReader.Read,parsePrice=upgradeReader.Price})
 local names = {gold="เก็บทอง / ฝากหลอม",claim="รับ / ซื้อหุ่น",roll="Roll",holders="ซื้อช่องวางหุ่น",damage="Damage",battery="Battery",luck="Roll Luck",spots="Roll Spots",daily="Daily"}
 controller = factory({
     userId = player.UserId, placeId = game.PlaceId,
     plotRoot = function() return workspace:FindFirstChild("playable") end,
     now = os.clock, cash = cash, interact = interact, invoke = remoteCall,
     offerRarity = offerRarity,
-    readUpgrade = upgradeReader.Read,
+    readUpgrade = upgradeButtons.Read,
+    activateUpgrade = upgradeButtons.Buy,
+    inspectUpgradeButton = upgradeButtons.Inspect,
     pathExists = function(path) return resolve(path) ~= nil end,
     cancelMovement = stopMovement,
     disabled = function(key, reason)
@@ -816,6 +926,7 @@ local ok, errorText = xpcall(function()
         local active=false;for _,key in pairs(upgradeKeys) do if controller.flags[key] then active=true end end
         if active then setUpgrades(true) end
     end})
+    upgrades:CreateParagraph({Name="Upgrade control",Content="ใช้ปุ่มซื้อเดิมของเกม • ถ้าขึ้นรอปุ่ม ให้เข้าใกล้ป้าย Upgrade ก่อน • ถ้าไม่มีเงินหรือถึง MAX จะรอ"})
     upgrades:CreateParagraph({Name="Auto Upgrade Gold Vault",Content="ยังไม่พร้อมใช้งานในเวอร์ชันนี้ • Upgrade ด้านบนใช้ได้เฉพาะรายการที่เลือก"})
     holders:CreateParagraph({Name="Auto Place Robots / Auto Replace With Better",Content="ยังไม่พร้อมใช้งานในเวอร์ชันนี้ • Auto Buy Rolled Robots รับหุ่นที่สุ่มได้ แต่ยังไม่จัดหุ่นลงช่องหรือแทนตัวเดิม"})
     toggle(holders,"holders","Auto Buy Tank Slots")
