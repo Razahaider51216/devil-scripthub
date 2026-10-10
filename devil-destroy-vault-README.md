@@ -10,12 +10,18 @@ All automation starts disabled. Press K or use the floating DEVIL HUB button to 
 
 ## Controls
 
-- **Main:** Auto Roll, Auto purchase/claim rolled robots with minimum odds denominator, a multi-select rarity stop, Auto collect Gold and deposit carried Gold into the smelter, Auto Daily claim.
-- **Progression:** Auto Damage, Battery, Roll Luck, Roll Spots; Auto purchase affordable unlocked-island holder slots; upgrade one already-unlocked holder by its current ID.
-- **Main → Farm Modes:** Full farm (Roll + Claim + Gold), Roll + Claim, Gold pickup + smelter deposit, or Auto Upgrades + holder purchases. Select a preset then press Start Selected Farm. Starting a preset stops all previous jobs and synchronizes their toggles. Upgrade and robot purchases spend in-game currency.
+- **Main → Rolling / Upgrades (left), Base / Economy (right):** Auto Roll with independent Roll Delay, Auto Buy Rolled Robots, multi-select Buy Rarities, Max Buy Price, multi-select upgrade jobs controlled by Auto Buy Upgrades, Auto Buy Tank Slots, Auto Collect Gold + deposit, and Daily rewards. Layout follows the supplied reference screenshots, retaining DEVIL HUB branding and Abyss theme.
+- **Player:** WalkSpeed + Speed, Infinite Jump, Noclip, Instant ProximityPrompt, Fly + Fly Speed, Disable 3D Rendering, FPS Boost, Auto Reconnect on Kick, and Hide UI on Start. All start off. Fly uses the mobile movement stick and camera direction, plus jump to rise; desktop Space rises and Ctrl descends. Turn Fly off before prompt automation; prompt jobs wait while Fly is on.
+- **Settings → Farm Modes:** Full farm (Roll + Claim + Gold), Roll + Claim, Gold pickup + smelter deposit, or Auto Upgrades + holder purchases. Select a preset then press Start Selected Farm. Starting a preset stops all previous jobs and synchronizes their toggles. Upgrade and robot purchases spend in-game currency. Settings also retains individual upgrade switches and one-holder upgrade by current ID.
 - **Settings:** Fast warp between farm points (default), Fast warp-and-return, stationary, walk into prompt range, or nearby-only interaction modes; job interval, Stop All, owned-base/status JSON report, live prerequisite check, Discord, and cleanup.
 
-For a quick start, Main → **Start Fast Farm: Roll + Claim + Gold** enables those three jobs and selects Fast mode at a 0.5-second minimum interval between repeats of each job. Auto Claim purchases spend in-game currency. The 0.5-second setting is a scheduler delay, not a guaranteed server roll rate; hold duration, feedback latency, failed requests, and game cooldowns still apply. The slider supports 0.35–15 seconds.
+For a quick start, Settings → Advanced Rolling → **Start Fast Farm: Roll + Claim + Gold** enables those three jobs and selects Fast mode with 0.5-second Roll Delay and job interval. Auto Claim purchases spend in-game currency. Scheduler delays are not a guaranteed server roll rate; hold duration, feedback latency, failed requests, and game cooldowns still apply. Both timing sliders support 0.35–15 seconds.
+
+Buy Rarities accepts multiple categories and defaults to all twelve visible choices. An empty selection buys none. Claim-before-reroll waiting applies only to offers that satisfy the purchase filters. Max Buy Price defaults to No Limit. The current dumps have no verified rolled-robot price source, so selecting a price cap **waits instead of buying an unpriced offer**; it does not establish a working price lookup. Stop-at-rarity remains independent of the purchase filter in Settings → Advanced Rolling.
+
+Player controls restore captured speed, collision, prompt hold duration, shadows/effect states, and rendering on disable/cleanup. Repeated enable does not overwrite the saved original state. Reconnect waits ten seconds after an English kick/disconnection/connection message and makes one teleport attempt; disabling the option or destroying the script cancels the pending attempt. Hide UI on Start is remembered only for later runs in the same executor environment and can be reopened with the logo/K. GameplayPaused is not modified. These client features are not server bypasses.
+
+Auto Place Robots, Auto Replace With Better (DPS/minimum place rarity), Auto Unlock Islands, Auto Upgrade Gold Vault, and Auto Buy Gem Shop are displayed as unavailable descriptions, not working switches. The source dumps failed to decompile, and observed logs do not provide complete placement/replacement, island, gem-item, or next-vault-tier contracts. The current version does not provide all automation in the reference screenshots.
 
 ## Free-roam Roll
 
@@ -33,7 +39,7 @@ Stationary mode attempts executor `fireproximityprompt` activation without movin
 
 ## Stop at rarity
 
-Enable **Stop Roll at selected rarity** and select one or multiple targets. Choices are taken from rarity names present in the supplied Workspace dump: Common, Uncommon, Rare, Epic, Legendary, Mythic, Divine, Secret, Omnipotent, Transcendant, Indestructible, Limited. Matches are exact; no unsupported rarity ordering or odds-to-rarity conversion is assumed.
+In Settings → Advanced Rolling, enable **Stop Roll at selected rarity** and select one or multiple targets. Choices are taken from rarity names present in the supplied Workspace dump: Common, Uncommon, Rare, Epic, Legendary, Mythic, Divine, Secret, Omnipotent, Transcendant, Indestructible, Limited. Matches are exact; no unsupported rarity ordering or odds-to-rarity conversion is assumed.
 
 The script reads `Rarity` only from a displayed robot with `RollOfferId` and `RobotId` matching the current offer surface. On a match it turns off Auto Roll before another reroll and retains the result; Auto Claim and Gold can continue. A previous reveal's attributes or an unrelated robot cannot satisfy the stop condition. If the live game does not expose a matching rarity, the stop cannot detect it; the Status Report includes current offers and resolved rarities for diagnosis.
 

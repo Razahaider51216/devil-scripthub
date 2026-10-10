@@ -6,7 +6,7 @@ if game.PlaceId ~= 91034536684382 and game.GameId ~= 10561166339 then
 end
 if shared.DevilVaultSession then pcall(shared.DevilVaultSession.Destroy) end
 local stopped = false
-local controller, library, window
+local controller, library, window, playerTools
 local controls = {}
 local player = game:GetService("Players").LocalPlayer
 local storage = game:GetService("ReplicatedStorage")
@@ -25,6 +25,7 @@ local function cleanup()
     if stopped then return end
     stopped = true
     if controller then controller.Stop() end
+    if playerTools then playerTools.Destroy() end
     stopMovement()
     if connection then connection:Disconnect() end
     if library and library.Destroy then pcall(function() library:Destroy() end) end
@@ -81,6 +82,7 @@ local function remoteCall(name, ...)
     return nil, name .. ": " .. tostring(result) .. " (ยังไม่ยืนยันผลสำเร็จ)"
 end
 local function interact(prompt, feedback, valid, walk, stationary, fastWarp, expandClientRange, warpReturn)
+    if playerTools and playerTools.flags.fly then return nil,"ปิด Fly ก่อนใช้ Auto ที่ต้องเคลื่อนตัวละคร" end
     if stopped or not valid() or not prompt.Parent or not prompt.Enabled then return nil, "หยุด หรือ Prompt ยังไม่พร้อม" end
     local parent = prompt.Parent
     local position = parent:IsA("Attachment") and parent.WorldPosition or parent:IsA("BasePart") and parent.Position
@@ -202,6 +204,9 @@ local factory = (function()
 return function(env)
     local api = {running = true, flags = {}, settings = {interval = 0.5, minimumOdds = 1, reserve = 0, walk = false, stationary = false, fastWarp = true, warpReturn = false, freeRoamRoll = false, stopAtRarity = false, stopRarities = {}}, status = {}, nextRun = {}, failures = {}}
     local claimed = {}
+    api.settings.rollDelay = 0.5
+    api.settings.buyRarities = nil
+    api.settings.maxBuyPrice = nil
     local revisions = {}
     local cursor = 0
     local jobs = {"gold", "claim", "roll", "holders", "damage", "battery", "luck", "spots", "daily"}
@@ -285,6 +290,20 @@ return function(env)
         if pile > 0 then return interact("gold", plot, pickup, "InteractionFeedbackSequence", "InteractionSucceeded", "InteractionResult") end
         return nil, "รอทองจากหุ่น"
     end
+    local function eligibleOffer(surface)
+        local offer, robot = attr(surface, "RollOfferId"), attr(surface, "RollRobotId")
+        local odds = number(attr(surface, "RollRobotOddsDenominator"))
+        if not offer or not robot or not odds or odds < api.settings.minimumOdds or claimed[offer] or attr(surface, "RollPedestalUnlocked") == false then return false end
+        if api.settings.buyRarities then
+            local rarity = env.offerRarity and env.offerRarity(surface)
+            if not rarity or not api.settings.buyRarities[rarity] then return false end
+        end
+        if api.settings.maxBuyPrice then
+            local price = env.offerPrice and number(env.offerPrice(surface))
+            if not price or price < 0 or price > api.settings.maxBuyPrice then return false end
+        end
+        return true, offer
+    end
     local function claim(plot)
         local allowed, reason = withinBudget()
         if not allowed then return nil, reason end
@@ -292,26 +311,22 @@ return function(env)
         for _, item in ipairs(plot:GetDescendants()) do
             if item:IsA("ProximityPrompt") and item.Name == "ClaimRobotPrompt" and item.Enabled then
                 local surface = item.Parent
-                local offer = attr(surface, "RollOfferId")
-                local robot = attr(surface, "RollRobotId")
-                local odds = number(attr(surface, "RollRobotOddsDenominator"))
-                if offer and robot and odds and odds >= api.settings.minimumOdds and not claimed[offer] and attr(surface, "RollPedestalUnlocked") ~= false then
+                local eligible, offer = eligibleOffer(surface)
+                if eligible then
                     local ok, message = interact("claim", plot, item, "RobotClaimPurchaseFeedbackSequence", "PurchaseSucceeded", "PurchaseResult")
                     if ok then claimed[offer] = true end
                     return ok, message
                 end
             end
         end
-        return nil, "รอหุ่นตามเงื่อนไข Odds ที่เลือก"
+        return nil, api.settings.maxBuyPrice and "รอราคาหุ่นที่ยืนยันได้ภายใน Max Buy Price" or "รอหุ่นตาม Buy Rarities / Odds ที่เลือก"
     end
     local function roll(plot)
         -- Leave qualifying offers in place while the buyer is enabled.
         if api.flags.claim then
             for _, item in ipairs(plot:GetDescendants()) do
                 if item:IsA("ProximityPrompt") and item.Name == "ClaimRobotPrompt" and item.Enabled then
-                    local offer = attr(item.Parent, "RollOfferId")
-                    local odds = number(attr(item.Parent, "RollRobotOddsDenominator"))
-                    if offer and odds and odds >= api.settings.minimumOdds and not claimed[offer] then return nil, "รอรับหุ่นก่อน Roll รอบถัดไป" end
+                    if eligibleOffer(item.Parent) then return nil, "รอรับหุ่นก่อน Roll รอบถัดไป" end
                 end
             end
         end
@@ -369,7 +384,8 @@ return function(env)
             cursor = cursor % #jobs + 1
             local job = jobs[cursor]
             if api.flags[job] and env.now() >= (api.nextRun[job] or 0) then
-                api.nextRun[job] = env.now() + api.settings.interval
+                local delay = job == "roll" and api.settings.rollDelay or api.settings.interval
+                api.nextRun[job] = env.now() + delay
                 local plot = job ~= "daily" and api.Plot() or nil
                 if job ~= "daily" and not plot then api.status[job] = "รอฐานของผู้เล่น"; return end
                 local executed, ok, message = pcall(function()
@@ -383,7 +399,7 @@ return function(env)
                 if not executed then message, ok = tostring(ok), false end
                 if not api.running or not api.flags[job] then return end
                 api.status[job] = message or "ไม่มีผลตอบกลับ"
-                api.nextRun[job] = env.now() + (job == "daily" and 120 or (ok == false and 15 or api.settings.interval))
+                api.nextRun[job] = env.now() + (job == "daily" and 120 or (ok == false and 15 or delay))
                 if ok == false then
                     api.failures[job] = (api.failures[job] or 0) + 1
                     if api.failures[job] >= 3 then
@@ -414,6 +430,184 @@ return function(env)
             end
         end
         return {placeId = env.placeId, userId = env.userId, plot = plot and plot:GetFullName() or "Not found", plots = plots, cash = env.cash(), prompts = prompts, holders = holders, offers = offers, status = api.status, settings = api.settings}
+    end
+    return api
+end
+
+end)()
+local playerFactory = (function()
+-- DEVIL HUB reversible local player controls; no remote or anti-cheat hooks.
+return function(env)
+    local player, world = env.player, env.world
+    local services = env.services
+    local api = {flags={},speed=32,flySpeed=60,alive=true}
+    local links, saved, speedHumanoid, speedOriginal = {}, {}, nil, nil
+    local flyRoot, flyHumanoid, velocity, gyro, autoRotate = nil,nil,nil,nil,nil
+    local reconnectGeneration = 0
+    local renderOriginal = true
+    local function connect(signal,fn)
+        if signal and signal.Connect then
+            local ok,link=pcall(function() return signal:Connect(fn) end)
+            if ok then links[#links+1]=link end
+        end
+    end
+    local function remember(item,property,value,group)
+        local bucket=saved[group] or {};saved[group]=bucket
+        local values=bucket[item] or {};bucket[item]=values
+        if values[property]==nil then values[property]=item[property] end
+        item[property]=value
+    end
+    local function restore(group)
+        for item,values in pairs(saved[group] or {}) do
+            for key,value in pairs(values) do pcall(function() item[key]=value end) end
+        end
+        saved[group]=nil
+    end
+    local function character()
+        local c=player.Character
+        return c,c and c:FindFirstChild("HumanoidRootPart"),c and c:FindFirstChildOfClass("Humanoid")
+    end
+    local function stopFly()
+        if velocity then velocity:Destroy();velocity=nil end
+        if gyro then gyro:Destroy();gyro=nil end
+        if flyHumanoid and autoRotate~=nil then pcall(function() flyHumanoid.AutoRotate=autoRotate end) end
+        if flyRoot then
+            local _,root,human=character()
+            if root==flyRoot and human then
+                root.AssemblyLinearVelocity=Vector3.zero
+            end
+        end
+        flyRoot=nil;flyHumanoid=nil;autoRotate=nil
+    end
+    local function restoreSpeed()
+        if speedHumanoid then pcall(function() speedHumanoid.WalkSpeed=speedOriginal end) end
+        speedHumanoid=nil;speedOriginal=nil
+    end
+    local function prompt(item)
+        if api.flags.instant and item:IsA("ProximityPrompt") then remember(item,"HoldDuration",0,"instant") end
+    end
+    local function effects(item)
+        if not api.flags.fps then return end
+        if item:IsA("ParticleEmitter") or item:IsA("Trail") or item:IsA("Beam") or item:IsA("Smoke") or item:IsA("Fire") or item:IsA("Sparkles") then
+            remember(item,"Enabled",false,"fps")
+        elseif item:IsA("PostEffect") then remember(item,"Enabled",false,"fps") end
+    end
+    function api.Set(key,on)
+        if not api.alive then return end
+        if (api.flags[key]==true)==(on==true) then return end
+        api.flags[key]=on==true
+        if key=="reconnect" then reconnectGeneration+=1 end
+        if key=="speed" and not on then restoreSpeed() end
+        if key=="fly" and not on then stopFly() end
+        if key=="noclip" and not on then restore("noclip") end
+        if key=="instant" then
+            if on then for _,item in ipairs(world:GetDescendants()) do prompt(item) end else restore("instant") end
+        end
+        if key=="fps" then
+            if on then
+                remember(services.Lighting,"GlobalShadows",false,"fps")
+                for _,item in ipairs(world:GetDescendants()) do effects(item) end
+                for _,item in ipairs(services.Lighting:GetDescendants()) do effects(item) end
+            else restore("fps") end
+        end
+        if key=="render" then
+            if on then
+                local ok,value=pcall(function() return services.RunService:Is3dRenderingEnabled() end)
+                if ok and type(value)=="boolean" then renderOriginal=value else renderOriginal=true end
+            end
+            services.RunService:Set3dRenderingEnabled(not on and renderOriginal or false)
+        end
+    end
+    function api.Step()
+        if not api.alive then return end
+        local c,root,human=character()
+        if not root or not human or human.Health<=0 then stopFly();restoreSpeed();restore("noclip");return end
+        if api.flags.speed then
+            if speedHumanoid~=human then restoreSpeed();speedHumanoid=human;speedOriginal=human.WalkSpeed end
+            human.WalkSpeed=api.speed
+        end
+        if api.flags.noclip then
+            for _,item in ipairs(c:GetDescendants()) do if item:IsA("BasePart") then remember(item,"CanCollide",false,"noclip") end end
+        end
+        if api.flags.fly then
+            if flyRoot~=root then
+                stopFly();flyRoot=root;flyHumanoid=human;autoRotate=human.AutoRotate;human.AutoRotate=false
+                velocity=Instance.new("BodyVelocity");velocity.Name="DevilVaultFly";velocity.MaxForce=Vector3.new(1e6,1e6,1e6);velocity.Velocity=Vector3.zero;velocity.Parent=root
+                gyro=Instance.new("BodyGyro");gyro.Name="DevilVaultFlyOrientation";gyro.MaxTorque=Vector3.new(1e6,1e6,1e6);gyro.P=9000;gyro.Parent=root
+            end
+            local camera=world.CurrentCamera
+            if camera then
+                local move=human.MoveDirection
+                local forward=camera.CFrame.LookVector
+                local flat=Vector3.new(forward.X,0,forward.Z)
+                local projected=flat.Magnitude>0.01 and move:Dot(flat.Unit) or 0
+                local vertical=human.Jump and 1 or 0
+                local input=services.UserInputService
+                if not input:GetFocusedTextBox() then
+                    if input:IsKeyDown(Enum.KeyCode.Space) then vertical=1 end
+                    if input:IsKeyDown(Enum.KeyCode.LeftControl) then vertical=-1 end
+                end
+                local direction=move+Vector3.new(0,forward.Y*projected+vertical,0)
+                velocity.Velocity=(direction.Magnitude>1 and direction.Unit or direction)*api.flySpeed
+                gyro.CFrame=camera.CFrame
+            end
+        end
+    end
+    function api.Destroy()
+        if not api.alive then return end
+        api.alive=false
+        reconnectGeneration+=1
+        for _,link in ipairs(links) do link:Disconnect() end
+        stopFly();restoreSpeed()
+        for _,group in ipairs({"noclip","fps","instant"}) do restore(group) end
+        if api.flags.render then pcall(function() services.RunService:Set3dRenderingEnabled(renderOriginal) end) end
+    end
+    connect(services.RunService.Heartbeat,function() local ok,err=pcall(api.Step);if not ok and env.error then env.error(err) end end)
+    connect(services.UserInputService.JumpRequest,function()
+        if api.flags.jump and api.alive then local _,_,h=character();if h and h.Health>0 then h:ChangeState(Enum.HumanoidStateType.Jumping) end end
+    end)
+    connect(world.DescendantAdded,function(item) if api.alive then prompt(item);effects(item) end end)
+    connect(services.Lighting.DescendantAdded,function(item) if api.alive then effects(item) end end)
+    local errorSignal
+    pcall(function() errorSignal=services.GuiService and services.GuiService.ErrorMessageChanged end)
+    connect(errorSignal,function(message)
+        if not api.alive or not api.flags.reconnect or type(message)~="string" then return end
+        local lower=message:lower()
+        if not (lower:find("kick",1,true) or lower:find("disconnect",1,true) or lower:find("connection",1,true)) then return end
+        reconnectGeneration+=1
+        local generation=reconnectGeneration
+        task.delay(10,function()
+            if api.alive and api.flags.reconnect and generation==reconnectGeneration then
+                local ok,err=pcall(function() services.TeleportService:Teleport(env.placeId,player) end)
+                if not ok and env.error then env.error(err) end
+            end
+        end)
+    end)
+    function api.Mount(tab)
+        local movement=tab:CreateGroupbox({Name="Movement",Icon="move",Side="Left"})
+        local flying=tab:CreateGroupbox({Name="Fly",Icon="plane",Side="Right"})
+        local client=tab:CreateGroupbox({Name="Client",Icon="monitor",Side="Left"})
+        local function toggle(group,title,key)
+            local ready=false
+            group:CreateToggle({Name=title,CurrentValue=false,Callback=function(value)
+                if not ready then return end
+                local ok,err=pcall(api.Set,key,value)
+                if not ok and env.error then env.error(err) end
+            end});ready=true
+        end
+        toggle(movement,"WalkSpeed","speed")
+        movement:CreateSlider({Name="Speed",Range={16,150},CurrentValue=32,Increment=1,Callback=function(value) api.speed=math.clamp(value,16,150) end})
+        toggle(movement,"Infinite Jump","jump")
+        toggle(movement,"Noclip","noclip")
+        toggle(movement,"Instant ProximityPrompt","instant")
+        toggle(flying,"Fly","fly")
+        flying:CreateSlider({Name="Fly Speed",Range={10,200},CurrentValue=60,Increment=1,Callback=function(value) api.flySpeed=math.clamp(value,10,200) end})
+        flying:CreateParagraph({Name="Controls",Content="มือถือ: ใช้จอยและหันกล้องเพื่อขึ้น/ลง • ปุ่มกระโดดขึ้น • PC: Space ขึ้น / Ctrl ลง • ปิด Fly เพื่อใช้ Auto วาร์ป"})
+        toggle(client,"Disable 3D Rendering","render")
+        toggle(client,"FPS Boost","fps")
+        toggle(client,"Auto Reconnect on Kick","reconnect")
+        client:CreateToggle({Name="Hide UI on Start",CurrentValue=env.hideOnStart==true,Callback=function(value) if env.setHideOnStart then env.setHideOnStart(value==true) end end})
+        client:CreateParagraph({Name="Client behavior",Content="Reconnect รอ 10 วินาทีหลังข้อความ kick/disconnect • Hide UI มีผลรันครั้งถัดไปในตัวรันเดิม เปิดคืนด้วยโลโก้/K • เกมเป็นผู้กำหนด GameplayPaused จึงยังไม่มีระบบแก้"})
     end
     return api
 end
@@ -461,26 +655,50 @@ local ok, errorText = xpcall(function()
     })
     if library.Gui and library.Gui.Destroying then connection=library.Gui.Destroying:Connect(cleanup) end
     local main=window:CreateTab({Name="Main",Icon="swords"})
-    local progression=window:CreateTab({Name="Progression",Icon="trending-up"})
+    local playerTab=window:CreateTab({Name="Player",Icon="user"})
     local settings=window:CreateTab({Name="Settings",Icon="settings"})
-    local farm=main:CreateGroupbox({Name="Roll & Robots",Icon="dices",Side="Left"})
-    local economy=main:CreateGroupbox({Name="Gold & Rewards",Icon="coins",Side="Right"})
-    local upgrades=progression:CreateGroupbox({Name="Auto Upgrades",Icon="trending-up",Side="Left"})
-    local holders=progression:CreateGroupbox({Name="Robot Slots",Icon="layout-grid",Side="Right"})
+    local farm=main:CreateGroupbox({Name="Rolling",Icon="repeat",Side="Left"})
+    local holders=main:CreateGroupbox({Name="Base",Icon="layout-grid",Side="Right"})
+    local upgrades=main:CreateGroupbox({Name="Upgrades",Icon="trending-up",Side="Left"})
+    local economy=main:CreateGroupbox({Name="Economy",Icon="coins",Side="Right"})
+    local advanced=settings:CreateGroupbox({Name="Advanced Rolling",Icon="dices",Side="Left"})
+    local detailedUpgrades=settings:CreateGroupbox({Name="Individual Upgrades",Icon="trending-up",Side="Right"})
     local movement=settings:CreateGroupbox({Name="Movement & Timing",Icon="navigation",Side="Left"})
     local session=settings:CreateGroupbox({Name="Session",Icon="activity",Side="Right"})
-    local modeControl,speedControl,freeRoamControl
+    local modeControl,speedControl,freeRoamControl,rollDelayControl
+    local hideOnStart=shared.DevilVaultHideUIOnStart==true
+    playerTools=playerFactory({player=player,world=workspace,placeId=game.PlaceId,hideOnStart=hideOnStart,
+        setHideOnStart=function(value) shared.DevilVaultHideUIOnStart=value end,services={
+        RunService=game:GetService("RunService"),UserInputService=game:GetService("UserInputService"),Lighting=game:GetService("Lighting"),
+        GuiService=game:GetService("GuiService"),TeleportService=game:GetService("TeleportService")},
+        error=function(message) if library then library:Notify({Title="Player",Content=tostring(message),Duration=4}) end end})
+    playerTools.Mount(playerTab)
+    controller.settings.buyRarities={}
+    for _,rarity in ipairs(rarityNames) do controller.settings.buyRarities[rarity]=true end
     local function toggle(group,key,title)
         local ready=false
         controls[key]=group:CreateToggle({Name=title,CurrentValue=false,Callback=function(value) if ready and not stopped then controller.Set(key,value) end end})
         ready=true
     end
-    farm:CreateParagraph({Name="Owned base only",Content="เลือกฐานจากเจ้าของจริง • ซื้อหุ่นใช้เงินในเกม • ทุก Auto เริ่มปิด"})
     toggle(farm,"roll","Auto Roll")
-    freeRoamControl=farm:CreateToggle({Name="Roll อิสระ • ไม่เดิน/ไม่วาร์ป",CurrentValue=false,Callback=function(value) controller.settings.freeRoamRoll=value==true end})
-    farm:CreateParagraph({Name="Free-roam Roll",Content="Roll แยกจากโหมดวาร์ป • เคลื่อนไหวเองได้ • ขยายระยะเฉพาะ Client และรอผลจากเกม • ถ้าเกมปฏิเสธจะพักงาน"})
-    toggle(farm,"claim","Auto รับ / ซื้อหุ่นที่สุ่มได้")
-    farm:CreateButton({Name="เริ่มฟาร์มเร็ว • Roll + รับหุ่น + ทอง",Callback=function()
+    rollDelayControl=farm:CreateSlider({Name="Roll Delay",Range={0.35,15},CurrentValue=0.5,Increment=0.05,Callback=function(value) controller.settings.rollDelay=math.clamp(value,0.35,15) end})
+    toggle(farm,"claim","Auto Buy Rolled Robots")
+    local function selection(value)
+        local result={}
+        if type(value)=="table" then for key,item in pairs(value) do
+            if type(key)=="number" and type(item)=="string" then result[item]=true
+            elseif type(key)=="string" and item==true then result[key]=true end
+        end elseif type(value)=="string" then result[value]=true end
+        return result
+    end
+    farm:CreateDropdown({Name="Buy Rarities",Options=rarityNames,CurrentOption=rarityNames,MultipleOptions=true,AllowNone=true,Callback=function(value) controller.settings.buyRarities=selection(value) end})
+    farm:CreateDropdown({Name="Max Buy Price",Options={"No Limit","1,000","10,000","100,000","1,000,000"},CurrentOption={"No Limit"},Callback=function(value)
+        if type(value)=="table" then value=value[1] end
+        controller.settings.maxBuyPrice=value~="No Limit" and tonumber((tostring(value):gsub(",",""))) or nil
+    end})
+    farm:CreateParagraph({Name="Price data",Content="ตั้งเพดานราคาจะรอจนอ่านราคาจริงได้ • Dump ปัจจุบันยังไม่มีราคาผล Roll • No Limit ซื้อเฉพาะ Buy Rarities/Odds ที่เลือก"})
+    freeRoamControl=advanced:CreateToggle({Name="Roll อิสระ • ไม่เดิน/ไม่วาร์ป",CurrentValue=false,Callback=function(value) controller.settings.freeRoamRoll=value==true end})
+    advanced:CreateButton({Name="เริ่มฟาร์มเร็ว • Roll + รับหุ่น + ทอง",Callback=function()
         if stopped then return end
         controller.settings.fastWarp=true
         controller.settings.warpReturn=false
@@ -489,6 +707,8 @@ local ok, errorText = xpcall(function()
         controller.settings.stationary=false
         controller.settings.walk=false
         controller.settings.interval=0.5
+        controller.settings.rollDelay=0.5
+        rollDelayControl:Set(0.5,true)
         if modeControl then modeControl:Set({"Fast • วาร์ปต่อจุดฟาร์ม"},true) end
         if speedControl then speedControl:Set(0.5,true) end
         for _,key in ipairs({"roll","claim","gold"}) do
@@ -497,12 +717,12 @@ local ok, errorText = xpcall(function()
         end
         library:Notify({Title="DEVIL HUB",Content="เปิดฟาร์มเร็วแล้ว • รับหุ่นใช้เงินในเกม",Duration=4})
     end})
-    farm:CreateInput({Name="รับเฉพาะ Odds 1 ใน X ขึ้นไป",CurrentValue="1",PlaceholderText="เช่น 1000",Numeric=true,Callback=function(value)
+    advanced:CreateInput({Name="รับเฉพาะ Odds 1 ใน X ขึ้นไป",CurrentValue="1",PlaceholderText="เช่น 1000",Numeric=true,Callback=function(value)
         controller.settings.minimumOdds=math.max(1,tonumber(value) or 1)
     end})
-    farm:CreateToggle({Name="หยุด Roll เมื่อพบระดับที่เลือก",CurrentValue=false,Callback=function(value) controller.settings.stopAtRarity=value==true end})
+    advanced:CreateToggle({Name="หยุด Roll เมื่อพบระดับที่เลือก",CurrentValue=false,Callback=function(value) controller.settings.stopAtRarity=value==true end})
     local rarityControl
-    rarityControl=farm:CreateDropdown({Name="ระดับที่ให้หยุด (เลือกได้หลายระดับ)",Options=rarityNames,CurrentOption={},MultipleOptions=true,AllowNone=true,Searchable=true,Callback=function(value)
+    rarityControl=advanced:CreateDropdown({Name="ระดับที่ให้หยุด (เลือกได้หลายระดับ)",Options=rarityNames,CurrentOption={},MultipleOptions=true,AllowNone=true,Searchable=true,Callback=function(value)
         local selected={}
         if type(value)=="table" then
             for key,entry in pairs(value) do
@@ -512,19 +732,34 @@ local ok, errorText = xpcall(function()
         elseif type(value)=="string" then selected[value]=true end
         controller.settings.stopRarities=selected
     end})
-    farm:CreateParagraph({Name="Stop at rarity",Content="อ่านระดับจาก Rarity ของหุ่นในผล Roll จริง • หยุดเฉพาะ Auto Roll • เก็บทองและรับหุ่นยังทำต่อได้"})
-    farm:CreateParagraph({Name="Roll control",Content="เมื่อเปิดรับหุ่น ระบบจะรอซื้อผลที่เข้าเงื่อนไขก่อน Roll ต่อ หากไม่มีเงินหรือช่องวาง ให้ปิดรับหุ่นหรือแก้เงื่อนไข"})
-    toggle(economy,"gold","Auto เก็บทอง → ฝากเข้าหลอม")
+    advanced:CreateParagraph({Name="Stop at rarity",Content="อ่านระดับจากผล Roll จริง • หยุดเฉพาะ Roll • เลือก Buy Rarities ให้รวมระดับที่ต้องการรับไว้ด้วย"})
+    toggle(economy,"gold","Auto Collect Gold")
     toggle(economy,"daily","Auto รับ Daily Reward")
     local statusWidget=economy:CreateParagraph({Name="Status",Content="กำลังตรวจฐาน..."})
-    for _,key in ipairs({"damage","battery","luck","spots"}) do toggle(upgrades,key,"Auto Upgrade "..names[key]) end
-    upgrades:CreateParagraph({Name="Purchase pace",Content="ส่งทีละคำขอ • ยังไม่ทราบราคา Upgrade ล่วงหน้า • เกมเป็นผู้ตรวจเงินและเพดานระดับ"})
-    toggle(holders,"holders","Auto ซื้อช่องวางหุ่นที่ราคาเอื้อมถึง")
-    holders:CreateInput({Name="เงินสำรอง",CurrentValue="0",Numeric=true,Callback=function(value) controller.settings.reserve=math.max(0,tonumber(value) or 0) end})
-    holders:CreateParagraph({Name="Budget",Content="เงินสำรองใช้กับช่องวางที่อ่านราคาได้ หากตั้งมากกว่า 0 จะพักการซื้อหุ่นและ Upgrade ซึ่งยังอ่านราคาไม่ครบ"})
+    local upgradeKeys={Damage="damage",Battery="battery",["Roll Luck"]="luck",["Roll Spots"]="spots"}
+    local selectedUpgrades={Damage=true,Battery=true,["Roll Luck"]=true,["Roll Spots"]=true}
+    local upgradeMaster
+    local function setUpgrades(enabled)
+        for label,key in pairs(upgradeKeys) do local on=enabled and selectedUpgrades[label]==true;controller.Set(key,on);controls[key]:Set(on,true) end
+    end
+    for _,key in ipairs({"damage","battery","luck","spots"}) do toggle(detailedUpgrades,key,"Auto Upgrade "..names[key]) end
+    local upgradeReady=false
+    upgradeMaster=upgrades:CreateToggle({Name="Auto Buy Upgrades",CurrentValue=false,Callback=function(value) if upgradeReady and not stopped then setUpgrades(value==true) end end});upgradeReady=true
+    upgrades:CreateDropdown({Name="Upgrades",Options={"Roll Spots","Roll Luck","Damage","Battery"},CurrentOption={"Roll Spots","Roll Luck","Damage","Battery"},MultipleOptions=true,AllowNone=true,Callback=function(value)
+        selectedUpgrades=selection(value)
+        local active=false;for _,key in pairs(upgradeKeys) do if controller.flags[key] then active=true end end
+        if active then setUpgrades(true) end
+    end})
+    upgrades:CreateParagraph({Name="Auto Upgrade Gold Vault",Content="ยังไม่พร้อมใช้งานในเวอร์ชันนี้ • Upgrade ด้านบนใช้ได้เฉพาะรายการที่เลือก"})
+    holders:CreateParagraph({Name="Auto Place Robots / Auto Replace With Better",Content="ยังไม่พร้อมใช้งานในเวอร์ชันนี้ • Auto Buy Rolled Robots รับหุ่นที่สุ่มได้ แต่ยังไม่จัดหุ่นลงช่องหรือแทนตัวเดิม"})
+    toggle(holders,"holders","Auto Buy Tank Slots")
+    holders:CreateParagraph({Name="Auto Unlock Islands",Content="ยังไม่พร้อมใช้งานในเวอร์ชันนี้ • Auto Buy Tank Slots ซื้อเฉพาะช่องบนเกาะที่ปลดล็อกแล้ว"})
+    economy:CreateParagraph({Name="Auto Buy Gem Shop",Content="ยังไม่พร้อมใช้งานในเวอร์ชันนี้ • Auto Collect Gold เก็บแล้วฝากหลอมให้อัตโนมัติ"})
+    session:CreateInput({Name="เงินสำรอง",CurrentValue="0",Numeric=true,Callback=function(value) controller.settings.reserve=math.max(0,tonumber(value) or 0) end})
+    session:CreateParagraph({Name="Budget",Content="เงินสำรองใช้กับช่องวางที่อ่านราคาได้ หากตั้งมากกว่า 0 จะพักการซื้อหุ่นและ Upgrade ซึ่งยังอ่านราคาไม่ครบ"})
     local holderId=""
-    holders:CreateInput({Name="ID ช่องสำหรับ Upgrade ครั้งเดียว",CurrentValue="",PlaceholderText="robot_holder_6",Callback=function(value) holderId=tostring(value) end})
-    holders:CreateButton({Name="Upgrade ช่องที่ระบุครั้งเดียว",Callback=function()
+    session:CreateInput({Name="ID ช่องสำหรับ Upgrade ครั้งเดียว",CurrentValue="",PlaceholderText="robot_holder_6",Callback=function(value) holderId=tostring(value) end})
+    session:CreateButton({Name="Upgrade ช่องที่ระบุครั้งเดียว",Callback=function()
         if stopped then return end
         local plot=controller.Plot()
         local found=false
@@ -539,7 +774,7 @@ local ok, errorText = xpcall(function()
         ["เก็บทอง + ฝากหลอม"]={"gold"},
         ["Auto Upgrade + ซื้อช่อง"]={"damage","battery","luck","spots","holders"},
     }
-    local modes=main:CreateGroupbox({Name="Farm Modes",Icon="layers",Side="Left"})
+    local modes=settings:CreateGroupbox({Name="Farm Modes",Icon="layers",Side="Left"})
     modes:CreateDropdown({Name="เลือกชุดฟาร์ม",Options={"ครบวงจร • Roll + รับหุ่น + ทอง","Roll + รับหุ่น","เก็บทอง + ฝากหลอม","Auto Upgrade + ซื้อช่อง"},CurrentOption={preset},Callback=function(value)
         if type(value)=="table" then value=value[1] end
         if presets[value] then preset=value end
@@ -629,6 +864,9 @@ local ok, errorText = xpcall(function()
     task.spawn(function()
         while not stopped do
             local plot=controller.Plot()
+            local upgradesActive=false
+            for _,key in pairs(upgradeKeys) do if controller.flags[key] then upgradesActive=true end end
+            upgradeMaster:Set(upgradesActive,true)
             local lines={"ฐาน: "..(plot and plot.Name or "รอเจ้าของฐาน"),"เงิน: "..tostring(cash() or "ยังอ่านไม่ได้")}
             if controller.status.roll and not controller.flags.roll then lines[#lines+1]=controller.status.roll end
             for _,key in ipairs({"roll","claim","gold","holders","damage","battery","luck","spots","daily"}) do
@@ -645,5 +883,10 @@ local ok, errorText = xpcall(function()
         end
     end)
     library:Notify({Title="DEVIL HUB",Content="Destroy a Vault พร้อมแล้ว • เปิด Auto ที่ต้องการ",Duration=5})
+    if hideOnStart then task.spawn(function()
+        local deadline=os.clock()+10
+        repeat task.wait(0.1) until stopped or window._introDone or os.clock()>=deadline
+        if not stopped and window.Toggle then window:Toggle(false) end
+    end) end
 end,debug.traceback)
 if not ok then cleanup();warn("DEVIL HUB startup failed: "..tostring(errorText)) end
