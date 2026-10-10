@@ -1,7 +1,7 @@
 # DEVIL HUB / Chilli — main GUI, embedded native panels
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-steal-an-egg-chilli-main-gui.lua?v=main-gui-2"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-steal-an-egg-chilli-main-gui.lua?v=main-gui-3"))()
 ```
 
 Steal an Egg uses the existing DEVIL HUB OuroFlow frontend. Release 2 expands the left sidebar, puts icons beside readable tab names, and keeps the original tab/section grouping. It does not build an unrelated GUI or replace the protected gameplay engine.
@@ -19,3 +19,5 @@ OuroFlow remains based on commit `c8251f76f74d9942114ebccb0564aa0ac196320a`. Fou
 Discovery still requires Delta to expose the original native `Window` table through `getgc(true)`. If this fails, the original GUI is kept available and the reason is written to `DevilChilliMainUI-report.json`. If an interactive panel cannot be embedded, the adapter restores the original interface instead of discarding the feature or generating dummy controls.
 
 Validation: official Luau compilation; native-source bridge tests for callbacks, synchronization, rich image/button identity, changing panel height, preventing duplicate owned screens, and safe restoration; sidebar presentation checks; 20 full-runtime wrapper regression checks. Offline tests do not execute the protected game engine or validate Delta rendering. This release still needs an in-game check. The main loader route and other maps are unchanged.
+
+Release 3 installs a presentation guard before launching the unchanged runtime. It hides the exact ChilliHubLoading screen and owned native window/launcher in CoreGui, gethui and PlayerGui, including screens created later. The guard restores visibility on runtime failure or adapter removal; native Instances and controllers remain intact. Use the main-gui entry above, not the old full-runtime-test entry, which intentionally displays the original interface.
