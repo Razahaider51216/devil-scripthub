@@ -11,11 +11,11 @@ distributed through a Luau bytecode interpreter:
 - Universal entry: loader.
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?v=vm-1"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?v=ride-vm-2"))()
 ```
 
 This is bytecode virtualization rather than only source-string packing. The
-private build compiles 15 layers with debug information removed, including
+private build compiles 14 layers with debug information removed, including
 embedded game sources and the existing startup wrappers. Instruction opcode
 bytes use a per-build permutation; dispatch uses separately randomized handler
 IDs. Encoded payloads have size/checksum verification. Checksums detect damage;
@@ -36,8 +36,11 @@ VM, including the 66 controls, multiple rarity selections, configuration,
 spawners and cleanup. Its game source is not passed as readable Lua to native
 loadstring. Break Egg's gameplay regression suite also runs through this VM.
 
-VM execution adds CPU and memory overhead. Ride a Pet retains an existing
-protected payload, now inside another VM; real-device startup time and gameplay
+VM execution adds CPU and memory overhead. Ride a Pet's original Luraph-protected
+payload now uses the native compiler, avoiding interpreting its VM inside Fiu.
+The protected payload remains byte-identical; DEVIL HUB loader/GUI code keeps its
+outer VM. This Ride-only startup correction and version-query update do not
+replace other published gameplay artifacts. Real-device startup time and gameplay
 performance require in-game verification. These checks use API mocks and do
 not establish live executor compatibility for every device.
 

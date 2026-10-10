@@ -61,6 +61,10 @@ literal bytes, and compilation of all seven public files.
 
 ## Ride a Pet
 
+Startup fix `ride-vm-2`: the original Luraph-protected runtime now uses the executor's native compiler, avoiding an additional Fiu VM around that runtime. Its payload bytes are unchanged; DEVIL HUB's loader and GUI adapter remain virtualized. The universal loader uses a new Ride version query. Other published game artifacts are unchanged.
+
+Rejoin the map before testing if an earlier attempt left startup flags active. Startup errors now notify the user and save local reports where `writefile` is available: `DevilHub_Startup_loader.json`, `DevilHub_Startup_ride_a_pet_lua.json`, and `DevilHub_Startup_ride_a_pet_delta_lua.json`. Returned means execution returned, not proof of GUI readiness. Missing compiler/buffer APIs and compile/runtime errors are recorded. Offline compiler-boundary, router, and startup-report tests pass; live Delta startup still needs confirmation.
+
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/ride-a-pet.lua"))()
 ```
