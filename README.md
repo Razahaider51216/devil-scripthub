@@ -34,6 +34,11 @@ tabs are included, along with Get Roll and old-server search. A patched server
 that fails the roll-balance probe is not treated as accepting repeat grants.
 See [Loot update details](loot-mario-update-README.md).
 
+A separate Loot to Forge entry now offers an original DEVIL HUB GUI with light
+silver cards, red/gold accents, animated icons and game item images. It keeps
+the complete reference gameplay set. See [custom Loot GUI](devil-loot-to-forge-avenger-README.md)
+for its standalone launch command.
+
 2026-10-08 startup fixes: all six production entry points (the four games plus
 Ride/Break runtime entries) check the current universe/place before creating
 their GUI. Launching a game-specific entry in another supported map redirects
