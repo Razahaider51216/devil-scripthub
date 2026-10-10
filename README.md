@@ -28,6 +28,12 @@ multiple egg-type filters, travel speed and manual pickup/home/stop controls.
 The added controller is virtualized; the original protected runtime remains
 byte-identical. See [Egg Return details](ride-egg-return-README.md).
 
+Loot to Forge release `loot-mario-1` replaces its engine and GUI controls with
+the full user-supplied xDTaraZ gameplay set, presented through DEVIL HUB. All ten
+tabs are included, along with Get Roll and old-server search. A patched server
+that fails the roll-balance probe is not treated as accepting repeat grants.
+See [Loot update details](loot-mario-update-README.md).
+
 2026-10-08 startup fixes: all six production entry points (the four games plus
 Ride/Break runtime entries) check the current universe/place before creating
 their GUI. Launching a game-specific entry in another supported map redirects
