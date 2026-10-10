@@ -78,7 +78,7 @@ local function remoteCall(name, ...)
     end
     return nil, name .. ": " .. tostring(result) .. " (ยังไม่ยืนยันผลสำเร็จ)"
 end
-local function interact(prompt, feedback, valid, walk)
+local function interact(prompt, feedback, valid, walk, stationary)
     if stopped or not valid() or not prompt.Parent or not prompt.Enabled then return nil, "หยุด หรือ Prompt ยังไม่พร้อม" end
     local parent = prompt.Parent
     local position = parent:IsA("Attachment") and parent.WorldPosition or parent:IsA("BasePart") and parent.Position
@@ -87,6 +87,9 @@ local function interact(prompt, feedback, valid, walk)
     if not root or not humanoid or humanoid.Health <= 0 then return nil, "รอตัวละครเกิด" end
     local radius = math.max(1, prompt.MaxActivationDistance - 1)
     if (root.Position - position).Magnitude > radius then
+        if stationary then
+            if type(fireproximityprompt) ~= "function" then return nil, "โหมดยืนฟาร์มต้องใช้ fireproximityprompt ของตัวรัน" end
+        else
         if not walk then return nil, "เดินเข้าใกล้ " .. prompt.Name .. " ก่อน" end
         local offset = root.Position - position
         local destination = position + (offset.Magnitude > 0 and offset.Unit or Vector3.new(1,0,0)) * math.max(1, radius - 2)
@@ -100,6 +103,7 @@ local function interact(prompt, feedback, valid, walk)
         until (root.Position - position).Magnitude <= radius or os.clock() >= deadline
         stopMovement()
         if (root.Position - position).Magnitude > radius then return false, "เดินไปไม่ถึง " .. prompt.Name .. " ลองยืนใกล้จุดนั้น" end
+        end
     end
     if not valid() or not prompt.Enabled then return nil, "Prompt ยังไม่พร้อม" end
     local before = prompt:GetAttribute(feedback.sequence)
@@ -124,12 +128,26 @@ local function interact(prompt, feedback, valid, walk)
         end
         task.wait(0.1)
     until os.clock() >= deadline
-    return false, "ยังไม่มีผลยืนยันจากเกม: " .. prompt.Name
+    return false, (stationary and "โหมดยืนฟาร์มไม่มีผลยืนยัน เกมอาจตรวจระยะ: " or "ยังไม่มีผลยืนยันจากเกม: ") .. prompt.Name
+end
+local rarityNames={"Common","Uncommon","Rare","Epic","Legendary","Mythic","Divine","Secret","Omnipotent","Transcendant","Indestructible","Limited"}
+local function offerRarity(surface)
+    local offer = surface:GetAttribute("RollOfferId")
+    local robot = surface:GetAttribute("RollRobotId")
+    if not offer or not robot then return nil end
+    -- Tie rarity to the current offer rather than a stale billboard/previous reveal.
+    for _, item in ipairs(surface:GetDescendants()) do
+        if item:GetAttribute("RollOfferId") == offer and item:GetAttribute("RobotId") == robot then
+            local rarity = item:GetAttribute("Rarity")
+            if type(rarity)=="string" and rarity~="" then return rarity end
+        end
+    end
+    return nil
 end
 local factory = (function()
 -- DEVIL HUB Destroy a Vault controller. Only observed interactions are used.
 return function(env)
-    local api = {running = true, flags = {}, settings = {interval = 4, minimumOdds = 1, reserve = 0, walk = true}, status = {}, nextRun = {}, failures = {}}
+    local api = {running = true, flags = {}, settings = {interval = 4, minimumOdds = 1, reserve = 0, walk = false, stationary = true, stopAtRarity = false, stopRarities = {}}, status = {}, nextRun = {}, failures = {}}
     local claimed = {}
     local cursor = 0
     local jobs = {"gold", "claim", "roll", "holders", "damage", "battery", "luck", "spots", "daily"}
@@ -185,7 +203,7 @@ return function(env)
     end
     local function interact(job, plot, item, sequence, success, result)
         if not item then return nil, "ไม่พบ Prompt ที่เปิดใช้งาน" end
-        return env.interact(item, {sequence = sequence, success = success, result = result}, function() return valid(job, plot) end, api.settings.walk)
+        return env.interact(item, {sequence = sequence, success = success, result = result}, function() return valid(job, plot) end, api.settings.walk, api.settings.stationary)
     end
     local function withinBudget(price)
         local cash = env.cash()
@@ -267,8 +285,26 @@ return function(env)
         if not env.pathExists(board[2]) then return nil, "ไม่พบป้าย Upgrade ตามข้อมูลที่จับไว้" end
         return invoke("UpgradeBoardAction", board[1], board[2], 1)
     end
+    function api.CheckTargets(plot)
+        if not api.flags.roll or not api.settings.stopAtRarity or not env.offerRarity or not plot then return end
+        for _, item in ipairs(plot:GetDescendants()) do
+            if item:IsA("ProximityPrompt") and item.Name == "ClaimRobotPrompt" and item.Enabled then
+                local offer = attr(item.Parent,"RollOfferId")
+                if offer and not claimed[offer] and attr(item.Parent,"RollPedestalUnlocked") ~= false then
+                    local rarity = env.offerRarity(item.Parent)
+                    if rarity and api.settings.stopRarities[rarity] then
+                        api.Set("roll",false)
+                        api.status.roll = "พบ " .. rarity .. " • หยุด Roll เพื่อเก็บผลไว้"
+                        if env.disabled then env.disabled("roll",api.status.roll) end
+                        return rarity
+                    end
+                end
+            end
+        end
+    end
     function api.Step()
         if not api.running then return end
+        api.CheckTargets(api.Plot())
         for _ = 1, #jobs do
             cursor = cursor % #jobs + 1
             local job = jobs[cursor]
@@ -301,14 +337,17 @@ return function(env)
     end
     function api.Inspect()
         local plot = api.Plot()
-        local prompts, holders = {}, {}
+        local prompts, holders, offers = {}, {}, {}
         if plot then
             for _, item in ipairs(plot:GetDescendants()) do
                 if item:IsA("ProximityPrompt") then prompts[#prompts + 1] = {name = item.Name, path = item:GetFullName(), enabled = item.Enabled, distance = item.MaxActivationDistance, hold = item.HoldDuration} end
                 if attr(item, "RobotHolderPurchasePrice") then holders[#holders + 1] = {id = attr(item,"RobotHolderId"), price = attr(item,"RobotHolderPurchasePrice"), unlocked = attr(item,"Unlocked")} end
+                if attr(item,"RollOfferId") and attr(item,"RollRobotId") then
+                    offers[#offers+1]={offerId=attr(item,"RollOfferId"),robotId=attr(item,"RollRobotId"),odds=attr(item,"RollRobotOddsDenominator"),rarity=env.offerRarity and env.offerRarity(item) or nil}
+                end
             end
         end
-        return {placeId = env.placeId, plot = plot and plot:GetFullName() or "Not found", cash = env.cash(), prompts = prompts, holders = holders, status = api.status}
+        return {placeId = env.placeId, plot = plot and plot:GetFullName() or "Not found", cash = env.cash(), prompts = prompts, holders = holders, offers = offers, status = api.status, settings = api.settings}
     end
     return api
 end
@@ -319,6 +358,7 @@ controller = factory({
     userId = player.UserId, placeId = game.PlaceId,
     plotRoot = function() return workspace:FindFirstChild("playable") end,
     now = os.clock, cash = cash, interact = interact, invoke = remoteCall,
+    offerRarity = offerRarity,
     pathExists = function(path) return resolve(path) ~= nil end,
     cancelMovement = stopMovement,
     disabled = function(key, reason)
@@ -374,6 +414,19 @@ local ok, errorText = xpcall(function()
     farm:CreateInput({Name="รับเฉพาะ Odds 1 ใน X ขึ้นไป",CurrentValue="1",PlaceholderText="เช่น 1000",Numeric=true,Callback=function(value)
         controller.settings.minimumOdds=math.max(1,tonumber(value) or 1)
     end})
+    farm:CreateToggle({Name="หยุด Roll เมื่อพบระดับที่เลือก",CurrentValue=false,Callback=function(value) controller.settings.stopAtRarity=value==true end})
+    local rarityControl
+    rarityControl=farm:CreateDropdown({Name="ระดับที่ให้หยุด (เลือกได้หลายระดับ)",Options=rarityNames,CurrentOption={},MultipleOptions=true,AllowNone=true,Searchable=true,Callback=function(value)
+        local selected={}
+        if type(value)=="table" then
+            for key,entry in pairs(value) do
+                if type(key)=="number" and type(entry)=="string" then selected[entry]=true
+                elseif type(key)=="string" and entry==true then selected[key]=true end
+            end
+        elseif type(value)=="string" then selected[value]=true end
+        controller.settings.stopRarities=selected
+    end})
+    farm:CreateParagraph({Name="Stop at rarity",Content="อ่านระดับจาก Rarity ของหุ่นในผล Roll จริง • หยุดเฉพาะ Auto Roll • เก็บทองและรับหุ่นยังทำต่อได้"})
     farm:CreateParagraph({Name="Roll control",Content="เมื่อเปิดรับหุ่น ระบบจะรอซื้อผลที่เข้าเงื่อนไขก่อน Roll ต่อ หากไม่มีเงินหรือช่องวาง ให้ปิดรับหุ่นหรือแก้เงื่อนไข"})
     toggle(economy,"gold","Auto เก็บทอง → ฝากเข้าหลอม")
     toggle(economy,"daily","Auto รับ Daily Reward")
@@ -393,7 +446,13 @@ local ok, errorText = xpcall(function()
         if not found then library:Notify({Title="DEVIL HUB",Content="ไม่พบช่องที่ปลดล็อกในฐานของเรา"});return end
         task.spawn(function() local _,message=remoteCall("RobotHolderAction","Upgrade",holderId,1);if not stopped then library:Notify({Title="DEVIL HUB",Content=message}) end end)
     end})
-    movement:CreateToggle({Name="เดินเข้าใกล้ Prompt อัตโนมัติ",CurrentValue=true,Callback=function(value) controller.settings.walk=value==true end})
+    movement:CreateDropdown({Name="โหมดทำงาน",Options={"ยืนฟาร์ม (ไม่เดิน)","เดินเข้าใกล้ Prompt","เฉพาะจุดที่อยู่ในระยะ"},CurrentOption={"ยืนฟาร์ม (ไม่เดิน)"},Callback=function(value)
+        if type(value)=="table" then value=value[1] end
+        controller.settings.stationary=value=="ยืนฟาร์ม (ไม่เดิน)"
+        controller.settings.walk=value=="เดินเข้าใกล้ Prompt"
+        stopMovement()
+    end})
+    movement:CreateParagraph({Name="Stationary farming",Content="เริ่มในโหมดไม่เดิน • เก็บทอง/ฝากหลอมเรียก Prompt ของฐานเรา • ถ้าเกมตรวจระยะ จะรายงานและพักงานเมื่อไม่สำเร็จ"})
     movement:CreateSlider({Name="ช่วงพักงาน (วินาที)",Range={2,15},CurrentValue=4,Increment=1,Callback=function(value) controller.settings.interval=value end})
     movement:CreateButton({Name="หยุด Auto ทั้งหมด",Callback=function()
         controller.StopAll()
@@ -415,6 +474,7 @@ local ok, errorText = xpcall(function()
         while not stopped do
             local plot=controller.Plot()
             local lines={"ฐาน: "..(plot and plot.Name or "รอเจ้าของฐาน"),"เงิน: "..tostring(cash() or "ยังอ่านไม่ได้")}
+            if controller.status.roll and not controller.flags.roll then lines[#lines+1]=controller.status.roll end
             for _,key in ipairs({"roll","claim","gold","holders","damage","battery","luck","spots","daily"}) do
                 if controller.flags[key] then lines[#lines+1]=(names[key] or key)..": "..(controller.status[key] or "พร้อม") end
             end
