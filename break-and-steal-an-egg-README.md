@@ -369,3 +369,11 @@ target/pickup filters, remotes and carry delivery logic remain unchanged.
 Offline regressions cover speeds 1/5/80/100/600 with game WalkSpeed 16/250/1000,
 short/long flights, pre-existing anchors, damage, cancellation, errors and unload.
 Live Roblox/Delta verification is still required.
+
+## Shared startup loading (2026-10-12, shared-loading-3)
+
+The entry and packed runtime retain Begin/SetStage/Finish/Destroy contracts but
+borrow the main router's compact loading screen. Both Break layers reuse one
+controller, so the old full-size BREAK EGG background no longer opens behind the
+compact card. Standalone entry/runtime calls use the same controller and cleanup.
+Gameplay, the Fly-speed correction and the GUI's original callbacks are retained.

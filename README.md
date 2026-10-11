@@ -1,4 +1,4 @@
-# DEVIL HUB - compact-native-2
+# DEVIL HUB - shared-loading-3
 
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?v=vm-1"))()
@@ -14,6 +14,12 @@ Build An Ant Empire and Steal an Egg. Only the selected map is downloaded.
 - Compact 320x112 dark/blue loading card with silver logo, progress percentage,
   finite animation, mobile/desktop scaling and short failure captions. Detailed
   startup errors are saved in `DevilHub_LoadError.json`.
+- All five maps share one loading screen with the main router. Nested startup
+  stages borrow the screen; only the final owner closes it. Legacy Break and
+  Steal loading cards and GUI-library loading overlays no longer stack behind it.
+- Ride readers and GUI construction yield in startup batches. Stages now have
+  distinct percentages instead of all showing 65%. OuroFlow constructors receive
+  the silver logo for the window and floating icon before they create the UI.
 - Ride startup now copies environment fields rather than cloning the protected
   environment table exposed by Delta. Its original metatable stays untouched.
 - Break and Steal an Egg's Fly speed supports 1-600 studs/s independently of
@@ -32,7 +38,7 @@ Build An Ant Empire and Steal an Egg. Only the selected map is downloaded.
 Checks passed: syntax for all eight public entries/dependencies; native-source
 transfer integrity and argument/return holes; all five universe/place routes;
 network retries/failure cleanup; complete Loot host (10 tabs, 100+ controls,
-14 checks); branding/clipboard/callback preservation, loading bounds and finite
+15 checks); branding/clipboard/callback preservation, loading bounds and finite
 sampler cleanup. This update additionally passes a protected-metatable Ride
 wrapper regression and Break flights at game WalkSpeed 16/250/1000, including
 cancellation, errors and unload. Break's source changes are limited to flight

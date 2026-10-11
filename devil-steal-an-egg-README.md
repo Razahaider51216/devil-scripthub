@@ -1,6 +1,6 @@
 # DEVIL HUB / Steal an Egg
 
-The main loader selects `devil-steal-an-egg.lua` for universe `10563114921` or place `107778070777162`. This VM-protected entry now delegates to the recovered native UI release `native-ui-8`, pinned to commit `691d6357105381945d961f53cada86894f8f3501`. Its downloaded entry length and checksum are checked before native compilation. Other maps redirect back to the existing universal loader.
+The main loader selects `devil-steal-an-egg.lua` for universe `10563114921` or place `107778070777162`. This VM-protected entry delegates to the recovered native UI, pinned to commit `a2331e2994832891821d5df1fdfdff0f23ec4550`. Its downloaded entry length and checksum are checked before native compilation.
 
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?v=vm-1"))()
@@ -17,3 +17,7 @@ See [the recovered UI release notes](devil-steal-an-egg-chilli-recovered-ui-test
 DEVIL HUB Discord invite: https://discord.gg/fDwPCmpkkh. Home, community display and copy actions use this invite; the original remote Discord helper is no longer fetched.
 
 The Discord community logo uses assets/devil-logo.png, matching the main DEVIL HUB frontend.
+
+shared-loading-3 replaces the adapter's separate startup card with a lease on the
+main router's one compact card. The original Chilli loading constructor remains
+suppressed. Native game VM/data, Steal Panel behavior and callbacks are unchanged.

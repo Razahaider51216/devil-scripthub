@@ -1,4 +1,4 @@
-# Ride a Pet - ride-lucy-main-2
+# Ride a Pet - ride-lucy-main-3
 
 Integrated in the universal main loader. Rejoin before moving from the Lucy
 preview test or old Ride scripts. `ride-a-pet-delta.lua` delegates to the same
@@ -22,3 +22,17 @@ changes (zero original control callback replacements). Report counters depend
 on which native GUI components the runtime exposes during the session.
 Native VM/data integrity and loader/adapter behavior are checked offline;
 new visible branding still needs confirmation on Delta.
+
+Startup now borrows the main router's one loading screen. Actual stages range
+from 62% (VM download) through 86% (program initialization) and 94% (interface
+launch), instead of displaying 65% for every stage. Buffer readers periodically
+yield while initializing, and matching OuroFlow modules use a paced Instance
+constructor during startup. Reader and constructor API fields are restored after
+launch or an error; no per-frame worker is added. VM source and data remain exact.
+The scoped compiler adapter gives OuroFlow's original CreateWindow the DEVIL HUB
+name/logo, disables its extra loading overlay and sets the floating icon. Config
+callbacks, controls and original toggle settings are preserved.
+`DevilRideLucyTest-report.json` adds startupBufferReads, startupGuiNodes,
+startupYields and uiConstructors for diagnosis. Cooperative yielding cannot
+preempt a native compile or a protected loop that makes no wrapped API calls;
+this change is not proof of freeze-free operation on Delta.
