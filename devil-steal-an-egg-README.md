@@ -1,6 +1,6 @@
 # DEVIL HUB / Steal an Egg
 
-The main loader selects `devil-steal-an-egg.lua` for universe `10563114921` or place `107778070777162`. This VM-protected entry now delegates to the recovered native UI release `native-ui-6`, pinned to commit `317be3f51f1ef41cdbf69fe74366078e40fd303c`. Its downloaded entry length and checksum are checked before native compilation. Other maps redirect back to the existing universal loader.
+The main loader selects `devil-steal-an-egg.lua` for universe `10563114921` or place `107778070777162`. This VM-protected entry now delegates to the recovered native UI release `native-ui-7`, pinned to commit `60d6e284d22a6996d8d353595b3ae00537185b62`. Its downloaded entry length and checksum are checked before native compilation. Other maps redirect back to the existing universal loader.
 
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?v=vm-1"))()
@@ -15,3 +15,5 @@ Validation executes the actual unchanged public loader across all five universe/
 See [the recovered UI release notes](devil-steal-an-egg-chilli-recovered-ui-test-README.md) for native recovery details and report filenames.
 
 DEVIL HUB Discord invite: https://discord.gg/fDwPCmpkkh. Home, community display and copy actions use this invite; the original remote Discord helper is no longer fetched.
+
+The Discord community logo uses assets/devil-logo.png, matching the main DEVIL HUB frontend.
