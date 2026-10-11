@@ -1,60 +1,29 @@
-# Devil Hub VM release vm-1
+# Protection and native execution ? silver-native-1
 
-The universal loader and all production files used by its five game routes are
-distributed through a Luau bytecode interpreter:
+The eight production router/map/dependency files retain a VM-protected startup
+boundary with the existing randomized opcode/handler mapping. Protected startup
+unpacks a checksummed source payload and calls the native Luau compiler. The
+outer and inner transport decoders run natively, yield between chunks, and keep
+only bounded character lists before concatenation. Our VM no longer interprets
+ongoing game or GUI callbacks or re-virtualizes embedded source literals.
 
-- Ride a Pet: ride-a-pet.lua and ride-a-pet-delta.lua.
-- Break and Steal an Egg: break-and-steal-an-egg.lua and its runtime.
-- Loot to Forge: loot-to-forge.lua, retaining the latest Get Roll labels and
-  multiple rarity stopping selections.
-- Build An Ant Empire: build-an-ant-empire.lua.
-- Universal entry: loader.
-- Steal An Egg: devil-steal-an-egg.lua, including its gameplay and DEVIL frontend.
+This deliberately reduces interpreter overhead compared with the previous
+full VM build. Runtime source/functions can be inspected by a capable executor;
+client-side protection cannot guarantee secrecy. Checksums detect transport
+corruption and do not provide cryptographic authentication.
 
-```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?v=hub-5-vm-1"))()
-```
+Ride's original Lucy VM remains protected and byte-identical. The reviewed
+wrapper was decompressed offline; its VM (85,896 bytes) and data (1,215,230 bytes)
+are downloaded from a pinned commit and checked before execution. This is not
+full devirtualization. Native GUI presentation adjusts branding; it does not
+rewrite original gameplay. Steal an Egg retains its existing native constructor
+export and unchanged original protected gameplay runtime.
 
-This is bytecode virtualization rather than only source-string packing. The
-private build compiles 16 layers with debug information removed, including
-embedded game sources and the existing startup wrappers. Instruction opcode
-bytes use a per-build permutation; dispatch uses separately randomized handler
-IDs. Encoded payloads have size/checksum verification. Checksums detect damage;
-they are not cryptographic authentication. The bootstrapping interpreter is
-encoded separately and bundled locally in each artifact, with no additional
-interpreter download or external obfuscation service.
+Modified Fiu is pinned to 6cc8887847cf336073e5a8017330d3988844a62f, under MIT.
+Every public protected artifact retains its copyright and license notice.
+The private source, compiler, build scripts, opcode map and tests stay local.
 
-The interpreter is a modified, pinned [Fiu](https://github.com/rce-incorporated/Fiu/tree/6cc8887847cf336073e5a8017330d3988844a62f), under its MIT license.
-Each release includes the required copyright and license notice. It supports
-the compiler's bytecode version 14. VM execution needs the standard Luau buffer,
-bit32 and table APIs, plus the executor APIs already required by each game.
-
-Local validation compiles all eight artifacts, executes the public universal
-loader across all five mappings, and exercises retries, argument forwarding,
-unsupported/duplicate load rejection and seven entry files redirecting across
-maps. The full public Loot artifact is tested with its actual host and nested
-VM, including the 66 controls, multiple rarity selections, configuration,
-spawners and cleanup. Its game source is not passed as readable Lua to native
-loadstring. Break Egg's gameplay regression suite also runs through this VM.
-
-VM execution adds CPU and memory overhead. Ride a Pet's original Luraph-protected
-payload now uses the native compiler, avoiding interpreting its VM inside Fiu.
-The protected payload remains byte-identical; DEVIL HUB loader/GUI code keeps its
-outer VM. This Ride-only startup correction and version-query update do not
-replace other published gameplay artifacts. Real-device startup time and gameplay
-performance require in-game verification. These checks use API mocks and do
-not establish live executor compatibility for every device.
-
-The `ride-egg-return-1` route also includes an additional compiled VM controller
-for egg pickup and return, exposed through the DEVIL GUI. Its behavior and
-validation limits are documented in [Egg Return](ride-egg-return-README.md).
-
-Client-executed code can still be inspected, dumped or reverse-engineered. The
-payload encoding, opcode permutation and VM increase inspection effort but do
-not guarantee secrecy. Existing public Git history is unchanged. This release
-does not add a key system, telemetry, debugger blocking or gameplay features.
-
-Readable build inputs, exact native release backups and VM tooling remain local
-at C:/Users/Administrator/Documents/script/devil-vm-build. Public files are
-release artifacts; future gameplay updates must regenerate the VM release from
-the private source baseline instead of editing the public VM files.
+Offline checks cover all eight native compiler boundaries, exact source bytes,
+checksums, argument/return holes and yielding. Router tests cover all five maps;
+the actual Loot host and its native embedded gameplay initialize and unload in
+mocks. These tests do not measure live Roblox/Delta FPS.
