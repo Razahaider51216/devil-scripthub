@@ -154,6 +154,21 @@ return function(createLibrary,restoreStartup)
         group._order=host.LayoutOrder
         host.Parent=group.List
         row.Parent=host;row.AnchorPoint=Vector2.new(.5,0);row.Position=UDim2.fromScale(.5,0)
+        -- Brand the actual embedded Discord image, including canvases from an older engine.
+        if option.Name=="Discord" then
+            local logo=env.DevilChilliBrandLogo or (library.Assets and library.Assets.Logo)
+            local function brandImage(node)
+                if not logo or not(node:IsA("ImageLabel") or node:IsA("ImageButton")) then return end
+                if node.Image~="rbxassetid://128961717706452" and node.Name~="Logo" then return end
+                local function update()
+                    if not stopped and node.Parent and node.Image~=logo then node.Image=logo end
+                end
+                table.insert(connections,node:GetPropertyChangedSignal("Image"):Connect(update))
+                update()
+            end
+            for _,node in ipairs(row:GetDescendants()) do brandImage(node) end
+            table.insert(connections,row.DescendantAdded:Connect(brandImage))
+        end
         local updating=false
         local function measure()
             if stopped or updating or not row.Parent then return end

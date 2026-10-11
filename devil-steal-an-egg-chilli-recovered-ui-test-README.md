@@ -1,7 +1,7 @@
 # DEVIL HUB / recovered native UI test
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-steal-an-egg-chilli-recovered-ui-test.lua?v=native-ui-7"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-steal-an-egg-chilli-recovered-ui-test.lua?v=native-ui-8"))()
 ```
 
 Rejoin the game once before this test. Do not run an older Chilli/full-runtime/main-GUI entry in the same session first. Re-running this entry after its native engine has loaded only recreates the presentation adapter.
@@ -43,3 +43,5 @@ Release 5 removes the decorative DevilAccent line from Steal Panel. The native l
 Release 6 updates the DEVIL home invite, native Discord community display and native copy action to https://discord.gg/fDwPCmpkkh. The community heading now reads DEVIL HUB. The old remote Discord-link helper is replaced by direct copying of the supplied invite, preventing future changes to the original community link from affecting this entry. Game bytecode and gameplay remain unchanged.
 
 Release 7 uses the same DEVIL HUB logo asset as the main GUI in the Discord community panel. The image is resolved through getcustomasset/getsynasset before native UI construction and cached using the existing DEVIL logo filename. Gameplay and Discord copy behavior remain unchanged.
+
+Release 8 replaces the actual embedded Discord canvas image and watches that image for native redraws. This also brands an existing older native Window whose community canvas was created with the fire icon. Replacement is restricted to the Discord canvas; pet and egg images retain their original values. The existing adapter harness verifies replacement and redraw protection while original item images and callbacks survive.
