@@ -497,7 +497,8 @@ return function()
         if gui then gui:Destroy();gui=nil;status=nil;bar=nil end
     end
     function loader.Fail(message)
-        loader.Update("Load failed: "..tostring(message):sub(1,160),0)
+        loader.LastError=tostring(message)
+        loader.Update("Load failed. Check the DEVIL HUB report files.",0)
         if task and task.delay then task.delay(8,loader.Destroy) else loader.Destroy() end
     end
     function loader.Finish()
@@ -531,8 +532,8 @@ return function()
             node.Text=text;node.Parent=card;return node
         end
         label("Title","DEVIL HUB",18,30,24)
-        label("Subtitle","STEAL AN EGG · SYSTEM STARTUP",49,20,12).TextColor3=Color3.fromRGB(56,207,255)
-        status=label("Status","Starting…",78,36,14);status.TextWrapped=true
+        label("Subtitle","STEAL AN EGG / SYSTEM STARTUP",49,20,12).TextColor3=Color3.fromRGB(56,207,255)
+        status=label("Status","Starting...",78,36,14);status.TextWrapped=true
         local track=Instance.new("Frame");track.BorderSizePixel=0
         track.BackgroundColor3=Color3.fromRGB(24,40,61);track.Position=UDim2.new(0,22,1,-24)
         track.Size=UDim2.new(1,-44,0,4);track.Parent=card
@@ -547,7 +548,7 @@ end
 end)()()
 local restoreStartup
 local function mount()
-    loading.Update("Building DEVIL HUB interfaceâ€¦",0.85)
+    loading.Update("Building DEVIL HUB interface...",0.85)
     local session=attach(existingDevilHubLibrary,restoreStartup)
     if session and session.Report and session.Report.status=="Mounted DEVIL HUB main GUI on original Chilli handles" then
         loading.Finish()
@@ -580,7 +581,7 @@ if env.DevilChilliFullRuntimeTest then
 end
 local report={schema="devil-chilli-full-runtime-test-1",release="chilli-full-test-1",map="Steal an Egg",
     placeId=game.PlaceId,universeId=game.GameId,status="Starting",devirtualized=false,
-    frontend="DEVIL HUB / native constructor export",referenceSHA256="a63600927017dea5796a989ca56df2f84abc4948aaf7a10e1868f3eb1238450a",referenceCommit="5718ad8818f412ccca12d67dc18dbc2964b7a829"}
+    frontend="DEVIL HUB / native constructor export",referenceSHA256="1ee3e8b49319d44d2aeaf9c7bb7229e6cf24591976bf58c1c32c47222173c843",referenceCommit="5718ad8818f412ccca12d67dc18dbc2964b7a829"}
 env.DevilChilliFullRuntimeTest=report
 local function save()
     if type(writefile)=="function"then
@@ -599,18 +600,18 @@ local outcome=table.pack(xpcall(function()
         env.DevilStealEggSession.Destroy()
     end
     warn("DEVIL HUB: loading the original systems into the main GUI")
-    loading.Update("Downloading systemsâ€¦",0.15)
-    local originalGameSource=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/040afff97bd631d8072017a6db37c0ecb7bfca5c/devil-chilli-native-ui-runtime.lua")
-    assert(type(originalGameSource)=="string"and #originalGameSource==848766,"Pinned runtime download has an unexpected size")
-    loading.Update("Checking downloadâ€¦",0.4)
+    loading.Update("Downloading systems...",0.15)
+    local originalGameSource=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/c2635eefbfac417cf6a3ebc9ed77a01db0132aff/devil-chilli-native-ui-runtime.lua")
+    assert(type(originalGameSource)=="string"and #originalGameSource==848796,"Pinned runtime download has an unexpected size")
+    loading.Update("Checking download...",0.4)
     local checksum=0
     for index=1,#originalGameSource do checksum=(checksum*33+string.byte(originalGameSource,index))%4294967296; if index%32768==0 and task and task.wait then task.wait() end end
-    assert(checksum==2554822303,"Pinned runtime download checksum mismatch")
-    loading.Update("Compiling systemsâ€¦",0.55)
+    assert(checksum==2545282089,"Pinned runtime download checksum mismatch")
+    loading.Update("Compiling systems...",0.55)
     local run,err=loadstring(originalGameSource,"Chilli / Steal an Egg / pinned runtime")
     assert(run,err)
     report.status="Runtime compiled";report.transferChecksumVerified=true;save()
-    loading.Update("Starting original systemsâ€¦",0.7)
+    loading.Update("Starting original systems...",0.7)
     if task and task.wait then task.wait() end
     return run()
 end,function(err)return debug and type(debug.traceback)=="function"and debug.traceback(tostring(err),2)or tostring(err)end))
