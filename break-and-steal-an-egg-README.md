@@ -356,3 +356,16 @@ MouseBehavior and Shift Lock are untouched; touch-only devices are not forced to
 show a mouse. Gameplay is unchanged. Offline regressions cover the original
 failure, next-frame visibility, minimize/reopen, and touch-only cursor state.
 VM compilation and gameplay regressions pass; live PC verification is pending.
+
+## Independent Fly speed (2026-10-12, compact-native-2)
+
+Fly speed (studs/s) now ranges from 1 to 600; the previous minimum was 80.
+Auto Egg travel duration is distance divided by the selected speed. The root is
+temporarily anchored while the linear tween drives flight, preventing game
+walking and physics velocity from adding motion. Game WalkSpeed is retained.
+The previous anchor state is restored and residual velocity cleared on arrival,
+cancellation, target changes, carry handoff, errors and unload. Hit timing,
+target/pickup filters, remotes and carry delivery logic remain unchanged.
+Offline regressions cover speeds 1/5/80/100/600 with game WalkSpeed 16/250/1000,
+short/long flights, pre-existing anchors, damage, cancellation, errors and unload.
+Live Roblox/Delta verification is still required.

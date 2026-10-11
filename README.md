@@ -1,7 +1,7 @@
-# DEVIL HUB ? silver-native-1
+# DEVIL HUB - compact-native-2
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?v=silver-native-1"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?v=vm-1"))()
 ```
 
 Rejoin before switching from an older release or from the Lucy preview test.
@@ -11,7 +11,13 @@ Build An Ant Empire and Steal an Egg. Only the selected map is downloaded.
 - Shared silver logo from the owner's supplied `logo.png`, with one versioned
   executor asset cache. No image regeneration or image substitutions.
 - DEVIL HUB community link: https://discord.gg/fDwPCmpkkh.
-- Centered dark/blue loading card, bounded on mobile and desktop screens.
+- Compact 320x112 dark/blue loading card with silver logo, progress percentage,
+  finite animation, mobile/desktop scaling and short failure captions. Detailed
+  startup errors are saved in `DevilHub_LoadError.json`.
+- Ride startup now copies environment fields rather than cloning the protected
+  environment table exposed by Delta. Its original metatable stays untouched.
+- Break and Steal an Egg's Fly speed supports 1-600 studs/s independently of
+  game WalkSpeed. Character motion is restored when flight ends or is cancelled.
 - Ride a Pet now uses the predecoded Lucy runtime that the owner verified in
   game. The original protected VM/data and game systems are retained. A GUI
   adapter changes visible branding and Discord copy behavior; it does not
@@ -27,8 +33,11 @@ Checks passed: syntax for all eight public entries/dependencies; native-source
 transfer integrity and argument/return holes; all five universe/place routes;
 network retries/failure cleanup; complete Loot host (10 tabs, 100+ controls,
 14 checks); branding/clipboard/callback preservation, loading bounds and finite
-sampler cleanup. Embedded Loot/Break game source was compared with the previous
-release, allowing only Discord display-link updates. Lucy VM/data remain exact.
+sampler cleanup. This update additionally passes a protected-metatable Ride
+wrapper regression and Break flights at game WalkSpeed 16/250/1000, including
+cancellation, errors and unload. Break's source changes are limited to flight
+motion/cancellation and the slider range; pickup/hit/remotes remain unchanged.
+Lucy VM/data remain exact.
 
 Live FPS and the new Ride branding have not been verified by the build machine.
 If an issue remains, share `DevilHub_Performance.json`,
