@@ -1,6 +1,6 @@
 # DEVIL HUB / Steal an Egg
 
-The main loader selects `devil-steal-an-egg.lua` for universe `10563114921` or place `107778070777162`. This VM-protected entry now delegates to the recovered native UI release `native-ui-7`, pinned to commit `60d6e284d22a6996d8d353595b3ae00537185b62`. Its downloaded entry length and checksum are checked before native compilation. Other maps redirect back to the existing universal loader.
+The main loader selects `devil-steal-an-egg.lua` for universe `10563114921` or place `107778070777162`. This VM-protected entry now delegates to the recovered native UI release `native-ui-8`, pinned to commit `691d6357105381945d961f53cada86894f8f3501`. Its downloaded entry length and checksum are checked before native compilation. Other maps redirect back to the existing universal loader.
 
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?v=vm-1"))()
