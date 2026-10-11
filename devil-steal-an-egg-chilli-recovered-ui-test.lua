@@ -24,6 +24,7 @@ return function()
 end
 
 end)()()
+if DevilReleaseScope.DevilHubLoadController then DevilReleaseScope.DevilHubLoadController.SetLogo(DevilReleaseLogo)end
 -- DEVIL HUB: original Chilli runtime + the SAME OuroFlow GUI as the main script.
 -- Native engine unchanged. Existing OuroFlow sidebar expanded; native rich panels embedded.
 local attach=(function()
@@ -526,67 +527,157 @@ if not correctMap then warn("DEVIL HUB: open Steal an Egg first");return end
 if env.DevilChilliUiStarting then warn("DEVIL HUB: startup already in progress");return end
 env.DevilChilliUiStarting=true
 local loading=(function()
--- Presentation only. Each stage corresponds to actual startup work.
-return function()
-    local gui,status,bar
-    local loader={}
-    function loader.Update(message,progress)
-        if status then status.Text=message end
-        if bar then bar.Size=UDim2.new(math.clamp(progress,0,1),0,1,0) end
+-- Compact presentation only: finite tweens and one viewport resize listener.
+return function(map)
+    local scope=type(getgenv)=="function"and getgenv()or _G
+    local shared=scope.DevilHubLoadController
+    if shared and shared.Acquire and shared.IsActive()then return shared.Acquire()end
+    if scope.DevilHubLoadScreen then pcall(scope.DevilHubLoadScreen.Destroy,scope.DevilHubLoadScreen)end
+    local screen=Instance.new("ScreenGui")
+    screen.Name="DevilHubLoading";screen.ResetOnSpawn=false;screen.IgnoreGuiInset=true;screen.DisplayOrder=10000
+    screen:SetAttribute("DevilHubPresentation",true)
+    local playerGui=game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+    local parent=playerGui
+    pcall(function()parent=type(gethui)=="function"and gethui()or game:GetService("CoreGui")end)
+    if not pcall(function()screen.Parent=parent end)then screen.Parent=playerGui end
+    scope.DevilHubLoadScreen=screen
+    local blue=Color3.fromRGB(0,140,255)
+    local cyan=Color3.fromRGB(56,207,255)
+    local card=Instance.new("Frame");card.Name="DevilLoadCard"
+    card.AnchorPoint=Vector2.new(.5,.5);card.Position=UDim2.fromScale(.5,.5)
+    card.Size=UDim2.fromOffset(320,112);card.BackgroundColor3=Color3.fromRGB(8,13,24)
+    card.BorderSizePixel=0;card.ZIndex=3;card.Parent=screen
+    local function round(node,radius)
+        local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,radius);corner.Parent=node
     end
-    function loader.Destroy()
-        if gui then gui:Destroy();gui=nil;status=nil;bar=nil end
+    round(card,14)
+    local border=Instance.new("UIStroke");border.Color=blue;border.Thickness=1;border.Transparency=.25;border.Parent=card
+    local glow=Instance.new("Frame");glow.Name="DevilLoadGlow";glow.Position=UDim2.fromOffset(-3,-3)
+    glow.Size=UDim2.new(1,6,1,6);glow.BackgroundColor3=blue;glow.BackgroundTransparency=.92
+    glow.BorderSizePixel=0;glow.ZIndex=1;glow.Parent=card;round(glow,17)
+    local background=Instance.new("Frame");background.Name="DevilLoadSurface"
+    background.Size=UDim2.fromScale(1,1);background.BackgroundColor3=Color3.fromRGB(255,255,255)
+    background.BorderSizePixel=0;background.ZIndex=3;background.Parent=card;round(background,14)
+    local gradient=Instance.new("UIGradient");gradient.Rotation=20
+    gradient.Color=ColorSequence.new(Color3.fromRGB(8,13,24),Color3.fromRGB(12,28,48));gradient.Parent=background
+    local scale=Instance.new("UIScale");scale.Name="DevilLoadScale";scale.Parent=card
+    local camera=workspace.CurrentCamera
+    local tweens,links={},{}
+    local stopped=false
+    local tweenService=game:GetService("TweenService")
+    local function animate(node,key,properties,duration)
+        if tweens[key]then pcall(tweens[key].Cancel,tweens[key]);tweens[key]=nil end
+        local ok,value=pcall(function()
+            return tweenService:Create(node,TweenInfo.new(duration,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),properties)
+        end)
+        if ok then tweens[key]=value;value:Play()
+        else for name,value in pairs(properties)do node[name]=value end end
     end
-    function loader.Fail(message)
-        loader.LastError=tostring(message)
-        loader.Update("Load failed. Check the DEVIL HUB report files.",0)
-        if task and task.delay then task.delay(8,loader.Destroy) else loader.Destroy() end
+    local function fit()
+        local size=camera and camera.ViewportSize
+        local factor=size and math.min(1,math.max(1,size.X-32)/326,math.max(1,size.Y-32)/118)or 1
+        return math.max(.1,factor)
     end
-    function loader.Finish()
-        loader.Update("Ready",1)
-        if task and task.delay then task.delay(0.4,loader.Destroy) else loader.Destroy() end
+    local target=fit();scale.Scale=target*.96
+    animate(scale,"open",{Scale=target},.2)
+    if camera then
+        local ok,link=pcall(function()return camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+            if stopped then return end
+            if tweens.open then pcall(tweens.open.Cancel,tweens.open);tweens.open=nil end
+            scale.Scale=fit()
+        end)end)
+        if ok then links[#links+1]=link end
     end
-    local ok=pcall(function()
-        gui=Instance.new("ScreenGui");gui.Name="DevilStartupLoading"
-        gui:SetAttribute("DevilHubPresentation",true)
-        gui.ResetOnSpawn=false;gui.IgnoreGuiInset=true;gui.DisplayOrder=10000
-        local parent
-        if type(gethui)=="function" then pcall(function()parent=gethui()end) end
-        parent=parent or game:GetService("Players").LocalPlayer:FindFirstChildOfClass("PlayerGui")
-        assert(parent,"Loading GUI parent unavailable")
-        local old=parent:FindFirstChild("DevilStartupLoading")
-        if old then old:Destroy() end
-        local card=Instance.new("Frame");card.Name="LoadingCard"
-        card.AnchorPoint=Vector2.new(0.5,0.5);card.Position=UDim2.new(0.5,0,0.5,0)
-        card.Size=UDim2.new(0.8,0,0,154);card.BackgroundColor3=Color3.fromRGB(8,13,24)
-        card.BackgroundTransparency=0.04;card.BorderSizePixel=0;card.Parent=gui
-        local limit=Instance.new("UISizeConstraint");limit.MaxSize=Vector2.new(440,154);limit.Parent=card
-        local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,16);corner.Parent=card
-        local border=Instance.new("UIStroke");border.Color=Color3.fromRGB(0,140,255)
-        pcall(function()border.StrokeSizingMode=Enum.StrokeSizingMode.FixedSize end)
-        border.Thickness=1;border.Transparency=0.25;border.Parent=card
-        local function label(name,text,y,height,size)
-            local node=Instance.new("TextLabel");node.Name=name;node.BackgroundTransparency=1
-            node.Position=UDim2.new(0,22,0,y);node.Size=UDim2.new(1,-44,0,height)
-            node.Font=Enum.Font.GothamSemibold;node.TextSize=size
-            node.TextColor3=Color3.fromRGB(228,243,255);node.TextXAlignment=Enum.TextXAlignment.Left
-            node.Text=text;node.Parent=card;return node
-        end
-        label("Title","DEVIL HUB",18,30,24)
-        label("Subtitle","STEAL AN EGG / SYSTEM STARTUP",49,20,12).TextColor3=Color3.fromRGB(56,207,255)
-        status=label("Status","Starting...",78,36,14);status.TextWrapped=true
-        local track=Instance.new("Frame");track.BorderSizePixel=0
-        track.BackgroundColor3=Color3.fromRGB(24,40,61);track.Position=UDim2.new(0,22,1,-24)
-        track.Size=UDim2.new(1,-44,0,4);track.Parent=card
-        bar=Instance.new("Frame");bar.Name="Progress";bar.BorderSizePixel=0
-        bar.BackgroundColor3=Color3.fromRGB(0,140,255);bar.Size=UDim2.new(0,0,1,0);bar.Parent=track
-        gui.Parent=parent
-    end)
-    if not ok then loader.Destroy() end
-    return loader
+    local logo=Instance.new("ImageLabel");logo.Name="DevilLogo";logo.BackgroundTransparency=1
+    logo.Size=UDim2.fromOffset(42,42);logo.Position=UDim2.fromOffset(16,16)
+    logo.ScaleType=Enum.ScaleType.Fit;logo.ZIndex=4;logo.Parent=card
+    logo.Image=scope.DevilHubSilverLogo or ""
+    local function label(name,text,x,y,width,height,size,color)
+        local node=Instance.new("TextLabel");node.Name=name;node.BackgroundTransparency=1
+        node.Font=Enum.Font.GothamSemibold;node.TextColor3=color or Color3.fromRGB(230,244,255)
+        node.TextSize=size;node.TextXAlignment=Enum.TextXAlignment.Left;node.TextTruncate=Enum.TextTruncate.AtEnd
+        node.Position=UDim2.fromOffset(x,y);node.Size=UDim2.fromOffset(width,height)
+        node.Text=text;node.ZIndex=4;node.Parent=card;return node
+    end
+    label("DevilLoadTitle","DEVIL HUB",70,15,158,23,18)
+    label("DevilLoadMap",tostring(map),70,40,214,17,11,Color3.fromRGB(144,168,195))
+    local badge=Instance.new("Frame");badge.Name="DevilLoadBadge"
+    badge.Position=UDim2.fromOffset(242,18);badge.Size=UDim2.fromOffset(62,19)
+    badge.BackgroundColor3=Color3.fromRGB(14,43,69);badge.BorderSizePixel=0;badge.ZIndex=4;badge.Parent=card;round(badge,6)
+    local badgeText=label("DevilLoadBadgeText","LOADING",249,18,52,19,8,cyan)
+    local status=label("DevilLoadStatus","Preparing...",16,72,247,16,11)
+    local percentage=label("DevilLoadPercent","8%",270,72,34,16,10,cyan)
+    percentage.TextXAlignment=Enum.TextXAlignment.Right
+    local track=Instance.new("Frame");track.Position=UDim2.fromOffset(16,97);track.Size=UDim2.fromOffset(288,3)
+    track.BackgroundColor3=Color3.fromRGB(25,41,63);track.BorderSizePixel=0;track.ZIndex=4;track.Parent=card;round(track,3)
+    local fill=Instance.new("Frame");fill.Size=UDim2.fromScale(.08,1);fill.BackgroundColor3=blue
+    fill.BorderSizePixel=0;fill.ZIndex=5;fill.Parent=track;round(fill,3)
+    local shine=Instance.new("UIGradient");shine.Color=ColorSequence.new(blue,cyan);shine.Parent=fill
+    local function cleanup()
+        if stopped then return end;stopped=true
+        for _,link in ipairs(links)do pcall(link.Disconnect,link)end
+        for _,value in pairs(tweens)do pcall(value.Cancel,value)end
+        table.clear(links);table.clear(tweens)
+        if scope.DevilHubLoadScreen==screen then scope.DevilHubLoadScreen=nil end
+        if scope.DevilHubLoadController==shared then scope.DevilHubLoadController=nil end
+    end
+    if screen.Destroying then links[#links+1]=screen.Destroying:Connect(cleanup)end
+    local controller={}
+    shared=controller
+    local owners=1
+    local finished=false
+    local failed=false
+    local shownProgress=0
+    local function close()
+        if stopped then return end
+        cleanup();if screen.Parent then screen:Destroy()end
+    end
+    local function release()
+        owners-=1
+        if owners==0 and not failed then close()end
+    end
+    function controller.IsActive()return not stopped and not failed and screen.Parent~=nil end
+    function controller.Update(text,progress)
+        if stopped or not screen.Parent then return end
+        if failed then return end
+        local value=math.max(shownProgress,math.clamp(progress or .1,0,1))
+        shownProgress=value
+        status.Text=tostring(text);percentage.Text=string.format("%d%%",math.floor(value*100+.5))
+        animate(fill,"progress",{Size=UDim2.fromScale(value,1)},.18)
+    end
+    function controller.SetLogo(image)if not stopped and screen.Parent then logo.Image=image end end
+    function controller.Finish()
+        if stopped or finished then return end
+        finished=true;release()
+    end
+    controller.Destroy=controller.Finish
+    function controller.Fail(message)
+        if stopped or failed then return end
+        local detail=tostring(message)
+        warn("[DEVIL HUB / startup] "..detail)
+        if type(writefile)=="function"then pcall(function()
+            writefile("DevilHub_LoadError.json",game:GetService("HttpService"):JSONEncode({map=map,error=detail,release="shared-loading-3"}))
+        end)end
+        controller.Update("Start failed - check Console",1)
+        failed=true;controller.LastError=detail
+        badgeText.Text="FAILED";percentage.Text="ERR"
+        shine.Enabled=false;fill.BackgroundColor3=Color3.fromRGB(255,85,85)
+        task.delay(8,close)
+    end
+    function controller.Acquire()
+        owners+=1
+        local released=false
+        local lease={Update=controller.Update,SetLogo=controller.SetLogo,Fail=controller.Fail,IsActive=controller.IsActive,Acquire=controller.Acquire}
+        function lease.Finish()if not released then released=true;release()end end
+        lease.Destroy=lease.Finish
+        return lease
+    end
+    scope.DevilHubLoadController=controller
+    return controller
 end
 
-end)()()
+end)()("Steal an Egg")
+
 local restoreStartup
 local function mount()
     loading.Update("Building DEVIL HUB interface...",0.85)
