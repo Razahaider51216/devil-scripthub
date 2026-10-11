@@ -493,3 +493,18 @@ Gameplay checks include actual pickup/bank/entrance/hit handoff ordering, exactl
 one post-bank return, Carry-only delivery, retained toggles and segment durations
 at 5/12/30/100/200. Existing smooth walking, high-health retries, filters, damage,
 respawn and cleanup plus public startup/router checks pass. Live testing is pending.
+
+
+## Fixed stepped approach to selected animals (break-carry-step-pickup-12)
+
+Carry approaches selected animals with position steps of at most 20 studs and
+a 0.25-second pause after each step. There are no new menu settings. Both the
+hidden-prompt approach and final prompt approach use this behavior. Eligibility,
+character state, cancellation and damage are checked between steps. A corrected
+position aborts the attempt and waits before rescanning; prompt activation still
+requires the fresh selected model/prompt and pickup confirmation.
+
+After pickup, the existing corridor/bank tween route, Fly Speed range through
+200, delivery confirmation and post-bank Auto Egg entrance handoff remain.
+This does not establish server acceptance of stepped movement or guarantee
+that the map will not reject it. Live game testing is required.
