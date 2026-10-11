@@ -1,3 +1,29 @@
+local DevilReleaseScope=type(getgenv)=="function"and getgenv()or _G
+local DevilReleaseLogo=(function()
+-- One versioned, shared cached image for every supported map.
+return function()
+    local scope=type(getgenv)=="function" and getgenv() or _G
+    if scope.DevilHubSilverLogo then return scope.DevilHubSilverLogo end
+    local url="https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png?logo=silver-20261011"
+    local asset=getcustomasset or getsynasset
+    local image=url
+    if type(asset)=="function" and type(writefile)=="function"then
+        local ok,value=pcall(function()
+            local file="DevilHub_Silver_20261011.png"
+            if not(type(isfile)=="function"and isfile(file))then
+                local data=game:HttpGet(url)
+                assert(data:sub(1,8)=="\137PNG\r\n\26\n","Invalid DEVIL HUB logo response")
+                writefile(file,data)
+            end
+            return asset(file)
+        end)
+        if ok and type(value)=="string"and value~=""then image=value end
+    end
+    scope.DevilHubSilverLogo=image
+    return image
+end
+
+end)()()
 -- DEVIL HUB: original Chilli runtime + the SAME OuroFlow GUI as the main script.
 -- Native engine unchanged. Existing OuroFlow sidebar expanded; native rich panels embedded.
 local attach=(function()
@@ -369,11 +395,11 @@ return function(createLibrary,restoreStartup)
         end
         nativeWindow,nativeRoot=found,rootOrReason;session.NativeWindow=nativeWindow
         library=createLibrary()
-        local logo="https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png"
+        local logo=DevilReleaseScope.DevilHubSilverLogo or "https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png?logo=silver-20261011"
         local asset=getcustomasset or getsynasset
-        if type(asset)=="function" and type(writefile)=="function" then
+        if not DevilReleaseScope.DevilHubSilverLogo and type(asset)=="function" and type(writefile)=="function" then
             local assetOK,image=pcall(function()
-                local file="DevilHub_StealEgg_Logo.png"
+                local file="DevilHub_Silver_20261011.png"
                 if not(type(isfile)=="function" and isfile(file)) then
                     local data=game:HttpGet(logo);assert(data:sub(1,8)=="\137PNG\r\n\26\n","Invalid DEVIL HUB logo");writefile(file,data)
                 end
@@ -576,11 +602,12 @@ loading.Update("Preparing DEVIL HUB logo...",0.05)
 env.DevilChilliBrandLogo=(function()
 -- Use the same logo file as the main DEVIL HUB frontend.
 return function()
-    local url="https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png"
+    if DevilReleaseScope.DevilHubSilverLogo then return DevilReleaseScope.DevilHubSilverLogo end
+    local url="https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png?logo=silver-20261011"
     local asset=getcustomasset or getsynasset
     if type(asset)~="function" or type(writefile)~="function" then return url end
     local ok,image=pcall(function()
-        local file="DevilHub_StealEgg_Logo.png"
+        local file="DevilHub_Silver_20261011.png"
         if not(type(isfile)=="function" and isfile(file)) then
             local data=game:HttpGet(url)
             assert(data:sub(1,8)=="\137PNG\r\n\26\n","Invalid DEVIL HUB logo")
