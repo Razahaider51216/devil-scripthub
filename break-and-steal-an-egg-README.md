@@ -22,8 +22,9 @@ Gameplay now derives from the supplied
 Its strings were decoded statically before adaptation. The OuroFlow GUI,
 loading overlay, Discord card, Webhook and Recent Steals features remain.
 
-- Auto Egg selects valid eggs by lowest health, using nearest distance to break
-  ties. It skips Broken/Hatching eggs and eggs near zone-build models, equips
+- Auto Egg selects the largest eligible eggs, using observed KG when available
+  and physical egg size when weights are unavailable. Lower health and distance
+  only break initial equal-size ties. It skips Broken/Hatching eggs and eggs near zone-build models, equips
   the pickaxe, moves within hit distance, and calls EggHitRequest. Delay,
   stand distance and Fly speed remain adjustable. Movement uses Tween flight.
   Pausing, carrying,
@@ -53,7 +54,9 @@ bridged to the existing frontend. The visible frontend still starts in Crimson.
 
 Main > Farm Rarities > Egg + Animal Rarities reuses the existing rarity choices
 and supports multiple selections. Auto Egg and Auto Pet Carry Farm use the
-same selection. Selecting a tier clears All; selecting All clears prior tiers.
+selection, with separate egg and animal eligibility. Eggs use the highest
+selected tier as a minimum and allow higher tiers. Animals retain exact selected
+tiers and their existing minimum income filter. Selecting a tier clears All; selecting All clears prior tiers.
 An empty selection prevents new hits and pickups. Values are saved with the
 gameplay config. Visual ESP filters remain independent.
 
@@ -290,3 +293,13 @@ Transient object/scan errors retry rather than disabling the farm. Carry
 confirmation and the selected rarity/minimum income checks still apply.
 Mocks cover pets appearing after enable, prompt discovery without events,
 disable/re-enable and recovery from a transient scan error.
+
+## Higher-tier and heavier-egg targeting (break-heavy-17)
+
+Selecting Rare + Legendary now sends Auto Egg to Legendary-or-higher eggs; Rare and Legendary animals remain eligible for pickup when they satisfy the existing minimum $/s. Egg rarity no longer excludes animal pickups at another selected tier. Unknown egg rarity is skipped with explicit selections; All and empty selections retain their existing meanings.
+
+Auto Egg rechecks for a larger eligible egg before each hit. If none appears, it continues hitting its current target. A heavier spawn replaces the current target without waiting for the old egg to break. Flight checks run at 0.15-second intervals and cancel the old route on a larger target or changed eligibility; the next loop moves to the new target. EggHitRequest and its distance checks remain unchanged. Broken/Hatching/dead eggs, carry handoff, health-damage stop, pause, unload and respawn checks remain in force.
+
+Actual weight comes from exposed WeightKg/WeightKG/Weight/EggWeight/KG attributes or KG labels. Physical size is a fallback when comparable weights are not exposed; it does not manufacture server weight. Targeting is limited to eligible eggs visible to the client through the existing egg enumeration.
+
+Validation: existing gameplay and frontend harnesses, added highest-tier/continuous-hit/heavier-preemption/flight-cancellation/size-fallback regressions, income/pickup/carry compatibility, official Luau compilation, exact packed-host checksum roundtrip, and changed gameplay executed through the distribution VM. Live Roblox/Delta behavior still needs confirmation. The runtime is pinned to commit cc938e45dbed1d1550ae3dc1211222e1cf0dd6af; main loader routing is retained.
