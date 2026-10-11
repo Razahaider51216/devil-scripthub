@@ -371,7 +371,7 @@ return function(createLibrary,restoreStartup)
         window=library:CreateWindow({Name="DEVIL HUB",Icon=logo,Theme="Abyss",Size=UDim2.fromOffset(880,520),Density="Compact",
             Profile=true,Search=true,Loading=false,Backdrop=false,Disclaimer=false,UnsupportedExecutor=false,
             KeepOnScreen=true,ConfigurationSaving={Enabled=false},
-            Home={Title="DEVIL HUB / Steal an Egg",Discord="https://discord.gg/ZY7PRcVJe2"},
+            Home={Title="DEVIL HUB / Steal an Egg",Discord="https://discord.gg/fDwPCmpkkh"},
             ToggleButton={Title="DEVIL HUB",Icon=logo,Platform="Both",Keybind=Enum.KeyCode.K}})
         -- OuroFlow owns its ScreenGui on the returned WINDOW, not the library.
         if typeof(window.Gui)=="Instance" then
@@ -581,7 +581,7 @@ if env.DevilChilliFullRuntimeTest then
 end
 local report={schema="devil-chilli-full-runtime-test-1",release="chilli-full-test-1",map="Steal an Egg",
     placeId=game.PlaceId,universeId=game.GameId,status="Starting",devirtualized=false,
-    frontend="DEVIL HUB / native constructor export",referenceSHA256="c3d49bfd55a18e870f66244d2d01ad565476ca0cf775c003fdd8bd8a478d9a27",referenceCommit="5718ad8818f412ccca12d67dc18dbc2964b7a829"}
+    frontend="DEVIL HUB / native constructor export",referenceSHA256="2cad2a0c0e7195b7d309e19951a96a2f135e488085a5a2ac7c3ac05dc317fa48",referenceCommit="5718ad8818f412ccca12d67dc18dbc2964b7a829"}
 env.DevilChilliFullRuntimeTest=report
 local function save()
     if type(writefile)=="function"then
@@ -601,12 +601,12 @@ local outcome=table.pack(xpcall(function()
     end
     warn("DEVIL HUB: loading the original systems into the main GUI")
     loading.Update("Downloading systems...",0.15)
-    local originalGameSource=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/01a3bc0fecff2da891986a36482ccdb1404fde29/devil-chilli-native-ui-runtime.lua")
-    assert(type(originalGameSource)=="string"and #originalGameSource==848721,"Pinned runtime download has an unexpected size")
+    local originalGameSource=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/deb092469aa2237c9462fec52fe03a5dd8fbe2cf/devil-chilli-native-ui-runtime.lua")
+    assert(type(originalGameSource)=="string"and #originalGameSource==848771,"Pinned runtime download has an unexpected size")
     loading.Update("Checking download...",0.4)
     local checksum=0
     for index=1,#originalGameSource do checksum=(checksum*33+string.byte(originalGameSource,index))%4294967296; if index%32768==0 and task and task.wait then task.wait() end end
-    assert(checksum==1583157062,"Pinned runtime download checksum mismatch")
+    assert(checksum==4268319044,"Pinned runtime download checksum mismatch")
     loading.Update("Compiling systems...",0.55)
     local run,err=loadstring(originalGameSource,"Chilli / Steal an Egg / pinned runtime")
     assert(run,err)
