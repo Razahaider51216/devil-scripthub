@@ -435,3 +435,19 @@ diagnostics script to investigate speed-triggered damage or position correction.
 Gameplay mocks cover exact segment durations at 5/12/30/100, two game walking
 speeds, damage recovery, filters, handoff and lifecycle. Public startup transport
 and five-map routing checks pass. Live Roblox/executor validation is pending.
+
+
+## Carry falling/physics recovery (break-carry-state-recovery-9)
+
+A client trace from game version 1351 shows delivery at about 63.915s, then
+FallingDown at 66.068s with 100 health and PlatformStand/Sit false. Movement
+continued during FallingDown/GettingUp, followed by large velocity and position
+jumps before health reached zero at 75.848s. This does not establish what
+initiated the fall or whether an anti-cheat caused it. CatchFlingRemote was
+observed as an object but no received event for it was recorded.
+
+Carry now rejects FallingDown, Ragdoll, GettingUp, Physics and Dead states,
+cancels an in-progress tween, releases input/owned NoClip and waits for recovery
+without disabling the farm or writing humanoid state. Speed remains 100.
+Existing gameplay regressions plus full-health interruptions/recovery in each
+blocked state, native transport and router tests pass. Live verification is pending.
