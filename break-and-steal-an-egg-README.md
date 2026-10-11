@@ -451,3 +451,26 @@ cancels an in-progress tween, releases input/owned NoClip and waits for recovery
 without disabling the farm or writing humanoid state. Speed remains 100.
 Existing gameplay regressions plus full-health interruptions/recovery in each
 blocked state, native transport and router tests pass. Live verification is pending.
+
+
+## Auto Egg entrance, movement and retry (break-egg-smooth-entrance-10)
+
+Auto Egg defaults to one entrance teleport per enable using the user-recorded
+position (-70.8116, 3.5963, 3.8787) from game version 1351. Start Auto Egg at
+entrance can be disabled. Carry ownership, carried animals and game locks delay
+the entrance step. An interrupted arrival waits instead of repeating teleports.
+
+Straight intermediate path nodes no longer require braking; corners, jumps and
+final arrival retain precise steering. Zone model pivots are collected once per
+egg scan instead of once per egg. Planar distance decides whether another walk
+is required, while the existing full 3D hit reach check remains. This prevents
+a floating egg repeatedly restarting a walking route when already within reach.
+
+Transient target/remote errors now rescan and retry without disabling the farm.
+The status shows remaining egg health and hit requests separately. The supplied
+trace records Nebula Egg reaching zero health and continuous Supernova Egg damage;
+it does not establish that high health itself stops farming or explain all
+rejection codes. Filters, hit interval, damage-stop option and Carry speed/recovery
+are retained. Gameplay mocks cover high-health hits, transient failures, tall-egg
+route reuse, entrance/carry ownership and the existing physics/filter/lifecycle
+cases. Public transport and five-map routing checks pass. Live validation is pending.
