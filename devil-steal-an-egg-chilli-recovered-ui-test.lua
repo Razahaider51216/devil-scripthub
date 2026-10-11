@@ -489,7 +489,7 @@ if env.DevilChilliFullRuntimeTest then
 end
 local report={schema="devil-chilli-full-runtime-test-1",release="chilli-full-test-1",map="Steal an Egg",
     placeId=game.PlaceId,universeId=game.GameId,status="Starting",devirtualized=false,
-    frontend="DEVIL HUB / native constructor export",referenceSHA256="cf2c8fc3da0a77d92640f36c5b9bc5d2cbc4acd0f0145bbde990f9c2d5842518",referenceCommit="5718ad8818f412ccca12d67dc18dbc2964b7a829"}
+    frontend="DEVIL HUB / native constructor export",referenceSHA256="efa916b402ffc953b1ddea72511ed145e60f8edd9e264a91a6f78ba49cc40bef",referenceCommit="5718ad8818f412ccca12d67dc18dbc2964b7a829"}
 env.DevilChilliFullRuntimeTest=report
 local function save()
     if type(writefile)=="function"then
@@ -508,11 +508,11 @@ local outcome=table.pack(xpcall(function()
         env.DevilStealEggSession.Destroy()
     end
     warn("DEVIL HUB: loading the original systems into the main GUI")
-    local originalGameSource=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/8d0ac7b17fdab1507602bdc56c9aca820bcb4a6d/devil-chilli-native-ui-runtime.lua")
-    assert(type(originalGameSource)=="string"and #originalGameSource==848106,"Pinned runtime download has an unexpected size")
+    local originalGameSource=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/240605144ed77233812561e9e3e575947335860d/devil-chilli-native-ui-runtime.lua")
+    assert(type(originalGameSource)=="string"and #originalGameSource==848731,"Pinned runtime download has an unexpected size")
     local checksum=0
     for index=1,#originalGameSource do checksum=(checksum*33+string.byte(originalGameSource,index))%4294967296 end
-    assert(checksum==400893646,"Pinned runtime download checksum mismatch")
+    assert(checksum==3927989284,"Pinned runtime download checksum mismatch")
     local run,err=loadstring(originalGameSource,"Chilli / Steal an Egg / pinned runtime")
     assert(run,err)
     report.status="Runtime compiled";report.transferChecksumVerified=true;save()
