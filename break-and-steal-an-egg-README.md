@@ -508,3 +508,19 @@ After pickup, the existing corridor/bank tween route, Fly Speed range through
 200, delivery confirmation and post-bank Auto Egg entrance handoff remain.
 This does not establish server acceptance of stepped movement or guarantee
 that the map will not reject it. Live game testing is required.
+
+
+## One loading screen and two VM startup layers (break-single-loading-vm2-13)
+
+The Break runtime's old separate overlay is replaced by the same shared loading
+adapter used by the entry. Through the main loader, entry/runtime share one
+controller and the main screen remains open until its owner finishes. Standalone
+Break calls use the compact main presentation. HoldHub/PayloadRunning/Busy flags
+are cleared on finish and loading leases release once.
+
+Entry and runtime each have two VM bytecode startup boundaries, encoded payloads
+and integrity verification. Gameplay/UI callbacks retain their exact packed native
+source. This obfuscates the distribution but does not guarantee code secrecy on
+a client controlled by its user. Checks cover both VM layers, corruption rejection,
+argument/return holes, exact native transport, five-map routing and actual shared
+loading adapter lifecycle. Gameplay source is unchanged; live UI verification is pending.
