@@ -344,3 +344,15 @@ preventing case-normalized egg-name keys from clearing the visible selection.
 Offline and VM regressions cover final-zone fallback, newly spawned advanced
 eggs, simultaneous advanced rarity / Gold pickup filters, minimum income and
 native dropdown key validation. Live Delta verification is still required.
+
+## PC cursor correction (2026-10-11, cursor-21)
+
+The hidden Obsidian window enabled its custom cursor and disabled the system
+mouse every render frame. Its cursor lived inside the disabled native ScreenGui,
+so neither cursor was visible with OuroFlow. The bridge now disables that custom
+cursor, releases its native render binding and restores the PC system mouse after
+window creation. The unused native Custom Cursor control was removed. Camera
+MouseBehavior and Shift Lock are untouched; touch-only devices are not forced to
+show a mouse. Gameplay is unchanged. Offline regressions cover the original
+failure, next-frame visibility, minimize/reopen, and touch-only cursor state.
+VM compilation and gameplay regressions pass; live PC verification is pending.
