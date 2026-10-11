@@ -303,3 +303,17 @@ Auto Egg rechecks for a larger eligible egg before each hit. If none appears, it
 Actual weight comes from exposed WeightKg/WeightKG/Weight/EggWeight/KG attributes or KG labels. Physical size is a fallback when comparable weights are not exposed; it does not manufacture server weight. Targeting is limited to eligible eggs visible to the client through the existing egg enumeration.
 
 Validation: existing gameplay and frontend harnesses, added highest-tier/continuous-hit/heavier-preemption/flight-cancellation/size-fallback regressions, income/pickup/carry compatibility, official Luau compilation, exact packed-host checksum roundtrip, and changed gameplay executed through the distribution VM. Live Roblox/Delta behavior still needs confirmation. The runtime is pinned to commit cc938e45dbed1d1550ae3dc1211222e1cf0dd6af; main loader routing is retained.
+
+## Pickup states, current rarity ladder and egg names (break-filters-18)
+
+Main > Farm Rarities now includes Pickup States and Egg Names to Hit. Both are multiselects with exclusive All; empty Pickup States prevents new pickups and empty Egg Names prevents new hits. Defaults are All to preserve existing farms.
+
+Pickup States supports Normal, Gold (including Golden), Diamond, Rainbow, Radioactive, Shiny, Lucky and Titanic. Variant/Mutation attributes and visible status labels identify the state; Lucky/Titanic boolean attributes are also supported. Any selected state may match, but rarity and minimum income must still pass. Normal excludes special mutations/variants and an unknown explicit state. An unlinked global prompt is not guessed to be a Normal animal. State filters are applied again before pickup, including name/ID-linked detached prompts. Existing carried animals finish their delivery.
+
+The audited rarity ladder is Common, Uncommon, Rare, Epic, Legendary, Mythic, Divine, Cosmic, Secret, Celestial, Inferno, Void, Omega. Mythical remains an input alias for Mythic. Titanic is a special state rather than a rarity in the current dump.
+
+Egg Names to Hit reads EggRewards configuration and observed EggType/EggName attributes or exact known labels. Refresh Egg Names updates the options without intentionally changing the selection. The name filter combines with the highest selected rarity minimum and larger-egg priority; unknown names are skipped with explicit selections.
+
+Hit timing and EggHitRequest are retained. Target scans and weight reads are reused within the current scan window instead of repeating full scans for every comparison, flight check and pre-hit check. New targets are still rechecked at 0.15-second intervals during flight. Larger eggs may have greater server health, so completion time is not guaranteed to match a smaller egg.
+
+Validation includes native and VM gameplay harnesses for new tiers/order, exact egg-name targeting, empty selection, refresh, multi-state variants/mutations, hidden/default/unknown states, linked prompts, retained income limits, flight retargeting and existing farm lifecycle. The source's mutation configuration being disabled does not create or enable mutations; the filter only selects states already present. Live Roblox/Delta validation remains pending. Current runtime pin: cfa4d8b181f2048b92b005b85ffc84a49a021f9d.
