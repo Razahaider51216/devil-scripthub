@@ -328,3 +328,19 @@ pickup/delivery pauses now show a waiting reason in the Egg Farm status.
 Hit delay, hit remote, movement, animal rarity/state and minimum-income filters
 are unchanged. Offline gameplay and the VM regression harness pass; this
 release still requires live Delta validation. Rejoin before using the update.
+
+## Advanced-tier / multi-selection correction (2026-10-11, filters-20)
+
+The hit-tier minimum is bounded by the highest zone rarity in Shared.ZonesConfig.
+Selecting Void/Omega therefore keeps breaking eligible eggs in the final
+Celestial zone until a selected higher-tier egg spawns. Matching advanced eggs
+take priority over the last-zone fallback, then heavier eggs take priority
+within that group. Lower selections retain their original minimum tier.
+Animal pickup still requires an exact selected rarity, a selected Pickup State
+and the configured minimum income; the egg fallback never broadens pickup.
+Pickup States do not filter egg hits; Egg Names do not filter animal pickup.
+All normalization now sends original display names back to native dropdowns,
+preventing case-normalized egg-name keys from clearing the visible selection.
+Offline and VM regressions cover final-zone fallback, newly spawned advanced
+eggs, simultaneous advanced rarity / Gold pickup filters, minimum income and
+native dropdown key validation. Live Delta verification is still required.
