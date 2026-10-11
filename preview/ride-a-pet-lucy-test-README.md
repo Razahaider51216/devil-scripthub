@@ -1,25 +1,39 @@
-# Ride a Pet / Lucy upstream compatibility test
+# Ride a Pet / Lucy compatibility test (lucy-test-2)
 
-This separate test uses the complete protected Lucy Again runtime from the
-reviewed latest upstream commit cafe92b2d7b3c2d29ae55e6958a5325e0a0751c0.
-The original GUI, callbacks and game systems are retained. This is not a
-fully devirtualized port or a replacement for the current main loader.
-
-Rejoin Ride a Pet and run this test before any other DEVIL HUB entry:
+Separate test; the main loader's Ride a Pet entry remains unchanged.
+Rejoin Ride a Pet, then run this BEFORE the main loader or another Lucy test:
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/preview/ride-a-pet-lucy-test.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/preview/ride-a-pet-lucy-test.lua?v=2"))()
 ```
 
-Requires loadstring, buffer.fromstring, string.pack and string.unpack from the
-executor. The source is pinned and checked for byte length/checksum before
-launch. The original VM and its access checks are not modified. Upstream may
-perform its own network requests after launch. The wrapper makes no claim that
-the GUI opened or game features worked merely because the runtime returned.
-If writefile is available, saves DevilRideLucyTest-report.json. Share that
-report plus whether the original GUI/farm worked to verify game compatibility.
+The first version decompressed the 889,839-byte upstream wrapper inside the game.
+This version removes that preparation cost by downloading its exact decoded VM
+and data from a pinned commit. Original protected VM, callbacks, frontend and
+runtime data are retained; this is NOT a fully devirtualized source port.
+Preparation, data decoding and integrity checks yield regularly. A phase report
+is saved before compilation, VM initialization and gameplay launch.
 
-Offline checks: original syntax and wrapper syntax compile; nine wrapper
-regressions pass (success/arguments/reporting, wrong map, missing pack, changed
-source, bad HTTP response retries, compile failure, runtime failure, duplicate
-startup, existing frontend). The original runtime was not run in live Roblox.
+Assets derived from upstream cafe92b2d7b3c2d29ae55e6958a5325e0a0751c0:
+- VM: 85,896 bytes; SHA256 0c542d43c7f1e4980fe87caa3708c983583e9e1391875bbb381bcc405fbd901d
+- Binary data: 1,215,230 bytes; SHA256 bea836b2d7ccab42cfc2a68948f062662ffae03f2dc11b01212e66e37384162c
+- Transport uses hex text for binary data to avoid HTTP text encoding corruption.
+Both decompressed artifacts were compared byte-for-byte with the original
+ASCII85 + LZMA output before publishing. Checksums are verified before execution.
+
+Requires loadstring, buffer.fromstring, string.pack and string.unpack. The
+original runtime may issue its own network requests. Original API/access checks
+within the VM remain intact. A CPU-bound original VM can still block Roblox's
+cooperative scheduler; the background monitor cannot forcibly interrupt it.
+A network request that never returns also needs executor/network diagnosis.
+
+If writefile exists, saves DevilRideLucyTest-report.json with status, failedPhase,
+elapsed time and per-phase timings. The yielding-stall monitor refreshes that
+report every 15 seconds while loading. If VM initialization starts, this test
+requires a rejoin before any retry, including after an error, to avoid stacking
+original runtime tasks. Runtime return does not prove GUI/gameplay worked.
+
+Offline validation: runner syntax compiles; 12 regression cases pass, including
+exact binary roundtrip, preparation yielding, corrupted VM/data rejection,
+invalid encoding, HTTP retries, compilation/initialization errors and duplicate
+startup protection. Live Delta/Roblox behavior has not been verified.
