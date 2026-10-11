@@ -1,7 +1,7 @@
 # DEVIL HUB / recovered native UI test
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-steal-an-egg-chilli-recovered-ui-test.lua?v=native-ui-2"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-steal-an-egg-chilli-recovered-ui-test.lua?v=native-ui-3"))()
 ```
 
 Rejoin the game once before this test. Do not run an older Chilli/full-runtime/main-GUI entry in the same session first. Re-running this entry after its native engine has loaded only recreates the presentation adapter.
@@ -16,7 +16,7 @@ Recovery method:
 4. Leave the first compressed game-bytecode layer byte-for-byte unchanged.
 5. Run the original native bootstrap and bind the adapter to the exported Window.
 
-The modified runtime is pinned to repository commit `240605144ed77233812561e9e3e575947335860d`. Download length is 848,731 bytes; transfer checksum is 3,927,989,284; SHA256 is `efa916b402ffc953b1ddea72511ed145e60f8edd9e264a91a6f78ba49cc40bef`. Original game-bytecode SHA256 remains `bba27d55c13ed1e4208566067350790a76e04b17c2391d3934ce9ed3484a6cbd`.
+The modified runtime is pinned to repository commit `040afff97bd631d8072017a6db37c0ecb7bfca5c`. Download length is 848,766 bytes; transfer checksum is 2,554,822,303; SHA256 is `a63600927017dea5796a989ca56df2f84abc4948aaf7a10e1868f3eb1238450a`. Original game-bytecode SHA256 remains `bba27d55c13ed1e4208566067350790a76e04b17c2391d3934ce9ed3484a6cbd`.
 
 **This is partial native-layer recovery, not complete VM devirtualization.** The bytecode and VM remain present. Protected code may reject modifications in the live executor, so offline compilation and layer verification do not establish live compatibility. The test must be checked in Delta before changing the main loader route.
 
@@ -27,3 +27,9 @@ If it fails, copy `DevilChilliMainUI-report.json`. If failure occurs before adap
 The existing main loader and previous GUI runner are unchanged by this separate test.
 
 Release 2 restyles only the native Steal Panel: navy cards, blue/cyan Steal actions, a blue/black header, rounded thin borders, compact cyan accent, Gotham typography and a blue scrollbar. Original pet images, rarity gradients, numeric values, sort behavior, Auto/Instant toggles, favorite/queue actions, callbacks, visibility and layout geometry are retained. Six verified presentation replacements can be reversed byte-for-byte to restore the original panel factory. The pure style helper creates no gameplay callbacks or input/event connections and is idempotent. Nine focused tests cover callback survival, repeated styling, live labels/images/rarity colors and unchanged geometry.
+
+Release 3 fixes the styled panel's cloned UIStroke sizing: pixel thickness is explicitly FixedSize, preventing the blue border from scaling across the screen. Startup detection now examines each added GUI node once rather than rescanning its entire ScreenGui on every addition. A 1,000-node HUD regression test verifies no additional full-tree scans. Original gameplay bytecode and callbacks remain unchanged.
+
+DEVIL HUB now displays a centered navy/blue loading card with actual download, integrity-check, compile, native-start and interface-mount stages. The card is marked as DEVIL-owned before parenting, caps its width on large screens, displays failures briefly, and cleans up on completion. Concurrent startup requests are ignored. Checksum and first UI construction batches yield to Roblox; fallback GC discovery also yields in batches. Compilation/decompression inside the protected VM can still block temporarily; no live Delta freeze-free claim is made.
+
+Validation for this release: 104 focused offline checks, outer/inner Luau syntax compilation and original-bootstrap bytecode/decompression verification. Main loader routing remains unchanged; use the standalone entry above and rejoin once before switching from an older engine.
