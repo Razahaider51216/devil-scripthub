@@ -1,9 +1,9 @@
 {
   "method": "decompressed native UI constructor export; compressed VM retained",
   "complete_vm_devirtualization": false,
-  "source_bytes": 848731,
-  "transfer_checksum": 3927989284,
-  "source_sha256": "efa916b402ffc953b1ddea72511ed145e60f8edd9e264a91a6f78ba49cc40bef",
+  "source_bytes": 848766,
+  "transfer_checksum": 2554822303,
+  "source_sha256": "a63600927017dea5796a989ca56df2f84abc4948aaf7a10e1868f3eb1238450a",
   "original_runtime_sha256": "88efd999f7d800b8a6350905c79a8e865313bbb654241489a1890b394e66af5d",
   "native_ui_export_count": 1,
   "steal_panel_presentation_patches": 6,
