@@ -396,3 +396,27 @@ Offline tests cover different Fly/Walk speeds, a corrected arrival, standalone
 Auto Egg, carry takeover during flight, combined break/pickup/bank, and cleanup.
 This cannot guarantee acceptance by the game's server; live Delta verification
 is required to establish whether the reported return is resolved.
+
+
+## Carry damage recovery (break-carry-recovery-7)
+
+Auto Pet Carry Farm keeps its toggle enabled after damage. The existing
+CarryStopOnDamage setting now reads Pause carry on damage (auto resume).
+When enabled, damage cancels travel and releases input suppression and owned
+NoClip. The worker waits 1.5 seconds and for the game's movement locks to clear,
+then rescans after a dropped animal or retries delivery if still carrying.
+Manual disabling, unload and natural respawn remain supported. Auto Egg is unchanged.
+
+Carry Fly Speed retains its 5-30 range and default 12. This release does not
+establish a server-approved speed or resolve speed-triggered explosions.
+Run break-and-steal-an-egg-carry-diagnostics.lua before farming to record client
+positions, observed speeds, health, movement states, Carrying, attributes and
+selected server-to-client events. Run it again to export and stop; output is
+DevilCarryDiagnostics.json in the executor's files directory when writefile is
+available, otherwise JSON is printed. The recorder does not send or suppress remotes.
+
+Validation: official Luau compilation, exact packed source roundtrip, gameplay
+regressions including preserved toggle, cancellation, ownership cleanup, cooldown,
+stun waiting and automatic confirmed delivery after recovery; public startup
+transport and main router checks. Live game/executor validation remains pending.
+Rejoin before using the updated loader.
