@@ -1,0 +1,13 @@
+{
+  "method": "decompressed native UI constructor export; compressed VM retained",
+  "complete_vm_devirtualization": false,
+  "source_bytes": 848106,
+  "transfer_checksum": 400893646,
+  "source_sha256": "cf2c8fc3da0a77d92640f36c5b9bc5d2cbc4acd0f0145bbde990f9c2d5842518",
+  "original_runtime_sha256": "88efd999f7d800b8a6350905c79a8e865313bbb654241489a1890b394e66af5d",
+  "native_ui_export_count": 1,
+  "game_bytecode_unchanged": true,
+  "game_bytecode_sha256": "bba27d55c13ed1e4208566067350790a76e04b17c2391d3934ce9ed3484a6cbd",
+  "compression_roundtrip_verified": true,
+  "live_verified": false
+}
