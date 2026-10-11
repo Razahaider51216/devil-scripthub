@@ -557,6 +557,26 @@ local function mount()
 end
 local completed=table.pack(pcall(function()
 if task and task.wait then task.wait() end
+loading.Update("Preparing DEVIL HUB logo...",0.05)
+env.DevilChilliBrandLogo=(function()
+-- Use the same logo file as the main DEVIL HUB frontend.
+return function()
+    local url="https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png"
+    local asset=getcustomasset or getsynasset
+    if type(asset)~="function" or type(writefile)~="function" then return url end
+    local ok,image=pcall(function()
+        local file="DevilHub_StealEgg_Logo.png"
+        if not(type(isfile)=="function" and isfile(file)) then
+            local data=game:HttpGet(url)
+            assert(data:sub(1,8)=="\137PNG\r\n\26\n","Invalid DEVIL HUB logo")
+            writefile(file,data)
+        end
+        return asset(file)
+    end)
+    return ok and image or url
+end
+
+end)()()
 if correctMap and env.DevilChilliMainUI then env.DevilChilliMainUI.Destroy() end
 restoreStartup=correctMap and startNativeUiGuard() or nil
 if correctMap and env.DevilChilliFullRuntimeTest then
@@ -581,7 +601,7 @@ if env.DevilChilliFullRuntimeTest then
 end
 local report={schema="devil-chilli-full-runtime-test-1",release="chilli-full-test-1",map="Steal an Egg",
     placeId=game.PlaceId,universeId=game.GameId,status="Starting",devirtualized=false,
-    frontend="DEVIL HUB / native constructor export",referenceSHA256="2cad2a0c0e7195b7d309e19951a96a2f135e488085a5a2ac7c3ac05dc317fa48",referenceCommit="5718ad8818f412ccca12d67dc18dbc2964b7a829"}
+    frontend="DEVIL HUB / native constructor export",referenceSHA256="b1add7a1d2c1b08b513cba8e1ad7e1363f53d5299d392cb924ec42ae3407a992",referenceCommit="5718ad8818f412ccca12d67dc18dbc2964b7a829"}
 env.DevilChilliFullRuntimeTest=report
 local function save()
     if type(writefile)=="function"then
@@ -601,12 +621,12 @@ local outcome=table.pack(xpcall(function()
     end
     warn("DEVIL HUB: loading the original systems into the main GUI")
     loading.Update("Downloading systems...",0.15)
-    local originalGameSource=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/deb092469aa2237c9462fec52fe03a5dd8fbe2cf/devil-chilli-native-ui-runtime.lua")
-    assert(type(originalGameSource)=="string"and #originalGameSource==848771,"Pinned runtime download has an unexpected size")
+    local originalGameSource=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/b61ec4512ebb6c872da23f6372162f162afba68d/devil-chilli-native-ui-runtime.lua")
+    assert(type(originalGameSource)=="string"and #originalGameSource==848836,"Pinned runtime download has an unexpected size")
     loading.Update("Checking download...",0.4)
     local checksum=0
     for index=1,#originalGameSource do checksum=(checksum*33+string.byte(originalGameSource,index))%4294967296; if index%32768==0 and task and task.wait then task.wait() end end
-    assert(checksum==4268319044,"Pinned runtime download checksum mismatch")
+    assert(checksum==2677669638,"Pinned runtime download checksum mismatch")
     loading.Update("Compiling systems...",0.55)
     local run,err=loadstring(originalGameSource,"Chilli / Steal an Egg / pinned runtime")
     assert(run,err)

@@ -1,7 +1,7 @@
 # DEVIL HUB / recovered native UI test
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-steal-an-egg-chilli-recovered-ui-test.lua?v=native-ui-6"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-steal-an-egg-chilli-recovered-ui-test.lua?v=native-ui-7"))()
 ```
 
 Rejoin the game once before this test. Do not run an older Chilli/full-runtime/main-GUI entry in the same session first. Re-running this entry after its native engine has loaded only recreates the presentation adapter.
@@ -16,7 +16,7 @@ Recovery method:
 4. Leave the first compressed game-bytecode layer byte-for-byte unchanged.
 5. Run the original native bootstrap and bind the adapter to the exported Window.
 
-The modified runtime is pinned to repository commit `deb092469aa2237c9462fec52fe03a5dd8fbe2cf`. Download length is 848,771 bytes; transfer checksum is 4,268,319,044; SHA256 is `2cad2a0c0e7195b7d309e19951a96a2f135e488085a5a2ac7c3ac05dc317fa48`. Original game-bytecode SHA256 remains `bba27d55c13ed1e4208566067350790a76e04b17c2391d3934ce9ed3484a6cbd`.
+The modified runtime is pinned to repository commit `b61ec4512ebb6c872da23f6372162f162afba68d`. Download length is 848,836 bytes; transfer checksum is 2,677,669,638; SHA256 is `b1add7a1d2c1b08b513cba8e1ad7e1363f53d5299d392cb924ec42ae3407a992`. Original game-bytecode SHA256 remains `bba27d55c13ed1e4208566067350790a76e04b17c2391d3934ce9ed3484a6cbd`.
 
 **This is partial native-layer recovery, not complete VM devirtualization.** The bytecode and VM remain present. Protected code may reject modifications in the live executor, so offline compilation and layer verification do not establish live compatibility. The test must be checked in Delta before changing the main loader route.
 
@@ -41,3 +41,5 @@ The original Chilli loading ScreenGui is disabled at its constructor before pare
 Release 5 removes the decorative DevilAccent line from Steal Panel. The native layout could position that overlay across the header title. Thin outer borders, existing controls and all game behavior are preserved. Panel callback/geometry checks, inner and outer Luau compilation, original bootstrap decompression and wrapper integrity checks pass; live visual verification remains pending.
 
 Release 6 updates the DEVIL home invite, native Discord community display and native copy action to https://discord.gg/fDwPCmpkkh. The community heading now reads DEVIL HUB. The old remote Discord-link helper is replaced by direct copying of the supplied invite, preventing future changes to the original community link from affecting this entry. Game bytecode and gameplay remain unchanged.
+
+Release 7 uses the same DEVIL HUB logo asset as the main GUI in the Discord community panel. The image is resolved through getcustomasset/getsynasset before native UI construction and cached using the existing DEVIL logo filename. Gameplay and Discord copy behavior remain unchanged.
