@@ -24,6 +24,9 @@ Build An Ant Empire and Steal an Egg. Only the selected map is downloaded.
   environment table exposed by Delta. Its original metatable stays untouched.
 - Break and Steal an Egg's Fly speed supports 1-600 studs/s independently of
   game WalkSpeed. Character motion is restored when flight ends or is cancelled.
+- break-flight-4 removes the anchoring introduced by the earlier flight change,
+  preserves unanchored flight and checks arrival before the first hit. Motion
+  cleanup is also tested when Pet Carry takes over during a pending flight.
 - Ride a Pet now uses the predecoded Lucy runtime that the owner verified in
   game. The original protected VM/data and game systems are retained. A GUI
   adapter changes visible branding and Discord copy behavior; it does not

@@ -359,6 +359,8 @@ VM compilation and gameplay regressions pass; live PC verification is pending.
 
 ## Independent Fly speed (2026-10-12, compact-native-2)
 
+The anchoring approach in this historical release is replaced by break-flight-4 below.
+
 Fly speed (studs/s) now ranges from 1 to 600; the previous minimum was 80.
 Auto Egg travel duration is distance divided by the selected speed. The root is
 temporarily anchored while the linear tween drives flight, preventing game
@@ -377,3 +379,20 @@ borrow the main router's compact loading screen. Both Break layers reuse one
 controller, so the old full-size BREAK EGG background no longer opens behind the
 compact card. Standalone entry/runtime calls use the same controller and cleanup.
 Gameplay, the Fly-speed correction and the GUI's original callbacks are retained.
+
+## Flight replication correction (2026-10-12, break-flight-4)
+
+Auto Egg no longer sets HumanoidRootPart.Anchored during flight. Anchoring was
+introduced by compact-native-2 and was a suspect in the reported return to the
+old position after reaching a distant/high-tier zone. Flight temporarily sets
+PlatformStand and disables AutoRotate, while one PreSimulation/Stepped listener
+clears character velocity. WalkSpeed and the game's anchor flag are never changed.
+The previous humanoid states are restored and the listener disconnected on
+arrival, cancellation, retargeting, damage, carry handoff, error and unload.
+A 0.15-second arrival check precedes the first hit; if position was corrected,
+no hit is sent and Status explains that arrival was interrupted. The configured
+hit interval and rarity/weight/name/pickup selection rules are unchanged.
+Offline tests cover different Fly/Walk speeds, a corrected arrival, standalone
+Auto Egg, carry takeover during flight, combined break/pickup/bank, and cleanup.
+This cannot guarantee acceptance by the game's server; live Delta verification
+is required to establish whether the reported return is resolved.
