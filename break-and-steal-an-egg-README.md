@@ -420,3 +420,18 @@ regressions including preserved toggle, cancellation, ownership cleanup, cooldow
 stun waiting and automatic confirmed delivery after recovery; public startup
 transport and main router checks. Live game/executor validation remains pending.
 Rejoin before using the updated loader.
+
+
+## Carry speed 100 (break-carry-speed-100-8)
+
+Carry Fly Speed now defaults to 100 studs/s and ranges from 5 to 100.
+All travel segments use distance divided by the selected speed; the legacy
+zone-duration minimum no longer slows the return segment. Existing saved
+settings may retain an earlier value; set Carry Fly Speed to 100 for this test.
+Damage pause/recovery, pickup/bank confirmation and selection filters remain.
+No server acceptance threshold is established. Record the test with the carry
+diagnostics script to investigate speed-triggered damage or position correction.
+
+Gameplay mocks cover exact segment durations at 5/12/30/100, two game walking
+speeds, damage recovery, filters, handoff and lifecycle. Public startup transport
+and five-map routing checks pass. Live Roblox/executor validation is pending.
