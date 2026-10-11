@@ -317,3 +317,14 @@ Egg Names to Hit reads EggRewards configuration and observed EggType/EggName att
 Hit timing and EggHitRequest are retained. Target scans and weight reads are reused within the current scan window instead of repeating full scans for every comparison, flight check and pre-hit check. New targets are still rechecked at 0.15-second intervals during flight. Larger eggs may have greater server health, so completion time is not guaranteed to match a smaller egg.
 
 Validation includes native and VM gameplay harnesses for new tiers/order, exact egg-name targeting, empty selection, refresh, multi-state variants/mutations, hidden/default/unknown states, linked prompts, retained income limits, flight retargeting and existing farm lifecycle. The source's mutation configuration being disabled does not create or enable mutations; the filter only selects states already present. Live Roblox/Delta validation remains pending. Current runtime pin: cfa4d8b181f2048b92b005b85ffc84a49a021f9d.
+
+## Auto Egg correction (2026-10-11)
+
+Eggs identified only by EggType now resolve their tier through the game's
+Shared.EggRarity.ForEggType export. Existing rarity attributes and billboard
+labels remain supported. Unknown or failed resolutions do not bypass filters.
+Empty selections, unavailable matching eggs, character respawn and animal
+pickup/delivery pauses now show a waiting reason in the Egg Farm status.
+Hit delay, hit remote, movement, animal rarity/state and minimum-income filters
+are unchanged. Offline gameplay and the VM regression harness pass; this
+release still requires live Delta validation. Rejoin before using the update.
