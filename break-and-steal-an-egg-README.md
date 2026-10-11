@@ -474,3 +474,22 @@ rejection codes. Filters, hit interval, damage-stop option and Carry speed/recov
 are retained. Gameplay mocks cover high-health hits, transient failures, tall-egg
 route reuse, entrance/carry ownership and the existing physics/filter/lifecycle
 cases. Public transport and five-map routing checks pass. Live validation is pending.
+
+
+## Carry delivery entrance handoff and speed 200 (break-carry-return-200-11)
+
+When Carry completes its existing delivery confirmation, an enabled Auto Egg
+queues one entrance teleport. It waits until Carry releases movement ownership
+and Carrying clears before teleporting and resuming normal walking/hits. This
+prevents starting an egg route from the bank wall. Start / resume Auto Egg at
+entrance defaults on and controls the entrance step; disabling it retains walking
+from the current position. Carry-only farming does not trigger an entrance return.
+
+Carry Fly Speed now ranges from 5 to 200 studs/s; default remains 100.
+Nominal travel duration is distance divided by the selected speed. Server
+acceptance at 200 has not been verified. Damage/forced-physics recovery remains.
+
+Gameplay checks include actual pickup/bank/entrance/hit handoff ordering, exactly
+one post-bank return, Carry-only delivery, retained toggles and segment durations
+at 5/12/30/100/200. Existing smooth walking, high-health retries, filters, damage,
+respawn and cleanup plus public startup/router checks pass. Live testing is pending.
