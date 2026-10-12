@@ -24,7 +24,12 @@ Every public protected artifact retains its copyright and license notice.
 The private source, compiler, build scripts, opcode map and tests stay local.
 
 Ride A Fish now routes through the main loader to the pinned, protected
-`aqua-auto-egg-15` entry. Its selling UI and seller requests have been removed.
+`aqua-auto-egg-16` entry. This release adds carried-egg inventory storage,
+configured batch fish sales, selected Gear/Food purchases, aquarium skin
+purchases with Tokens, and scoped Egg ESP. New systems start disabled and
+purchase/sale selections start empty. Gameplay requests are based on the
+available game-client dumps; upstream Ouroboros gameplay callbacks were not
+devirtualized or copied from its FlowAuth runtime.
 Auto Rebirth checks fresh server requirements and confirms the resulting count.
 The Aqua VM covers startup; farm and GUI callbacks execute natively.
 
