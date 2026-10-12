@@ -524,3 +524,19 @@ source. This obfuscates the distribution but does not guarantee code secrecy on
 a client controlled by its user. Checks cover both VM layers, corruption rejection,
 argument/return holes, exact native transport, five-map routing and actual shared
 loading adapter lifecycle. Gameplay source is unchanged; live UI verification is pending.
+
+
+## Finish selected egg before switching (break-egg-target-lock-14)
+
+Auto Egg retains its selected eligible egg while walking and hitting, even if
+a larger or higher-tier egg spawns. After the current egg breaks, reaches zero
+health, starts hatching, disappears or no longer passes the current filters,
+the next target is chosen with the existing rarity/size ranking. Filters still
+apply immediately. The lock is retained across normal Carry pickup/delivery
+pauses and the return to the entrance.
+
+Gameplay regressions cover 20 consecutive retained hits with a new larger spawn,
+completion, removed/zero-health targets, a larger spawn during walking and the
+existing filter/carry/lifecycle checks. Two VM startup layers, shared loading
+screen and public router transport are preserved and verified. Live validation
+remains pending.
