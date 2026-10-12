@@ -7,7 +7,7 @@ local player = Players.LocalPlayer
 assert(game.PlaceId == 104050046639813, "This script is for Ride A Fish (104050046639813)")
 local env = (getgenv and getgenv()) or _G
 if env.DevilFishDevCommands then env.DevilFishDevCommands.Destroy() end
-local report = {release="fish-dev-requests-2", placeId=game.PlaceId, attempts={}}
+local report = {release="fish-dev-requests-3", placeId=game.PlaceId, attempts={}}
 local connections, alive, busy = {}, true, false
 local function safe(value, depth)
     depth = depth or 0
@@ -40,7 +40,7 @@ local gui=Instance.new("ScreenGui")
 gui.Name="DevilFishDevCommands"; gui.ResetOnSpawn=false
 gui.Parent=player:WaitForChild("PlayerGui")
 local frame=Instance.new("Frame")
-frame.Size=UDim2.fromOffset(370,450)
+frame.Size=UDim2.fromOffset(370,488)
 frame.AnchorPoint=Vector2.new(.5,.5); frame.Position=UDim2.fromScale(.5,.5)
 frame.BackgroundColor3=Color3.fromRGB(25,18,23); frame.Parent=gui
 Instance.new("UICorner",frame).CornerRadius=UDim.new(0,14)
@@ -50,7 +50,7 @@ local function resize()
     local camera=workspace.CurrentCamera
     if not camera then return end
     local viewport=camera.ViewportSize
-    uiScale.Scale=math.min(1,math.max(1,viewport.X-24)/370,math.max(1,viewport.Y-60)/450)
+    uiScale.Scale=math.min(1,math.max(1,viewport.X-24)/370,math.max(1,viewport.Y-60)/488)
 end
 local function bindCamera()
     if viewportConnection then viewportConnection:Disconnect(); viewportConnection=nil end
@@ -84,8 +84,17 @@ if catalog then
     egg.Text=report.eggNames[1] or ""
 end
 local amount=text("TextBox","1000",136); amount.PlaceholderText="จำนวนเงิน GiftMoney (ส่งให้ตัวเอง)"
+local fish=text("TextBox","",174); fish.PlaceholderText="ชื่อปลาใน Catalog สำหรับ GiftFish (1 ตัว)"
+report.fishNames={}
+local fishCatalog=RS:FindFirstChild("EggGame")
+fishCatalog=fishCatalog and fishCatalog:FindFirstChild("Catalog")
+if fishCatalog then
+    for _,item in ipairs(fishCatalog:GetChildren()) do table.insert(report.fishNames,item.Name) end
+    table.sort(report.fishNames)
+    fish.Text=report.fishNames[1] or ""
+end
 local list=Instance.new("ScrollingFrame")
-list.Position=UDim2.fromOffset(12,178); list.Size=UDim2.new(1,-24,0,210)
+list.Position=UDim2.fromOffset(12,216); list.Size=UDim2.new(1,-24,0,210)
 list.BackgroundTransparency=1; list.BorderSizePixel=0; list.ScrollBarThickness=5
 list.AutomaticCanvasSize=Enum.AutomaticSize.Y; list.CanvasSize=UDim2.new()
 list.Parent=frame
@@ -95,7 +104,12 @@ local function observe(remote, label)
     table.insert(connections,remote.OnClientEvent:Connect(function(...)
         if not busy then return end
         local current=report.attempts[#report.attempts]
-        if current and #current.events<30 then
+        local args=table.pack(...)
+        if current then
+            local key=label..":"..tostring(args[1])
+            current.eventCounts[key]=(current.eventCounts[key] or 0)+1
+        end
+        if current and args[1]~="Progression" and #current.events<30 then
             table.insert(current.events,{source=label,arguments=safe(table.pack(...))})
         end
     end))
@@ -110,22 +124,34 @@ local function run(folderName,remoteName,command,args)
     local remote=folder and folder:FindFirstChild(remoteName)
     if not remote or not remote:IsA("RemoteEvent") then status.Text="ไม่พบรีโมท: "..folderName.."."..remoteName; return end
     busy=true
-    local entry={command=command,arguments=safe(args),before=snapshot(),events={},status="Pending",started=os.clock()}
+    local entry={command=command,arguments=safe(args),before=snapshot(),events={},eventCounts={},status="Pending",started=os.clock()}
     table.insert(report.attempts,entry)
     if #report.attempts>40 then table.remove(report.attempts,1) end
     status.Text="ส่ง "..command.." แล้ว · รอดูผลเซิร์ฟเวอร์ 5 วินาที"
     task.spawn(function()
         local ok,err=pcall(function()
-            if command=="DevGiveFood" then remote:FireServer(table.unpack(args))
-            else remote:FireServer(command,table.unpack(args)) end
+            if command=="DevGiveFood" then remote:FireServer(table.unpack(args,1,args.n or #args))
+            else remote:FireServer(command,table.unpack(args,1,args.n or #args)) end
         end)
         entry.sent=ok
         if not ok then entry.error=tostring(err) end
         if ok then task.wait(5) end
         entry.after=snapshot(); entry.status=ok and "Sent; inspect server events and inventory" or "Send failed"
+        local before,after=entry.before.attributes,entry.after.attributes
+        entry.coinDelta=(tonumber(after.Coins) or 0)-(tonumber(before.Coins) or 0)
+        entry.passiveIncomeEstimate=(tonumber(before.CoinRate) or 0)*5
+        entry.status=ok and "No command-specific confirmation observed" or "Send failed"
+        for _,event in ipairs(entry.events) do
+            if event.source=="AdminRemotes.AdminAction" and event.arguments["3"]==command then
+                entry.reply=event.arguments
+                entry.status=event.arguments["1"]==true and "Server reported success; verify inventory" or "Server rejected request"
+            elseif event.arguments["1"]=="Collection" or event.arguments["1"]=="EggItems" then
+                entry.inventoryUpdated=true
+            end
+        end
         -- Stat changes can also come from normal income: never label them a confirmed grant.
         busy=false
-        if alive then status.Text=ok and (command..": ส่งแล้ว ตรวจของจริง/รายงาน ไม่ยืนยันการเสก") or tostring(err) end
+        if alive then status.Text=ok and (command..": "..(entry.reply and tostring(entry.reply["2"]) or "ไม่มีผลยืนยันจากเซิร์ฟเวอร์ — ดูรายงาน")) or tostring(err) end
     end)
 end
 local function button(label,callback)
@@ -152,7 +178,18 @@ button("ให้เงินตัวเอง · GiftMoney",function()
     if not value or value~=value or value<1 or value>=math.huge then status.Text="กรอกจำนวนเงินเป็นเลขบวก"; return end
     run("AdminRemotes","AdminAction","GiftMoney",{player.Name,math.floor(value)})
 end)
-local save=text("TextButton","คัดลอก/บันทึกรายงาน JSON",400)
+button("ให้ไข่ผ่าน AdminAction · GiftEgg",function()
+    local name=egg.Text:match("^%s*(.-)%s*$")
+    if not catalog or not catalog:FindFirstChild(name) then status.Text="ชื่อไข่ไม่ตรงกับ Eggs"; return end
+    run("AdminRemotes","AdminAction","GiftEgg",{player.Name,name,1})
+end)
+button("ให้ปลาผ่าน AdminAction · GiftFish",function()
+    local name=fish.Text:match("^%s*(.-)%s*$")
+    if not fishCatalog or not fishCatalog:FindFirstChild(name) then status.Text="ชื่อปลาไม่ตรงกับ Catalog"; return end
+    -- The original panel sends (username, fishName, optionalKG, count).
+    run("AdminRemotes","AdminAction","GiftFish",table.pack(player.Name,name,nil,1))
+end)
+local save=text("TextButton","คัดลอก/บันทึกรายงาน JSON",438)
 table.insert(connections,save.Activated:Connect(function()
     report.current=snapshot()
     local data=Http:JSONEncode(report)
