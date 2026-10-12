@@ -602,3 +602,16 @@ and cleanup. Public VM/native boundaries and five-game router checks pass.
 Actual long-running farming in the user's executor remains to be verified.
 
 Roblox API reference: https://create.roblox.com/docs/reference/engine/classes/Player#Idled
+
+
+## Anti-AFK startup scope correction (break-anti-afk-scope-21)
+
+The previous release assigned its report through an outer `env` local. Gameplay
+is a separately compiled source string and cannot capture that local, causing
+`attempt to index nil with DevilBreakAntiAFKReport` during startup. The Anti-AFK
+block now resolves its own shared scope through getgenv() or _G.
+
+The corrected regression removes the injected `env` global and reproduces the
+old failure. The replacement passes both getgenv and _G environments, input
+scheduling/release/fallback/unload checks, direct compilation of the gameplay
+string, packed-host compilation, protected boundaries and main router checks.
