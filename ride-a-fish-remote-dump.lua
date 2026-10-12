@@ -1,15 +1,16 @@
 -- Records actual Ride A Fish requests and server events; sends no requests.
+local env=(getgenv and getgenv()) or _G
+-- Stop the previous recorder before invoking any Roblox instance methods.
+if env.DevilFishRemoteDump then pcall(env.DevilFishRemoteDump.Destroy) end
 local RS=game:GetService("ReplicatedStorage")
 local Players=game:GetService("Players")
 local Http=game:GetService("HttpService")
 local player=Players.LocalPlayer
 assert(game.PlaceId==104050046639813,"Run in Ride A Fish (104050046639813)")
-local env=(getgenv and getgenv()) or _G
-if env.DevilFishRemoteDump then env.DevilFishRemoteDump.Destroy() end
 local alive,recording=true,true
 local links,seen={},{}
 local start=os.clock()
-local report={release="fish-remote-dump-1",placeId=game.PlaceId,userId=player.UserId,events={},snapshots={},remotes={},dropped=0,errors={}}
+local report={release="fish-remote-dump-2",placeId=game.PlaceId,userId=player.UserId,events={},snapshots={},remotes={},dropped=0,errors={}}
 local allowed={EggGame=true,AdminRemotes=true,FeedsRemotes=true,GearRemotes=true,FishSellRemotes=true,FreeGiftRemotes=true,DailyRewardRequest=true}
 local function relevant(instance)
     if typeof(instance)~="Instance" or not instance:IsDescendantOf(RS) then return false end
@@ -82,32 +83,9 @@ local function bind(remote)
 end
 for _,v in ipairs(RS:GetDescendants()) do bind(v) end
 table.insert(links,RS.DescendantAdded:Connect(bind))
--- Optional executor hook. The original call is forwarded exactly once.
--- Disable logging on destroy; do not overwrite hooks another script installed later.
+-- Passive listeners only: no namecall replacement or remote interception.
 report.outboundCapture=false
-if type(hookmetamethod)=="function" and type(getnamecallmethod)=="function" then
-    local ok,err=pcall(function()
-        local original
-        local function intercept(self,...)
-            local method=getnamecallmethod()
-            if alive and recording and (method=="FireServer" or method=="InvokeServer") and relevant(self) then
-                local args=table.pack(...)
-                log("ClientToServer",self,method,args)
-                if method=="InvokeServer" then
-                    local results=table.pack(original(self,...))
-                    log("ServerReturn",self,method,results)
-                    return table.unpack(results,1,results.n)
-                end
-            end
-            return original(self,...)
-        end
-        original=hookmetamethod(game,"__namecall",type(newcclosure)=="function" and newcclosure(intercept) or intercept)
-    end)
-    report.outboundCapture=ok
-    if not ok then table.insert(report.errors,"Outbound hook: "..tostring(err)) end
-else
-    table.insert(report.errors,"Executor has no hookmetamethod/getnamecallmethod; incoming events only")
-end
+report.captureMode="PassiveServerEvents"
 snapshot("Initial")
 local gui=Instance.new("ScreenGui")
 gui.Name="DevilFishRemoteDump"; gui.ResetOnSpawn=false; gui.Parent=player:WaitForChild("PlayerGui")
@@ -138,7 +116,7 @@ local function item(class,text,y,h)
     return obj
 end
 item("TextLabel","DEVIL HUB · Ride A Fish Remote Dump",8)
-local status=item("TextLabel",report.outboundCapture and "กำลังบันทึกคำขอและผลตอบกลับ — ทำรายการในเกม" or "บันทึกได้เฉพาะผลตอบกลับ — executor ไม่รองรับ hook",43,48)
+local status=item("TextLabel","กำลังบันทึกข้อมูลจากเซิร์ฟเวอร์และกระเป๋า — ทำรายการในเกม",43,48)
 local mark=item("TextButton","บันทึกจุดก่อน/หลังทำรายการ",98)
 table.insert(links,mark.Activated:Connect(function()
     snapshot("Manual "..tostring(#report.snapshots+1)); status.Text="บันทึกจุดแล้ว · เหตุการณ์ "..#report.events
