@@ -20,7 +20,7 @@ local function logo()
     end
     return image
 end
-local config={Farm=false,Hatch=false,EquipBest=false,Tiers={},MinKg=0,MinLuck=0,Order="Nearest",Dropped=true,Teleport=true}
+local config={Farm=false,Hatch=false,EquipBest=false,Tiers={},MinKg=0,MinLuck=0,Order="Highest Luck",Dropped=true,Teleport=true}
 local function fetch(url,label)
     local problem
     for attempt=1,3 do
@@ -64,7 +64,7 @@ return function(config,onStatus)
     local requests=assert(RS:WaitForChild("EggGame",15),"EggGame unavailable"):WaitForChild("Requests",15)
     local events=RS.EggGame:WaitForChild("Events",15)
     assert(requests and events,"Egg remotes unavailable")
-    local api={Config=config,Report={release="aqua-auto-egg-3",picked=0,deposited=0,hatchRequests=0,errors={}}}
+    local api={Config=config,Report={release="aqua-auto-egg-4",picked=0,deposited=0,hatchRequests=0,errors={}}}
     local active=true
     local links={}
     local hatches={}
@@ -176,6 +176,11 @@ return function(config,onStatus)
     end
     local function eligible(model)
         if not model or not model.Parent or not model:IsA("Model")then return false end
+        local runtime=workspace:FindFirstChild("EggRuntime")
+        if not runtime then return false end
+        local wild=runtime:FindFirstChild("WildEggs")
+        local dropped=config.Dropped and runtime:FindFirstChild("DroppedEggs")
+        if model.Parent~=wild and model.Parent~=dropped then return false end
         local id=model:GetAttribute("EggId")
         if type(id)~="string"or id==""or now()<(retryEgg[id]or 0)then return false end
         local tier=model:GetAttribute("EggTier")
@@ -222,6 +227,35 @@ return function(config,onStatus)
             if remote then pcall(remote.FireServer,remote,Vector3.zero)end
         end
     end
+    local function teleportDestination(prompt,point,character)
+        if prompt.Name~="DepositSeaEgg"then return point+Vector3.new(0,math.min(3,prompt.MaxActivationDistance*.25),0)end
+        -- Stand outside the cabinet, still within its activation radius.
+        local radius=math.max(2,math.min(7,prompt.MaxActivationDistance-2))
+        local interaction=hatchInteraction(prompt)
+        local cabinet=interaction and interaction.Parent
+        local front=Vector3.new(0,0,1)
+        if cabinet then
+            local emblem=cabinet:FindFirstChild("Lambang permata",true)or cabinet:FindFirstChild("Pelat pengunci",true)
+            if emblem and emblem:IsA("BasePart")then
+                local delta=emblem.Position-point;local flat=Vector3.new(delta.X,0,delta.Z)
+                if flat.Magnitude>.1 then front=flat.Unit end
+            end
+        end
+        local side=Vector3.new(front.Z,0,-front.X)
+        for _,direction in ipairs({front,side,side*-1,front*-1})do
+            local destination=point+direction*radius+Vector3.new(0,1,0)
+            local free=true
+            if workspace.GetPartBoundsInBox then
+                local params=OverlapParams.new();params.FilterType=Enum.RaycastFilterType.Exclude
+                params.FilterDescendantsInstances={character}
+                for _,part in ipairs(workspace:GetPartBoundsInBox(CFrame.new(destination),Vector3.new(3.5,5,3.5),params))do
+                    if part.CanCollide then free=false;break end
+                end
+            end
+            if free then return destination end
+        end
+        return nil
+    end
     local function travel(prompt,check,allowDisabled)
         stopMotion()
         local character,humanoid,root=alive()
@@ -263,7 +297,12 @@ return function(config,onStatus)
                 if not point then break end
                 record.attempt=attempt;record.stage="Settling"
                 status("Teleporting to "..prompt.Name)
-                local destination=point+Vector3.new(0,math.min(3,prompt.MaxActivationDistance*.25),0)
+                local destination=teleportDestination(prompt,point,character)
+                if not destination then
+                    record.stage="No clear approach outside cabinet";stopMotion()
+                    return false,"No clear space outside hatch cabinet; save report"
+                end
+                record.destination=coordinates(destination)
                 character:PivotTo(character:GetPivot()+(destination-root.Position))
                 root.AssemblyLinearVelocity=Vector3.zero;root.AssemblyAngularVelocity=Vector3.zero
                 task.wait(.35)
@@ -322,7 +361,7 @@ return function(config,onStatus)
         end
         stopMotion();return false,"Movement interrupted"
     end
-    local function activate(prompt)
+    local function activate(prompt,confirmed)
         local _,_,root=alive()
         local point=promptPosition(prompt)
         if not root or not point or not prompt.Enabled or(root.Position-point).Magnitude>prompt.MaxActivationDistance then return false end
@@ -332,7 +371,12 @@ return function(config,onStatus)
         heldPrompt=prompt
         local ok,err=pcall(function()
             prompt:InputHoldBegin()
-            task.wait(math.max(0,prompt.HoldDuration)+.15)
+            local finish=now()+math.max(0,prompt.HoldDuration)+.15
+            repeat
+                if confirmed and confirmed()then break end
+                if not active or not config.Farm then break end
+                task.wait(.03)
+            until now()>=finish
         end)
         pcall(prompt.InputHoldEnd,prompt);heldPrompt=nil
         api.Report.interaction.stage=ok and"Hold ended; waiting for game confirmation"or"Prompt call failed"
@@ -344,14 +388,15 @@ return function(config,onStatus)
     end
     local function waitFor(predicate,seconds)
         local finish=now()+seconds
-        repeat if predicate()then return true end;task.wait(.1)until not active or not config.Farm or now()>=finish
+        repeat if predicate()then return true end;task.wait(.03)until not active or not config.Farm or now()>=finish
         return predicate()
     end
-    local function farmStep()
-        if not alive()then selected=nil;status("Waiting for character");return end
-        local id=carried()
-        if id then
+    local function returnEgg(id)
+            if not active or not config.Farm or not alive()or carried()~=id then return end
             selected=nil
+            api.Report.phase="Returning carried egg"
+            api.Report.target=nil
+            api.Report.returnStartedAt=now()
             local deposit=nearestDeposit()
             if not deposit then status(noDepositStatus());return end
             status("Returning carried egg to your pot")
@@ -367,7 +412,6 @@ return function(config,onStatus)
             local oldStatus=interaction and interaction:GetAttribute("Status")
             local previousEntry
             for _,entry in ipairs(hatches)do if entry.Slot==slot then previousEntry=entry end end
-            activate(deposit)
             local function confirmed()
                 if carried()or not alive()then return false end
                 local newStatus=interaction and interaction.Parent and interaction:GetAttribute("Status")
@@ -377,24 +421,31 @@ return function(config,onStatus)
                 end
                 return false
             end
+            activate(deposit,confirmed)
             if waitFor(confirmed,5)then
                 api.Report.deposited+=1;status("Egg deposited: "..api.Report.deposited)
             else status("Deposit unconfirmed; check hatch state before retry");task.wait(2)end
             return
-        end
+    end
+    local function farmStep()
+        if not alive()then selected=nil;status("Waiting for character");return end
+        local id=carried()
+        if id then returnEgg(id);return end
         if not nearestDeposit()then status(noDepositStatus());return end
         if not eligible(selected)then selected=chooseEgg()end
         if not selected then status("Waiting for an available egg matching your filters");return end
         local model=selected;local eggId=model:GetAttribute("EggId");local prompt=pickupPrompt(model)
-        api.Report.target={id=eggId,tier=model:GetAttribute("EggTier"),kg=model:GetAttribute("EggKg"),luck=model:GetAttribute("EggLuck")}
+        api.Report.phase="Collecting wild egg"
+        api.Report.target={id=eggId,tier=model:GetAttribute("EggTier"),kg=model:GetAttribute("EggKg"),luck=model:GetAttribute("EggLuck"),source=model.Parent.Name}
         local arrived,err=travel(prompt,function()return not carried()and eligible(model)end)
         if not arrived then
             retryEgg[eggId]=now()+30;selected=nil;status(err);return
         end
         if not active or not config.Farm or carried()then return end
-        activate(prompt)
+        activate(prompt,function()return carried()==eggId end)
         if waitFor(function()return carried()==eggId end,5)then
-            api.Report.picked+=1;status("Egg pickup confirmed")
+            api.Report.picked+=1;api.Report.pickupConfirmedAt=now();status("Egg pickup confirmed - returning now")
+            selected=nil;returnEgg(eggId);return
         else retryEgg[eggId]=now()+20;status("Pickup unconfirmed; trying another egg")end
         selected=nil
     end
@@ -477,7 +528,9 @@ end
     end})
     farm:CreateButton({Name="Save Farm Report",Callback=function()core.SaveReport()end})
     farm:CreateParagraph({Name="First run",Content="Auto teleports near the selected egg, waits for pickup confirmation, then teleports back to an empty hatch slot at your pot. Farm pauses when your hatch slots are full. Save the report if the game moves you away or rejects a prompt."})
-    local tiers={};local seen={}
+    -- Keep rare types selectable even when none have spawned yet.
+    local tiers={"Common","Coral","Reef","Deep","Tidal","Abyss","Sovereign","Trench","CoralReef","GlacialSpiral","AmethystSpiral","AzureCrown","SolarOrbit","KrakenGlory","Celestial","Eternal","Abuseall1","Abuseall2","Abuseall3","Abuseall4","Abuseall5","Abuseall6"}
+    local seen={};for _,tier in ipairs(tiers)do seen[tier]=true end
     local runtime=workspace:FindFirstChild("EggRuntime")
     for _,folderName in ipairs({"WildEggs","DroppedEggs"})do
         local folder=runtime and runtime:FindFirstChild(folderName)
@@ -487,16 +540,20 @@ end
         end
     end
     table.sort(tiers)
-    filters:CreateDropdown({Name="Egg Types (empty = all)",Options=tiers,CurrentOption={},MultipleOptions=true,AllowNone=true,Searchable=true,
-        Callback=function(values)
+    local function selectTiers(values)
             local selected={}
             if type(values)=="table"then for key,value in pairs(values)do
                 if type(key)=="number"and type(value)=="string"then selected[value]=true
                 elseif type(key)=="string"and value==true then selected[key]=true end
             end end
             config.Tiers=selected
-        end})
-    filters:CreateDropdown({Name="Priority",Options={"Nearest","Highest Luck"},CurrentOption={"Nearest"},Callback=function(value)
+    end
+    local tierDropdown=filters:CreateDropdown({Name="Egg Levels / Types (empty = all)",Options=tiers,CurrentOption={},MultipleOptions=true,AllowNone=true,Searchable=true,Callback=selectTiers})
+    filters:CreateButton({Name="Select Abyss / Sovereign / Trench",Callback=function()
+        local selected={"Abyss","Sovereign","Trench"};selectTiers(selected);tierDropdown:Set(selected,true)
+    end})
+    filters:CreateButton({Name="Allow All Egg Types",Callback=function()selectTiers({});tierDropdown:Set({},true)end})
+    filters:CreateDropdown({Name="Priority",Options={"Nearest","Highest Luck"},CurrentOption={"Highest Luck"},Callback=function(value)
         local selected=type(value)=="table"and value[1]or value
         if selected=="Nearest"or selected=="Highest Luck"then config.Order=selected end
     end})
@@ -507,10 +564,10 @@ end
     filters:CreateInput({Name="Minimum KG",CurrentValue="0",Numeric=true,Callback=function(value)minimum("MinKg",value)end})
     filters:CreateInput({Name="Minimum Egg Luck",CurrentValue="0",Numeric=true,Callback=function(value)minimum("MinLuck",value)end})
     filters:CreateToggle({Name="Include Dropped Eggs",CurrentValue=true,Callback=function(value)config.Dropped=value end})
-    filters:CreateParagraph({Name="Selection",Content="The selected egg remains the target until it is collected, disappears, becomes unavailable, or no longer matches your filters."})
+    filters:CreateParagraph({Name="Selection",Content="Choose the egg types you want above. Highest Luck prioritizes the highest EggLuck among allowed wild eggs. If your chosen types are absent, farm waits. Collected eggs return immediately to a clear position outside your hatch cabinet."})
     local info=window:CreateTab({Name="Info",Icon="info",Backdrop=false})
     local about=info:CreateGroupbox({Name="DEVIL HUB",Side="Left"})
-    about:CreateLabel({Text="Aqua Auto Egg - test release 3 / Teleport"})
+    about:CreateLabel({Text="Aqua Auto Egg - test release 4 / Fast Return"})
     about:CreateLabel({Text="Place: 104050046639813"})
     about:CreateParagraph({Name="Diagnostics",Content="Use Save Farm Report and send DevilAquaAutoEgg-report.json if movement or prompts fail."})
     about:CreateButton({Name="Unload",Callback=controller.Destroy})
