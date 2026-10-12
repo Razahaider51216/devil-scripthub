@@ -7,9 +7,16 @@ local done=false
 local controller={}
 local function t(en,th)return config.Language=="TH"and th or en end
 local statusThai={
-    ["Waiting for seller request cooldown"]="?????????????????????????",
-    ["Confirming fish sale"]="?????????????????",
-    ["Sale interrupted during cooldown"]="???????????? ??????????????????????????",
+    ["Waiting for seller request cooldown"]="กำลังรอคูลดาวน์คำขอขายปลา",
+    ["Confirming fish sale"]="กำลังยืนยันขายปลา",
+    ["Sale interrupted during cooldown"]="ยกเลิกการขาย เพราะสถานะเปลี่ยนระหว่างรอ",
+    ["Protecting fish outside selected rarities"]="กำลังกันปลานอกระดับที่เลือกก่อนขายรวม",
+    ["Fish protection not confirmed; sale cancelled"]="เกมยังไม่ยืนยันการกันปลา ยกเลิกขายรวม",
+    ["Requesting filtered batch quote"]="กำลังขอราคาขายรวมเฉพาะปลาที่เลือก",
+    ["Confirming selected fish batch sale"]="กำลังยืนยันขายรวมเฉพาะปลาที่เลือก",
+    ["Batch quote differs from selected fish; sale cancelled"]="จำนวนปลาในใบเสนอราคาไม่ตรงกับที่เลือก ยกเลิกขายรวม",
+    ["Selected fish batch sale confirmed"]="ขายรวมปลาที่เลือกสำเร็จ",
+    ["Temporary favorites awaiting restoration - auto sell paused"]="คืนค่า Favorite ยังไม่ครบ พักระบบขายไว้ก่อน",
     ["Auto Egg enabled"]="เปิดเก็บไข่อัตโนมัติแล้ว",["Auto Egg stopped"]="หยุดเก็บไข่แล้ว",
     ["Ready - teleport egg collection"]="พร้อมวาร์ปเก็บไข่",["Waiting for character"]="กำลังรอตัวละคร",
     ["Waiting for your PlayerPot to load"]="กำลังรอบ้านของคุณโหลด",["Waiting for hatch rack / deposit prompts to load"]="กำลังรอช่องฝากไข่โหลด",
@@ -193,7 +200,7 @@ buildUI=function()
     sellLabel=sell:CreateParagraph({Name=t("Sale status","สถานะการขาย"),Content=""})
     sellToggle=toggle(sell,"AutoSell","Auto Sell Selected Rarities","ขายเฉพาะระดับที่เลือกอัตโนมัติ")
     sell:CreateToggle({Name=t("Keep the fish selected by EquipBest","เก็บปลาที่ระบบเลือกว่าดีที่สุด"),CurrentValue=config.KeepBest,Callback=function(value)config.KeepBest=value end})
-    sell:CreateParagraph({Name=t("Protected fish","ปลาที่เก็บไว้"),Content=t("Favorite, locked and aquarium display fish are always skipped. Empty rarity selection sells nothing. Sales use single-fish quotes and server confirmation.","ข้ามปลา Favorite ปลาที่ล็อก และปลาในตู้เสมอ หากไม่เลือกระดับจะไม่ขายปลา ขายทีละตัวตามใบเสนอราคาและยืนยันผลจากเกม")})
+    sell:CreateParagraph({Name=t("Protected fish","ปลาที่เก็บไว้"),Content=t("Sells selected rarities together using QuoteAll and SellAll. Fish outside the selection are temporarily marked Favorite, then restored. Existing favorites, locked and aquarium fish are kept. If EquipBest is not confirmed, keeps the heaviest fish in each rarity.","ขายระดับที่เลือกพร้อมกันด้วย QuoteAll และ SellAll กันปลานอกตัวเลือกด้วย Favorite ชั่วคราวแล้วคืนค่า ข้าม Favorite เดิม ปลาล็อก และปลาในตู้ หากยืนยันปลาที่ดีที่สุดไม่ได้ จะเก็บปลาน้ำหนักสูงสุดของแต่ละระดับไว้")})
     local choices=sellTab:CreateGroupbox({Name=t("Rarity filter","เลือกระดับปลาที่ขาย"),Side="Right"})
     local catalog=game:GetService("ReplicatedStorage").EggGame:FindFirstChild("Catalog")
     local raritySet={};for _,entry in ipairs(catalog and catalog:GetChildren()or{})do local rarity=entry:GetAttribute("Rarity");if type(rarity)=="string"then raritySet[rarity]=true end end
@@ -205,8 +212,8 @@ buildUI=function()
         local selected={};if type(values)=="table"then for key,value in pairs(values)do if type(key)=="number"and type(value)=="string"then selected[value]=true elseif type(key)=="string"and value==true then selected[key]=true end end end
         config.SellRarities=selected
     end})
-    choices:CreateParagraph({Name=t("Sale route","เส้นทางขาย"),Content=t("Teleports near Mr. Richard before requesting Quote and Sell. Egg farming resumes immediately after the sale and starts teleporting as soon as a matching egg appears. Server rejection messages appear above.","วาร์ปไปใกล้ Mr. Richard ก่อนขอราคาและขาย ระบบเก็บไข่จะรอระหว่างขาย แล้วทำต่อโดยไม่เว้นครึ่งวินาทีระหว่างเป้าหมายไข่ หากเกมไม่อนุมัติจะแสดงเหตุผลด้านบน")})
-    choices:CreateParagraph({Name=t("Seller cooldown","??????????????"),Content=t("Waits at least 2 seconds between seller requests. If the game replies Please wait a moment., retries up to 3 attempts with increasing delay. Filters and equipped fish are checked again before every attempt.","??????????????????????? 2 ?????? ????????? Please wait a moment. ????????????????????????????? 3 ????? ???????????????????????????????????????????")})
+    choices:CreateParagraph({Name=t("Sale route","เส้นทางขาย"),Content=t("Teleports near Mr. Richard, protects excluded fish, then requests QuoteAll and SellAll. Egg farming resumes after the batch and favorite restoration finish.","วาร์ปหา Mr. Richard กันปลานอกตัวเลือก แล้วขอราคาขายรวมด้วย QuoteAll และ SellAll เมื่อขายและคืนค่า Favorite เสร็จ ระบบเก็บไข่จะทำต่อ")})
+    choices:CreateParagraph({Name=t("Seller cooldown","คูลดาวน์การขาย"),Content=t("Waits at least 2 seconds between requests. Explicit cooldown rejections retry up to 3 attempts. A changed inventory or rarity filter cancels the batch before selling.","เว้นคำขออย่างน้อย 2 วินาที หากติดคูลดาวน์จะลองรวมไม่เกิน 3 ครั้ง หากกระเป๋าหรือระดับที่เลือกเปลี่ยน จะยกเลิกก่อนขาย")})
     local playerTab=window:CreateTab({Name=t("Player","ผู้เล่น"),Icon="user",Backdrop=false})
     local movement=playerTab:CreateGroupbox({Name=t("Movement","การเคลื่อนที่"),Side="Left"})
     toggle(movement,"SpeedEnabled","Enable Walk Speed","เปิดปรับความเร็วเดิน",core.SetSpeed)
@@ -250,7 +257,7 @@ buildUI=function()
     discordLogo:CreateImage({Name="Discord",Image="https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/discord-logo.png",Height=140,ScaleType="Fit"})
     local info=window:CreateTab({Name=t("Info","ข้อมูล"),Icon="info",Backdrop=false})
     local about=info:CreateGroupbox({Name="DEVIL HUB",Side="Left"})
-    about:CreateLabel({Text=t("Aqua Auto Egg - release 12","ระบบเก็บไข่ Aqua - เวอร์ชัน 11")})
+    about:CreateLabel({Text=t("Aqua Auto Egg - release 13","ระบบเก็บไข่ Aqua - เวอร์ชัน 11")})
     about:CreateParagraph({Name=t("Diagnostics","ตรวจปัญหา"),Content=t("Save report and send DevilAquaAutoEgg-report.json if an auto action fails.","หากระบบค้าง กดบันทึกรายงานแล้วส่งไฟล์ DevilAquaAutoEgg-report.json")})
     about:CreateButton({Name=t("Unload","ปิดสคริปต์"),Callback=controller.Destroy})
     local boundWindow=window
@@ -269,7 +276,7 @@ return function(config,onStatus)
     local requests=assert(RS:WaitForChild("EggGame",15),"EggGame unavailable"):WaitForChild("Requests",15)
     local events=RS.EggGame:WaitForChild("Events",15)
     assert(requests and events,"Egg remotes unavailable")
-    local api={Config=config,Report={release="aqua-auto-egg-12",picked=0,deposited=0,hatchRequests=0,errors={},automation={}}}
+    local api={Config=config,Report={release="aqua-auto-egg-13",picked=0,deposited=0,hatchRequests=0,errors={},automation={}}}
     local active=true
     local links={}
     local hatches={}
@@ -879,29 +886,13 @@ return function(config,onStatus)
         local remote=folder and folder:FindFirstChild("Request")
         if not remote then autoState("Sell","Remote unavailable");return end
         selling=true
+        local entry=autoState("Sell","Teleporting to fish seller")
+        entry.mode="FilteredSellAll";entry.serverMessage=nil;entry.result=nil;entry.quote=nil
         local original=player:GetAttribute("EquippedFishId")
         local keepBestAtStart=config.KeepBest
-        local touched=false
+        local protected={};local pending={};local selected={};local snapshot={}
         local controlledId
         local ok,err=xpcall(function()
-            local bestId
-            if config.KeepBest then
-                touched=true;requests:FireServer("EquipBest");task.wait(.4)
-                if not active or not config.AutoSell then return end
-                bestId=player:GetAttribute("EquippedFishId")
-                controlledId=bestId
-                if not fishRecord(bestId)then autoState("Sell","Waiting for best fish confirmation");return end
-            end
-            local fish
-            for _,entry in ipairs(collection)do if canSell(entry,bestId)then fish=entry;break end end
-            if not fish then autoState("Sell","No fish matching sell filters");return end
-            local entry=autoState("Sell","Equipping selected fish")
-            entry.fishId=fish.Id;entry.name=fish.Name;entry.rarity=fishRarity(fish)
-            entry.mode="TeleportToSeller";entry.serverMessage=nil;entry.result=nil
-            touched=true;requests:FireServer("EquipFish",fish.Id)
-            if not sellWait(function()return player:GetAttribute("EquippedFishId")==fish.Id end,3)then autoState("Sell","Fish equip not confirmed");return end
-            controlledId=fish.Id
-            if not active or not config.AutoSell or not alive()then return end
             local booths=workspace:FindFirstChild("Booths")
             local booth=booths and booths:FindFirstChild("SellBooth")
             local npc=booth and booth:FindFirstChild("MR.RICHARD")
@@ -909,91 +900,144 @@ return function(config,onStatus)
             local character,_,root=alive()
             if not target or not root then autoState("Sell","Waiting for fish seller NPC");return end
             if(root.Position-target.Position).Magnitude>10 then
-                autoState("Sell","Teleporting to fish seller")
                 local destination=target.Position+Vector3.new(0,3,0)
                 character:PivotTo(character:GetPivot()+(destination-root.Position))
                 root.AssemblyLinearVelocity=Vector3.zero;root.AssemblyAngularVelocity=Vector3.zero
                 task.wait(.35)
             end
-            local currentCharacter=alive()
             entry.sellerDistance=target.Parent and(root.Position-target.Position).Magnitude or nil
-            if not active or not config.AutoSell or config.Fly or currentCharacter~=character or not target.Parent or not entry.sellerDistance or entry.sellerDistance>10 then
+            if not active or not config.AutoSell or config.Fly or alive()~=character or not entry.sellerDistance or entry.sellerDistance>10 then
                 autoState("Sell","Fish seller not reached");return
             end
-            -- Quote and Sell share the seller remote. Space both actions and
-            -- retry only an explicit cooldown rejection, retaining the quote token.
+            local bestId
+            entry.bestFallback=nil
+            if config.KeepBest then
+                autoState("Sell","Waiting for best fish confirmation")
+                requests:FireServer("EquipBest")
+                task.wait(.4)
+                sellWait(function()return fishRecord(player:GetAttribute("EquippedFishId"))~=nil end,3)
+                if not active or not config.AutoSell then return end
+                bestId=player:GetAttribute("EquippedFishId");controlledId=bestId
+                if not fishRecord(bestId)then
+                    -- If EquipBest is not acknowledged, protect the heaviest
+                    -- record in each rarity, plus the previously equipped fish.
+                    entry.bestFallback="HeaviestPerRarity"
+                    local largest={}
+                    for _,fish in ipairs(collection)do
+                        local rarity=fishRarity(fish)or"Unknown"
+                        largest[rarity]=math.max(largest[rarity]or-math.huge,tonumber(fish.Kg)or 0)
+                    end
+                    for _,fish in ipairs(collection)do
+                        if fish.Id==original or(tonumber(fish.Kg)or 0)==largest[fishRarity(fish)or"Unknown"]then protected[fish.Id]=true end
+                    end
+                end
+            end
+            for _,fish in ipairs(collection)do
+                if canSell(fish,bestId)and not protected[fish.Id]then selected[fish.Id]=true end
+            end
+            local count=0;for _ in pairs(selected)do count+=1 end
+            entry.selectedCount=count
+            if count==0 then autoState("Sell","No fish matching sell filters");return end
+            -- QuoteAll has no rarity argument. Exclude every non-selected ID
+            -- through the game's acknowledged Favorite state before quoting.
+            autoState("Sell","Protecting fish outside selected rarities")
+            local ids={};for _,fish in ipairs(collection)do ids[#ids+1]=fish.Id end
+            for _,id in ipairs(ids)do
+                local fish=fishRecord(id)
+                if not selected[id]and fish and not fish.Favorite then
+                    pending[id]=now()+3
+                    requests:FireServer("SetFavorite",id)
+                    if not sellWait(function()local current=fishRecord(id);return current and current.Favorite==true end,3)then
+                        autoState("Sell","Fish protection not confirmed; sale cancelled");return
+                    end
+                    task.wait(.1)
+                end
+            end
+            for _,fish in ipairs(collection)do
+                snapshot[fish.Id]={Name=fish.Name,Kg=fish.Kg,Mutation=fish.Mutation,Rarity=fishRarity(fish),Favorite=fish.Favorite,Locked=fish.Locked,AquariumSlot=fish.AquariumSlot}
+            end
             local function saleValid()
-                return active and config.AutoSell and not config.Fly and alive()==character
-                    and target.Parent and(root.Position-target.Position).Magnitude<=10
-                    and config.KeepBest==keepBestAtStart and canSell(fishRecord(fish.Id),bestId)
-                    and player:GetAttribute("EquippedFishId")==fish.Id
+                if not active or not config.AutoSell or config.Fly or alive()~=character or not target.Parent
+                    or(root.Position-target.Position).Magnitude>10 or config.KeepBest~=keepBestAtStart then return false end
+                local seen=0
+                for _,fish in ipairs(collection)do
+                    local old=snapshot[fish.Id];if not old then return false end
+                    seen+=1
+                    if old.Name~=fish.Name or old.Kg~=fish.Kg or old.Mutation~=fish.Mutation or old.Rarity~=fishRarity(fish)
+                        or old.Favorite~=fish.Favorite or old.Locked~=fish.Locked or old.AquariumSlot~=fish.AquariumSlot then return false end
+                    if selected[fish.Id]then if not canSell(fish,bestId)then return false end
+                    elseif fish.Favorite~=true then return false end
+                end
+                return seen==#ids
             end
             local function sellerCall(action,arg)
                 for attempt=1,3 do
                     while now()<nextSellRequestAt do
                         if not saleValid()then return nil,"Sale interrupted during cooldown"end
                         autoState("Sell","Waiting for seller request cooldown")
-                        entry.retryAfter=math.max(0,nextSellRequestAt-now())
-                        task.wait(.05)
+                        entry.retryAfter=math.max(0,nextSellRequestAt-now());task.wait(.05)
                     end
                     if not saleValid()then return nil,"Sale interrupted during cooldown"end
-                    entry.retryAfter=0;entry.lastAction=action;entry.attempt=attempt
-                    entry.lastRequestAt=now()
-                    if action=="Sell"then entry.requests+=1;entry.quoteToSellDelay=entry.quoteAcceptedAt and(now()-entry.quoteAcceptedAt)or nil end
-                    autoState("Sell",action=="Quote"and"Requesting quote from current position"or"Confirming fish sale")
+                    entry.retryAfter=0;entry.lastAction=action;entry.attempt=attempt;entry.lastRequestAt=now()
+                    if action=="SellAll"then entry.requests+=1;entry.quoteToSellDelay=now()-entry.quoteAcceptedAt end
+                    autoState("Sell",action=="QuoteAll"and"Requesting filtered batch quote"or"Confirming selected fish batch sale")
                     nextSellRequestAt=now()+2
                     local response=remote:InvokeServer(action,arg)
                     nextSellRequestAt=math.max(nextSellRequestAt,now()+2)
                     if type(response)~="table"or response.ok~=false or response.message~="Please wait a moment."then return response end
-                    entry.cooldownHits=(entry.cooldownHits or 0)+1
-                    entry.serverMessage=response.message
+                    entry.cooldownHits=(entry.cooldownHits or 0)+1;entry.serverMessage=response.message
                     nextSellRequestAt=now()+2^attempt+2
                     if attempt==3 then return response end
                 end
             end
-            local quote,cancelled=sellerCall("Quote",nil)
+            local quote,cancelled=sellerCall("QuoteAll",nil)
             if cancelled then autoState("Sell",cancelled);return end
-            if not active or not config.AutoSell then return end
-            entry.quote=type(quote)=="table"and{ok=quote.ok,name=quote.name,id=quote.id or quote.fishId or quote.Id,kg=quote.kg,message=quote.message}or{type=type(quote)}
+            entry.quote=type(quote)=="table"and{ok=quote.ok,count=quote.count,amount=quote.amount,message=quote.message}or{type=type(quote)}
             if type(quote)~="table"or quote.ok~=true then
                 entry.serverMessage=type(quote)=="table"and tostring(quote.message or quote.error or"Unknown rejection")or"Invalid quote response"
                 autoState("Sell","Server rejected quote");return
             end
-            entry.quoteAcceptedAt=now()
-            local current=fishRecord(fish.Id)
-            local quoteId=type(quote)=="table"and(quote.id or quote.fishId or quote.Id)
-            local matches=type(quote)=="table"and quote.ok==true and type(quote.token)=="string"and quote.token~=""
-                and quote.name==fish.Name and(quoteId==nil or quoteId==fish.Id)
-                and tonumber(quote.kg)and tonumber(current and current.Kg)
-                and math.abs(quote.kg-current.Kg)<.01 and tostring(quote.mutation or"")==tostring(current.Mutation or"")
-            if not matches or config.Fly or config.KeepBest~=keepBestAtStart or not alive()or not target.Parent or(root.Position-target.Position).Magnitude>10 or not canSell(current,bestId)or player:GetAttribute("EquippedFishId")~=fish.Id then
-                autoState("Sell","Quote or fish changed; sale cancelled");return
+            if quote.count~=count or type(quote.token)~="string"or quote.token==""or not saleValid()then
+                autoState("Sell","Batch quote differs from selected fish; sale cancelled");return
             end
-            -- Give the server time between accepting a quote and confirming it.
-            local result,cancelled=sellerCall("Sell",quote.token)
+            entry.quoteAcceptedAt=now()
+            local result,cancelled=sellerCall("SellAll",quote.token)
             if cancelled then autoState("Sell",cancelled);return end
-            entry.result=type(result)=="table"and{ok=result.ok,amount=result.amount,message=result.message,error=result.error}or{type=type(result),value=tostring(result)}
-            if type(result)=="table"and result.ok then
-                entry.serverMessage=nil
-                entry.confirmed+=1;entry.earned=(entry.earned or 0)+(tonumber(result.amount)or 0)
-                entry.status="Fish sale confirmed"
-                -- Wait for inventory removal, preventing a second quote for this ID.
-                if not sellWait(function()return fishRecord(fish.Id)==nil end,3)then
-                    config.AutoSell=false;autoState("Sell","Sale succeeded; inventory pending - auto sell paused")
-                else autoState("Sell","Fish sale confirmed")end
+            entry.result=type(result)=="table"and{ok=result.ok,count=result.count,amount=result.amount,message=result.message,error=result.error}or{type=type(result)}
+            if type(result)=="table"and result.ok==true then
+                entry.serverMessage=nil;entry.earned=(entry.earned or 0)+(tonumber(result.amount)or 0)
+                local removed=sellWait(function()for id in pairs(selected)do if fishRecord(id)then return false end end;return true end,3)
+                local confirmed=0;for id in pairs(selected)do if not fishRecord(id)then confirmed+=1 end end
+                entry.confirmed+=confirmed;entry.batches=(entry.batches or 0)+1
+                if not removed then config.AutoSell=false;autoState("Sell","Sale succeeded; inventory pending - auto sell paused")
+                else autoState("Sell","Selected fish batch sale confirmed")end
             else
                 entry.serverMessage=type(result)=="table"and tostring(result.message or result.error or"Unknown rejection")or"Invalid sell response"
                 autoState("Sell","Fish sale rejected")
             end
         end,debug.traceback)
+        -- Restore only favorites enabled by this transaction, including a late
+        -- acknowledgment after StopAll. Existing favorites are never toggled.
+        entry.restoredFavorites=0;entry.restorePending=0
+        for id,deadline in pairs(pending)do
+            local fish=fishRecord(id)
+            while fish and not fish.Favorite and now()<deadline do task.wait(.05);fish=fishRecord(id)end
+            if fish and fish.Favorite then
+                pcall(requests.FireServer,requests,"SetFavorite",id)
+                local finish=now()+3
+                while now()<finish do fish=fishRecord(id);if not fish or not fish.Favorite then break end;task.wait(.05)end
+                if fish and fish.Favorite then entry.restorePending+=1 else entry.restoredFavorites+=1 end
+            end
+        end
+        if entry.restorePending>0 then config.AutoSell=false;autoState("Sell","Temporary favorites awaiting restoration - auto sell paused")end
         local equipped=player:GetAttribute("EquippedFishId")
-        if touched and active and(equipped==nil or equipped==false or equipped==controlledId)then
-            local restore=original and fishRecord(original)and original or false
-            pcall(requests.FireServer,requests,"EquipFish",restore)
+        if controlledId and active and(equipped==nil or equipped==false or equipped==controlledId)then
+            pcall(requests.FireServer,requests,"EquipFish",original and fishRecord(original)and original or false)
         end
         selling=false
         if not ok then logError(err);autoState("Sell","Auto request failed")end
     end
+
     local autoFlags={"AutoDaily","AutoGift","AutoLuck","EquipBest","AutoSell"}
     function api.StopAll()
         config.Hatch=false
