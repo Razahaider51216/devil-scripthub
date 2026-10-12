@@ -7,6 +7,9 @@ local done=false
 local controller={}
 local function t(en,th)return config.Language=="TH"and th or en end
 local statusThai={
+    ["Waiting for seller request cooldown"]="?????????????????????????",
+    ["Confirming fish sale"]="?????????????????",
+    ["Sale interrupted during cooldown"]="???????????? ??????????????????????????",
     ["Auto Egg enabled"]="เปิดเก็บไข่อัตโนมัติแล้ว",["Auto Egg stopped"]="หยุดเก็บไข่แล้ว",
     ["Ready - teleport egg collection"]="พร้อมวาร์ปเก็บไข่",["Waiting for character"]="กำลังรอตัวละคร",
     ["Waiting for your PlayerPot to load"]="กำลังรอบ้านของคุณโหลด",["Waiting for hatch rack / deposit prompts to load"]="กำลังรอช่องฝากไข่โหลด",
@@ -203,6 +206,7 @@ buildUI=function()
         config.SellRarities=selected
     end})
     choices:CreateParagraph({Name=t("Sale route","เส้นทางขาย"),Content=t("Teleports near Mr. Richard before requesting Quote and Sell. Egg farming resumes immediately after the sale and starts teleporting as soon as a matching egg appears. Server rejection messages appear above.","วาร์ปไปใกล้ Mr. Richard ก่อนขอราคาและขาย ระบบเก็บไข่จะรอระหว่างขาย แล้วทำต่อโดยไม่เว้นครึ่งวินาทีระหว่างเป้าหมายไข่ หากเกมไม่อนุมัติจะแสดงเหตุผลด้านบน")})
+    choices:CreateParagraph({Name=t("Seller cooldown","??????????????"),Content=t("Waits at least 2 seconds between seller requests. If the game replies Please wait a moment., retries up to 3 attempts with increasing delay. Filters and equipped fish are checked again before every attempt.","??????????????????????? 2 ?????? ????????? Please wait a moment. ????????????????????????????? 3 ????? ???????????????????????????????????????????")})
     local playerTab=window:CreateTab({Name=t("Player","ผู้เล่น"),Icon="user",Backdrop=false})
     local movement=playerTab:CreateGroupbox({Name=t("Movement","การเคลื่อนที่"),Side="Left"})
     toggle(movement,"SpeedEnabled","Enable Walk Speed","เปิดปรับความเร็วเดิน",core.SetSpeed)
@@ -246,7 +250,7 @@ buildUI=function()
     discordLogo:CreateImage({Name="Discord",Image="https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/discord-logo.png",Height=140,ScaleType="Fit"})
     local info=window:CreateTab({Name=t("Info","ข้อมูล"),Icon="info",Backdrop=false})
     local about=info:CreateGroupbox({Name="DEVIL HUB",Side="Left"})
-    about:CreateLabel({Text=t("Aqua Auto Egg - release 11","ระบบเก็บไข่ Aqua - เวอร์ชัน 11")})
+    about:CreateLabel({Text=t("Aqua Auto Egg - release 12","ระบบเก็บไข่ Aqua - เวอร์ชัน 11")})
     about:CreateParagraph({Name=t("Diagnostics","ตรวจปัญหา"),Content=t("Save report and send DevilAquaAutoEgg-report.json if an auto action fails.","หากระบบค้าง กดบันทึกรายงานแล้วส่งไฟล์ DevilAquaAutoEgg-report.json")})
     about:CreateButton({Name=t("Unload","ปิดสคริปต์"),Callback=controller.Destroy})
     local boundWindow=window
@@ -265,13 +269,14 @@ return function(config,onStatus)
     local requests=assert(RS:WaitForChild("EggGame",15),"EggGame unavailable"):WaitForChild("Requests",15)
     local events=RS.EggGame:WaitForChild("Events",15)
     assert(requests and events,"Egg remotes unavailable")
-    local api={Config=config,Report={release="aqua-auto-egg-11",picked=0,deposited=0,hatchRequests=0,errors={},automation={}}}
+    local api={Config=config,Report={release="aqua-auto-egg-12",picked=0,deposited=0,hatchRequests=0,errors={},automation={}}}
     local active=true
     local links={}
     local hatches={}
     local collection={}
     local collectionReady=false
     local selling=false
+    local nextSellRequestAt=0
     local farmBusy=false
     local retryEgg={}
     local hatchRetry={}
@@ -915,14 +920,46 @@ return function(config,onStatus)
             if not active or not config.AutoSell or config.Fly or currentCharacter~=character or not target.Parent or not entry.sellerDistance or entry.sellerDistance>10 then
                 autoState("Sell","Fish seller not reached");return
             end
-            autoState("Sell","Requesting quote from current position")
-            local quote=remote:InvokeServer("Quote",nil)
+            -- Quote and Sell share the seller remote. Space both actions and
+            -- retry only an explicit cooldown rejection, retaining the quote token.
+            local function saleValid()
+                return active and config.AutoSell and not config.Fly and alive()==character
+                    and target.Parent and(root.Position-target.Position).Magnitude<=10
+                    and config.KeepBest==keepBestAtStart and canSell(fishRecord(fish.Id),bestId)
+                    and player:GetAttribute("EquippedFishId")==fish.Id
+            end
+            local function sellerCall(action,arg)
+                for attempt=1,3 do
+                    while now()<nextSellRequestAt do
+                        if not saleValid()then return nil,"Sale interrupted during cooldown"end
+                        autoState("Sell","Waiting for seller request cooldown")
+                        entry.retryAfter=math.max(0,nextSellRequestAt-now())
+                        task.wait(.05)
+                    end
+                    if not saleValid()then return nil,"Sale interrupted during cooldown"end
+                    entry.retryAfter=0;entry.lastAction=action;entry.attempt=attempt
+                    entry.lastRequestAt=now()
+                    if action=="Sell"then entry.requests+=1;entry.quoteToSellDelay=entry.quoteAcceptedAt and(now()-entry.quoteAcceptedAt)or nil end
+                    autoState("Sell",action=="Quote"and"Requesting quote from current position"or"Confirming fish sale")
+                    nextSellRequestAt=now()+2
+                    local response=remote:InvokeServer(action,arg)
+                    nextSellRequestAt=math.max(nextSellRequestAt,now()+2)
+                    if type(response)~="table"or response.ok~=false or response.message~="Please wait a moment."then return response end
+                    entry.cooldownHits=(entry.cooldownHits or 0)+1
+                    entry.serverMessage=response.message
+                    nextSellRequestAt=now()+2^attempt+2
+                    if attempt==3 then return response end
+                end
+            end
+            local quote,cancelled=sellerCall("Quote",nil)
+            if cancelled then autoState("Sell",cancelled);return end
             if not active or not config.AutoSell then return end
             entry.quote=type(quote)=="table"and{ok=quote.ok,name=quote.name,id=quote.id or quote.fishId or quote.Id,kg=quote.kg,message=quote.message}or{type=type(quote)}
             if type(quote)~="table"or quote.ok~=true then
                 entry.serverMessage=type(quote)=="table"and tostring(quote.message or quote.error or"Unknown rejection")or"Invalid quote response"
                 autoState("Sell","Server rejected quote");return
             end
+            entry.quoteAcceptedAt=now()
             local current=fishRecord(fish.Id)
             local quoteId=type(quote)=="table"and(quote.id or quote.fishId or quote.Id)
             local matches=type(quote)=="table"and quote.ok==true and type(quote.token)=="string"and quote.token~=""
@@ -932,10 +969,12 @@ return function(config,onStatus)
             if not matches or config.Fly or config.KeepBest~=keepBestAtStart or not alive()or not target.Parent or(root.Position-target.Position).Magnitude>10 or not canSell(current,bestId)or player:GetAttribute("EquippedFishId")~=fish.Id then
                 autoState("Sell","Quote or fish changed; sale cancelled");return
             end
-            entry.requests+=1
-            local result=remote:InvokeServer("Sell",quote.token)
+            -- Give the server time between accepting a quote and confirming it.
+            local result,cancelled=sellerCall("Sell",quote.token)
+            if cancelled then autoState("Sell",cancelled);return end
             entry.result=type(result)=="table"and{ok=result.ok,amount=result.amount,message=result.message,error=result.error}or{type=type(result),value=tostring(result)}
             if type(result)=="table"and result.ok then
+                entry.serverMessage=nil
                 entry.confirmed+=1;entry.earned=(entry.earned or 0)+(tonumber(result.amount)or 0)
                 entry.status="Fish sale confirmed"
                 -- Wait for inventory removal, preventing a second quote for this ID.
