@@ -553,3 +553,14 @@ unchanged. Auto Egg target locking and the bank-to-entrance handoff are retained
 The 400-stud approach mock now completes in seven hops. Full gameplay, filter,
 locked-target, return, cleanup and two-VM transport/router checks pass. These
 checks do not establish server acceptance or live pickup timing.
+
+
+## Animal approach: 50 studs and 0.4 seconds (break-carry-hop50-pause04-16)
+
+At the user's request after live rejection of the faster approach, approach hops
+are now capped at 50 studs and pause for 0.4 seconds between hops. These remain
+fixed settings with no new controls. Pickup filters, interruption checks, return
+flight, bank/entrance handoff, target locking and two-layer VM startup are retained.
+Gameplay regressions verify the updated bound and eight hops for the test's
+400-stud route within arrival tolerance; transport/router checks pass.
+Live server acceptance of the revised pacing is still unverified.
