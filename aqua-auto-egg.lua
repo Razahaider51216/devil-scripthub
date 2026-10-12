@@ -1,41 +1,73 @@
--- DEVIL HUB / Aqua Auto Egg test. Teleport collection and game prompt interactions.
-assert(game.PlaceId==104050046639813,"Open the Aqua map (Place 104050046639813) first.")
+assert(game.PlaceId==104050046639813,"Open Aqua / เปิดแมพ Aqua")
 local scope=type(getgenv)=="function"and getgenv()or _G
 if scope.DevilAquaAutoEgg then scope.DevilAquaAutoEgg.Destroy()end
-local window,core
-local function logo()
-    local image="https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png?logo=aqua-1"
-    local asset=getcustomasset or getsynasset
-    if type(asset)=="function"and type(writefile)=="function"then
-        local ok,value=pcall(function()
-            local file="DevilHub_Aqua_Logo.png"
-            if not(type(isfile)=="function"and isfile(file))then
-                local data=game:HttpGet(image)
-                assert(data:sub(1,8)=="\137PNG\r\n\26\n","Invalid logo response")
-                writefile(file,data)
-            end
-            return asset(file)
-        end)
-        if ok and type(value)=="string"and value~=""then image=value end
-    end
-    return image
-end
-local config={Farm=false,Hatch=false,EquipBest=false,Tiers={},MinKg=0,MinLuck=0,Order="Highest Luck",Dropped=true,Teleport=true}
-local function fetch(url,label)
-    local problem
-    for attempt=1,3 do
-        local ok,source=pcall(game.HttpGet,game,url)
-        if ok and type(source)=="string"and #source>100 then
-            local run,err=loadstring(source,label)
-            if run then return run()end
-            problem=err
-        else problem=source end
-        task.wait(attempt)
-    end
-    error(tostring(problem),0)
-end
+local config={Farm=false,Hatch=false,EquipBest=false,AutoDaily=false,AutoGift=false,AutoLuck=false,Tiers={},MinKg=0,MinLuck=0,Order="Highest Luck",Dropped=true,Teleport=true,Language=scope.DevilAquaLanguage or"TH"}
+local window,core,library,stateLabel,totalsLabel,autoLabel
 local done=false
 local controller={}
+local function t(en,th)return config.Language=="TH"and th or en end
+local statusThai={
+    ["Auto Egg enabled"]="เปิดเก็บไข่อัตโนมัติแล้ว",["Auto Egg stopped"]="หยุดเก็บไข่แล้ว",
+    ["Ready - teleport egg collection"]="พร้อมวาร์ปเก็บไข่",["Waiting for character"]="กำลังรอตัวละคร",
+    ["Waiting for your PlayerPot to load"]="กำลังรอบ้านของคุณโหลด",["Waiting for hatch rack / deposit prompts to load"]="กำลังรอช่องฝากไข่โหลด",
+    ["No owned deposit slots found; save report"]="ไม่พบช่องฝากของคุณ กรุณาบันทึกรายงาน",["No empty hatch slot; waiting for hatch completion"]="ช่องฟักเต็ม กำลังรอฟักเสร็จ",
+    ["Waiting for an available egg matching your filters"]="กำลังรอไข่ตามระดับที่เลือก",["Returning carried egg to your pot"]="กำลังนำไข่กลับช่องฝาก",
+    ["Returning egg to your home spawn"]="กำลังนำไข่กลับจุดเกิดที่บ้าน",["Egg pickup confirmed - returning now"]="เก็บไข่สำเร็จ กำลังวาร์ปกลับ",
+    ["Returned home with egg; hatch approaches blocked - save report"]="กลับบ้านพร้อมไข่แล้ว แต่จุดฝากถูกบล็อก กรุณาบันทึกรายงาน",
+    ["Holding egg: all empty hatch approaches blocked; save report"]="ถือไข่แล้ว แต่จุดฝากทุกช่องถูกบล็อก กรุณาบันทึกรายงาน",
+    ["At empty hatch slot, but DepositSeaEgg is disabled; save report"]="ถึงช่องว่างแล้ว แต่เกมยังไม่เปิดให้ฝาก กรุณาบันทึกรายงาน",
+    ["Deposit unconfirmed; check hatch state before retry"]="ยังยืนยันการฝากไม่ได้ กำลังรอลองใหม่",
+    ["Pickup unconfirmed: no CarriedEggId received; save report"]="ยังไม่ได้รับรหัสไข่ที่ถือ กรุณาบันทึกรายงาน",
+    ["Retrying after error; check report"]="เกิดข้อผิดพลาด กำลังลองใหม่ ดูรายละเอียดในรายงาน",
+    ["Teleport cancelled"]="ยกเลิกการวาร์ป",["Teleport did not stay near target; save farm report"]="ตำแหน่งหลังวาร์ปถูกเปลี่ยน กรุณาบันทึกรายงาน",
+    ["No clear space outside hatch cabinet; save report"]="ไม่พบพื้นที่ว่างนอกตู้ กรุณาบันทึกรายงาน",
+    ["Target disappeared"]="เป้าหมายหายไป",["Movement interrupted"]="การเคลื่อนที่ถูกหยุด",["Travel timed out"]="เคลื่อนที่เกินเวลาที่กำหนด",
+    ["Movement blocked; skipping this target"]="เคลื่อนที่ติด กำลังข้ามเป้าหมาย",["Remote unavailable"]="ยังไม่พบระบบคำขอ",
+    ["Waiting for reward state"]="กำลังรอสถานะรางวัล",["Waiting for daily cooldown"]="รอเวลารับรางวัลรายวัน",
+    ["Claiming daily reward"]="กำลังรับรางวัลรายวัน",["Daily reward claimed"]="รับรางวัลรายวันแล้ว",["Daily claim not confirmed"]="ยังยืนยันรางวัลรายวันไม่ได้",
+    ["Claiming free gift"]="กำลังรับของขวัญฟรี",["Free gift claimed"]="รับของขวัญฟรีแล้ว",["Free gift already claimed"]="รับของขวัญฟรีไปแล้ว",
+    ["Free gift claim rejected"]="เกมไม่อนุมัติของขวัญ",["Join the game group to qualify"]="ต้องเข้ากลุ่มของเกมก่อนรับของขวัญ",
+    ["Waiting for owned pot"]="กำลังรอบ้านของคุณ",["Waiting for luck level"]="กำลังรอข้อมูลระดับโชค",["Waiting for coins"]="กำลังรอเงินในเกม",
+    ["Requesting max affordable luck upgrade"]="กำลังอัปโชคตามเงินที่มี",["Equipping best fish"]="กำลังเลือกปลาที่ดีที่สุด",["Auto request failed"]="คำขออัตโนมัติล้มเหลว",
+}
+local function translated(text)
+    text=tostring(text or"")
+    if config.Language~="TH"then return text end
+    if statusThai[text]then return statusThai[text]end
+    local count=text:match("^Egg deposited: (%d+)")
+    if count then return "ฝากไข่สำเร็จ: "..count end
+    if text:match("^Teleporting to ")then return text:find("SpawnPlayer",1,true)and"กำลังวาร์ปกลับจุดเกิดที่บ้าน"or text:find("DepositSeaEgg",1,true)and"กำลังวาร์ปไปจุดฝากนอกตู้"or"กำลังวาร์ปหาไข่"end
+    if text:match("^Activating ")then return text:find("DepositSeaEgg",1,true)and"กำลังกดฝากไข่"or"กำลังกดเก็บไข่"end
+    count=text:match("^Moving: (%d+)")
+    if count then return "กำลังเคลื่อนที่ เหลือ "..count.." studs"end
+    return "กำลังดำเนินการ ดูรายละเอียดในรายงาน"
+end
+local function refresh(text,report)
+    if done then return end
+    if stateLabel then stateLabel:Set(translated(text),true)end
+    if totalsLabel then totalsLabel:Set(t("Picked: ","เก็บ: ")..report.picked..t(" | Deposited: "," | ฝาก: ")..report.deposited..t(" | Hatch requests: "," | คำขอฟัก: ")..report.hatchRequests,true)end
+    if autoLabel then
+        local lines={}
+        for _,pair in ipairs({{"Daily",t("Daily","รายวัน")},{"Gift",t("Gift","ของขวัญ")},{"Luck",t("Luck","โชค")},{"Equip",t("Fish","ปลา")}})do
+            local entry=report.automation[pair[1]]
+            if entry then lines[#lines+1]=pair[2]..": "..translated(entry.status)end
+        end
+        autoLabel:Set(#lines>0 and table.concat(lines,"\n")or t("Choose the auto features you want below.","เลือกเปิดระบบออโต้ที่ต้องการด้านล่าง"),true)
+    end
+end
+local function logo()
+    local url="https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png?logo=aqua-1"
+    local asset=getcustomasset or getsynasset
+    if type(asset)=="function"and type(writefile)=="function"then
+        local ok,result=pcall(function()
+            local file="DevilHub_Aqua_Logo.png"
+            if not(type(isfile)=="function"and isfile(file))then local data=game:HttpGet(url);assert(data:sub(1,8)=="\137PNG\r\n\26\n","Invalid logo");writefile(file,data)end
+            return asset(file)
+        end)
+        if ok then return result end
+    end
+    return url
+end
 function controller.Destroy()
     if done then return end;done=true
     if core then core.Destroy()end
@@ -43,18 +75,81 @@ function controller.Destroy()
     if window then window:Destroy()end
 end
 scope.DevilAquaAutoEgg=controller
+local image
+local buildUI
+buildUI=function()
+    if done then return end
+    local previous=window
+    stateLabel=nil;totalsLabel=nil;autoLabel=nil
+    window=library:CreateWindow({Name="DEVIL HUB",Icon=image,Theme="Crimson",Density="Compact",Profile=false,Search=false,Home=false,Loading=false,Backdrop=false,UnsupportedExecutor=false,Disclaimer=false,Size=UDim2.fromOffset(790,550),ToggleButton={Platform="Both",Icon=image},IslandDraggable=true,KeepOnScreen=true,ConfigurationSaving={Enabled=false,FolderName="DevilAqua"}})
+    if previous then previous:Destroy()end
+    local tab=window:CreateTab({Name=t("Auto Egg","เก็บไข่อัตโนมัติ"),Icon="egg",Backdrop=false})
+    local farm=tab:CreateGroupbox({Name=t("Egg Farm","ระบบเก็บไข่"),Side="Left"})
+    local filters=tab:CreateGroupbox({Name=t("Egg Filters","เลือกระดับไข่"),Side="Right"})
+    farm:CreateDropdown({Name="ภาษา / Language",Options={"ไทย","English"},CurrentOption={config.Language=="TH"and"ไทย"or"English"},Callback=function(value)
+        value=type(value)=="table"and value[1]or value
+        local language=value=="English"and"EN"or"TH"
+        if language==config.Language then return end
+        config.Language=language;scope.DevilAquaLanguage=language
+        task.defer(function()local ok,err=xpcall(buildUI,debug.traceback);if not ok then controller.Destroy();warn(err)end end)
+    end})
+    stateLabel=farm:CreateParagraph({Name=t("Farm status","สถานะฟาร์ม"),Content=""});totalsLabel=farm:CreateLabel({Text=""})
+    local toggles={}
+    local function toggle(group,flag,en,th,callback)
+        local widget=group:CreateToggle({Name=t(en,th),CurrentValue=config[flag]==true,Callback=function(value)if callback then callback(value)else config[flag]=value end end})
+        toggles[flag]=widget;return widget
+    end
+    toggle(farm,"Farm","Auto Collect + Return Egg","เก็บไข่และกลับบ้านอัตโนมัติ",core.SetFarm)
+    toggle(farm,"Hatch","Auto Hatch Ready Eggs","ฟักไข่ที่ครบเวลาอัตโนมัติ")
+    toggle(farm,"EquipBest","Auto Equip Best Fish","เลือกปลาที่ดีที่สุดอัตโนมัติ")
+    farm:CreateButton({Name=t("Start Egg Farm + Hatch","เริ่มเก็บไข่และฟัก"),Callback=function()config.Hatch=true;toggles.Hatch:Set(true,true);toggles.Farm:Set(true,true);core.SetFarm(true)end})
+    farm:CreateButton({Name=t("Stop All","หยุดออโต้ทั้งหมด"),Callback=function()core.StopAll();for _,widget in pairs(toggles)do widget:Set(false,true)end;refresh(core.Report.status,core.Report)end})
+    farm:CreateButton({Name=t("Save Farm Report","บันทึกรายงาน"),Callback=core.SaveReport})
+    farm:CreateParagraph({Name=t("Return route","เส้นทางกลับ"),Content=t("Collect egg, return to your home SpawnPlayer, then approach an empty hatch slot from outside the cabinet.","เก็บไข่แล้วกลับจุดเกิดของบ้านคุณก่อน จากนั้นไปฝากช่องว่างโดยยืนอยู่นอกตู้")})
+    local tiers={"Abuseall6","Abuseall5","Abuseall4","Abuseall3","Abuseall2","Abuseall1","KrakenGlory","SolarOrbit","AzureCrown","AmethystSpiral","GlacialSpiral","CoralReef","Eternal","Celestial","Sovereign","Trench","Abyss","Deep","Tidal","Reef","Coral","Common"}
+    local seen={};for _,tier in ipairs(tiers)do seen[tier]=true end
+    local runtime=workspace:FindFirstChild("EggRuntime")
+    for _,name in ipairs({"WildEggs","DroppedEggs"})do
+        local folder=runtime and runtime:FindFirstChild(name)
+        for _,model in ipairs(folder and folder:GetChildren()or{})do local tier=model:GetAttribute("EggTier");if type(tier)=="string"and not seen[tier]then seen[tier]=true;tiers[#tiers+1]=tier end end
+    end
+    local function selectTiers(values)
+        local selected={}
+        if type(values)=="table"then for key,value in pairs(values)do if type(key)=="number"and type(value)=="string"then selected[value]=true elseif type(key)=="string"and value==true then selected[key]=true end end end
+        config.Tiers=selected
+    end
+    local current={};for _,tier in ipairs(tiers)do if config.Tiers[tier]then current[#current+1]=tier end end
+    local tierDropdown=filters:CreateDropdown({Name=t("Egg Levels: Highest First","ระดับไข่: สูงสุดอยู่บน"),Options=tiers,CurrentOption=current,MultipleOptions=true,AllowNone=true,Searchable=true,Callback=selectTiers})
+    filters:CreateButton({Name=t("Select Abyss / Sovereign / Trench","เลือก Abyss / Sovereign / Trench"),Callback=function()local values={"Abyss","Sovereign","Trench"};selectTiers(values);tierDropdown:Set(values,true)end})
+    filters:CreateButton({Name=t("Allow All Egg Types","รับไข่ทุกระดับ"),Callback=function()selectTiers({});tierDropdown:Set({},true)end})
+    local nearest=t("Nearest","ใกล้ที่สุด");local highest=t("Highest Luck","ค่าโชคสูงสุด")
+    filters:CreateDropdown({Name=t("Priority","ลำดับการเลือก"),Options={highest,nearest},CurrentOption={config.Order=="Nearest"and nearest or highest},Callback=function(value)value=type(value)=="table"and value[1]or value;config.Order=value==nearest and"Nearest"or"Highest Luck"end})
+    local function minimum(field,value)local n=tonumber(value);if n and n==n and n>=0 and n<math.huge then config[field]=n end end
+    filters:CreateInput({Name=t("Minimum KG","น้ำหนักขั้นต่ำ"),CurrentValue=tostring(config.MinKg),Numeric=true,Callback=function(value)minimum("MinKg",value)end})
+    filters:CreateInput({Name=t("Minimum Egg Luck","ค่าโชคไข่ขั้นต่ำ"),CurrentValue=tostring(config.MinLuck),Numeric=true,Callback=function(value)minimum("MinLuck",value)end})
+    filters:CreateToggle({Name=t("Include Dropped Eggs","รวมไข่ที่ผู้เล่นทำตก"),CurrentValue=config.Dropped,Callback=function(value)config.Dropped=value end})
+    filters:CreateParagraph({Name=t("Selection","การเลือกไข่"),Content=t("Empty selection allows all types. Selected types that have not spawned are waited for. Tier names keep their game names.","ไม่เลือกระดับจะรับทุกชนิด ถ้าระดับที่เลือกยังไม่เกิด ระบบจะรอ ชื่อชนิดไข่ใช้ชื่อตามเกม")})
+    local autoTab=window:CreateTab({Name=t("Other Auto","ระบบออโต้อื่น"),Icon="gift",Backdrop=false})
+    local rewards=autoTab:CreateGroupbox({Name=t("Rewards","รับรางวัล"),Side="Left"})
+    autoLabel=rewards:CreateParagraph({Name=t("Auto status","สถานะออโต้"),Content=""})
+    toggle(rewards,"AutoDaily","Auto Daily Reward","รับรางวัลรายวันอัตโนมัติ")
+    toggle(rewards,"AutoGift","Auto Free Gift","รับของขวัญฟรีอัตโนมัติ")
+    rewards:CreateParagraph({Name=t("Free gift eligibility","เงื่อนไขของขวัญ"),Content=t("Claims only when the server says your account qualifies. Join the game's group yourself if required.","รับเมื่อเซิร์ฟเวอร์แจ้งว่าบัญชีผ่านเงื่อนไข หากต้องเข้ากลุ่ม ให้เข้ากลุ่มของเกมก่อน")})
+    local upgrades=autoTab:CreateGroupbox({Name=t("Upgrades","อัปเกรด"),Side="Right"})
+    toggle(upgrades,"AutoLuck","Auto Upgrade Hatch Luck (uses coins)","อัปโชคฟักอัตโนมัติ (ใช้เงินในเกม)")
+    upgrades:CreateParagraph({Name=t("Luck upgrade","การอัปโชค"),Content=t("When enabled, requests the maximum affordable Hatch Luck upgrade every 5 seconds using game coins.","เมื่อเปิด จะขออัปโชคฟักสูงสุดที่ซื้อไหวทุก 5 วินาที โดยใช้เงินในเกม")})
+    local info=window:CreateTab({Name=t("Info","ข้อมูล"),Icon="info",Backdrop=false})
+    local about=info:CreateGroupbox({Name="DEVIL HUB",Side="Left"})
+    about:CreateLabel({Text=t("Aqua Auto Egg - release 7","ระบบเก็บไข่ Aqua - เวอร์ชัน 7")})
+    about:CreateParagraph({Name=t("Diagnostics","ตรวจปัญหา"),Content=t("Save report and send DevilAquaAutoEgg-report.json if an auto action fails.","หากระบบค้าง กดบันทึกรายงานแล้วส่งไฟล์ DevilAquaAutoEgg-report.json")})
+    about:CreateButton({Name=t("Unload","ปิดสคริปต์"),Callback=controller.Destroy})
+    local boundWindow=window
+    if window.Gui and window.Gui.Destroying then window.Gui.Destroying:Connect(function()if window==boundWindow then controller.Destroy()end end)end
+    refresh(core.Report.status,core.Report)
+end
 local ok,err=xpcall(function()
-    local library=fetch("https://raw.githubusercontent.com/joustingmatch/OuroFlow/c8251f76f74d9942114ebccb0564aa0ac196320a/Source.luau","DEVIL HUB / OuroFlow")
-    local image=logo()
-    window=library:CreateWindow({Name="DEVIL HUB",Icon=image,Theme="Crimson",Density="Compact",
-        Profile=true,Search=true,Home=false,Loading=false,Backdrop=false,UnsupportedExecutor=false,Disclaimer=false,
-        Size=UDim2.fromOffset(760,510),ToggleButton={Platform="Both",Icon=image},IslandDraggable=true,KeepOnScreen=true,
-        ConfigurationSaving={Enabled=false,FolderName="DevilAqua"}})
-    local tab=window:CreateTab({Name="Auto Egg",Icon="egg",Backdrop=false})
-    local farm=tab:CreateGroupbox({Name="Egg Farm",Side="Left"})
-    local filters=tab:CreateGroupbox({Name="Egg Filters",Side="Right"})
-    local state=farm:CreateLabel({Text="Preparing game controls..."})
-    local totals=farm:CreateLabel({Text="Picked: 0 | Deposited: 0 | Hatch requests: 0"})
+    local source=game:HttpGet("https://raw.githubusercontent.com/joustingmatch/OuroFlow/c8251f76f74d9942114ebccb0564aa0ac196320a/Source.luau")
+    local run,problem=loadstring(source,"DEVIL HUB / OuroFlow");assert(run,problem);library=run();image=logo()
     local make=(function()
 return function(config,onStatus)
     local Players=game:GetService("Players")
@@ -64,7 +159,7 @@ return function(config,onStatus)
     local requests=assert(RS:WaitForChild("EggGame",15),"EggGame unavailable"):WaitForChild("Requests",15)
     local events=RS.EggGame:WaitForChild("Events",15)
     assert(requests and events,"Egg remotes unavailable")
-    local api={Config=config,Report={release="aqua-auto-egg-6",picked=0,deposited=0,hatchRequests=0,errors={}}}
+    local api={Config=config,Report={release="aqua-auto-egg-7",picked=0,deposited=0,hatchRequests=0,errors={},automation={}}}
     local active=true
     local links={}
     local hatches={}
@@ -552,6 +647,71 @@ return function(config,onStatus)
             end
         end
     end
+    local function autoState(key,text)
+        local entry=api.Report.automation[key]or{requests=0,confirmed=0}
+        api.Report.automation[key]=entry;entry.status=text;entry.updatedAt=now()
+        if onStatus then pcall(onStatus,api.Report.status,api.Report)end
+        return entry
+    end
+    local giftConnection
+    local function dailyStep()
+        local remote=RS:FindFirstChild("DailyRewardRequest")
+        if not remote then autoState("Daily","Remote unavailable");return end
+        local response=remote:InvokeServer("State")
+        if not active or not config.AutoDaily then return end
+        local state=type(response)=="table"and response.Ok and response.State
+        local claimAt=state and tonumber(state.NextClaimAt)
+        if not claimAt then autoState("Daily","Waiting for reward state");return end
+        if claimAt>workspace:GetServerTimeNow()then
+            local entry=autoState("Daily","Waiting for daily cooldown");entry.nextClaimAt=claimAt;return
+        end
+        local entry=autoState("Daily","Claiming daily reward");entry.requests+=1
+        local result=remote:InvokeServer("Claim")
+        if not active then return end
+        if type(result)=="table"and result.Ok then entry.confirmed+=1;autoState("Daily","Daily reward claimed")
+        else autoState("Daily","Daily claim not confirmed")end
+    end
+    local function giftStep()
+        local folder=RS:FindFirstChild("FreeGiftRemotes")
+        local check=folder and folder:FindFirstChild("FreeGiftCheck")
+        local claim=folder and folder:FindFirstChild("FreeGiftClaim")
+        if not check or not claim then autoState("Gift","Remote unavailable");return end
+        if not giftConnection then
+            giftConnection=claim.OnClientEvent:Connect(function(ok,message)
+                if not active then return end
+                local entry=autoState("Gift",ok and"Free gift claimed"or"Free gift claim rejected")
+                if ok then entry.confirmed+=1 end
+                entry.message=message and tostring(message)or nil
+            end)
+            links[#links+1]=giftConnection
+        end
+        local state=check:InvokeServer()
+        if not active or not config.AutoGift then return end
+        if type(state)~="table"then autoState("Gift","Waiting for reward state");return end
+        if state.claimed then autoState("Gift","Free gift already claimed");return end
+        if state.joinedGroup~=true then autoState("Gift","Join the game group to qualify");return end
+        local entry=autoState("Gift","Claiming free gift");entry.requests+=1;claim:FireServer()
+    end
+    local function luckStep()
+        local pot=ownPot()
+        if not pot or tonumber(pot:GetAttribute("OwnerUserId"))~=player.UserId then autoState("Luck","Waiting for owned pot");return end
+        local level=tonumber(pot:GetAttribute("HatchLuckLevel"))
+        if not level then autoState("Luck","Waiting for luck level");return end
+        if(tonumber(player:GetAttribute("Coins"))or 0)<=0 then autoState("Luck","Waiting for coins");return end
+        local entry=autoState("Luck","Requesting max affordable luck upgrade")
+        entry.level=level;entry.requests+=1;requests:FireServer("UpgradeLuckMax",level)
+    end
+    local function equipStep()
+        if now()-lastEquip<3 then return end
+        lastEquip=now();local entry=autoState("Equip","Equipping best fish")
+        entry.requests+=1;requests:FireServer("EquipBest")
+    end
+    local autoFlags={"AutoDaily","AutoGift","AutoLuck","EquipBest"}
+    function api.StopAll()
+        config.Hatch=false
+        for _,flag in ipairs(autoFlags)do config[flag]=false end
+        api.SetFarm(false)
+    end
     function api.SaveReport()
         nearestDeposit()
         api.Report.player={userId=player.UserId,carriedEggId=carried(),hasSeaEgg=player:GetAttribute("HasSeaEgg"),eggEquipped=player:GetAttribute("EggEquipped"),riding=player:GetAttribute("MilkfishRiding")}
@@ -583,6 +743,19 @@ return function(config,onStatus)
             task.wait(.5)
         end
     end)
+    for _,job in ipairs({{"AutoDaily","Daily",30,dailyStep},{"AutoGift","Gift",30,giftStep},{"AutoLuck","Luck",5,luckStep},{"EquipBest","Equip",10,equipStep}})do
+        task.spawn(function()
+            local due=0
+            while active do
+                if config[job[1]]and now()>=due then
+                    due=now()+job[3]
+                    local ok,err=pcall(job[4])
+                    if not ok then logError(err);autoState(job[2],"Auto request failed")end
+                elseif not config[job[1]]then due=0 end
+                task.wait(1)
+            end
+        end)
+    end
     task.spawn(function()
         while active do
             if config.Hatch then local ok,err=pcall(hatchStep);if not ok then logError(err)end end
@@ -596,70 +769,8 @@ return function(config,onStatus)
 end
 
     end)()
-    core=make(config,function(text,report)
-        if done then return end
-        state:Set(text,true)
-        totals:Set("Picked: "..report.picked.." | Deposited: "..report.deposited.." | Hatch requests: "..report.hatchRequests,true)
-    end)
-    controller.Core=core
-    local farmToggle=farm:CreateToggle({Name="Auto Collect + Return Egg",CurrentValue=false,Callback=function(value)core.SetFarm(value)end})
-    local hatchToggle=farm:CreateToggle({Name="Auto Hatch Ready Eggs",CurrentValue=false,Callback=function(value)config.Hatch=value end})
-    local equipToggle=farm:CreateToggle({Name="Auto Equip Best After Hatch",CurrentValue=false,Callback=function(value)
-        config.EquipBest=value
-        if value then game:GetService("ReplicatedStorage").EggGame.Requests:FireServer("EquipBest")end
-    end})
-    farm:CreateButton({Name="Start Egg Farm + Hatch",Callback=function()
-        config.Hatch=true;hatchToggle:Set(true,true);farmToggle:Set(true,true);core.SetFarm(true)
-    end})
-    farm:CreateButton({Name="Stop All",Callback=function()
-        config.Hatch=false;config.EquipBest=false;equipToggle:Set(false,true);hatchToggle:Set(false,true);farmToggle:Set(false,true);core.SetFarm(false)
-    end})
-    farm:CreateButton({Name="Save Farm Report",Callback=function()core.SaveReport()end})
-    farm:CreateParagraph({Name="First run",Content="Auto collects the selected egg, returns to SpawnPlayer at your own home, then approaches an empty hatch slot from outside the cabinet. If every hatch approach is blocked, it waits at home with the egg. Save the report if deposit fails."})
-    -- Keep rare types selectable even when none have spawned yet.
-    local tiers={"Common","Coral","Reef","Deep","Tidal","Abyss","Sovereign","Trench","CoralReef","GlacialSpiral","AmethystSpiral","AzureCrown","SolarOrbit","KrakenGlory","Celestial","Eternal","Abuseall1","Abuseall2","Abuseall3","Abuseall4","Abuseall5","Abuseall6"}
-    local seen={};for _,tier in ipairs(tiers)do seen[tier]=true end
-    local runtime=workspace:FindFirstChild("EggRuntime")
-    for _,folderName in ipairs({"WildEggs","DroppedEggs"})do
-        local folder=runtime and runtime:FindFirstChild(folderName)
-        for _,model in ipairs(folder and folder:GetChildren()or{})do
-            local tier=model:GetAttribute("EggTier")
-            if type(tier)=="string"and not seen[tier]then seen[tier]=true;tiers[#tiers+1]=tier end
-        end
-    end
-    table.sort(tiers)
-    local function selectTiers(values)
-            local selected={}
-            if type(values)=="table"then for key,value in pairs(values)do
-                if type(key)=="number"and type(value)=="string"then selected[value]=true
-                elseif type(key)=="string"and value==true then selected[key]=true end
-            end end
-            config.Tiers=selected
-    end
-    local tierDropdown=filters:CreateDropdown({Name="Egg Levels / Types (empty = all)",Options=tiers,CurrentOption={},MultipleOptions=true,AllowNone=true,Searchable=true,Callback=selectTiers})
-    filters:CreateButton({Name="Select Abyss / Sovereign / Trench",Callback=function()
-        local selected={"Abyss","Sovereign","Trench"};selectTiers(selected);tierDropdown:Set(selected,true)
-    end})
-    filters:CreateButton({Name="Allow All Egg Types",Callback=function()selectTiers({});tierDropdown:Set({},true)end})
-    filters:CreateDropdown({Name="Priority",Options={"Nearest","Highest Luck"},CurrentOption={"Highest Luck"},Callback=function(value)
-        local selected=type(value)=="table"and value[1]or value
-        if selected=="Nearest"or selected=="Highest Luck"then config.Order=selected end
-    end})
-    local function minimum(field,value)
-        local number=tonumber(value)
-        if number and number==number and number>=0 and number<math.huge then config[field]=number end
-    end
-    filters:CreateInput({Name="Minimum KG",CurrentValue="0",Numeric=true,Callback=function(value)minimum("MinKg",value)end})
-    filters:CreateInput({Name="Minimum Egg Luck",CurrentValue="0",Numeric=true,Callback=function(value)minimum("MinLuck",value)end})
-    filters:CreateToggle({Name="Include Dropped Eggs",CurrentValue=true,Callback=function(value)config.Dropped=value end})
-    filters:CreateParagraph({Name="Selection",Content="Choose the egg types you want above. Highest Luck prioritizes the highest EggLuck among allowed wild eggs. If your chosen types are absent, farm waits. Collected eggs return to your home spawn before approaching a hatch cabinet."})
-    local info=window:CreateTab({Name="Info",Icon="info",Backdrop=false})
-    local about=info:CreateGroupbox({Name="DEVIL HUB",Side="Left"})
-    about:CreateLabel({Text="Aqua Auto Egg - test release 6 / Home Return"})
-    about:CreateLabel({Text="Place: 104050046639813"})
-    about:CreateParagraph({Name="Diagnostics",Content="Use Save Farm Report and send DevilAquaAutoEgg-report.json if movement or prompts fail."})
-    about:CreateButton({Name="Unload",Callback=controller.Destroy})
-    if window.Gui and window.Gui.Destroying then window.Gui.Destroying:Connect(controller.Destroy)end
+    core=make(config,refresh);controller.Core=core
+    buildUI()
 end,debug.traceback)
-if not ok then controller.Destroy();error("DEVIL HUB Aqua startup failed: "..tostring(err),0)end
+if not ok then controller.Destroy();error("DEVIL HUB Aqua: "..tostring(err),0)end
 return controller
