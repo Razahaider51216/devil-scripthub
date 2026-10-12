@@ -579,3 +579,26 @@ Auto Egg enable behavior. Gameplay checks include initial teleport disabled
 during actual pickup/bank/entrance/hit handoff, retained toggles, single return,
 filters, target locking, 50-stud/0.4-second approach, damage/respawn/cleanup and
 two-VM/router transport. Live verification is pending.
+
+
+## Anti-AFK keepalive (break-anti-afk-20)
+
+Anti-AFK now sends a pulse every 60 seconds and also responds to Player.Idled.
+VirtualUser presses/releases mouse button 2 with a short pause. Release is
+attempted even after an input error or a toggle/unload during the pause. If
+VirtualUser fails, VirtualInputManager attempts a one-pixel mouse movement
+and restores the pointer. Overlapping pulses and frequent idle events are
+throttled. All three signal connections are released on unload.
+
+The Session group shows waiting, input sent, disabled or input failed.
+DevilBreakAntiAFK-report.json records successful sends, failures, the input
+method, last error, Idled events and observed Player.OnTeleport state. A send
+without an API error is not proof that the executor reset Roblox's idle timer.
+This feature does not reconnect after a network drop or server shutdown.
+
+Offline regression covers scheduling, concurrent Idled events, release during
+toggle/unload, input fallback, failed methods, recovery, teleport recording
+and cleanup. Public VM/native boundaries and five-game router checks pass.
+Actual long-running farming in the user's executor remains to be verified.
+
+Roblox API reference: https://create.roblox.com/docs/reference/engine/classes/Player#Idled
