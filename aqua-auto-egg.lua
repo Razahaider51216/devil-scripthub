@@ -202,7 +202,7 @@ buildUI=function()
         local selected={};if type(values)=="table"then for key,value in pairs(values)do if type(key)=="number"and type(value)=="string"then selected[value]=true elseif type(key)=="string"and value==true then selected[key]=true end end end
         config.SellRarities=selected
     end})
-    choices:CreateParagraph({Name=t("Remote sale","ขายด้วยคำขอ remote"),Content=t("Requests Quote and Sell from your current position. No NPC teleport is used. Server eligibility still applies; rejection messages appear above. Works while holding an egg if the game allows the fish to be equipped.","ส่งคำขอราคาและขายจากตำแหน่งปัจจุบัน โดยไม่วาร์ปหา NPC หากเกมไม่อนุมัติจะแสดงเหตุผลด้านบน ลองขายขณะถือไข่ได้เมื่อเกมอนุญาตให้ถือปลา")})
+    choices:CreateParagraph({Name=t("Sale route","เส้นทางขาย"),Content=t("Teleports near Mr. Richard before requesting Quote and Sell. Egg farming resumes immediately after the sale and starts teleporting as soon as a matching egg appears. Server rejection messages appear above.","วาร์ปไปใกล้ Mr. Richard ก่อนขอราคาและขาย ระบบเก็บไข่จะรอระหว่างขาย แล้วทำต่อโดยไม่เว้นครึ่งวินาทีระหว่างเป้าหมายไข่ หากเกมไม่อนุมัติจะแสดงเหตุผลด้านบน")})
     local playerTab=window:CreateTab({Name=t("Player","ผู้เล่น"),Icon="user",Backdrop=false})
     local movement=playerTab:CreateGroupbox({Name=t("Movement","การเคลื่อนที่"),Side="Left"})
     toggle(movement,"SpeedEnabled","Enable Walk Speed","เปิดปรับความเร็วเดิน",core.SetSpeed)
@@ -246,7 +246,7 @@ buildUI=function()
     discordLogo:CreateImage({Name="Discord",Image="https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/discord-logo.png",Height=140,ScaleType="Fit"})
     local info=window:CreateTab({Name=t("Info","ข้อมูล"),Icon="info",Backdrop=false})
     local about=info:CreateGroupbox({Name="DEVIL HUB",Side="Left"})
-    about:CreateLabel({Text=t("Aqua Auto Egg - release 10","ระบบเก็บไข่ Aqua - เวอร์ชัน 10")})
+    about:CreateLabel({Text=t("Aqua Auto Egg - release 11","ระบบเก็บไข่ Aqua - เวอร์ชัน 11")})
     about:CreateParagraph({Name=t("Diagnostics","ตรวจปัญหา"),Content=t("Save report and send DevilAquaAutoEgg-report.json if an auto action fails.","หากระบบค้าง กดบันทึกรายงานแล้วส่งไฟล์ DevilAquaAutoEgg-report.json")})
     about:CreateButton({Name=t("Unload","ปิดสคริปต์"),Callback=controller.Destroy})
     local boundWindow=window
@@ -265,7 +265,7 @@ return function(config,onStatus)
     local requests=assert(RS:WaitForChild("EggGame",15),"EggGame unavailable"):WaitForChild("Requests",15)
     local events=RS.EggGame:WaitForChild("Events",15)
     assert(requests and events,"Egg remotes unavailable")
-    local api={Config=config,Report={release="aqua-auto-egg-10",picked=0,deposited=0,hatchRequests=0,errors={},automation={}}}
+    local api={Config=config,Report={release="aqua-auto-egg-11",picked=0,deposited=0,hatchRequests=0,errors={},automation={}}}
     local active=true
     local links={}
     local hatches={}
@@ -867,7 +867,7 @@ return function(config,onStatus)
         return false
     end
     local function sellStep()
-        if farmBusy or selling then autoState("Sell","Waiting for farm or movement to finish");return end
+        if farmBusy or selling or config.Fly then autoState("Sell","Waiting for farm or movement to finish");return end
         if not next(config.SellRarities or{})then autoState("Sell","Choose fish rarities to sell");return end
         if not collectionReady then autoState("Sell","Waiting for inventory");return end
         local folder=RS:FindFirstChild("FishSellRemotes")
@@ -892,11 +892,29 @@ return function(config,onStatus)
             if not fish then autoState("Sell","No fish matching sell filters");return end
             local entry=autoState("Sell","Equipping selected fish")
             entry.fishId=fish.Id;entry.name=fish.Name;entry.rarity=fishRarity(fish)
-            entry.mode="RemoteOnly";entry.serverMessage=nil;entry.result=nil
+            entry.mode="TeleportToSeller";entry.serverMessage=nil;entry.result=nil
             touched=true;requests:FireServer("EquipFish",fish.Id)
             if not sellWait(function()return player:GetAttribute("EquippedFishId")==fish.Id end,3)then autoState("Sell","Fish equip not confirmed");return end
             controlledId=fish.Id
             if not active or not config.AutoSell or not alive()then return end
+            local booths=workspace:FindFirstChild("Booths")
+            local booth=booths and booths:FindFirstChild("SellBooth")
+            local npc=booth and booth:FindFirstChild("MR.RICHARD")
+            local target=npc and npc:FindFirstChild("HumanoidRootPart")
+            local character,_,root=alive()
+            if not target or not root then autoState("Sell","Waiting for fish seller NPC");return end
+            if(root.Position-target.Position).Magnitude>10 then
+                autoState("Sell","Teleporting to fish seller")
+                local destination=target.Position+Vector3.new(0,3,0)
+                character:PivotTo(character:GetPivot()+(destination-root.Position))
+                root.AssemblyLinearVelocity=Vector3.zero;root.AssemblyAngularVelocity=Vector3.zero
+                task.wait(.35)
+            end
+            local currentCharacter=alive()
+            entry.sellerDistance=target.Parent and(root.Position-target.Position).Magnitude or nil
+            if not active or not config.AutoSell or config.Fly or currentCharacter~=character or not target.Parent or not entry.sellerDistance or entry.sellerDistance>10 then
+                autoState("Sell","Fish seller not reached");return
+            end
             autoState("Sell","Requesting quote from current position")
             local quote=remote:InvokeServer("Quote",nil)
             if not active or not config.AutoSell then return end
@@ -911,7 +929,7 @@ return function(config,onStatus)
                 and quote.name==fish.Name and(quoteId==nil or quoteId==fish.Id)
                 and tonumber(quote.kg)and tonumber(current and current.Kg)
                 and math.abs(quote.kg-current.Kg)<.01 and tostring(quote.mutation or"")==tostring(current.Mutation or"")
-            if not matches or config.KeepBest~=keepBestAtStart or not alive()or not canSell(current,bestId)or player:GetAttribute("EquippedFishId")~=fish.Id then
+            if not matches or config.Fly or config.KeepBest~=keepBestAtStart or not alive()or not target.Parent or(root.Position-target.Position).Magnitude>10 or not canSell(current,bestId)or player:GetAttribute("EquippedFishId")~=fish.Id then
                 autoState("Sell","Quote or fish changed; sale cancelled");return
             end
             entry.requests+=1
@@ -1034,7 +1052,9 @@ return function(config,onStatus)
                 farmBusy=false
                 if not ok then stopMotion();logError(err);status("Retrying after error; check report");task.wait(2)end
             end
-            task.wait(.5)
+            -- Check newly available eggs on the next frame rather than waiting
+            -- half a second between successful farm steps.
+            task.wait(config.Farm and .03 or .1)
         end
     end)
     for _,job in ipairs({{"AutoDaily","Daily",30,dailyStep},{"AutoGift","Gift",30,giftStep},{"AutoLuck","Luck",5,luckStep},{"EquipBest","Equip",10,equipStep},{"AutoSell","Sell",5,sellStep}})do
