@@ -64,7 +64,7 @@ return function(config,onStatus)
     local requests=assert(RS:WaitForChild("EggGame",15),"EggGame unavailable"):WaitForChild("Requests",15)
     local events=RS.EggGame:WaitForChild("Events",15)
     assert(requests and events,"Egg remotes unavailable")
-    local api={Config=config,Report={release="aqua-auto-egg-4",picked=0,deposited=0,hatchRequests=0,errors={}}}
+    local api={Config=config,Report={release="aqua-auto-egg-5",picked=0,deposited=0,hatchRequests=0,errors={}}}
     local active=true
     local links={}
     local hatches={}
@@ -242,8 +242,11 @@ return function(config,onStatus)
             end
         end
         local side=Vector3.new(front.Z,0,-front.X)
-        for _,direction in ipairs({front,side,side*-1,front*-1})do
-            local destination=point+direction*radius+Vector3.new(0,1,0)
+        local destinations={}
+        for _,direction in ipairs({front,side,side*-1,front*-1,(front+side).Unit,(front-side).Unit,((front+side)*-1).Unit,((front-side)*-1).Unit})do
+            destinations[#destinations+1]=point+direction*radius+Vector3.new(0,1,0)
+        end
+        for _,destination in ipairs(destinations)do
             local free=true
             if workspace.GetPartBoundsInBox then
                 local params=OverlapParams.new();params.FilterType=Enum.RaycastFilterType.Exclude
@@ -255,6 +258,30 @@ return function(config,onStatus)
             if free then return destination end
         end
         return nil
+    end
+    local function returnDeposit()
+        local default=nearestDeposit()
+        if not config.Teleport then return default end
+        local character,_,root=alive();local pot=ownPot()
+        if not character or not pot then return end
+        local best,bestDistance
+        local scan={candidates=0,blocked=0}
+        api.Report.returnScan=scan
+        for _,prompt in ipairs(pot:GetDescendants())do
+            if prompt:IsA("ProximityPrompt")and prompt.Name=="DepositSeaEgg"and availableDeposit(prompt,false)then
+                local point=promptPosition(prompt)
+                if point then
+                    scan.candidates+=1
+                    local destination=teleportDestination(prompt,point,character)
+                    if destination then
+                        local distance=(root.Position-destination).Magnitude
+                        if not bestDistance or distance<bestDistance then best,bestDistance=prompt,distance end
+                    else scan.blocked+=1 end
+                end
+            end
+        end
+        if best then scan.selectedSlot=hatchInteraction(best):GetAttribute("HatchSlot")end
+        return best
     end
     local function travel(prompt,check,allowDisabled)
         stopMotion()
@@ -397,8 +424,13 @@ return function(config,onStatus)
             api.Report.phase="Returning carried egg"
             api.Report.target=nil
             api.Report.returnStartedAt=now()
-            local deposit=nearestDeposit()
-            if not deposit then status(noDepositStatus());return end
+            local deposit=returnDeposit()
+            if not deposit then
+                if api.Report.returnScan and api.Report.returnScan.candidates>0 then
+                    status("Holding egg: all empty hatch approaches blocked; save report")
+                else status(noDepositStatus())end
+                return
+            end
             status("Returning carried egg to your pot")
             local arrived,err=travel(deposit,function()return carried()==id and availableDeposit(deposit,false)end,true)
             if not arrived then status(err);return end
@@ -442,11 +474,17 @@ return function(config,onStatus)
             retryEgg[eggId]=now()+30;selected=nil;status(err);return
         end
         if not active or not config.Farm or carried()then return end
-        activate(prompt,function()return carried()==eggId end)
-        if waitFor(function()return carried()==eggId end,5)then
+        activate(prompt,function()return carried()~=nil end)
+        if waitFor(function()return carried()~=nil end,5)then
+            local heldId=carried()
+            api.Report.pickup={requestedEggId=eggId,carriedEggId=heldId,idChanged=heldId~=eggId}
             api.Report.picked+=1;api.Report.pickupConfirmedAt=now();status("Egg pickup confirmed - returning now")
-            selected=nil;returnEgg(eggId);return
-        else retryEgg[eggId]=now()+20;status("Pickup unconfirmed; trying another egg")end
+            selected=nil;returnEgg(heldId);return
+        else
+            retryEgg[eggId]=now()+20
+            api.Report.pickup={requestedEggId=eggId,hasSeaEgg=player:GetAttribute("HasSeaEgg"),eggEquipped=player:GetAttribute("EggEquipped"),confirmed=false}
+            status("Pickup unconfirmed: no CarriedEggId received; save report")
+        end
         selected=nil
     end
     links[#links+1]=events.OnClientEvent:Connect(function(kind,data)
@@ -567,7 +605,7 @@ end
     filters:CreateParagraph({Name="Selection",Content="Choose the egg types you want above. Highest Luck prioritizes the highest EggLuck among allowed wild eggs. If your chosen types are absent, farm waits. Collected eggs return immediately to a clear position outside your hatch cabinet."})
     local info=window:CreateTab({Name="Info",Icon="info",Backdrop=false})
     local about=info:CreateGroupbox({Name="DEVIL HUB",Side="Left"})
-    about:CreateLabel({Text="Aqua Auto Egg - test release 4 / Fast Return"})
+    about:CreateLabel({Text="Aqua Auto Egg - test release 5 / Return Fix"})
     about:CreateLabel({Text="Place: 104050046639813"})
     about:CreateParagraph({Name="Diagnostics",Content="Use Save Farm Report and send DevilAquaAutoEgg-report.json if movement or prompts fail."})
     about:CreateButton({Name="Unload",Callback=controller.Destroy})
