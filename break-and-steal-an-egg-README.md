@@ -564,3 +564,18 @@ flight, bank/entrance handoff, target locking and two-layer VM startup are retai
 Gameplay regressions verify the updated bound and eight hops for the test's
 400-stud route within arrival tolerance; transport/router checks pass.
 Live server acceptance of the revised pacing is still unverified.
+
+
+## Reliable post-Carry entrance handoff (break-carry-entrance-handoff-17)
+
+Post-bank Auto Egg entrance return is now independent of the initial entrance
+toggle. Carry tracks bank attempts and queues return when Carrying has cleared
+on release, including a travel/arrival early return. Successful delivery releases
+movement ownership immediately. Carry waits for the queued entrance step before
+scanning another animal, so a new pickup cannot continually overtake it.
+
+Carry-only mode does not teleport. The initial entrance toggle still controls
+Auto Egg enable behavior. Gameplay checks include initial teleport disabled
+during actual pickup/bank/entrance/hit handoff, retained toggles, single return,
+filters, target locking, 50-stud/0.4-second approach, damage/respawn/cleanup and
+two-VM/router transport. Live verification is pending.
