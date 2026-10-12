@@ -64,7 +64,7 @@ return function(config,onStatus)
     local requests=assert(RS:WaitForChild("EggGame",15),"EggGame unavailable"):WaitForChild("Requests",15)
     local events=RS.EggGame:WaitForChild("Events",15)
     assert(requests and events,"Egg remotes unavailable")
-    local api={Config=config,Report={release="aqua-auto-egg-1",picked=0,deposited=0,hatchRequests=0,errors={}}}
+    local api={Config=config,Report={release="aqua-auto-egg-2",picked=0,deposited=0,hatchRequests=0,errors={}}}
     local active=true
     local links={}
     local hatches={}
@@ -119,19 +119,55 @@ return function(config,onStatus)
         end
         return true -- PlayerPot itself is a player attribute supplied by the game.
     end
-    local function nearestDeposit()
+    local function hatchInteraction(prompt)
+        local object=prompt and prompt.Parent
+        local pot=ownPot()
+        while object and object~=pot and object~=workspace do
+            if object:GetAttribute("HatchSlot")~=nil then return object end
+            object=object.Parent
+        end
+        return prompt and prompt.Parent
+    end
+    local function availableDeposit(prompt,requireEnabled)
+        if not prompt or not prompt.Parent or not ownPrompt(prompt)then return false end
+        local interaction=hatchInteraction(prompt)
+        local state=interaction and interaction:GetAttribute("Status")
+        -- Enabled is an interaction gate; the game may disable deposits until
+        -- the player carries an egg. Empty is the slot capacity signal.
+        local empty=state=="Empty"or(state==nil and prompt.Enabled)
+        return empty and(not requireEnabled or prompt.Enabled)
+    end
+    local function nearestDeposit(requireEnabled)
         local _,_,root=alive()
         local pot=ownPot()
+        local scan={playerPot=player:GetAttribute("PlayerPot"),potFound=pot~=nil,prompts=0,owned=0,empty=0,enabled=0,slots={}}
+        api.Report.slotScan=scan
         if not root or not pot then return end
         local best,distance
         for _,node in ipairs(pot:GetDescendants())do
-            if node:IsA("ProximityPrompt")and node.Name=="DepositSeaEgg"and node.Enabled and ownPrompt(node)then
-                local point=promptPosition(node)
-                local d=point and(root.Position-point).Magnitude
-                if d and(not distance or d<distance)then best,distance=node,d end
+            if node:IsA("ProximityPrompt")and node.Name=="DepositSeaEgg"then
+                scan.prompts+=1
+                if node.Enabled then scan.enabled+=1 end
+                local interaction=hatchInteraction(node)
+                local state=interaction and interaction:GetAttribute("Status")
+                local owned=ownPrompt(node)
+                if owned then scan.owned+=1;if state=="Empty"then scan.empty+=1 end end
+                scan.slots[#scan.slots+1]={slot=interaction and interaction:GetAttribute("HatchSlot"),status=state,enabled=node.Enabled,owned=owned,owner=interaction and interaction:GetAttribute("OwnerUserId")}
+                if availableDeposit(node,requireEnabled)then
+                    local point=promptPosition(node)
+                    local d=point and(root.Position-point).Magnitude
+                    if d and(not distance or d<distance)then best,distance=node,d end
+                end
             end
         end
         return best
+    end
+    local function noDepositStatus()
+        local scan=api.Report.slotScan or{}
+        if not scan.potFound then return "Waiting for your PlayerPot to load"end
+        if scan.prompts==0 then return "Waiting for hatch rack / deposit prompts to load"end
+        if scan.owned==0 then return "No owned deposit slots found; save report"end
+        return "No empty hatch slot; waiting for hatch completion"
     end
     local function pickupPrompt(model)
         for _,node in ipairs(model:GetDescendants())do
@@ -186,7 +222,7 @@ return function(config,onStatus)
             if remote then pcall(remote.FireServer,remote,Vector3.zero)end
         end
     end
-    local function travel(prompt,check)
+    local function travel(prompt,check,allowDisabled)
         stopMotion()
         local character,humanoid,root=alive()
         if not root then return false,"Waiting for character"end
@@ -229,7 +265,7 @@ return function(config,onStatus)
         while active and config.Farm and motion==token do
             local c,h=alive()
             if c~=character or h~=humanoid then break end
-            if not prompt.Parent or not prompt.Enabled or(check and not check())then break end
+            if not prompt.Parent or(not prompt.Enabled and not allowDisabled)or(check and not check())then break end
             point=promptPosition(prompt)
             if not point then break end
             direction=point-root.Position
@@ -278,12 +314,16 @@ return function(config,onStatus)
         if id then
             selected=nil
             local deposit=nearestDeposit()
-            if not deposit then status("Waiting for a free hatch slot at your pot");return end
+            if not deposit then status(noDepositStatus());return end
             status("Returning carried egg to your pot")
-            local arrived,err=travel(deposit,function()return carried()==id and ownPrompt(deposit)end)
+            local arrived,err=travel(deposit,function()return carried()==id and availableDeposit(deposit,false)end,true)
             if not arrived then status(err);return end
             if not active or not config.Farm or carried()~=id then return end
-            local interaction=deposit.Parent
+            if not waitFor(function()return deposit.Parent and deposit.Enabled end,3)then
+                status("At empty hatch slot, but DepositSeaEgg is disabled; save report");return
+            end
+            if not active or not config.Farm or carried()~=id or not availableDeposit(deposit,true)then return end
+            local interaction=hatchInteraction(deposit)
             local slot=interaction and interaction:GetAttribute("HatchSlot")
             local oldStatus=interaction and interaction:GetAttribute("Status")
             local previousEntry
@@ -303,7 +343,7 @@ return function(config,onStatus)
             else status("Deposit unconfirmed; check hatch state before retry");task.wait(2)end
             return
         end
-        if not nearestDeposit()then status("Hatch slots full; waiting before collecting another egg");return end
+        if not nearestDeposit()then status(noDepositStatus());return end
         if not eligible(selected)then selected=chooseEgg()end
         if not selected then status("Waiting for an available egg matching your filters");return end
         local model=selected;local eggId=model:GetAttribute("EggId");local prompt=pickupPrompt(model)
@@ -336,6 +376,8 @@ return function(config,onStatus)
         end
     end
     function api.SaveReport()
+        nearestDeposit()
+        api.Report.player={userId=player.UserId,carriedEggId=carried(),hasSeaEgg=player:GetAttribute("HasSeaEgg"),eggEquipped=player:GetAttribute("EggEquipped"),riding=player:GetAttribute("MilkfishRiding")}
         if type(writefile)=="function"then pcall(function()
             writefile("DevilAquaAutoEgg-report.json",game:GetService("HttpService"):JSONEncode(api.Report))
         end)end
@@ -428,7 +470,7 @@ end
     filters:CreateParagraph({Name="Selection",Content="The selected egg remains the target until it is collected, disappears, becomes unavailable, or no longer matches your filters."})
     local info=window:CreateTab({Name="Info",Icon="info",Backdrop=false})
     local about=info:CreateGroupbox({Name="DEVIL HUB",Side="Left"})
-    about:CreateLabel({Text="Aqua Auto Egg - test release 1"})
+    about:CreateLabel({Text="Aqua Auto Egg - test release 2"})
     about:CreateLabel({Text="Place: 104050046639813"})
     about:CreateParagraph({Name="Diagnostics",Content="Use Save Farm Report and send DevilAquaAutoEgg-report.json if movement or prompts fail."})
     about:CreateButton({Name="Unload",Callback=controller.Destroy})
