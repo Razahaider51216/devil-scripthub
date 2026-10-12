@@ -64,7 +64,7 @@ return function(config,onStatus)
     local requests=assert(RS:WaitForChild("EggGame",15),"EggGame unavailable"):WaitForChild("Requests",15)
     local events=RS.EggGame:WaitForChild("Events",15)
     assert(requests and events,"Egg remotes unavailable")
-    local api={Config=config,Report={release="aqua-auto-egg-5",picked=0,deposited=0,hatchRequests=0,errors={}}}
+    local api={Config=config,Report={release="aqua-auto-egg-6",picked=0,deposited=0,hatchRequests=0,errors={}}}
     local active=true
     local links={}
     local hatches={}
@@ -73,6 +73,8 @@ return function(config,onStatus)
     local selected
     local motion
     local heldPrompt
+    local collisionProbe
+    local returnedHomeId
     local lastEquip=-math.huge
     local now=os.clock
     local function status(text)
@@ -228,6 +230,7 @@ return function(config,onStatus)
         end
     end
     local function teleportDestination(prompt,point,character)
+        if prompt.Name=="SpawnPlayer"then return point+Vector3.new(0,3,0)end
         if prompt.Name~="DepositSeaEgg"then return point+Vector3.new(0,math.min(3,prompt.MaxActivationDistance*.25),0)end
         -- Stand outside the cabinet, still within its activation radius.
         local radius=math.max(2,math.min(7,prompt.MaxActivationDistance-2))
@@ -251,8 +254,36 @@ return function(config,onStatus)
             if workspace.GetPartBoundsInBox then
                 local params=OverlapParams.new();params.FilterType=Enum.RaycastFilterType.Exclude
                 params.FilterDescendantsInstances={character}
-                for _,part in ipairs(workspace:GetPartBoundsInBox(CFrame.new(destination),Vector3.new(3.5,5,3.5),params))do
-                    if part.CanCollide then free=false;break end
+                params.RespectCanCollide=true
+                local root=character:FindFirstChild("HumanoidRootPart")
+                params.CollisionGroup=root and root.CollisionGroup or"Default"
+                local parts=workspace:GetPartBoundsInBox(CFrame.new(destination),Vector3.new(3.5,5,3.5),params)
+                -- Mesh bounding boxes can cover empty space. Confirm against
+                -- actual collision geometry instead of rejecting their bounds.
+                if #parts>0 and workspace.GetPartsInPart and Instance and Instance.new then
+                    local ok,result=pcall(function()
+                        if not collisionProbe then
+                            collisionProbe=Instance.new("Part")
+                            collisionProbe.Name="DevilAquaLandingProbe";collisionProbe.Anchored=true
+                            collisionProbe.CanCollide=false;collisionProbe.CanTouch=false;collisionProbe.CanQuery=false
+                            collisionProbe.Transparency=1;collisionProbe.Size=Vector3.new(3.5,5,3.5)
+                        end
+                        collisionProbe.CFrame=CFrame.new(destination);collisionProbe.Parent=workspace
+                        params.FilterDescendantsInstances={character,collisionProbe}
+                        return workspace:GetPartsInPart(collisionProbe,params)
+                    end)
+                    if ok then parts=result else api.Report.approachQueryError=tostring(result)end
+                end
+                for _,part in ipairs(parts)do
+                    if part.CanCollide then
+                        free=false
+                        local blockers=api.Report.approachBlockers or{}
+                        api.Report.approachBlockers=blockers
+                        if #blockers<12 then
+                            blockers[#blockers+1]={part=part.GetFullName and part:GetFullName()or part.Name or"Unknown",class=part.ClassName,collisionGroup=part.CollisionGroup,at={x=destination.X,y=destination.Y,z=destination.Z}}
+                        end
+                        break
+                    end
                 end
             end
             if free then return destination end
@@ -424,10 +455,27 @@ return function(config,onStatus)
             api.Report.phase="Returning carried egg"
             api.Report.target=nil
             api.Report.returnStartedAt=now()
+            -- Returning home must not depend on finding a clear hatch approach.
+            -- SpawnPlayer is the game's own spawn marker under the owned pot.
+            if config.Teleport and returnedHomeId~=id then
+                local pot=ownPot()
+                local spawn=pot and pot:FindFirstChild("SpawnPlayer",true)
+                if spawn and spawn:IsA("BasePart")then
+                    status("Returning egg to your home spawn")
+                    local waypoint={Name="SpawnPlayer",Parent=spawn,Enabled=true,MaxActivationDistance=10}
+                    local arrived,err=travel(waypoint,function()return carried()==id end,true)
+                    api.Report.homeReturn={eggId=id,arrived=arrived,marker="SpawnPlayer",message=err}
+                    if not arrived then status(err);return end
+                    returnedHomeId=id
+                else
+                    api.Report.homeReturn={eggId=id,arrived=false,message="Owned pot SpawnPlayer is not loaded"}
+                end
+            end
+            api.Report.approachBlockers={}
             local deposit=returnDeposit()
             if not deposit then
                 if api.Report.returnScan and api.Report.returnScan.candidates>0 then
-                    status("Holding egg: all empty hatch approaches blocked; save report")
+                    status(returnedHomeId==id and"Returned home with egg; hatch approaches blocked - save report"or"Holding egg: all empty hatch approaches blocked; save report")
                 else status(noDepositStatus())end
                 return
             end
@@ -455,7 +503,7 @@ return function(config,onStatus)
             end
             activate(deposit,confirmed)
             if waitFor(confirmed,5)then
-                api.Report.deposited+=1;status("Egg deposited: "..api.Report.deposited)
+                returnedHomeId=nil;api.Report.deposited+=1;status("Egg deposited: "..api.Report.deposited)
             else status("Deposit unconfirmed; check hatch state before retry");task.wait(2)end
             return
     end
@@ -463,6 +511,7 @@ return function(config,onStatus)
         if not alive()then selected=nil;status("Waiting for character");return end
         local id=carried()
         if id then returnEgg(id);return end
+        returnedHomeId=nil
         if not nearestDeposit()then status(noDepositStatus());return end
         if not eligible(selected)then selected=chooseEgg()end
         if not selected then status("Waiting for an available egg matching your filters");return end
@@ -519,6 +568,7 @@ return function(config,onStatus)
         if not active then return end
         api.SetFarm(false);active=false
         for _,link in ipairs(links)do link:Disconnect()end
+        if collisionProbe then collisionProbe:Destroy();collisionProbe=nil end
         api.SaveReport()
     end
     -- Pure selection helpers exposed for diagnostics and offline regression.
@@ -565,7 +615,7 @@ end
         config.Hatch=false;config.EquipBest=false;equipToggle:Set(false,true);hatchToggle:Set(false,true);farmToggle:Set(false,true);core.SetFarm(false)
     end})
     farm:CreateButton({Name="Save Farm Report",Callback=function()core.SaveReport()end})
-    farm:CreateParagraph({Name="First run",Content="Auto teleports near the selected egg, waits for pickup confirmation, then teleports back to an empty hatch slot at your pot. Farm pauses when your hatch slots are full. Save the report if the game moves you away or rejects a prompt."})
+    farm:CreateParagraph({Name="First run",Content="Auto collects the selected egg, returns to SpawnPlayer at your own home, then approaches an empty hatch slot from outside the cabinet. If every hatch approach is blocked, it waits at home with the egg. Save the report if deposit fails."})
     -- Keep rare types selectable even when none have spawned yet.
     local tiers={"Common","Coral","Reef","Deep","Tidal","Abyss","Sovereign","Trench","CoralReef","GlacialSpiral","AmethystSpiral","AzureCrown","SolarOrbit","KrakenGlory","Celestial","Eternal","Abuseall1","Abuseall2","Abuseall3","Abuseall4","Abuseall5","Abuseall6"}
     local seen={};for _,tier in ipairs(tiers)do seen[tier]=true end
@@ -602,10 +652,10 @@ end
     filters:CreateInput({Name="Minimum KG",CurrentValue="0",Numeric=true,Callback=function(value)minimum("MinKg",value)end})
     filters:CreateInput({Name="Minimum Egg Luck",CurrentValue="0",Numeric=true,Callback=function(value)minimum("MinLuck",value)end})
     filters:CreateToggle({Name="Include Dropped Eggs",CurrentValue=true,Callback=function(value)config.Dropped=value end})
-    filters:CreateParagraph({Name="Selection",Content="Choose the egg types you want above. Highest Luck prioritizes the highest EggLuck among allowed wild eggs. If your chosen types are absent, farm waits. Collected eggs return immediately to a clear position outside your hatch cabinet."})
+    filters:CreateParagraph({Name="Selection",Content="Choose the egg types you want above. Highest Luck prioritizes the highest EggLuck among allowed wild eggs. If your chosen types are absent, farm waits. Collected eggs return to your home spawn before approaching a hatch cabinet."})
     local info=window:CreateTab({Name="Info",Icon="info",Backdrop=false})
     local about=info:CreateGroupbox({Name="DEVIL HUB",Side="Left"})
-    about:CreateLabel({Text="Aqua Auto Egg - test release 5 / Return Fix"})
+    about:CreateLabel({Text="Aqua Auto Egg - test release 6 / Home Return"})
     about:CreateLabel({Text="Place: 104050046639813"})
     about:CreateParagraph({Name="Diagnostics",Content="Use Save Farm Report and send DevilAquaAutoEgg-report.json if movement or prompts fail."})
     about:CreateButton({Name="Unload",Callback=controller.Destroy})
