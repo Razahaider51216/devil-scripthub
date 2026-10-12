@@ -24,7 +24,8 @@ Every public protected artifact retains its copyright and license notice.
 The private source, compiler, build scripts, opcode map and tests stay local.
 
 Ride A Fish now routes through the main loader to the pinned, protected
-`aqua-auto-egg-14` entry. Its selling UI and seller requests have been removed.
+`aqua-auto-egg-15` entry. Its selling UI and seller requests have been removed.
+Auto Rebirth checks fresh server requirements and confirms the resulting count.
 The Aqua VM covers startup; farm and GUI callbacks execute natively.
 
 Offline checks cover native compiler boundaries, exact source bytes,
