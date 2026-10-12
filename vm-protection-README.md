@@ -1,6 +1,6 @@
 # Protection and native execution ? silver-native-1
 
-The eight production router/map/dependency files retain a VM-protected startup
+The nine production router/map/dependency files retain a VM-protected startup
 boundary with the existing randomized opcode/handler mapping. Protected startup
 unpacks a checksummed source payload and calls the native Luau compiler. The
 outer and inner transport decoders run natively, yield between chunks, and keep
@@ -23,7 +23,11 @@ Modified Fiu is pinned to 6cc8887847cf336073e5a8017330d3988844a62f, under MIT.
 Every public protected artifact retains its copyright and license notice.
 The private source, compiler, build scripts, opcode map and tests stay local.
 
-Offline checks cover all eight native compiler boundaries, exact source bytes,
-checksums, argument/return holes and yielding. Router tests cover all five maps;
+Ride A Fish now routes through the main loader to the pinned, protected
+`aqua-auto-egg-14` entry. Its selling UI and seller requests have been removed.
+The Aqua VM covers startup; farm and GUI callbacks execute natively.
+
+Offline checks cover native compiler boundaries, exact source bytes,
+checksums, argument/return holes and yielding. Router tests cover all six maps;
 the actual Loot host and its native embedded gameplay initialize and unload in
 mocks. These tests do not measure live Roblox/Delta FPS.
