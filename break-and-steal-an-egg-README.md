@@ -540,3 +540,16 @@ completion, removed/zero-health targets, a larger spawn during walking and the
 existing filter/carry/lifecycle checks. Two VM startup layers, shared loading
 screen and public router transport are preserved and verified. Live validation
 remains pending.
+
+
+## Faster fixed animal approach (break-carry-fast-approach-15)
+
+Selected-animal approach now uses hops of at most 60 studs with a 0.1-second
+pause, replacing 20 studs / 0.25 seconds. No approach controls are added.
+Filter checks, correction detection, damage/physics interruption and retry
+remain between hops; pickup confirmation and the existing return flight are
+unchanged. Auto Egg target locking and the bank-to-entrance handoff are retained.
+
+The 400-stud approach mock now completes in seven hops. Full gameplay, filter,
+locked-target, return, cleanup and two-VM transport/router checks pass. These
+checks do not establish server acceptance or live pickup timing.
