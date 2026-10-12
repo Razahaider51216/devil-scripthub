@@ -7,7 +7,7 @@ local player = Players.LocalPlayer
 assert(game.PlaceId == 104050046639813, "This script is for Ride A Fish (104050046639813)")
 local env = (getgenv and getgenv()) or _G
 if env.DevilFishDevCommands then env.DevilFishDevCommands.Destroy() end
-local report = {release="fish-dev-requests-1", placeId=game.PlaceId, attempts={}}
+local report = {release="fish-dev-requests-2", placeId=game.PlaceId, attempts={}}
 local connections, alive, busy = {}, true, false
 local function safe(value, depth)
     depth = depth or 0
@@ -40,9 +40,28 @@ local gui=Instance.new("ScreenGui")
 gui.Name="DevilFishDevCommands"; gui.ResetOnSpawn=false
 gui.Parent=player:WaitForChild("PlayerGui")
 local frame=Instance.new("Frame")
-frame.Size=UDim2.fromOffset(370,450); frame.Position=UDim2.new(.5,-185,.5,-225)
+frame.Size=UDim2.fromOffset(370,450)
+frame.AnchorPoint=Vector2.new(.5,.5); frame.Position=UDim2.fromScale(.5,.5)
 frame.BackgroundColor3=Color3.fromRGB(25,18,23); frame.Parent=gui
 Instance.new("UICorner",frame).CornerRadius=UDim.new(0,14)
+local uiScale=Instance.new("UIScale",frame)
+local viewportConnection
+local function resize()
+    local camera=workspace.CurrentCamera
+    if not camera then return end
+    local viewport=camera.ViewportSize
+    uiScale.Scale=math.min(1,math.max(1,viewport.X-24)/370,math.max(1,viewport.Y-60)/450)
+end
+local function bindCamera()
+    if viewportConnection then viewportConnection:Disconnect(); viewportConnection=nil end
+    local camera=workspace.CurrentCamera
+    if camera then
+        viewportConnection=camera:GetPropertyChangedSignal("ViewportSize"):Connect(resize)
+    end
+    resize()
+end
+table.insert(connections,workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(bindCamera))
+bindCamera()
 local function text(class, label, y, height)
     local item=Instance.new(class)
     item.Size=UDim2.new(1,-24,0,height or 32); item.Position=UDim2.fromOffset(12,y)
@@ -149,6 +168,7 @@ close.Text="×"; close.Parent=frame
 local api={Report=report}
 function api.Destroy()
     alive=false
+    if viewportConnection then viewportConnection:Disconnect(); viewportConnection=nil end
     for _,c in ipairs(connections) do c:Disconnect() end
     gui:Destroy()
     if env.DevilFishDevCommands==api then env.DevilFishDevCommands=nil end
