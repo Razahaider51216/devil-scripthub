@@ -1,4 +1,4 @@
--- DEVIL HUB / Aqua Auto Egg test. Original game movement and prompt interactions.
+-- DEVIL HUB / Aqua Auto Egg test. Teleport collection and game prompt interactions.
 assert(game.PlaceId==104050046639813,"Open the Aqua map (Place 104050046639813) first.")
 local scope=type(getgenv)=="function"and getgenv()or _G
 if scope.DevilAquaAutoEgg then scope.DevilAquaAutoEgg.Destroy()end
@@ -20,7 +20,7 @@ local function logo()
     end
     return image
 end
-local config={Farm=false,Hatch=false,EquipBest=false,Tiers={},MinKg=0,MinLuck=0,Order="Nearest",Dropped=true}
+local config={Farm=false,Hatch=false,EquipBest=false,Tiers={},MinKg=0,MinLuck=0,Order="Nearest",Dropped=true,Teleport=true}
 local function fetch(url,label)
     local problem
     for attempt=1,3 do
@@ -64,7 +64,7 @@ return function(config,onStatus)
     local requests=assert(RS:WaitForChild("EggGame",15),"EggGame unavailable"):WaitForChild("Requests",15)
     local events=RS.EggGame:WaitForChild("Events",15)
     assert(requests and events,"Egg remotes unavailable")
-    local api={Config=config,Report={release="aqua-auto-egg-2",picked=0,deposited=0,hatchRequests=0,errors={}}}
+    local api={Config=config,Report={release="aqua-auto-egg-3",picked=0,deposited=0,hatchRequests=0,errors={}}}
     local active=true
     local links={}
     local hatches={}
@@ -231,7 +231,7 @@ return function(config,onStatus)
         if not point then return false,"Target disappeared"end
         -- Ground movement uses the normal humanoid. Underwater steering uses
         -- the existing ride controller's GetMoveVector input and camera direction.
-        if not riding and point.Y<root.Position.Y-15 then return false,"Mount a fish to reach underwater eggs"end
+        if not config.Teleport and not riding and point.Y<root.Position.Y-15 then return false,"Mount a fish to reach underwater eggs"end
         local token={humanoid=humanoid,root=root,bindName="DevilAquaEggMovement"}
         motion=token
         local ok,module=pcall(function()return require(player.PlayerScripts:WaitForChild("PlayerModule",5))end)
@@ -241,11 +241,47 @@ return function(config,onStatus)
             token.originalMove=token.controls.GetMoveVector
             token.controls:Disable()
             token.override=function(self,...)
-                if motion==token then return player:GetAttribute("MilkfishRiding")==true and Vector3.new(0,0,-1)or Vector3.zero end
+                if motion==token then return not config.Teleport and player:GetAttribute("MilkfishRiding")==true and Vector3.new(0,0,-1)or Vector3.zero end
                 return token.originalMove(self,...)
             end
             token.controls.GetMoveVector=token.override
-        elseif riding then stopMotion();return false,"Ride controls unavailable"end
+        elseif riding and not config.Teleport then stopMotion();return false,"Ride controls unavailable"end
+        if config.Teleport then
+            local function coordinates(v)return {x=v.X,y=v.Y,z=v.Z}end
+            local record={mode="Teleport",prompt=prompt.Name,from=coordinates(root.Position),target=coordinates(point),stage="Starting"}
+            api.Report.travel=record
+            if riding then
+                local remote=RS:FindFirstChild("MilkfishRideInput")
+                if remote then pcall(remote.FireServer,remote,Vector3.zero)end
+            end
+            for attempt=1,2 do
+                if not active or not config.Farm or motion~=token then break end
+                local c,h=alive()
+                if c~=character or h~=humanoid or not prompt.Parent or(check and not check())then break end
+                if not prompt.Enabled and not allowDisabled then break end
+                point=promptPosition(prompt)
+                if not point then break end
+                record.attempt=attempt;record.stage="Settling"
+                status("Teleporting to "..prompt.Name)
+                local destination=point+Vector3.new(0,math.min(3,prompt.MaxActivationDistance*.25),0)
+                character:PivotTo(character:GetPivot()+(destination-root.Position))
+                root.AssemblyLinearVelocity=Vector3.zero;root.AssemblyAngularVelocity=Vector3.zero
+                task.wait(.35)
+                c,h=alive()
+                if not active or not config.Farm or motion~=token or c~=character or h~=humanoid then break end
+                if not prompt.Parent or(check and not check())then break end
+                point=promptPosition(prompt)
+                if not point then break end
+                record.actual=coordinates(root.Position);record.distance=(root.Position-point).Magnitude
+                if record.distance<=math.max(2,prompt.MaxActivationDistance-2)then
+                    record.stage="Arrived";stopMotion();return true
+                end
+                record.stage="Position corrected or moved away"
+            end
+            stopMotion()
+            if not active or not config.Farm then record.stage="Cancelled";return false,"Teleport cancelled"end
+            return false,"Teleport did not stay near target; save farm report"
+        end
         local direction=Vector3.zero
         if riding then
             local camera=workspace.CurrentCamera
@@ -291,12 +327,15 @@ return function(config,onStatus)
         local point=promptPosition(prompt)
         if not root or not point or not prompt.Enabled or(root.Position-point).Magnitude>prompt.MaxActivationDistance then return false end
         if prompt.Name=="DepositSeaEgg"and not ownPrompt(prompt)then return false end
+        api.Report.interaction={prompt=prompt.Name,enabled=prompt.Enabled,distance=(root.Position-point).Magnitude,stage="Holding"}
+        status("Activating "..prompt.Name)
         heldPrompt=prompt
         local ok,err=pcall(function()
             prompt:InputHoldBegin()
             task.wait(math.max(0,prompt.HoldDuration)+.15)
         end)
         pcall(prompt.InputHoldEnd,prompt);heldPrompt=nil
+        api.Report.interaction.stage=ok and"Hold ended; waiting for game confirmation"or"Prompt call failed"
         if not ok then
             if type(fireproximityprompt)=="function"then return pcall(fireproximityprompt,prompt,prompt.HoldDuration)end
             logError(err)
@@ -397,6 +436,7 @@ return function(config,onStatus)
     api.ChooseEgg=chooseEgg;api.NearestDeposit=nearestDeposit;api.Carried=carried
     task.spawn(function()
         while active do
+            api.Report.workerTick=now()
             if config.Farm then
                 local ok,err=xpcall(farmStep,debug.traceback)
                 if not ok then stopMotion();logError(err);status("Retrying after error; check report");task.wait(2)end
@@ -412,7 +452,7 @@ return function(config,onStatus)
     end)
     local ready,readyError=pcall(requests.FireServer,requests,"Ready")
     if not ready then logError(readyError)end
-    status("Ready - mount your fish before collecting underwater eggs")
+    status(config.Teleport and"Ready - teleport egg collection"or"Ready - mount your fish before collecting underwater eggs")
     return api
 end
 
@@ -436,7 +476,7 @@ end
         config.Hatch=false;config.EquipBest=false;equipToggle:Set(false,true);hatchToggle:Set(false,true);farmToggle:Set(false,true);core.SetFarm(false)
     end})
     farm:CreateButton({Name="Save Farm Report",Callback=function()core.SaveReport()end})
-    farm:CreateParagraph({Name="First run",Content="Mount your fish before starting underwater collection. Auto uses normal movement, then waits for confirmed pickup and deposit. Farm pauses when your hatch slots are full."})
+    farm:CreateParagraph({Name="First run",Content="Auto teleports near the selected egg, waits for pickup confirmation, then teleports back to an empty hatch slot at your pot. Farm pauses when your hatch slots are full. Save the report if the game moves you away or rejects a prompt."})
     local tiers={};local seen={}
     local runtime=workspace:FindFirstChild("EggRuntime")
     for _,folderName in ipairs({"WildEggs","DroppedEggs"})do
@@ -470,7 +510,7 @@ end
     filters:CreateParagraph({Name="Selection",Content="The selected egg remains the target until it is collected, disappears, becomes unavailable, or no longer matches your filters."})
     local info=window:CreateTab({Name="Info",Icon="info",Backdrop=false})
     local about=info:CreateGroupbox({Name="DEVIL HUB",Side="Left"})
-    about:CreateLabel({Text="Aqua Auto Egg - test release 2"})
+    about:CreateLabel({Text="Aqua Auto Egg - test release 3 / Teleport"})
     about:CreateLabel({Text="Place: 104050046639813"})
     about:CreateParagraph({Name="Diagnostics",Content="Use Save Farm Report and send DevilAquaAutoEgg-report.json if movement or prompts fail."})
     about:CreateButton({Name="Unload",Callback=controller.Destroy})
