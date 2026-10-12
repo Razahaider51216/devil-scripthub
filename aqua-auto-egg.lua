@@ -1,7 +1,7 @@
 assert(game.PlaceId==104050046639813,"Open Aqua / เปิดแมพ Aqua")
 local scope=type(getgenv)=="function"and getgenv()or _G
 if scope.DevilAquaAutoEgg then scope.DevilAquaAutoEgg.Destroy()end
-local config={Farm=false,Hatch=false,EquipBest=false,AutoDaily=false,AutoGift=false,AutoLuck=false,Tiers={},MinKg=0,MinLuck=0,Order="Highest Luck",Dropped=true,Teleport=true,Language=scope.DevilAquaLanguage or"TH"}
+local config={Farm=false,Hatch=false,EquipBest=false,AutoDaily=false,AutoGift=false,AutoLuck=false,Tiers={},MinKg=0,MinLuck=0,Order="Highest Luck",Dropped=true,Teleport=true,Language=scope.DevilAquaLanguage or"TH",SpeedEnabled=false,WalkSpeed=16,Fly=false,FlySpeed=50,Theme="Crimson",Width=790,Height=550,Transparent=false,HideName=false,HideAvatar=false,ToggleButton=true}
 local window,core,library,stateLabel,totalsLabel,autoLabel
 local done=false
 local controller={}
@@ -77,26 +77,59 @@ end
 scope.DevilAquaAutoEgg=controller
 local image
 local buildUI
+function controller.SetLanguage(language)
+    if done or(language~="TH"and language~="EN")or language==config.Language then return end
+    config.Language=language;scope.DevilAquaLanguage=language
+    task.defer(function()local ok,err=xpcall(buildUI,debug.traceback);if not ok then controller.Destroy();warn(err)end end)
+end
+local function headerLanguage()
+    local minimize=assert(window.MinimizeButton,"DEVIL HUB minimize button unavailable")
+    local parent=minimize.Parent
+    local theme=library.Theme
+    local button=Instance.new("TextButton")
+    button.Name="DevilLanguageButton";button.AnchorPoint=Vector2.new(1,0)
+    button.Position=minimize.Position-UDim2.fromOffset(40,0);button.Size=UDim2.fromOffset(78,34)
+    button.Text=config.Language=="TH"and"ไทย / EN"or"EN / ไทย"
+    button.TextSize=13;button.Font=Enum.Font.GothamSemibold;button.TextColor3=theme.Text
+    button.BackgroundColor3=theme.Surface2;button.BorderSizePixel=0;button.ZIndex=50
+    button:SetAttribute("NoDrag",true);button.Parent=parent
+    local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,8);corner.Parent=button
+    local list=Instance.new("Frame")
+    list.Name="DevilLanguageMenu";list.AnchorPoint=Vector2.new(1,0)
+    list.Position=button.Position+UDim2.fromOffset(0,38);list.Size=UDim2.fromOffset(100,72)
+    list.BackgroundColor3=theme.Surface2;list.BorderSizePixel=0;list.Visible=false;list.ZIndex=51
+    list:SetAttribute("NoDrag",true);list.Parent=parent
+    local round=Instance.new("UICorner");round.CornerRadius=UDim.new(0,8);round.Parent=list
+    for index,choice in ipairs({{"TH","ไทย"},{"EN","English"}})do
+        local item=Instance.new("TextButton")
+        item.Name="Language"..choice[1];item.Position=UDim2.fromOffset(4,(index-1)*34+2)
+        item.Size=UDim2.fromOffset(92,34);item.BackgroundTransparency=1
+        item.Text=choice[2];item.TextSize=13;item.Font=Enum.Font.GothamSemibold
+        item.TextColor3=config.Language==choice[1]and theme.Accent or theme.Text
+        item.ZIndex=52;item:SetAttribute("NoDrag",true);item.Parent=list
+        item.MouseButton1Click:Connect(function()list.Visible=false;controller.SetLanguage(choice[1])end)
+    end
+    button.MouseButton1Click:Connect(function()list.Visible=not list.Visible end)
+    window._controlsDirty=true
+end
 buildUI=function()
     if done then return end
     local previous=window
     stateLabel=nil;totalsLabel=nil;autoLabel=nil
-    window=library:CreateWindow({Name="DEVIL HUB",Icon=image,Theme="Crimson",Density="Compact",Profile=false,Search=false,Home=false,Loading=false,Backdrop=false,UnsupportedExecutor=false,Disclaimer=false,Size=UDim2.fromOffset(790,550),ToggleButton={Platform="Both",Icon=image},IslandDraggable=true,KeepOnScreen=true,ConfigurationSaving={Enabled=false,FolderName="DevilAqua"}})
+    window=library:CreateWindow({Name="DEVIL HUB",Icon=image,Theme=config.Theme,Density="Compact",Profile=true,Search=false,Home=false,Loading=false,Backdrop=false,UnsupportedExecutor=false,Disclaimer=false,Size=UDim2.fromOffset(config.Width,config.Height),ToggleButton={Platform="Both",Icon=image},IslandDraggable=true,KeepOnScreen=true,ConfigurationSaving={Enabled=false,FolderName="DevilAqua"}})
+    window:SetTransparent(config.Transparent);window:SetHideName(config.HideName);window:SetHideAvatar(config.HideAvatar);window:SetToggleButton(config.ToggleButton)
+    headerLanguage()
     if previous then previous:Destroy()end
     local tab=window:CreateTab({Name=t("Auto Egg","เก็บไข่อัตโนมัติ"),Icon="egg",Backdrop=false})
     local farm=tab:CreateGroupbox({Name=t("Egg Farm","ระบบเก็บไข่"),Side="Left"})
     local filters=tab:CreateGroupbox({Name=t("Egg Filters","เลือกระดับไข่"),Side="Right"})
-    farm:CreateDropdown({Name="ภาษา / Language",Options={"ไทย","English"},CurrentOption={config.Language=="TH"and"ไทย"or"English"},Callback=function(value)
-        value=type(value)=="table"and value[1]or value
-        local language=value=="English"and"EN"or"TH"
-        if language==config.Language then return end
-        config.Language=language;scope.DevilAquaLanguage=language
-        task.defer(function()local ok,err=xpcall(buildUI,debug.traceback);if not ok then controller.Destroy();warn(err)end end)
-    end})
     stateLabel=farm:CreateParagraph({Name=t("Farm status","สถานะฟาร์ม"),Content=""});totalsLabel=farm:CreateLabel({Text=""})
     local toggles={}
     local function toggle(group,flag,en,th,callback)
-        local widget=group:CreateToggle({Name=t(en,th),CurrentValue=config[flag]==true,Callback=function(value)if callback then callback(value)else config[flag]=value end end})
+        local widget=group:CreateToggle({Name=t(en,th),CurrentValue=config[flag]==true,Callback=function(value)
+            if callback then callback(value)else config[flag]=value end
+            for key,existing in pairs(toggles)do existing:Set(config[key]==true,true)end
+        end})
         toggles[flag]=widget;return widget
     end
     toggle(farm,"Farm","Auto Collect + Return Egg","เก็บไข่และกลับบ้านอัตโนมัติ",core.SetFarm)
@@ -106,12 +139,12 @@ buildUI=function()
     farm:CreateButton({Name=t("Stop All","หยุดออโต้ทั้งหมด"),Callback=function()core.StopAll();for _,widget in pairs(toggles)do widget:Set(false,true)end;refresh(core.Report.status,core.Report)end})
     farm:CreateButton({Name=t("Save Farm Report","บันทึกรายงาน"),Callback=core.SaveReport})
     farm:CreateParagraph({Name=t("Return route","เส้นทางกลับ"),Content=t("Collect egg, return to your home SpawnPlayer, then approach an empty hatch slot from outside the cabinet.","เก็บไข่แล้วกลับจุดเกิดของบ้านคุณก่อน จากนั้นไปฝากช่องว่างโดยยืนอยู่นอกตู้")})
-    local tiers={"Abuseall6","Abuseall5","Abuseall4","Abuseall3","Abuseall2","Abuseall1","KrakenGlory","SolarOrbit","AzureCrown","AmethystSpiral","GlacialSpiral","CoralReef","Eternal","Celestial","Sovereign","Trench","Abyss","Deep","Tidal","Reef","Coral","Common"}
+    local tiers={"AbuseEvent","KrakenGlory","SolarOrbit","AzureCrown","AmethystSpiral","GlacialSpiral","CoralReef","Eternal","Celestial","Sovereign","Trench","Abyss","Deep","Tidal","Reef","Coral","Common"}
     local seen={};for _,tier in ipairs(tiers)do seen[tier]=true end
     local runtime=workspace:FindFirstChild("EggRuntime")
     for _,name in ipairs({"WildEggs","DroppedEggs"})do
         local folder=runtime and runtime:FindFirstChild(name)
-        for _,model in ipairs(folder and folder:GetChildren()or{})do local tier=model:GetAttribute("EggTier");if type(tier)=="string"and not seen[tier]then seen[tier]=true;tiers[#tiers+1]=tier end end
+        for _,model in ipairs(folder and folder:GetChildren()or{})do local tier=model:GetAttribute("EggTier");if type(tier)=="string"and tier:match("^Abuseall%d+$")then tier="AbuseEvent"end;if type(tier)=="string"and not seen[tier]then seen[tier]=true;tiers[#tiers+1]=tier end end
     end
     local function selectTiers(values)
         local selected={}
@@ -128,7 +161,7 @@ buildUI=function()
     filters:CreateInput({Name=t("Minimum KG","น้ำหนักขั้นต่ำ"),CurrentValue=tostring(config.MinKg),Numeric=true,Callback=function(value)minimum("MinKg",value)end})
     filters:CreateInput({Name=t("Minimum Egg Luck","ค่าโชคไข่ขั้นต่ำ"),CurrentValue=tostring(config.MinLuck),Numeric=true,Callback=function(value)minimum("MinLuck",value)end})
     filters:CreateToggle({Name=t("Include Dropped Eggs","รวมไข่ที่ผู้เล่นทำตก"),CurrentValue=config.Dropped,Callback=function(value)config.Dropped=value end})
-    filters:CreateParagraph({Name=t("Selection","การเลือกไข่"),Content=t("Empty selection allows all types. Selected types that have not spawned are waited for. Tier names keep their game names.","ไม่เลือกระดับจะรับทุกชนิด ถ้าระดับที่เลือกยังไม่เกิด ระบบจะรอ ชื่อชนิดไข่ใช้ชื่อตามเกม")})
+    filters:CreateParagraph({Name=t("Selection","การเลือกไข่"),Content=t("AbuseEvent groups all event egg stages and searches event Rewards when present. Empty selection allows all types. An unavailable selected type is waited for.","AbuseEvent รวมไข่ทุกด่านของอีเวนต์ และตรวจไข่รางวัลเมื่ออีเวนต์เกิด ไม่เลือกระดับจะรับทุกชนิด ถ้าระดับที่เลือกยังไม่เกิด ระบบจะรอ")})
     local autoTab=window:CreateTab({Name=t("Other Auto","ระบบออโต้อื่น"),Icon="gift",Backdrop=false})
     local rewards=autoTab:CreateGroupbox({Name=t("Rewards","รับรางวัล"),Side="Left"})
     autoLabel=rewards:CreateParagraph({Name=t("Auto status","สถานะออโต้"),Content=""})
@@ -138,9 +171,50 @@ buildUI=function()
     local upgrades=autoTab:CreateGroupbox({Name=t("Upgrades","อัปเกรด"),Side="Right"})
     toggle(upgrades,"AutoLuck","Auto Upgrade Hatch Luck (uses coins)","อัปโชคฟักอัตโนมัติ (ใช้เงินในเกม)")
     upgrades:CreateParagraph({Name=t("Luck upgrade","การอัปโชค"),Content=t("When enabled, requests the maximum affordable Hatch Luck upgrade every 5 seconds using game coins.","เมื่อเปิด จะขออัปโชคฟักสูงสุดที่ซื้อไหวทุก 5 วินาที โดยใช้เงินในเกม")})
+    local playerTab=window:CreateTab({Name=t("Player","ผู้เล่น"),Icon="user",Backdrop=false})
+    local movement=playerTab:CreateGroupbox({Name=t("Movement","การเคลื่อนที่"),Side="Left"})
+    toggle(movement,"SpeedEnabled","Enable Walk Speed","เปิดปรับความเร็วเดิน",core.SetSpeed)
+    movement:CreateSlider({Name=t("Walk Speed","ความเร็วเดิน"),Range={16,200},Increment=1,CurrentValue=config.WalkSpeed,Callback=function(value)config.WalkSpeed=value end})
+    toggle(movement,"Fly","Fly","บิน",core.SetFly)
+    movement:CreateSlider({Name=t("Fly Speed","ความเร็วบิน"),Range={10,200},Increment=1,CurrentValue=config.FlySpeed,Callback=function(value)config.FlySpeed=value end})
+    movement:CreateParagraph({Name=t("Flight controls","ควบคุมการบิน"),Content=t("WASD to move, Space up, Ctrl down. Fly stops Auto Egg; starting Auto Egg stops Fly. Disabling restores normal movement.","ใช้ WASD เคลื่อนที่ Space ขึ้น Ctrl ลง การเปิดบินจะหยุดเก็บไข่ และเปิดเก็บไข่จะหยุดบิน ปิดแล้วคืนการเคลื่อนที่เดิม")})
+    local identity=playerTab:CreateGroupbox({Name=t("Profile","โปรไฟล์"),Side="Right"})
+    local player=game:GetService("Players").LocalPlayer
+    identity:CreateLabel({Text=t("Username: ","ชื่อผู้ใช้: ")..tostring(player.Name or"Player")})
+    identity:CreateLabel({Text=t("Display name: ","ชื่อแสดง: ")..tostring(player.DisplayName or player.Name or"Player")})
+    identity:CreateLabel({Text=t("Place ID: ","รหัสแมพ: ")..tostring(game.PlaceId)})
+    local settings=window:CreateTab({Name=t("GUI Settings","ตั้งค่า GUI"),Icon="settings",Backdrop=false})
+    local appearance=settings:CreateGroupbox({Name=t("Appearance","รูปแบบหน้าต่าง"),Side="Left"})
+    appearance:CreateDropdown({Name=t("Theme","ธีม"),Options={"Crimson","Midnight","Ocean","Emerald","Mono","Obsidian"},CurrentOption={config.Theme},Callback=function(value)
+        value=type(value)=="table"and value[1]or value
+        if value==config.Theme then return end;config.Theme=value
+        task.defer(buildUI)
+    end})
+    appearance:CreateToggle({Name=t("Transparent window","หน้าต่างโปร่งใส"),CurrentValue=config.Transparent,Callback=function(value)config.Transparent=value;window:SetTransparent(value)end})
+    appearance:CreateToggle({Name=t("Hide username","ซ่อนชื่อผู้ใช้"),CurrentValue=config.HideName,Callback=function(value)config.HideName=value;window:SetHideName(value)end})
+    appearance:CreateToggle({Name=t("Hide avatar","ซ่อนรูปโปรไฟล์"),CurrentValue=config.HideAvatar,Callback=function(value)config.HideAvatar=value;window:SetHideAvatar(value)end})
+    appearance:CreateToggle({Name=t("Floating open button","แสดงปุ่มเปิดเมนูลอย"),CurrentValue=config.ToggleButton,Callback=function(value)config.ToggleButton=value;window:SetToggleButton(value)end})
+    local sizing=settings:CreateGroupbox({Name=t("Window size","ขนาดหน้าต่าง"),Side="Right"})
+    sizing:CreateSlider({Name=t("Width","ความกว้าง"),Range={600,1100},Increment=10,CurrentValue=config.Width,Callback=function(value)config.Width=value;window:SetSize(Vector2.new(config.Width,config.Height),true)end})
+    sizing:CreateSlider({Name=t("Height","ความสูง"),Range={400,800},Increment=10,CurrentValue=config.Height,Callback=function(value)config.Height=value;window:SetSize(Vector2.new(config.Width,config.Height),true)end})
+    sizing:CreateButton({Name=t("Reset GUI settings","คืนค่าหน้าต่างเริ่มต้น"),Callback=function()
+        config.Theme="Crimson";config.Width=790;config.Height=550;config.Transparent=false;config.HideName=false;config.HideAvatar=false;config.ToggleButton=true;task.defer(buildUI)
+    end})
+    local discordTab=window:CreateTab({Name="Discord",Icon="message-circle",Backdrop=false})
+    local social=discordTab:CreateGroupbox({Name="DEVIL HUB",Side="Left"})
+    social:CreateImage({Name="DEVIL HUB",Image=image,Height=120,ScaleType="Fit"})
+    social:CreateParagraph({Name=t("Join Discord","เข้าร่วม Discord"),Content="DEVIL HUB\nhttps://discord.gg/ZY7PRcVJe2"})
+    local copied=social:CreateLabel({Text=""})
+    social:CreateButton({Name=t("Copy invite link","คัดลอกลิงก์เชิญ"),Callback=function()
+        local copy=setclipboard or toclipboard
+        if type(copy)=="function"then local ok=pcall(copy,"https://discord.gg/ZY7PRcVJe2");copied:Set(ok and t("Copied invite link","คัดลอกลิงก์แล้ว")or t("Copy failed","คัดลอกไม่สำเร็จ"))
+        else copied:Set(t("Clipboard unavailable; copy the link above.","ตัวรันไม่รองรับคลิปบอร์ด ให้คัดลอกลิงก์ด้านบน"))end
+    end})
+    local discordLogo=discordTab:CreateGroupbox({Name="Discord",Side="Right"})
+    discordLogo:CreateImage({Name="Discord",Image="https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/discord-logo.png",Height=140,ScaleType="Fit"})
     local info=window:CreateTab({Name=t("Info","ข้อมูล"),Icon="info",Backdrop=false})
     local about=info:CreateGroupbox({Name="DEVIL HUB",Side="Left"})
-    about:CreateLabel({Text=t("Aqua Auto Egg - release 7","ระบบเก็บไข่ Aqua - เวอร์ชัน 7")})
+    about:CreateLabel({Text=t("Aqua Auto Egg - release 8","ระบบเก็บไข่ Aqua - เวอร์ชัน 8")})
     about:CreateParagraph({Name=t("Diagnostics","ตรวจปัญหา"),Content=t("Save report and send DevilAquaAutoEgg-report.json if an auto action fails.","หากระบบค้าง กดบันทึกรายงานแล้วส่งไฟล์ DevilAquaAutoEgg-report.json")})
     about:CreateButton({Name=t("Unload","ปิดสคริปต์"),Callback=controller.Destroy})
     local boundWindow=window
@@ -159,7 +233,7 @@ return function(config,onStatus)
     local requests=assert(RS:WaitForChild("EggGame",15),"EggGame unavailable"):WaitForChild("Requests",15)
     local events=RS.EggGame:WaitForChild("Events",15)
     assert(requests and events,"Egg remotes unavailable")
-    local api={Config=config,Report={release="aqua-auto-egg-7",picked=0,deposited=0,hatchRequests=0,errors={},automation={}}}
+    local api={Config=config,Report={release="aqua-auto-egg-8",picked=0,deposited=0,hatchRequests=0,errors={},automation={}}}
     local active=true
     local links={}
     local hatches={}
@@ -170,6 +244,8 @@ return function(config,onStatus)
     local heldPrompt
     local collisionProbe
     local returnedHomeId
+    local speedHumanoid,originalSpeed
+    local flight
     local lastEquip=-math.huge
     local now=os.clock
     local function status(text)
@@ -268,20 +344,29 @@ return function(config,onStatus)
     end
     local function pickupPrompt(model)
         for _,node in ipairs(model:GetDescendants())do
-            if node:IsA("ProximityPrompt")and(node.Name=="TakeSeaEgg"or node.Name=="PickupDroppedEgg")and node.Enabled then return node end
+            if node:IsA("ProximityPrompt")and(node.Name=="TakeSeaEgg"or node.Name=="PickupDroppedEgg"or node:GetAttribute("EggPrompt")=="Pickup"or node:GetAttribute("EggPrompt")=="PickupDropped")and node.Enabled then return node end
         end
+    end
+    local function eventRewards()
+        local runtime=workspace:FindFirstChild("AbuseEventRuntime")
+        return runtime and runtime:FindFirstChild("Rewards")
+    end
+    local function eggSource(model)
+        local event=eventRewards()
+        if event and model:IsDescendantOf(event)then return "AbuseEvent"end
+        local runtime=workspace:FindFirstChild("EggRuntime")
+        if runtime and model.Parent==runtime:FindFirstChild("WildEggs")then return "WildEggs"end
+        if config.Dropped and runtime and model.Parent==runtime:FindFirstChild("DroppedEggs")then return "DroppedEggs"end
     end
     local function eligible(model)
         if not model or not model.Parent or not model:IsA("Model")then return false end
-        local runtime=workspace:FindFirstChild("EggRuntime")
-        if not runtime then return false end
-        local wild=runtime:FindFirstChild("WildEggs")
-        local dropped=config.Dropped and runtime:FindFirstChild("DroppedEggs")
-        if model.Parent~=wild and model.Parent~=dropped then return false end
+        local source=eggSource(model)
+        if not source then return false end
         local id=model:GetAttribute("EggId")
         if type(id)~="string"or id==""or now()<(retryEgg[id]or 0)then return false end
         local tier=model:GetAttribute("EggTier")
-        if next(config.Tiers)and not config.Tiers[tier]then return false end
+        local group=(source=="AbuseEvent"or(type(tier)=="string"and tier:match("^Abuseall%d+$")))and"AbuseEvent"or tier
+        if next(config.Tiers)and not config.Tiers[group]and not config.Tiers[tier]then return false end
         if(tonumber(model:GetAttribute("EggKg"))or 0)<config.MinKg then return false end
         if(tonumber(model:GetAttribute("EggLuck"))or 0)<config.MinLuck then return false end
         return pickupPrompt(model)~=nil
@@ -290,11 +375,25 @@ return function(config,onStatus)
         local _,_,root=alive()
         if not root then return end
         local runtime=workspace:FindFirstChild("EggRuntime")
-        if not runtime then return end
+        local sources={}
+        if runtime then
+            sources[#sources+1]=runtime:FindFirstChild("WildEggs")
+            if config.Dropped then sources[#sources+1]=runtime:FindFirstChild("DroppedEggs")end
+        end
+        local rewards=eventRewards()
+        local scan={present=rewards~=nil,models=0,eligible=0,missingId=0,prompts={}}
+        api.Report.eventScan=scan
+        if rewards then sources[#sources+1]=rewards end
         local best,bestScore
-        for _,folderName in ipairs(config.Dropped and{"WildEggs","DroppedEggs"}or{"WildEggs"})do
-            local folder=runtime:FindFirstChild(folderName)
-            for _,model in ipairs(folder and folder:GetChildren()or{})do
+        for _,folder in ipairs(sources)do
+            for _,model in ipairs(folder==rewards and folder:GetDescendants()or folder:GetChildren())do
+                if folder==rewards and model:IsA("Model")then
+                    scan.models+=1
+                    if not model:GetAttribute("EggId")then scan.missingId+=1 end
+                    if eligible(model)then scan.eligible+=1 end
+                elseif folder==rewards and model:IsA("ProximityPrompt")and #scan.prompts<12 then
+                    scan.prompts[#scan.prompts+1]={name=model.Name,enabled=model.Enabled,kind=model:GetAttribute("EggPrompt")}
+                end
                 if eligible(model)then
                     local point=promptPosition(pickupPrompt(model))
                     if point then
@@ -612,7 +711,7 @@ return function(config,onStatus)
         if not selected then status("Waiting for an available egg matching your filters");return end
         local model=selected;local eggId=model:GetAttribute("EggId");local prompt=pickupPrompt(model)
         api.Report.phase="Collecting wild egg"
-        api.Report.target={id=eggId,tier=model:GetAttribute("EggTier"),kg=model:GetAttribute("EggKg"),luck=model:GetAttribute("EggLuck"),source=model.Parent.Name}
+        api.Report.target={id=eggId,tier=model:GetAttribute("EggTier"),kg=model:GetAttribute("EggKg"),luck=model:GetAttribute("EggLuck"),source=eggSource(model)}
         local arrived,err=travel(prompt,function()return not carried()and eligible(model)end)
         if not arrived then
             retryEgg[eggId]=now()+30;selected=nil;status(err);return
@@ -710,7 +809,66 @@ return function(config,onStatus)
     function api.StopAll()
         config.Hatch=false
         for _,flag in ipairs(autoFlags)do config[flag]=false end
+        api.SetFly(false);api.SetSpeed(false)
         api.SetFarm(false)
+    end
+    local function restoreSpeed()
+        if speedHumanoid then pcall(function()speedHumanoid.WalkSpeed=originalSpeed end)end
+        speedHumanoid=nil;originalSpeed=nil
+    end
+    function api.SetSpeed(enabled)
+        config.SpeedEnabled=enabled==true
+        if not config.SpeedEnabled then restoreSpeed()end
+    end
+    local function stopFlight()
+        local old=flight;flight=nil
+        if not old then return end
+        if old.link then old.link:Disconnect()end
+        for _,object in ipairs(old.objects)do pcall(object.Destroy,object)end
+        pcall(function()old.humanoid.PlatformStand=old.platformStand;old.humanoid.AutoRotate=old.autoRotate;old.root.AssemblyLinearVelocity=Vector3.zero end)
+    end
+    function api.SetFly(enabled)
+        config.Fly=enabled==true
+        if not config.Fly then stopFlight();return end
+        api.SetFarm(false)
+    end
+    local function startFlight(character,humanoid,root)
+        local token={humanoid=humanoid,root=root,objects={},platformStand=humanoid.PlatformStand,autoRotate=humanoid.AutoRotate}
+        flight=token
+        local function create(class)local obj=Instance.new(class);token.objects[#token.objects+1]=obj;return obj end
+        local attachment=create("Attachment");attachment.Name="DevilAquaFlight";attachment.Parent=root
+        local velocity=create("LinearVelocity");velocity.Attachment0=attachment;velocity.RelativeTo=Enum.ActuatorRelativeTo.World
+        velocity.MaxForce=math.huge;velocity.VectorVelocity=Vector3.zero;velocity.Parent=root
+        local facing=create("AlignOrientation");facing.Attachment0=attachment;facing.Mode=Enum.OrientationAlignmentMode.OneAttachment
+        facing.MaxTorque=math.huge;facing.Responsiveness=50;facing.Parent=root
+        humanoid.PlatformStand=true;humanoid.AutoRotate=false
+        local input=game:GetService("UserInputService")
+        local controls
+        pcall(function()controls=require(player.PlayerScripts:WaitForChild("PlayerModule",3)):GetControls()end)
+        token.link=Run.Heartbeat:Connect(function()
+            if flight~=token or not active or not config.Fly then return end
+            local c,h=alive()
+            if c~=character or h~=humanoid then stopFlight();return end
+            local camera=workspace.CurrentCamera
+            if not camera then return end
+            local move=Vector3.zero
+            if not input:GetFocusedTextBox()then
+                local keys=Enum.KeyCode
+                if input:IsKeyDown(keys.W)then move+=camera.CFrame.LookVector end
+                if input:IsKeyDown(keys.S)then move-=camera.CFrame.LookVector end
+                if input:IsKeyDown(keys.D)then move+=camera.CFrame.RightVector end
+                if input:IsKeyDown(keys.A)then move-=camera.CFrame.RightVector end
+                if input:IsKeyDown(keys.Space)then move+=Vector3.yAxis end
+                if input:IsKeyDown(keys.LeftControl)then move-=Vector3.yAxis end
+                if move.Magnitude==0 and controls then
+                    local vector=controls:GetMoveVector()
+                    move=camera.CFrame.RightVector*vector.X-camera.CFrame.LookVector*vector.Z
+                end
+            end
+            if move.Magnitude>0 then move=move.Unit end
+            velocity.VectorVelocity=move*(tonumber(config.FlySpeed)or 50)
+            facing.CFrame=camera.CFrame.Rotation
+        end)
     end
     function api.SaveReport()
         nearestDeposit()
@@ -720,12 +878,14 @@ return function(config,onStatus)
         end)end
     end
     function api.SetFarm(enabled)
+        if enabled and config.Fly then api.SetFly(false)end
         config.Farm=enabled
         if not enabled then selected=nil;stopMotion();if heldPrompt then pcall(heldPrompt.InputHoldEnd,heldPrompt);heldPrompt=nil end end
         status(enabled and"Auto Egg enabled"or"Auto Egg stopped")
     end
     function api.Destroy()
         if not active then return end
+        api.SetFly(false);api.SetSpeed(false)
         api.SetFarm(false);active=false
         for _,link in ipairs(links)do link:Disconnect()end
         if collisionProbe then collisionProbe:Destroy();collisionProbe=nil end
@@ -756,6 +916,19 @@ return function(config,onStatus)
             end
         end)
     end
+    task.spawn(function()
+        while active do
+            local c,h,root=alive()
+            if config.SpeedEnabled and h then
+                if speedHumanoid~=h then restoreSpeed();speedHumanoid=h;originalSpeed=h.WalkSpeed end
+                h.WalkSpeed=tonumber(config.WalkSpeed)or 16
+            elseif speedHumanoid then restoreSpeed()end
+            if config.Fly and h then
+                if not flight then local ok,err=pcall(startFlight,c,h,root);if not ok then stopFlight();config.Fly=false;logError(err)end end
+            elseif flight then stopFlight()end
+            task.wait(.2)
+        end
+    end)
     task.spawn(function()
         while active do
             if config.Hatch then local ok,err=pcall(hatchStep);if not ok then logError(err)end end
