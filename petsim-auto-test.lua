@@ -4,7 +4,7 @@ local env=type(getgenv)=="function" and getgenv() or _G
 if env.DevilPetSimTest then env.DevilPetSimTest.Destroy() end
 local makeCore=(function()
 return function(config, d, changed)
-    local C={Config=config,Report={release="petsim-auto-test-3",jobs={},errors={},liveTest=false}}
+    local C={Config=config,Report={release="petsim-auto-test-4",jobs={},errors={},liveTest=false}}
     local names={"Farm","Tap","Orbs","Magnet","Hatch","Equip","Gifts","Ranks","Zones","Rebirth"}
     local jobs=C.Report.jobs
     local alive=true
@@ -106,17 +106,6 @@ return function(config, d, changed)
         local plan=d.HatchPlan and d.HatchPlan(config.Egg,egg,config.HatchCount) or
             {remote="Eggs_RequestPurchase",id=egg._id or config.Egg,count=math.clamp(math.floor(config.HatchCount),1,100),cooldown=3}
         if plan.blocked then status("Hatch",plan.blocked,plan);jobs.Hatch.nextAt=d.Now()+5;return end
-        if plan.needsApproach then
-            travelling=true
-            if assigned then pcall(d.ClearAssigned,assigned) end
-            locked=nil;assigned={};lastJoin=nil
-            local ok,arrived,reason,distance=pcall(d.ApproachEgg,config.Egg)
-            travelling=false
-            status("Hatch",ok and arrived and "Arrived near selected egg" or "Egg approach not confirmed",
-                {eggDistance=distance or plan.distance,serverMessage=ok and tostring(reason or "") or tostring(arrived)})
-            j.nextAt=d.Now()+(ok and arrived and 0.5 or 8)
-            return
-        end
         if plan.remote=="Eggs_RequestUnlock" then
             local ok,message=request("Hatch",plan.remote,plan.id)
             if ok==true then
@@ -378,6 +367,42 @@ return function(d)
 end
 
 end)()
+local Catalog=(function()
+local Catalog={}
+function Catalog.CurrencyId(value)
+    if type(value)=="string" and value~="" then return value end
+    if type(value)=="table" then
+        for _,key in ipairs({"_id","Id","id"}) do
+            if type(value[key])=="string" and value[key]~="" then return value[key] end
+        end
+    end
+    return nil
+end
+function Catalog.Build(eggs,options)
+    local all,matching={},{}
+    local currency=Catalog.CurrencyId(options.currency)
+    for id,egg in pairs(eggs or {}) do
+        local n=tonumber(egg.eggNumber)
+        if type(id)=="string" and n and n>0 and n<math.huge and n==math.floor(n) then
+            local item={id=id,n=n}
+            if options.profileReady and options.isAvailable then
+                local ok,value=pcall(options.isAvailable,id)
+                if ok then item.available=value==true end
+            end
+            all[#all+1]=item
+            if not currency or Catalog.CurrencyId(egg.currency)==currency then matching[#matching+1]=item end
+        end
+    end
+    -- Eligibility annotates rows; it never makes the selector empty.
+    local fallback=#matching==0 and #all>0
+    local result=fallback and all or matching
+    table.sort(result,function(a,b) if a.n==b.n then return a.id<b.id end;return a.n<b.n end)
+    return result,{currencyId=currency,numberedTotal=#all,regularCount=#result,
+        profileReady=options.profileReady==true,fallbackAll=fallback}
+end
+return Catalog
+
+end)()
 local makeLogo=(function()
 local function logo()
     local version="silver-break-20261014"
@@ -436,11 +461,12 @@ local function dirs()
     return directory
 end
 local config={Farm=false,Tap=false,Orbs=false,Magnet=false,Hatch=false,Equip=false,Gifts=false,Ranks=false,Zones=false,Rebirth=false,
-    Zone="Current",Class="All",Radius=150,MagnetRange=1000,Egg="",HatchCount=1,SkipHatchAnimation=true,AutoApproachEgg=true,Reserve=0,Language="TH"}
+    Zone="Current",Class="All",Radius=150,MagnetRange=1000,Egg="",HatchCount=1,SkipHatchAnimation=true,Reserve=0,Language="TH"}
 local api={Config=config}
 local window,core,paragraphs,controls={},{},{},{}
 window=nil;core=nil
 local build
+local catalogSignature
 local destroyed,rebuilding=false,false
 local connections={}
 local function rpcPending() return env.DevilPetSimRPCPending end
@@ -673,26 +699,6 @@ local function liveEgg(id,egg)
     local live=uid and custom.Get(uid)
     return live and live:GetPosition(),live,uid
 end
-deps.ApproachEgg=function(id)
-    if destroyed or not config.Hatch then return false,"Cancelled" end
-    local egg=dirs().Eggs[id]
-    local point=egg and liveEgg(id,egg)
-    local r=root()
-    if not point or not r then return false,"Selected egg model is not loaded" end
-    -- Use the game's own teleport helper once, then verify the actual distance.
-    local teleport=require(RS.Library.Functions.TeleportCharacterTo)
-    local destination=point+Vector3.new(0,-2,8)
-    r.AssemblyLinearVelocity=Vector3.zero;r.AssemblyAngularVelocity=Vector3.zero
-    teleport(destination,point)
-    local started=now();local distance;local stable=0
-    while not destroyed and config.Hatch and now()-started<1.5 do
-        r=root();distance=r and (r.Position-point).Magnitude or math.huge
-        if distance<=14 then stable+=1 else stable=0 end
-        if stable>=3 then return true,"",distance end
-        task.wait(0.1)
-    end
-    return false,"Position not stable near selected egg",distance
-end
 deps.HatchPlan=function(id,egg,requested)
     hatchSkip.Set(config.Hatch and config.SkipHatchAnimation)
     hatchSkip.Pulse()
@@ -706,7 +712,6 @@ deps.HatchPlan=function(id,egg,requested)
     if egg.eggNumber then
         if not cmd.IsEggAvailable(id) then return {blocked="Unlock more zones to make this egg available",egg=id} end
         local p=liveEgg(id,egg)
-        if not p then return {blocked="Selected egg model is not loaded",egg=id} end
         plan.distance=p and (r.Position-p).Magnitude or nil
         plan.locked=not cmd.IsUnlocked(id)
     else
@@ -726,11 +731,6 @@ deps.HatchPlan=function(id,egg,requested)
         count=math.min(count,math.floor(module("CurrencyCmds").Get(egg.currency)/price))
     end
     if count<1 then return {blocked="Insufficient currency for this egg",egg=id,price=price,distance=plan.distance} end
-    if plan.distance and plan.distance>14 then
-        if config.AutoApproachEgg then plan.needsApproach=true
-        else plan.blocked="Move closer to selected egg" end
-        return plan
-    end
     if plan.locked then plan.remote="Eggs_RequestUnlock";return plan end
     plan.count=count;return plan
 end
@@ -886,6 +886,55 @@ function api.Destroy()
     if window then window:Destroy();window=nil end
     if env.DevilPetSimTest==api then env.DevilPetSimTest=nil end
 end
+local function eggOptions()
+    local util=require(RS.Library.Util.WorldsUtil)
+    local rawCurrency
+    if type(util.GetWorldCurrencyId)=="function" then rawCurrency=util.GetWorldCurrencyId()
+    elseif type(util.GetWorldCurrency)=="function" then rawCurrency=util.GetWorldCurrency() end
+    local regular,state=Catalog.Build(dirs().Eggs,{
+        currency=rawCurrency,profileReady=module("Save").Get()~=nil,
+        isAvailable=module("EggCmds").IsEggAvailable})
+    local options={t("Select an egg","เลือกไข่")}
+    local ids={}
+    local selected=options[1]
+    for _,egg in ipairs(regular) do
+        local label=string.format("%03d | %s",egg.n,egg.id)
+        if egg.available==false then label..=t(" [Locked]"," [ยังไม่ถึงด่าน]") end
+        options[#options+1]=label;ids[label]=egg.id
+        if config.Egg==egg.id then selected=label end
+    end
+    local ok,customs=pcall(function() return module("CustomEggsCmds").All() end)
+    if ok and type(customs)=="table" then
+        local liveIds={}
+        for _,live in pairs(customs) do
+            if not live._destroyed and live:IsRenderable() and live:IsHatchable() then
+                local dir=live:Directory()
+                if dir and dir._id and dirs().Eggs[dir._id] and not dir.eggNumber then liveIds[dir._id]=true end
+            end
+        end
+        local ordered={};for id in pairs(liveIds) do ordered[#ordered+1]=id end;table.sort(ordered)
+        for _,id in ipairs(ordered) do
+            local label=t("Event | ","อีเวนต์ | ")..id
+            options[#options+1]=label;ids[label]=id
+            if config.Egg==id then selected=label end
+        end
+    end
+    state.visibleCount=#options-1
+    state.rawCurrencyType=type(rawCurrency)
+    state.selected=config.Egg
+    core.Report.eggCatalog=state
+    return options,ids,selected
+end
+function api.RefreshEggs()
+    if destroyed or rebuilding or not controls.Egg then return end
+    local options,ids,selected=eggOptions()
+    local signature=table.concat(options,"\0")
+    if signature==catalogSignature then return end
+    api.EggIds=ids
+    controls.Egg:Refresh(options,true,true)
+    controls.Egg:Set(selected,true)
+    catalogSignature=signature
+end
 local library
 build=function()
     rebuilding=true
@@ -934,43 +983,13 @@ build=function()
         "เฉพาะโลกที่อยู่ ปุ่มทดลองส่งคำขอครั้งเดียว ข้ามตัวเช็คสิทธิ์ฝั่งผู้เล่น หยุดเมื่อเกมปฏิเสธ แยกผลถึงด่านออกจากการปลดล็อก")})
     local eggTab=tab("Eggs","เปิดไข่","egg")
     local hatch=group(eggTab,"Hatching","ระบบเปิดไข่","Left","egg")
-    local eggOptions={t("Select an egg","เลือกไข่")};local eggIds={};local eggCurrent=eggOptions[1];local eggs={}
-    local eggCmd=module("EggCmds")
-    local util=require(RS.Library.Util.WorldsUtil)
-    local currency=type(util.GetWorldCurrency)=="function" and util.GetWorldCurrency() or nil
-    for id,egg in pairs(dirs().Eggs) do
-        if type(egg.eggNumber)=="number" and egg.eggNumber>0 and eggCmd.IsEggAvailable(id) and (not currency or egg.currency==currency) then
-            eggs[#eggs+1]={id=id,n=egg.eggNumber}
-        end
-    end
-    table.sort(eggs,function(a,b) if a.n==b.n then return a.id<b.id end;return a.n<b.n end)
-    for _,egg in ipairs(eggs) do
-        local label=string.format("%03d | %s",egg.n,egg.id);eggOptions[#eggOptions+1]=label;eggIds[label]=egg.id
-        if config.Egg==egg.id then eggCurrent=label end
-    end
-    local ok,customs=pcall(function() return module("CustomEggsCmds").All() end)
-    if ok and type(customs)=="table" then
-        local liveIds={}
-        for _,live in pairs(customs) do
-            if live:IsRenderable() and live:IsHatchable() then
-                local dir=live:Directory()
-                if dir and dir._id and dirs().Eggs[dir._id] and not dir.eggNumber then liveIds[dir._id]=true end
-            end
-        end
-        local ids={};for id in pairs(liveIds) do ids[#ids+1]=id end;table.sort(ids)
-        for _,id in ipairs(ids) do
-            local label=t("Event | ","อีเวนต์ | ")..id
-            eggOptions[#eggOptions+1]=label;eggIds[label]=id
-            if config.Egg==id then eggCurrent=label end
-        end
-    end
-    if config.Egg~="" and eggCurrent==eggOptions[1] then config.Egg="" end
-    hatch:CreateDropdown({Name=t("Egg","ไข่"),Options=eggOptions,CurrentOption={eggCurrent},Searchable=true,Callback=function(value)
-        value=type(value)=="table" and value[1] or value;config.Egg=eggIds[value] or ""
+    local options,ids,current=eggOptions()
+    api.EggIds=ids;catalogSignature=table.concat(options,"\0")
+    controls.Egg=hatch:CreateDropdown({Name=t("Egg","ไข่"),Options=options,CurrentOption={current},Searchable=true,Callback=function(value)
+        value=type(value)=="table" and value[1] or value;config.Egg=api.EggIds[value] or ""
     end})
     hatch:CreateSlider({Name=t("Eggs per request","จำนวนไข่ต่อครั้ง"),Range={1,100},Increment=1,CurrentValue=config.HatchCount,Callback=function(value) config.HatchCount=value end})
-    hatch:CreateButton({Name=t("Refresh Available Eggs","รีเฟรชรายการไข่ที่เปิดได้"),Callback=function() task.defer(build) end})
-    hatch:CreateToggle({Name=t("Go Near Egg Before Opening","ไปหาไข่ก่อนเปิดอัตโนมัติ"),CurrentValue=config.AutoApproachEgg,Callback=function(value) config.AutoApproachEgg=value==true end})
+    hatch:CreateButton({Name=t("Refresh Egg List","รีเฟรชรายการไข่"),Callback=api.RefreshEggs})
     toggle(hatch,"Hatch")
     hatch:CreateToggle({Name=t("Bypass Tap / Skip Egg Animation","ข้าม Tap To Open / หน้าเปิดไข่"),CurrentValue=config.SkipHatchAnimation,Callback=function(value)
         config.SkipHatchAnimation=value==true
@@ -980,8 +999,8 @@ build=function()
         "Skips the native egg presentation when the executor supports script access. Otherwise uses the game's instant-hatch branch. Keeps the original reward confirmation and respects the server cooldown.",
         "ข้ามแอนิเมชันเปิดไข่เมื่อเครื่องมือรองรับ ถ้าไม่รองรับใช้ Instant Hatch ของเกม คงขั้นตอนยืนยันสัตว์และคูลดาวน์ของเซิร์ฟเวอร์")})
     hatch:CreateParagraph({Name=t("Game conditions","เงื่อนไขเกม"),Content=t(
-        "Unlocks eligible eggs before hatching, clamps the amount to your native hatch limit and funds, and uses CustomEggs_Hatch for active custom eggs. Stand near the selected egg if the server requires distance.",
-        "ปลดล็อกไข่ที่ถึงเงื่อนไขก่อนเปิด จำกัดจำนวนตามสิทธิ์และเงิน ใช้คำขอแยกสำหรับไข่ Custom ที่เปิดอยู่ หากเกมตรวจระยะให้ยืนใกล้ไข่ที่เลือก")})
+        "Sends hatch requests from your current position. Locked rows show progression requirements. There is no movement to the egg; any server distance rejection appears in status.",
+        "ส่งคำขอเปิดไข่จากตำแหน่งปัจจุบัน รายการที่ยังไม่ถึงด่านมีป้ายกำกับ ไม่มีการไปหาไข่ หากเซิร์ฟเวอร์ปฏิเสธเรื่องระยะจะแสดงข้อความตามจริง")})
     local progressTab=tab("Progress & Rewards","ความคืบหน้า / รางวัล","gift")
     local rewards=group(progressTab,"Rewards","รับรางวัล","Left","gift")
     toggle(rewards,"Gifts");toggle(rewards,"Ranks")
@@ -992,7 +1011,7 @@ build=function()
     toggle(progress,"Zones");toggle(progress,"Rebirth")
     local settings=tab("Settings / Report","ตั้งค่า / รายงาน","settings")
     local diagnostics=group(settings,"Test report","รายงานทดลอง","Left","file-text")
-    api.Info=diagnostics:CreateParagraph({Name=t("Trial build","รุ่นทดลอง"),Content="petsim-auto-test-3"})
+    api.Info=diagnostics:CreateParagraph({Name=t("Trial build","รุ่นทดลอง"),Content="petsim-auto-test-4"})
     diagnostics:CreateButton({Name=t("Copy / Save Report","คัดลอก / บันทึกรายงาน"),Callback=api.SaveReport})
     diagnostics:CreateButton({Name=t("Stop All","หยุดออโต้ทั้งหมด"),Callback=function() core.Stop();task.defer(build) end})
     diagnostics:CreateButton({Name=t("Unload","ปิดสคริปต์"),Callback=api.Destroy})
@@ -1046,6 +1065,15 @@ local ok,problem=xpcall(function()
             hatchSkip.Pulse()
             core.Report.hatchUI=hatchSkip.Report
             task.wait(0.15)
+        end
+    end)
+    task.spawn(function()
+        while not destroyed do
+            task.wait(3)
+            if not destroyed then
+                local ok,problem=pcall(api.RefreshEggs)
+                if not ok then core.Report.catalogError=tostring(problem) end
+            end
         end
     end)
 end,debug.traceback)
