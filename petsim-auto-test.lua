@@ -4,7 +4,7 @@ local env=type(getgenv)=="function" and getgenv() or _G
 if env.DevilPetSimTest then env.DevilPetSimTest.Destroy() end
 local makeCore=(function()
 return function(config, d, changed)
-    local C={Config=config,Report={release="petsim-auto-test-2",jobs={},errors={},liveTest=false}}
+    local C={Config=config,Report={release="petsim-auto-test-3",jobs={},errors={},liveTest=false}}
     local names={"Farm","Tap","Orbs","Magnet","Hatch","Equip","Gifts","Ranks","Zones","Rebirth"}
     local jobs=C.Report.jobs
     local alive=true
@@ -97,12 +97,26 @@ return function(config, d, changed)
         status("Magnet","Collection requested; inventory not yet confirmed",{batch=#ids,mode="PacketCollect"})
     end
     actions.Hatch=function()
+        local j=jobs.Hatch
+        for _,field in ipairs({"blocked","serverMessage","remote","effectiveCount","maxHatch","price","eggDistance","error"}) do j[field]=nil end
+        j.egg=config.Egg
         if config.Egg=="" then status("Hatch","Select an egg first");return end
         local egg=d.Egg(config.Egg)
         if not egg then status("Hatch","Selected egg unavailable");return end
         local plan=d.HatchPlan and d.HatchPlan(config.Egg,egg,config.HatchCount) or
             {remote="Eggs_RequestPurchase",id=egg._id or config.Egg,count=math.clamp(math.floor(config.HatchCount),1,100),cooldown=3}
         if plan.blocked then status("Hatch",plan.blocked,plan);jobs.Hatch.nextAt=d.Now()+5;return end
+        if plan.needsApproach then
+            travelling=true
+            if assigned then pcall(d.ClearAssigned,assigned) end
+            locked=nil;assigned={};lastJoin=nil
+            local ok,arrived,reason,distance=pcall(d.ApproachEgg,config.Egg)
+            travelling=false
+            status("Hatch",ok and arrived and "Arrived near selected egg" or "Egg approach not confirmed",
+                {eggDistance=distance or plan.distance,serverMessage=ok and tostring(reason or "") or tostring(arrived)})
+            j.nextAt=d.Now()+(ok and arrived and 0.5 or 8)
+            return
+        end
         if plan.remote=="Eggs_RequestUnlock" then
             local ok,message=request("Hatch",plan.remote,plan.id)
             if ok==true then
@@ -173,7 +187,7 @@ return function(config, d, changed)
         status("Rebirth",ok==true and "Rebirth confirmed" or "Server rejected rebirth",{serverMessage=tostring(message or "")})
         if ok~=true then jobs.Rebirth.nextAt=d.Now()+15 end
     end
-    local intervals={Farm=0.8,Tap=0.3,Orbs=0.5,Magnet=0.3,Hatch=3,Equip=8,Gifts=2,Ranks=2,Zones=5,Rebirth=8}
+    local intervals={Farm=0.8,Tap=0.3,Orbs=0.5,Magnet=0.3,Hatch=0.5,Equip=8,Gifts=2,Ranks=2,Zones=5,Rebirth=8}
     function C.Tick(key)
         local j=jobs[key]
         if not alive or not config[key] or j.busy or travelling or d.Now()<j.nextAt then return end
@@ -197,6 +211,11 @@ return function(config, d, changed)
         assert(jobs[key],"Unknown automation")
         config[key]=value==true
         jobs[key].generation+=1;jobs[key].nextAt=0;jobs[key].pending=nil
+        if key=="Hatch" and d.SetHatchBypass then
+            local ok,mode=pcall(d.SetHatchBypass,value==true)
+            jobs[key].bypassMode=ok and mode or "Unavailable"
+            if not ok then jobs[key].error=tostring(mode) end
+        end
         if key=="Magnet" and d.SetMagnet then
             local ok,mode=pcall(d.SetMagnet,value==true)
             jobs[key].mode=ok and mode or "PacketCollect"
@@ -259,6 +278,106 @@ return function(config, d, changed)
 end
 
 end)()
+local makeHatchSkip=(function()
+-- Only replaces the presentation functions. The game's hatch-result handler
+-- still decodes rewards, unhides items, sends SM_Unmask and CompletedHatching.
+return function(d)
+    local S={Report={mode="Disabled",skipped=0,tapReleased=0,errors={}}}
+    local enabled,dead=false,false
+    local flagHeld,oldFlag=false,nil
+    local leases={}
+    local scene
+    local lastAttempt=-math.huge
+    local function problem(err)
+        local errors=S.Report.errors
+        errors[#errors+1]=tostring(err)
+        if #errors>10 then table.remove(errors,1) end
+    end
+    local function instant()
+        if not flagHeld then
+            oldFlag=d.GetInstant()
+            flagHeld=true
+        end
+        if d.GetInstant()~=true then d.SetInstant(true) end
+    end
+    local function restore()
+        enabled=false
+        for i=#leases,1,-1 do
+            local lease=leases[i]
+            local ok,err=pcall(lease.restore)
+            if not ok then problem(err) end
+        end
+        table.clear(leases)
+        scene=nil
+        if flagHeld then
+            local ok,err=pcall(function()
+                if d.GetInstant()==true then d.SetInstant(oldFlag) end
+            end)
+            if not ok then problem(err) end
+        end
+        flagHeld=false;oldFlag=nil;lastAttempt=-math.huge
+        S.Report.mode="Disabled"
+    end
+    local function install()
+        if #leases>0 or d.Now()-lastAttempt<2 then return end
+        lastAttempt=d.Now()
+        local source=d.FindScript()
+        if not source then return end
+        scene=source
+        local scriptEnv=d.ScriptEnv(source)
+        if type(scriptEnv)~="table" then return end
+        for _,name in ipairs({"PlayNormalEggAnimation","PlayTowerDefenseAnimations"}) do
+            local target=scriptEnv[name]
+            if type(target)=="function" then
+                local original=target
+                local wrapper=function(...)
+                    if enabled and not dead then S.Report.skipped+=1;return end
+                    return original(...)
+                end
+                if d.Hook then
+                    original=d.Hook(target,wrapper)
+                    assert(type(original)=="function","Animation hook did not return original function")
+                    leases[#leases+1]={restore=function() d.Hook(target,original) end}
+                    S.Report.mode="AnimationHook"
+                else
+                    scriptEnv[name]=wrapper
+                    assert(scriptEnv[name]==wrapper,"Animation environment is read-only")
+                    leases[#leases+1]={restore=function()
+                        if scriptEnv[name]==wrapper then scriptEnv[name]=original end
+                    end}
+                    S.Report.mode="AnimationEnvironment"
+                end
+            end
+        end
+    end
+    function S.Set(value)
+        value=value==true and not dead
+        if not value then restore();return S.Report.mode end
+        enabled=true
+        S.Report.mode=#leases>0 and S.Report.mode or "NativeInstant"
+        local ok,err=pcall(instant);if not ok then problem(err) end
+        ok,err=pcall(install);if not ok then problem(err) end
+        return S.Report.mode
+    end
+    function S.Pulse()
+        if not enabled or dead then return end
+        local ok,err=pcall(instant);if not ok then problem(err) end
+        ok,err=pcall(install);if not ok then problem(err) end
+        -- Releases a presentation that began before the hook was installed.
+        -- The adapter restricts callbacks to the exact egg-opening LocalScript.
+        if scene and d.TapWaiting and d.OpeningCount()>0 then
+            ok,err=pcall(d.TapWaiting,scene)
+            if ok then S.Report.tapReleased+=tonumber(err) or 0 else problem(err) end
+        end
+    end
+    function S.Destroy()
+        if dead then return end
+        restore();dead=true
+    end
+    return S
+end
+
+end)()
 local makeLogo=(function()
 local function logo()
     local version="silver-break-20261014"
@@ -317,7 +436,7 @@ local function dirs()
     return directory
 end
 local config={Farm=false,Tap=false,Orbs=false,Magnet=false,Hatch=false,Equip=false,Gifts=false,Ranks=false,Zones=false,Rebirth=false,
-    Zone="Current",Class="All",Radius=150,MagnetRange=1000,Egg="",HatchCount=1,Reserve=0,Language="TH"}
+    Zone="Current",Class="All",Radius=150,MagnetRange=1000,Egg="",HatchCount=1,SkipHatchAnimation=true,AutoApproachEgg=true,Reserve=0,Language="TH"}
 local api={Config=config}
 local window,core,paragraphs,controls={},{},{},{}
 window=nil;core=nil
@@ -329,6 +448,44 @@ local orbQueue,orbCount={},0
 local magnetHook
 local magnetMode="PacketCollect"
 local now=os.clock
+local function openingCount()
+    local ok,vars=pcall(require,RS.Library.Variables)
+    return ok and tonumber(vars.OpeningEgg) or 0
+end
+local hatchSkip=makeHatchSkip({
+    Now=now,
+    GetInstant=function() return workspace:GetAttribute("GlobalInstantHatch") end,
+    SetInstant=function(value) workspace:SetAttribute("GlobalInstantHatch",value) end,
+    FindScript=function()
+        local scripts=player:FindFirstChild("PlayerScripts")
+        if not scripts then return nil end
+        for _,candidate in ipairs(scripts:GetDescendants()) do
+            if candidate:IsA("LocalScript") and candidate.Name:lower():gsub("[%s_]","")=="eggopeningfrontend" then return candidate end
+        end
+    end,
+    ScriptEnv=function(source)
+        if type(getsenv)=="function" then return getsenv(source) end
+    end,
+    Hook=type(hookfunction)=="function" and hookfunction or nil,
+    OpeningCount=openingCount,
+    TapWaiting=function(source)
+        local count=0
+        local mouse=player:GetMouse()
+        if type(getconnections)=="function" and type(getfenv)=="function" then
+            for _,connection in ipairs(getconnections(mouse.Button1Down)) do
+                local callback=connection.Function
+                if connection.Enabled~=false and type(callback)=="function" then
+                    local ok,scope=pcall(getfenv,callback)
+                    if ok and type(scope)=="table" and scope.script==source then
+                        callback();count+=1
+                    end
+                end
+            end
+        end
+        if count==0 and type(firesignal)=="function" then firesignal(mouse.Button1Down);count=1 end
+        return count
+    end,
+})
 local function message(text) if api.Info then api.Info:Set(tostring(text),true) end end
 local function root()
     local character=player.Character
@@ -490,7 +647,56 @@ deps.SetMagnet=function(enabled)
 end
 deps.MagnetMode=function() return magnetMode end
 deps.Egg=function(id) return dirs().Eggs[id] end
+deps.SetHatchBypass=function(enabled) return hatchSkip.Set(enabled and config.SkipHatchAnimation) end
+local function liveEgg(id,egg)
+    local things=workspace:FindFirstChild("__THINGS")
+    if egg.eggNumber then
+        local modelName=require(RS.Library.Util.WorldsUtil).GetEggsModelName()
+        if things and modelName then
+            for _,name in ipairs({"Eggs","ZoneEggs"}) do
+                local folder=things:FindFirstChild(name)
+                local world=folder and folder:FindFirstChild(modelName)
+                if world then
+                    for _,stand in ipairs(world:GetChildren()) do
+                        if tonumber(stand.Name:match("^(%d+)"))==egg.eggNumber then
+                            local center=stand:FindFirstChild("Center",true)
+                            return center and center:IsA("BasePart") and center.Position or position(stand)
+                        end
+                    end
+                end
+            end
+        end
+        return nil
+    end
+    local custom=module("CustomEggsCmds")
+    local uid=custom.GetClosestById(id)
+    local live=uid and custom.Get(uid)
+    return live and live:GetPosition(),live,uid
+end
+deps.ApproachEgg=function(id)
+    if destroyed or not config.Hatch then return false,"Cancelled" end
+    local egg=dirs().Eggs[id]
+    local point=egg and liveEgg(id,egg)
+    local r=root()
+    if not point or not r then return false,"Selected egg model is not loaded" end
+    -- Use the game's own teleport helper once, then verify the actual distance.
+    local teleport=require(RS.Library.Functions.TeleportCharacterTo)
+    local destination=point+Vector3.new(0,-2,8)
+    r.AssemblyLinearVelocity=Vector3.zero;r.AssemblyAngularVelocity=Vector3.zero
+    teleport(destination,point)
+    local started=now();local distance;local stable=0
+    while not destroyed and config.Hatch and now()-started<1.5 do
+        r=root();distance=r and (r.Position-point).Magnitude or math.huge
+        if distance<=14 then stable+=1 else stable=0 end
+        if stable>=3 then return true,"",distance end
+        task.wait(0.1)
+    end
+    return false,"Position not stable near selected egg",distance
+end
 deps.HatchPlan=function(id,egg,requested)
+    hatchSkip.Set(config.Hatch and config.SkipHatchAnimation)
+    hatchSkip.Pulse()
+    if openingCount()>0 then return {blocked="Waiting for hatch reveal to finish"} end
     local cmd=module("EggCmds")
     if module("HatchingCmds").IsHatching() then return {blocked="Native auto hatch already running"} end
     local max=math.max(1,math.floor(cmd.GetMaxHatch(egg)))
@@ -499,37 +705,17 @@ deps.HatchPlan=function(id,egg,requested)
     if not r then return {blocked="Waiting for character"} end
     if egg.eggNumber then
         if not cmd.IsEggAvailable(id) then return {blocked="Unlock more zones to make this egg available",egg=id} end
-        if not cmd.IsUnlocked(id) then
-            plan.remote="Eggs_RequestUnlock";return plan
-        end
-        local things=workspace:FindFirstChild("__THINGS")
-        local models=things and things:FindFirstChild("ZoneEggs")
-        local modelName=require(RS.Library.Util.WorldsUtil).GetEggsModelName()
-        local worldModels=models and modelName and models:FindFirstChild(modelName)
-        local model=worldModels and worldModels:FindFirstChild(tostring(egg.eggNumber).." - Egg Capsule")
-        if not model and things and modelName then
-            for _,folderName in ipairs({"Eggs","ZoneEggs"}) do
-                local folder=things:FindFirstChild(folderName)
-                local worldFolder=folder and folder:FindFirstChild(modelName)
-                if worldFolder then
-                    for _,stand in ipairs(worldFolder:GetChildren()) do
-                        if tonumber(stand.Name:match("^(%d+)"))==egg.eggNumber then model=stand;break end
-                    end
-                end
-                if model then break end
-            end
-        end
-        local p=model and position(model)
+        local p=liveEgg(id,egg)
+        if not p then return {blocked="Selected egg model is not loaded",egg=id} end
         plan.distance=p and (r.Position-p).Magnitude or nil
+        plan.locked=not cmd.IsUnlocked(id)
     else
-        local custom=module("CustomEggsCmds")
-        local uid=custom.GetClosestById(id)
-        local live=uid and custom.Get(uid)
+        local point,live,uid=liveEgg(id,egg)
         if not live or not live:IsHatchable() then return {blocked="Selected custom egg is not active or hatchable",egg=id} end
         local cap=live:GetMaxEggCount()
         if type(cap)=="number" then max=math.min(max,math.max(1,math.floor(cap))) end
         plan.id=uid;plan.remote="CustomEggs_Hatch";plan.maxHatch=max
-        plan.distance=(r.Position-live:GetPosition()).Magnitude
+        plan.distance=(r.Position-point).Magnitude
     end
     local price=require(RS.Library.Balancing.CalcEggPricePlayer)(egg)
     if type(price)~="number" or price<0 or price~=price then return {blocked="Egg price unavailable",egg=id} end
@@ -540,6 +726,12 @@ deps.HatchPlan=function(id,egg,requested)
         count=math.min(count,math.floor(module("CurrencyCmds").Get(egg.currency)/price))
     end
     if count<1 then return {blocked="Insufficient currency for this egg",egg=id,price=price,distance=plan.distance} end
+    if plan.distance and plan.distance>14 then
+        if config.AutoApproachEgg then plan.needsApproach=true
+        else plan.blocked="Move closer to selected egg" end
+        return plan
+    end
+    if plan.locked then plan.remote="Eggs_RequestUnlock";return plan end
     plan.count=count;return plan
 end
 deps.EquipBest=function() module("PetCmds").EquipBest() end
@@ -581,6 +773,7 @@ deps.WaitForZone=function(id)
     return false
 end
 deps.Destroy=function()
+    hatchSkip.Destroy()
     if magnetHook then
         pcall(hookfunction,magnetHook.target,magnetHook.original)
         magnetHook=nil
@@ -601,6 +794,11 @@ local texts={
     ["No damage observed; check pet reach or selected zone"]="ยังไม่เห็นดาเมจ ตรวจระยะสัตว์และโซนที่เลือก",
     ["Target taking damage"]="เป้าหมายกำลังเสียเลือด",
     ["Native auto hatch already running"]="ระบบเปิดไข่ของเกมกำลังทำงานอยู่",
+    ["Waiting for hatch reveal to finish"]="รอเกมแสดงผลรอบเปิดไข่ให้เสร็จ",
+    ["Selected egg model is not loaded"]="ยังไม่พบโมเดลไข่ที่เลือกในโลกนี้",
+    ["Move closer to selected egg"]="เข้าใกล้ไข่ที่เลือกก่อนเปิด",
+    ["Arrived near selected egg"]="ถึงจุดเปิดไข่แล้ว",
+    ["Egg approach not confirmed"]="ยังไม่ยืนยันว่าไปถึงไข่",
     ["Waiting for character"]="รอตัวละครพร้อม",
     ["Unlock more zones to make this egg available"]="ต้องปลดล็อกด่านเพิ่มก่อนเปิดไข่นี้",
     ["Egg unlock requested; waiting for replication"]="ส่งคำขอปลดล็อกไข่แล้ว รอข้อมูลเกม",
@@ -639,10 +837,19 @@ local function refresh(report)
     for name,j in pairs(report.jobs) do
         local widget=paragraphs[name]
         if widget then
+            local counters=t("Requests: ","คำขอ: ")..j.requests..t(" | Server accepted: "," | เกมตอบรับ: ")..j.confirmed
+            if name=="Farm" then
+                counters=t("Pets assigned: ","สัตว์ที่ส่ง: ")..(j.pets or 0)..t(" | Damage updates: "," | ครั้งที่เห็นดาเมจ: ")..(j.damageUpdates or 0)
+            elseif name=="Orbs" or name=="Magnet" or name=="Tap" then
+                counters=t("Requests: ","คำขอ: ")..j.requests..t(" | No reply on this event"," | คำขอนี้ไม่มีผลตอบกลับ")
+            end
             widget:Set((config.Language=="TH" and texts[j.status] or nil or j.status)..
-                "\n"..t("Requests: ","คำขอ: ")..j.requests..t(" | Confirmed: "," | ยืนยัน: ")..j.confirmed..
+                "\n"..counters..
                 (j.serverMessage and j.serverMessage~="" and "\n"..j.serverMessage or "")..
-                (j.targetName and "\n"..j.targetName or ""),true)
+                (j.targetName and "\n"..j.targetName or "")..
+                (name=="Hatch" and config.SkipHatchAnimation and config.Hatch and
+                    ("\n"..((hatchSkip.Report.mode=="AnimationHook" or hatchSkip.Report.mode=="AnimationEnvironment") and
+                        t("Egg presentation bypass active","ข้ามหน้าเปิดไข่แล้ว") or t("Instant Tap bypass active","ข้ามช่วง Tap อัตโนมัติ"))) or ""),true)
         end
     end
     if api.TravelInfo and report.travel then
@@ -663,6 +870,7 @@ function api.SaveReport()
     local pending=rpcPending()
     core.Report.pendingRPC=pending and {name=pending.name,age=now()-pending.started} or nil
     core.Report.config=config;core.Report.orbsQueued=orbCount
+    core.Report.hatchUI=hatchSkip.Report
     local bytes=Http:JSONEncode(core.Report)
     local saved,copied=false,false
     if type(writefile)=="function" then saved=pcall(writefile,"DevilPetSimTestReport.json",bytes) end
@@ -727,17 +935,50 @@ build=function()
     local eggTab=tab("Eggs","เปิดไข่","egg")
     local hatch=group(eggTab,"Hatching","ระบบเปิดไข่","Left","egg")
     local eggOptions={t("Select an egg","เลือกไข่")};local eggIds={};local eggCurrent=eggOptions[1];local eggs={}
-    for id,egg in pairs(dirs().Eggs) do eggs[#eggs+1]={id=id,n=egg.eggNumber or egg.number or 0} end
+    local eggCmd=module("EggCmds")
+    local util=require(RS.Library.Util.WorldsUtil)
+    local currency=type(util.GetWorldCurrency)=="function" and util.GetWorldCurrency() or nil
+    for id,egg in pairs(dirs().Eggs) do
+        if type(egg.eggNumber)=="number" and egg.eggNumber>0 and eggCmd.IsEggAvailable(id) and (not currency or egg.currency==currency) then
+            eggs[#eggs+1]={id=id,n=egg.eggNumber}
+        end
+    end
     table.sort(eggs,function(a,b) if a.n==b.n then return a.id<b.id end;return a.n<b.n end)
     for _,egg in ipairs(eggs) do
         local label=string.format("%03d | %s",egg.n,egg.id);eggOptions[#eggOptions+1]=label;eggIds[label]=egg.id
         if config.Egg==egg.id then eggCurrent=label end
     end
+    local ok,customs=pcall(function() return module("CustomEggsCmds").All() end)
+    if ok and type(customs)=="table" then
+        local liveIds={}
+        for _,live in pairs(customs) do
+            if live:IsRenderable() and live:IsHatchable() then
+                local dir=live:Directory()
+                if dir and dir._id and dirs().Eggs[dir._id] and not dir.eggNumber then liveIds[dir._id]=true end
+            end
+        end
+        local ids={};for id in pairs(liveIds) do ids[#ids+1]=id end;table.sort(ids)
+        for _,id in ipairs(ids) do
+            local label=t("Event | ","อีเวนต์ | ")..id
+            eggOptions[#eggOptions+1]=label;eggIds[label]=id
+            if config.Egg==id then eggCurrent=label end
+        end
+    end
+    if config.Egg~="" and eggCurrent==eggOptions[1] then config.Egg="" end
     hatch:CreateDropdown({Name=t("Egg","ไข่"),Options=eggOptions,CurrentOption={eggCurrent},Searchable=true,Callback=function(value)
         value=type(value)=="table" and value[1] or value;config.Egg=eggIds[value] or ""
     end})
     hatch:CreateSlider({Name=t("Eggs per request","จำนวนไข่ต่อครั้ง"),Range={1,100},Increment=1,CurrentValue=config.HatchCount,Callback=function(value) config.HatchCount=value end})
+    hatch:CreateButton({Name=t("Refresh Available Eggs","รีเฟรชรายการไข่ที่เปิดได้"),Callback=function() task.defer(build) end})
+    hatch:CreateToggle({Name=t("Go Near Egg Before Opening","ไปหาไข่ก่อนเปิดอัตโนมัติ"),CurrentValue=config.AutoApproachEgg,Callback=function(value) config.AutoApproachEgg=value==true end})
     toggle(hatch,"Hatch")
+    hatch:CreateToggle({Name=t("Bypass Tap / Skip Egg Animation","ข้าม Tap To Open / หน้าเปิดไข่"),CurrentValue=config.SkipHatchAnimation,Callback=function(value)
+        config.SkipHatchAnimation=value==true
+        hatchSkip.Set(config.Hatch and config.SkipHatchAnimation)
+    end})
+    hatch:CreateParagraph({Name=t("Instant reveal","เปิดทันที"),Content=t(
+        "Skips the native egg presentation when the executor supports script access. Otherwise uses the game's instant-hatch branch. Keeps the original reward confirmation and respects the server cooldown.",
+        "ข้ามแอนิเมชันเปิดไข่เมื่อเครื่องมือรองรับ ถ้าไม่รองรับใช้ Instant Hatch ของเกม คงขั้นตอนยืนยันสัตว์และคูลดาวน์ของเซิร์ฟเวอร์")})
     hatch:CreateParagraph({Name=t("Game conditions","เงื่อนไขเกม"),Content=t(
         "Unlocks eligible eggs before hatching, clamps the amount to your native hatch limit and funds, and uses CustomEggs_Hatch for active custom eggs. Stand near the selected egg if the server requires distance.",
         "ปลดล็อกไข่ที่ถึงเงื่อนไขก่อนเปิด จำกัดจำนวนตามสิทธิ์และเงิน ใช้คำขอแยกสำหรับไข่ Custom ที่เปิดอยู่ หากเกมตรวจระยะให้ยืนใกล้ไข่ที่เลือก")})
@@ -751,7 +992,7 @@ build=function()
     toggle(progress,"Zones");toggle(progress,"Rebirth")
     local settings=tab("Settings / Report","ตั้งค่า / รายงาน","settings")
     local diagnostics=group(settings,"Test report","รายงานทดลอง","Left","file-text")
-    api.Info=diagnostics:CreateParagraph({Name=t("Trial build","รุ่นทดลอง"),Content="petsim-auto-test-2"})
+    api.Info=diagnostics:CreateParagraph({Name=t("Trial build","รุ่นทดลอง"),Content="petsim-auto-test-3"})
     diagnostics:CreateButton({Name=t("Copy / Save Report","คัดลอก / บันทึกรายงาน"),Callback=api.SaveReport})
     diagnostics:CreateButton({Name=t("Stop All","หยุดออโต้ทั้งหมด"),Callback=function() core.Stop();task.defer(build) end})
     diagnostics:CreateButton({Name=t("Unload","ปิดสคริปต์"),Callback=api.Destroy})
@@ -800,6 +1041,13 @@ local ok,problem=xpcall(function()
             while not destroyed do core.Tick(name);task.wait(0.15) end
         end)
     end
+    task.spawn(function()
+        while not destroyed do
+            hatchSkip.Pulse()
+            core.Report.hatchUI=hatchSkip.Report
+            task.wait(0.15)
+        end
+    end)
 end,debug.traceback)
 if not ok then api.Destroy();error("DEVIL HUB Pet Auto Test: "..tostring(problem),0) end
 return api
