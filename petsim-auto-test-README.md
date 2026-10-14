@@ -1,10 +1,10 @@
 # DEVIL HUB Pet automation trial
 
-Release: petsim-auto-test-3. Standalone, based on the client source in the dump for Place 8737899170 / Universe 3317771874.
+Release: petsim-auto-test-4. Standalone, based on the client source in the dump for Place 8737899170 / Universe 3317771874.
 
 Run:
 
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/petsim-auto-test.lua?v=test-3"))()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/petsim-auto-test.lua?v=test-4"))()
 
 Features: locked-target pet farming, nearby Auto Tap, collection of newly received currency-orb IDs, item magnet for orbs and lootbags, selected-egg hatching, Equip Best, eligible playtime gifts, eligible rank rewards, next-zone purchases, and rebirth.
 
@@ -22,11 +22,11 @@ Item Magnet uses the native Orb.RenderStepped attraction parameters when hookfun
 
 Hatching spends game currency. It checks EggCmds.IsEggAvailable, requests eligible regular-egg unlocks before buying, and clamps purchase count to EggCmds.GetMaxHatch and the affordable quantity using CalcEggPricePlayer. Active custom eggs use CustomEggs_Hatch with the actual nearest live UID and instance count cap. It avoids competing with native auto hatch and reports missing funds, inactive eggs or server rejection.
 
-The supplied live report confirmed a distance rejection at 382.63 studs. Auto approach now resolves the selected egg stand in the current world's loaded Eggs/ZoneEggs folders (or the actual live custom egg), pauses workers, invokes the native TeleportCharacterTo helper once, and requires three consecutive observations within 14 studs before submitting the hatch request. Missing models and unstable positions are reported rather than treated as arrival.
+Hatching sends requests from the player's current location, per the latest user preference. It does not move to an egg, impose a local distance gate, or require a loaded regular-egg model. Distance is diagnostic only. The live report showed that the server can reject requests at 382.63 studs; this change does not claim to bypass that server check. Highest-zone travel buttons remain separate manual actions.
 
 Bypass Tap / Skip Egg Animation defaults on while this script's Hatch is enabled. Where script access is supported, it replaces PlayNormalEggAnimation and PlayTowerDefenseAnimations with an enabled-only presentation skip. It preserves the outer native Eggs_PlayOpenAnimation handler, including item unhide, SM_Unmask and CompletedHatching. Without script access, it uses the native GlobalInstantHatch branch to remove the four-click crack stage. Existing presentations can be advanced using scoped native mouse callbacks (or a mouse signal fallback when available) only while OpeningEgg is positive. Native functions and the previous instant-hatch attribute are restored on stop/unload. The report includes hatchUI.mode, skipped, tapReleased and errors.
 
-The egg dropdown contains available numbered eggs in the current world's currency and separately labelled Event entries for active, hatchable custom eggs. It no longer fills the dropdown with placeholder 000 entries for inactive directory definitions. Refresh Available Eggs updates eligibility after progression. Per-attempt hatch details are cleared before the next attempt so an unavailable egg cannot retain an old distance error.
+The empty-selector regression came from comparing an egg's currency string to WorldsUtil.GetWorldCurrency(), which returns a directory table. The selector now uses GetWorldCurrencyId() or normalizes the table's _id. Numbered regular eggs remain visible before profile data loads; unavailable eggs get a Locked annotation. An unknown currency with no matches falls back to the numbered catalog instead of an empty selector. Active custom eggs have Event labels; inactive definitions do not become 000 entries. A three-second refresh updates the existing dropdown silently, preserving the selected egg, automation, open tab and GUI. Refresh Egg List is also available manually. Per-attempt hatch details are cleared before the next attempt so an unavailable egg cannot retain an old distance error.
 
 Fire-and-forget events show that they have no reply, rather than displaying a misleading zero confirmation counter. Pet farm shows assigned-pet and observed-damage counts. Server cooldown and inventory authority remain unchanged. Next-zone purchases preserve the specified zone-purchase currency reserve. Rebirth and purchases remain off until explicitly enabled.
 
@@ -34,6 +34,6 @@ Native Network.Invoke requests are serialized with a 12-second reporting timeout
 
 Request counters are separate from confirmations. Fire-and-forget pet assignment, tapping and orb requests do not imply rewards. Rank confirmations require replicated claim data. Save / Copy Report writes DevilPetSimTestReport.json when supported and copies the JSON when clipboard APIs are available.
 
-Validation: Luau compilation; core, GUI/native-adapter and hatch-presentation bypass checks. Covers target locking, native route/join packet shape, real-game hatch limits and custom egg UID semantics, approach-before-purchase, stale error cleanup, catalog filtering, presentation skip with native completion preserved, instant-hatch fallback, restoration, magnet parameter positions and hook cleanup, recovery, reward eligibility, pending requests, highest-zone selection and rerun. Changes have not yet been validated in live Roblox.
+Validation: Luau compilation; core, GUI/native-adapter, catalog regression and hatch-presentation bypass checks. Covers the actual currency table API shape, delayed profiles, locked entries, silent dropdown refresh, requests at 382 studs without character movement, stale error cleanup, native route/join packet shape, hatch limits and custom egg UID semantics, presentation skip with native completion preserved, restoration, magnet cleanup and rerun. Changes have not yet been validated in live Roblox.
 
 The main hub loader is unchanged; this is a separate trial script.
