@@ -1,14 +1,22 @@
 # DEVIL HUB Pet automation trial
 
-Release: petsim-auto-test-4. Standalone, based on the client source in the dump for Place 8737899170 / Universe 3317771874.
+Release: petsim-auto-test-5. Standalone, based on the client source in the dump for Place 8737899170 / Universe 3317771874.
 
 Run:
 
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/petsim-auto-test.lua?v=test-4"))()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/petsim-auto-test.lua?v=test-5"))()
 
 Features: locked-target pet farming, nearby Auto Tap, collection of newly received currency-orb IDs, item magnet for orbs and lootbags, selected-egg hatching, Equip Best, eligible playtime gifts, eligible rank rewards, next-zone purchases, and rebirth.
 
 DEVIL HUB / OuroFlow GUI with profile, DEVIL logo, Thai/English button beside minimize, Discord, responsive width control, Stop All and Copy / Save Report. No additional loading screen.
+
+Pet Spawn Test is a separate GUI category. Select a directory pet by class (Gargantuan, Titanic, Huge, Exclusive, Normal or All), then Normal / Golden / Rainbow and optional Shiny. Class ordering reflects the directory flags rather than a claim about maximum damage. Invalid variants are rejected before sending.
+
+The test builds the native PetItem with SetType, SetShiny and PopulateUID, then sends AdminInventory_SpawnItem(item:GetNetworkPacket(), 1, LocalPlayer), matching the supplied admin client source. It requests one pet per attempt. Unconfirmed requests retry after 12, 24 and then 30 seconds until stopped or a matching increase is observed. Stop Spawn Test, Stop All and Unload cancel further attempts; errors retry after 15 seconds. It never calls the admin client's local WorldFX.RewardItem animation or inserts the requested template into inventory.
+
+This dump includes a client admin whitelist but no server handler; the current account's server permissions are unknown. Repetition does not grant admin rights. A sent request is not evidence of a spawned pet, and an ignored request remains unconfirmed. The worker records matching native PetItem:All(LocalPlayer) quantity before/after and requires an own-player Items: Update packet containing Pet data before counting an observed increase. This documents an inventory observation, not proof that the admin request caused it; unrelated server grants could coincide. Save Report includes spawnTest requests, attempts, variant, baseline, current count, serverUpdates, retry deadline and errors.
+
+While the test runs, new Hatch, Gifts and Ranks requests pause and resume afterward. Already pending requests and rank confirmations can finish before the spawn baseline is taken. Native auto hatch must be stopped separately. Every automation, including the spawn test, starts off.
 
 All automation starts disabled. Stand in a loaded breakable zone, equip pets and enable Farm first. The farm uses native PlayerPet.SetTarget and resubmits the native CQ_Route and Breakables_JoinPetBulk packets every three seconds for owned, equipped pets. It validates native Breakable targets, locks one target until it disappears, handles model replacement during damage stages, and scans loaded native models if the legacy index is late. Target health changes are logged as damage observations, separately from reward confirmations. Auto Tap requires proximity and game acceptance.
 
@@ -37,3 +45,5 @@ Request counters are separate from confirmations. Fire-and-forget pet assignment
 Validation: Luau compilation; core, GUI/native-adapter, catalog regression and hatch-presentation bypass checks. Covers the actual currency table API shape, delayed profiles, locked entries, silent dropdown refresh, requests at 382 studs without character movement, stale error cleanup, native route/join packet shape, hatch limits and custom egg UID semantics, presentation skip with native completion preserved, restoration, magnet cleanup and rerun. Changes have not yet been validated in live Roblox.
 
 The main hub loader is unchanged; this is a separate trial script.
+
+Version 5 validation: Luau compilation, 70 core checks, 681 GUI/native-adapter checks, 28 spawn-state checks, 22 hatch-presentation checks and 11 catalog checks. Spawn coverage includes the dump-shaped packet and player receiver, native variant constants, no local template reward, retry intervals, error backoff, stop during construction, selection changes, own versus other-player replication, observed inventory increase, automatic stop, GUI synchronization, reward pause/resume and listener cleanup. No live Roblox spawn success has been established.
