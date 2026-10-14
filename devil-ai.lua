@@ -5876,7 +5876,7 @@ return function(env)
         local roots=env.roots()
         local assets,index,seen,stack={}, {}, {}, {}
         local meta={schema="devil-ai-images-1",placeId=env.game.PlaceId,universeId=env.game.GameId,
-            exportedAt=(env.date or os.date)("%Y-%m-%d %H:%M:%S"),roots={},scanned=0,referenceCount=0,
+            exportedAt=(env.date or os.date)("%Y-%m-%d %H:%M:%S"),roots={},scanned=0,referenceCount=0,assetCount=0,
             truncated=false,cancelled=false,errors={},propertyErrors=0,downloaded=0,failed=0,skipped=0,
             scanLimit=env.scanLimit or 250000,downloadLimit=env.downloadLimit or 5000,
             maxImageBytes=env.maxImageBytes or 32*1024*1024,note="Client-visible loaded instances only; thumbnails and built-in references are listed separately."}
@@ -5902,7 +5902,7 @@ return function(env)
                                 local stored=index[record.key]
                                 if not stored then
                                     record.references={};record.referenceCount=0;record.download={status="not_requested"}
-                                    stored=record;index[record.key]=record;assets[#assets+1]=record
+                                    stored=record;index[record.key]=record;assets[#assets+1]=record;meta.assetCount=#assets
                                 end
                                 stored.referenceCount+=1;meta.referenceCount+=1
                                 if #stored.references<(env.referenceLimit or 1000) then
