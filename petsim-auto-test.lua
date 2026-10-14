@@ -4,8 +4,8 @@ local env=type(getgenv)=="function" and getgenv() or _G
 if env.DevilPetSimTest then env.DevilPetSimTest.Destroy() end
 local makeCore=(function()
 return function(config, d, changed)
-    local C={Config=config,Report={release="petsim-auto-test-4",jobs={},errors={},liveTest=false}}
-    local names={"Farm","Tap","Orbs","Magnet","Hatch","Equip","Gifts","Ranks","Zones","Rebirth"}
+    local C={Config=config,Report={release="petsim-auto-test-5",jobs={},errors={},liveTest=false}}
+    local names={"Farm","Tap","Orbs","Magnet","Hatch","Spawn","Equip","Gifts","Ranks","Zones","Rebirth"}
     local jobs=C.Report.jobs
     local alive=true
     local locked, assigned, lastEquip, lastJoin, lastHealth, lastDamage, lastFarmEquip
@@ -43,6 +43,12 @@ return function(config, d, changed)
         return false
     end
     local actions={}
+    actions.Spawn=function()
+        local result=d.SpawnStep()
+        jobs.Spawn.requests=result.requests;jobs.Spawn.confirmed=result.confirmed
+        status("Spawn",result.status,{pet=result.pet,inventoryBefore=result.before,inventoryNow=result.current,
+            attempts=result.attempts,nextRequestAt=result.nextAt,error=result.error})
+    end
     actions.Farm=function()
         if not locked or not d.TargetValid(locked,config) then
             locked=d.FindTarget(config);assigned={};lastJoin=nil;lastHealth=nil;lastDamage=d.Now()
@@ -176,10 +182,13 @@ return function(config, d, changed)
         status("Rebirth",ok==true and "Rebirth confirmed" or "Server rejected rebirth",{serverMessage=tostring(message or "")})
         if ok~=true then jobs.Rebirth.nextAt=d.Now()+15 end
     end
-    local intervals={Farm=0.8,Tap=0.3,Orbs=0.5,Magnet=0.3,Hatch=0.5,Equip=8,Gifts=2,Ranks=2,Zones=5,Rebirth=8}
+    local intervals={Farm=0.8,Tap=0.3,Orbs=0.5,Magnet=0.3,Hatch=0.5,Spawn=0.5,Equip=8,Gifts=2,Ranks=2,Zones=5,Rebirth=8}
     function C.Tick(key)
         local j=jobs[key]
         if not alive or not config[key] or j.busy or travelling or d.Now()<j.nextAt then return end
+        if config.Spawn and (key=="Hatch" or key=="Gifts" or key=="Ranks") and not j.pending then
+            status(key,"Paused during pet spawn test");return
+        end
         j.busy=true
         local generation=j.generation
         local ok,problem=xpcall(function()
@@ -200,6 +209,7 @@ return function(config, d, changed)
         assert(jobs[key],"Unknown automation")
         config[key]=value==true
         jobs[key].generation+=1;jobs[key].nextAt=0;jobs[key].pending=nil
+        if key=="Spawn" and d.SetSpawn then d.SetSpawn(value==true) end
         if key=="Hatch" and d.SetHatchBypass then
             local ok,mode=pcall(d.SetHatchBypass,value==true)
             jobs[key].bypassMode=ok and mode or "Unavailable"
@@ -403,6 +413,71 @@ end
 return Catalog
 
 end)()
+local makeSpawnTest=(function()
+return function(config,d)
+    local S={Report={status="Disabled",requests=0,confirmed=0,attempts=0,nextAt=0,errors={}}}
+    local enabled,dead=false,false
+    local generation=0
+    local run
+    local function key() return config.SpawnPet.."|"..config.SpawnVariant.."|"..tostring(config.SpawnShiny) end
+    function S.Set(value)
+        generation+=1
+        enabled=value==true and not dead
+        run=nil;S.Report.attempts=0;S.Report.nextAt=0;S.Report.error=nil
+        S.Report.status=enabled and "Enabled" or "Disabled"
+    end
+    function S.Step()
+        if dead or not enabled then return end
+        local report=S.Report
+        local stamp=generation
+        if report.error and d.Now()<report.nextAt then return end
+        report.error=nil
+        local ok,err=xpcall(function()
+            if config.SpawnPet=="" then report.status="Select a pet first";return end
+            if not d.Ready() then report.status="Waiting for player profile";return end
+            if d.NativeHatchActive and d.NativeHatchActive() then report.status="Stop native auto hatch before spawn test";return end
+            if d.OtherRewardsPending and d.OtherRewardsPending() then report.status="Waiting for previous reward request";return end
+            local selection=key()
+            if not run or run.key~=selection then
+                local snapshot=d.Snapshot(config.SpawnPet,config.SpawnVariant,config.SpawnShiny)
+                if generation~=stamp or not enabled or dead or key()~=selection then return end
+                assert(snapshot and type(snapshot.count)=="number","Inventory snapshot unavailable")
+                run={key=selection,before=snapshot.count,epoch=d.Epoch(),sent=false}
+                report.pet=config.SpawnPet;report.variant=config.SpawnVariant;report.shiny=config.SpawnShiny
+                report.before=snapshot.count;report.attempts=0;report.nextAt=0
+            end
+            local current=d.Snapshot(config.SpawnPet,config.SpawnVariant,config.SpawnShiny)
+            if generation~=stamp or not enabled or dead or key()~=selection then return end
+            report.current=current.count;report.serverUpdates=d.Epoch()-run.epoch
+            if run.sent and report.serverUpdates>0 and current.count>run.before then
+                report.confirmed+=1;report.observedIncrease=current.count-run.before
+                report.status="Matching pet increase observed after server update"
+                enabled=false;config.Spawn=false
+                return
+            end
+            if d.Now()<report.nextAt then report.status="Waiting for inventory confirmation";return end
+            local packet=d.Packet(config.SpawnPet,config.SpawnVariant,config.SpawnShiny)
+            assert(packet and packet.class=="Pet" and type(packet.data)=="table","Invalid native pet packet")
+            if generation~=stamp or not enabled or dead or key()~=selection then return end
+            d.Send(packet)
+            run.sent=true
+            report.requests+=1;report.attempts+=1;report.requestUID=packet.uid
+            report.sentAt=d.Now()
+            report.nextAt=d.Now()+math.min(30,12*2^math.min(report.attempts-1,2))
+            report.status="Spawn request sent; waiting for inventory"
+        end,function(problem) return tostring(problem) end)
+        if not ok and generation==stamp and enabled and not dead then
+            report.status="Error; see report";report.error=tostring(err)
+            report.errors[#report.errors+1]=tostring(err)
+            if #report.errors>10 then table.remove(report.errors,1) end
+            report.nextAt=d.Now()+15
+        end
+    end
+    function S.Destroy() generation+=1;enabled=false;dead=true;run=nil end
+    return S
+end
+
+end)()
 local makeLogo=(function()
 local function logo()
     local version="silver-break-20261014"
@@ -460,7 +535,8 @@ local function dirs()
     if not directory then directory=require(RS.Library.Directory) end
     return directory
 end
-local config={Farm=false,Tap=false,Orbs=false,Magnet=false,Hatch=false,Equip=false,Gifts=false,Ranks=false,Zones=false,Rebirth=false,
+local config={Farm=false,Tap=false,Orbs=false,Magnet=false,Hatch=false,Spawn=false,Equip=false,Gifts=false,Ranks=false,Zones=false,Rebirth=false,
+    SpawnPet="",SpawnTier="Gargantuan",SpawnVariant="Normal",SpawnShiny=false,
     Zone="Current",Class="All",Radius=150,MagnetRange=1000,Egg="",HatchCount=1,SkipHatchAnimation=true,Reserve=0,Language="TH"}
 local api={Config=config}
 local window,core,paragraphs,controls={},{},{},{}
@@ -474,6 +550,18 @@ local orbQueue,orbCount={},0
 local magnetHook
 local magnetMode="PacketCollect"
 local now=os.clock
+local spawnTest,petItemClass
+local inventoryEpoch=0
+local function petClass()
+    module("InventoryCmds")
+    if not petItemClass then petItemClass=require(RS.Library.Items.PetItem) end
+    return petItemClass
+end
+local function petType(variant)
+    local value=require(RS.Library.Balancing.Constants).PetTypes[variant]
+    assert(value~=nil,"Unknown pet variant: "..tostring(variant))
+    return value
+end
 local function openingCount()
     local ok,vars=pcall(require,RS.Library.Variables)
     return ok and tonumber(vars.OpeningEgg) or 0
@@ -532,6 +620,27 @@ local function targetInfo(id,model)
     return {id=id,model=model,name=model.Name,distance=(r.Position-p).Magnitude,zone=activeZone(),classSelection=config.Class}
 end
 local deps={}
+deps.SpawnSnapshot=function(id,variant,shiny)
+    local class=petClass()
+    local variantId=petType(variant)
+    local count=0
+    for _,item in pairs(class:All(player)) do
+        if item:GetId()==id and item:GetType()==variantId and item:IsShiny()==shiny then count+=item:GetAmount() end
+    end
+    return {count=count}
+end
+deps.SpawnPacket=function(id,variant,shiny)
+    local definition=dirs().Pets[id]
+    assert(definition,"Pet not found in game directory")
+    assert(not (variant=="Golden" and definition.preventGolden),"This pet cannot be Golden")
+    assert(not (variant=="Rainbow" and definition.preventRainbow),"This pet cannot be Rainbow")
+    assert(not (shiny and definition.preventShiny),"This pet cannot be Shiny")
+    local item=petClass()(id):SetType(petType(variant)):SetShiny(shiny)
+    item:PopulateUID()
+    return item:GetNetworkPacket()
+end
+deps.SpawnStep=function() spawnTest.Step();return spawnTest.Report end
+deps.SetSpawn=function(value) spawnTest.Set(value) end
 deps.Now=now
 deps.Save=function() return module("Save").Get() or {} end
 deps.Ready=function() return not destroyed and module("Save").Get()~=nil end
@@ -773,6 +882,7 @@ deps.WaitForZone=function(id)
     return false
 end
 deps.Destroy=function()
+    if spawnTest then spawnTest.Destroy() end
     hatchSkip.Destroy()
     if magnetHook then
         pcall(hookfunction,magnetHook.target,magnetHook.original)
@@ -782,6 +892,7 @@ deps.Destroy=function()
     table.clear(connections);table.clear(orbQueue);orbCount=0
 end
 local labels={
+    Spawn={"Request Pet Spawn","ทดลองขอเสกสัตว์"},
     Farm={"Pet Farm","ฟาร์มด้วยสัตว์"},Tap={"Auto Tap","ตีเป้าหมายอัตโนมัติ"},Orbs={"Collect Orbs","เก็บออร์บอัตโนมัติ"},
     Magnet={"Item Magnet / Orbs + Lootbags","แม่เหล็กดูดออร์บและของดรอป"},
     Hatch={"Open Selected Egg","เปิดไข่ที่เลือก"},Equip={"Equip Best","ใส่สัตว์ดีที่สุด"},
@@ -831,15 +942,25 @@ local texts={
     ["Zone purchase confirmed"]="เกมยืนยันซื้อด่าน",["Server rejected zone purchase"]="เกมปฏิเสธซื้อด่าน",
     ["Maximum rebirth reached"]="รีเบิร์ธถึงสูงสุด",["Unlock required zone first"]="เปิดด่านที่ต้องการก่อน",
     ["Rebirth confirmed"]="เกมยืนยันรีเบิร์ธ",["Server rejected rebirth"]="เกมปฏิเสธรีเบิร์ธ"}
+texts["Select a pet first"]="เลือกสัตว์ก่อน"
+texts["Stop native auto hatch before spawn test"]="หยุดเปิดไข่ของเกมก่อนทดลองเสก"
+texts["Waiting for previous reward request"]="รอคำขอรางวัลก่อนหน้าเสร็จ"
+texts["Waiting for inventory confirmation"]="รอข้อมูลกระเป๋าจากเกม"
+texts["Spawn request sent; waiting for inventory"]="ส่งคำขอแล้ว รอข้อมูลกระเป๋า"
+texts["Matching pet increase observed after server update"]="พบสัตว์ที่เลือกเพิ่มหลังเกมอัปเดตกระเป๋า"
+texts["Paused during pet spawn test"]="พักไว้ระหว่างทดลองเสกสัตว์"
 local function t(en,th) return config.Language=="TH" and th or en end
 local function refresh(report)
     if destroyed then return end
+    if controls.Spawn then controls.Spawn:Set(config.Spawn,true) end
     for name,j in pairs(report.jobs) do
         local widget=paragraphs[name]
         if widget then
             local counters=t("Requests: ","คำขอ: ")..j.requests..t(" | Server accepted: "," | เกมตอบรับ: ")..j.confirmed
             if name=="Farm" then
                 counters=t("Pets assigned: ","สัตว์ที่ส่ง: ")..(j.pets or 0)..t(" | Damage updates: "," | ครั้งที่เห็นดาเมจ: ")..(j.damageUpdates or 0)
+            elseif name=="Spawn" then
+                counters=t("Requests: ","คำขอ: ")..j.requests..t(" | Inventory increases observed: "," | พบกระเป๋าเพิ่ม: ")..j.confirmed
             elseif name=="Orbs" or name=="Magnet" or name=="Tap" then
                 counters=t("Requests: ","คำขอ: ")..j.requests..t(" | No reply on this event"," | คำขอนี้ไม่มีผลตอบกลับ")
             end
@@ -871,6 +992,7 @@ function api.SaveReport()
     core.Report.pendingRPC=pending and {name=pending.name,age=now()-pending.started} or nil
     core.Report.config=config;core.Report.orbsQueued=orbCount
     core.Report.hatchUI=hatchSkip.Report
+    core.Report.spawnTest=spawnTest and spawnTest.Report
     local bytes=Http:JSONEncode(core.Report)
     local saved,copied=false,false
     if type(writefile)=="function" then saved=pcall(writefile,"DevilPetSimTestReport.json",bytes) end
@@ -934,6 +1056,31 @@ function api.RefreshEggs()
     controls.Egg:Refresh(options,true,true)
     controls.Egg:Set(selected,true)
     catalogSignature=signature
+end
+local function spawnPetOptions()
+    local rank={Gargantuan=5,Titanic=4,Huge=3,Exclusive=2,Normal=1}
+    local rows={}
+    for id,definition in pairs(dirs().Pets or {}) do
+        local tier=definition.gargantuan and "Gargantuan" or definition.titanic and "Titanic" or definition.huge and "Huge"
+            or definition.exclusiveLevel and "Exclusive" or "Normal"
+        if config.SpawnTier=="All" or config.SpawnTier==tier then rows[#rows+1]={id=id,tier=tier} end
+    end
+    table.sort(rows,function(a,b) return rank[a.tier]==rank[b.tier] and a.id<b.id or rank[a.tier]>rank[b.tier] end)
+    local options={t("Select a pet","เลือกสัตว์")}
+    local ids,selected={},options[1]
+    for _,row in ipairs(rows) do
+        local label=row.tier.." | "..row.id
+        options[#options+1]=label;ids[label]=row.id
+        if config.SpawnPet==row.id then selected=label end
+    end
+    return options,ids,selected
+end
+function api.RefreshSpawnPets()
+    if not controls.SpawnPet then return end
+    local options,ids,selected=spawnPetOptions()
+    api.SpawnPetIds=ids
+    if not ids[selected] then config.SpawnPet="" end
+    controls.SpawnPet:Refresh(options,true,true);controls.SpawnPet:Set(selected,true)
 end
 local library
 build=function()
@@ -1001,6 +1148,33 @@ build=function()
     hatch:CreateParagraph({Name=t("Game conditions","เงื่อนไขเกม"),Content=t(
         "Sends hatch requests from your current position. Locked rows show progression requirements. There is no movement to the egg; any server distance rejection appears in status.",
         "ส่งคำขอเปิดไข่จากตำแหน่งปัจจุบัน รายการที่ยังไม่ถึงด่านมีป้ายกำกับ ไม่มีการไปหาไข่ หากเซิร์ฟเวอร์ปฏิเสธเรื่องระยะจะแสดงข้อความตามจริง")})
+    local spawnTab=tab("Pet Spawn Test","ทดลองเสกสัตว์","flask-conical")
+    local spawn=group(spawnTab,"Pet selection","เลือกสัตว์ทดลอง","Left","paw-print")
+    spawn:CreateDropdown({Name=t("Pet class","ประเภทสัตว์"),Options={"Gargantuan","Titanic","Huge","Exclusive","Normal","All"},
+        CurrentOption={config.SpawnTier},Callback=function(value)
+            config.SpawnTier=type(value)=="table" and value[1] or value
+            api.RefreshSpawnPets()
+        end})
+    local petOptions,petIds,petSelected=spawnPetOptions()
+    api.SpawnPetIds=petIds
+    controls.SpawnPet=spawn:CreateDropdown({Name=t("Pet","สัตว์"),Options=petOptions,CurrentOption={petSelected},Searchable=true,Callback=function(value)
+        value=type(value)=="table" and value[1] or value
+        config.SpawnPet=api.SpawnPetIds[value] or ""
+    end})
+    spawn:CreateDropdown({Name=t("Variant","รูปแบบสัตว์"),Options={"Normal","Golden","Rainbow"},CurrentOption={config.SpawnVariant},Callback=function(value)
+        config.SpawnVariant=type(value)=="table" and value[1] or value
+    end})
+    spawn:CreateToggle({Name="Shiny",CurrentValue=config.SpawnShiny,Callback=function(value) config.SpawnShiny=value==true end})
+    toggle(spawn,"Spawn")
+    spawn:CreateButton({Name=t("Stop Spawn Test","หยุดทดลองเสก"),Callback=function() core.Set("Spawn",false) end})
+    local evidence=group(spawnTab,"Inventory confirmation","ตรวจผลกระเป๋า","Right","clipboard-check")
+    evidence:CreateParagraph({Name=t("Request behavior","รูปแบบคำขอ"),Content=t(
+        "Requests one selected pet for your player. Retries every 12–30 seconds until a matching inventory increase follows a server update. You can stop at any time. Hatching and reward claims pause during the test.",
+        "ขอสัตว์ที่เลือกครั้งละ 1 ตัวเข้าบัญชีตนเอง ลองใหม่ทุก 12–30 วินาทีจนพบสัตว์เพิ่มหลังเกมอัปเดตกระเป๋า กดหยุดได้ตลอด พักการเปิดไข่และรับรางวัลระหว่างทดลอง")})
+    evidence:CreateParagraph({Name=t("Server result","ผลจากเซิร์ฟเวอร์"),Content=t(
+        "Uses the native AdminInventory_SpawnItem packet. Server permissions are unknown; retries do not grant admin rights. A sent request is not proof of a reward. No local reward animation is used as confirmation.",
+        "ใช้ packet ของ AdminInventory_SpawnItem ตาม dump ยังไม่ทราบสิทธิ์ฝั่งเซิร์ฟเวอร์ การส่งซ้ำไม่เพิ่มสิทธิ์แอดมิน ส่งคำขอไม่เท่ากับได้รับสัตว์ ตรวจจากกระเป๋าโดยไม่สร้างผลรางวัลหลอก")})
+    evidence:CreateButton({Name=t("Copy Spawn Report","คัดลอกรายงานเสก"),Callback=api.SaveReport})
     local progressTab=tab("Progress & Rewards","ความคืบหน้า / รางวัล","gift")
     local rewards=group(progressTab,"Rewards","รับรางวัล","Left","gift")
     toggle(rewards,"Gifts");toggle(rewards,"Ranks")
@@ -1011,7 +1185,7 @@ build=function()
     toggle(progress,"Zones");toggle(progress,"Rebirth")
     local settings=tab("Settings / Report","ตั้งค่า / รายงาน","settings")
     local diagnostics=group(settings,"Test report","รายงานทดลอง","Left","file-text")
-    api.Info=diagnostics:CreateParagraph({Name=t("Trial build","รุ่นทดลอง"),Content="petsim-auto-test-4"})
+    api.Info=diagnostics:CreateParagraph({Name=t("Trial build","รุ่นทดลอง"),Content="petsim-auto-test-5"})
     diagnostics:CreateButton({Name=t("Copy / Save Report","คัดลอก / บันทึกรายงาน"),Callback=api.SaveReport})
     diagnostics:CreateButton({Name=t("Stop All","หยุดออโต้ทั้งหมด"),Callback=function() core.Stop();task.defer(build) end})
     diagnostics:CreateButton({Name=t("Unload","ปิดสคริปต์"),Callback=api.Destroy})
@@ -1041,8 +1215,28 @@ env.DevilPetSimTest=api
 local ok,problem=xpcall(function()
     local source=game:HttpGet("https://raw.githubusercontent.com/joustingmatch/OuroFlow/c8251f76f74d9942114ebccb0564aa0ac196320a/Source.luau")
     local run,err=loadstring(source,"DEVIL HUB / OuroFlow");assert(run,err);library=run()
+    spawnTest=makeSpawnTest(config,{
+        Now=now,Ready=deps.Ready,Epoch=function() return inventoryEpoch end,
+        Snapshot=deps.SpawnSnapshot,Packet=deps.SpawnPacket,
+        Send=function(packet) deps.Fire("AdminInventory_SpawnItem",packet,1,player) end,
+        NativeHatchActive=function() return module("HatchingCmds").IsHatching() or openingCount()>0 end,
+        OtherRewardsPending=function()
+            if core then
+                for _,name in ipairs({"Hatch","Gifts","Ranks"}) do
+                    local job=core.Report.jobs[name]
+                    if job and (job.busy or job.pending) then return true end
+                end
+            end
+            return rpcPending()~=nil
+        end,
+    })
     core=makeCore(config,deps,refresh);api.Core=core
     build()
+    connections[#connections+1]=module("Network").Fired("Items: Update"):Connect(function(owner,packet)
+        if not destroyed and owner==player and type(packet)=="table" and type(packet.set)=="table" and type(packet.set.Pet)=="table" then
+            inventoryEpoch+=1
+        end
+    end)
     connections[#connections+1]=module("Network").Fired("Orbs: Create"):Connect(function(batch)
         if destroyed or type(batch)~="table" then return end
         for _,packet in ipairs(batch) do
