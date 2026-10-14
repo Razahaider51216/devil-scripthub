@@ -4,11 +4,12 @@ local env=type(getgenv)=="function" and getgenv() or _G
 if env.DevilPetSimTest then env.DevilPetSimTest.Destroy() end
 local makeCore=(function()
 return function(config, d, changed)
-    local C={Config=config,Report={release="petsim-auto-test-1",jobs={},errors={},liveTest=false}}
-    local names={"Farm","Tap","Orbs","Hatch","Equip","Gifts","Ranks","Zones","Rebirth"}
+    local C={Config=config,Report={release="petsim-auto-test-2",jobs={},errors={},liveTest=false}}
+    local names={"Farm","Tap","Orbs","Magnet","Hatch","Equip","Gifts","Ranks","Zones","Rebirth"}
     local jobs=C.Report.jobs
     local alive=true
-    local locked, assigned, lastEquip
+    local locked, assigned, lastEquip, lastJoin, lastHealth, lastDamage, lastFarmEquip
+    local travelling=false
     local function notify() if changed then pcall(changed,C.Report) end end
     local function status(key,text,details)
         local j=jobs[key];j.status=text;j.updatedAt=d.Now()
@@ -44,7 +45,7 @@ return function(config, d, changed)
     local actions={}
     actions.Farm=function()
         if not locked or not d.TargetValid(locked,config) then
-            locked=d.FindTarget(config);assigned={}
+            locked=d.FindTarget(config);assigned={};lastJoin=nil;lastHealth=nil;lastDamage=d.Now()
         end
         if not locked then status("Farm","Waiting for loaded targets in selected zone");return end
         local count=0
@@ -55,8 +56,22 @@ return function(config, d, changed)
                 d.AssignPet(pet,locked);assigned[id]=locked.id;jobs.Farm.requests+=1
             end
         end
-        status("Farm",count==0 and "Equip pets first" or "Pets assigned to locked target",
-            {target=locked.id,targetName=locked.name,pets=count})
+        if count==0 and d.EquipBest and (not lastFarmEquip or d.Now()-lastFarmEquip>=15) then
+            d.EquipBest();jobs.Farm.requests+=1;lastFarmEquip=d.Now()
+        end
+        if count>0 and d.JoinPets and (not lastJoin or d.Now()-lastJoin>=3) then
+            local joined=d.JoinPets(assigned,locked)
+            jobs.Farm.requests+=joined>0 and 2 or 0;lastJoin=d.Now()
+        end
+        local health=d.TargetHealth and d.TargetHealth(locked)
+        if health and lastHealth and health<lastHealth then
+            jobs.Farm.damageUpdates=(jobs.Farm.damageUpdates or 0)+1;lastDamage=d.Now()
+        end
+        lastHealth=health
+        local text=count==0 and "Equip pets first" or "Pet target and join requested"
+        if count>0 and d.Now()-lastDamage>10 then text="No damage observed; check pet reach or selected zone"
+        elseif jobs.Farm.damageUpdates and d.Now()-lastDamage<2 then text="Target taking damage" end
+        status("Farm",text,{target=locked.id,targetName=locked.name,pets=count,health=health})
     end
     actions.Tap=function()
         local target=locked and d.TargetValid(locked,config) and locked or d.FindTarget(config)
@@ -66,17 +81,42 @@ return function(config, d, changed)
         status("Tap","Tap requested; damage not yet confirmed",{target=target.id})
     end
     actions.Orbs=function()
+        if config.Magnet then status("Orbs","Handled by item magnet");return end
         local ids=d.OrbBatch(100)
         if #ids==0 then status("Orbs","Waiting for new server-created orbs");return end
         d.Fire("Orbs: Collect",ids);d.OrbSent(ids);jobs.Orbs.requests+=1
         status("Orbs","Collection requested; inventory not yet confirmed",{batch=#ids})
     end
+    actions.Magnet=function()
+        if d.MagnetMode and d.MagnetMode()=="NativeAttraction" then
+            status("Magnet","Native item magnet active; server inventory controls rewards",{mode="NativeAttraction"});return
+        end
+        local ids=d.OrbBatch(100,true)
+        if #ids==0 then status("Magnet","Waiting for new server-created orbs");return end
+        d.Fire("Orbs: Collect",ids);d.OrbSent(ids);jobs.Magnet.requests+=1
+        status("Magnet","Collection requested; inventory not yet confirmed",{batch=#ids,mode="PacketCollect"})
+    end
     actions.Hatch=function()
         if config.Egg=="" then status("Hatch","Select an egg first");return end
         local egg=d.Egg(config.Egg)
         if not egg then status("Hatch","Selected egg unavailable");return end
-        local ok,message=request("Hatch","Eggs_RequestPurchase",egg._id or config.Egg,math.clamp(math.floor(config.HatchCount),1,100))
+        local plan=d.HatchPlan and d.HatchPlan(config.Egg,egg,config.HatchCount) or
+            {remote="Eggs_RequestPurchase",id=egg._id or config.Egg,count=math.clamp(math.floor(config.HatchCount),1,100),cooldown=3}
+        if plan.blocked then status("Hatch",plan.blocked,plan);jobs.Hatch.nextAt=d.Now()+5;return end
+        if plan.remote=="Eggs_RequestUnlock" then
+            local ok,message=request("Hatch",plan.remote,plan.id)
+            if ok==true then
+                jobs.Hatch.confirmed-=1;jobs.Hatch.unlockConfirmed=(jobs.Hatch.unlockConfirmed or 0)+1
+            end
+            status("Hatch",ok==true and "Egg unlock requested; waiting for replication" or "Server rejected egg unlock",
+                {egg=config.Egg,remote=plan.remote,serverMessage=tostring(message or "")})
+            jobs.Hatch.nextAt=d.Now()+3;return
+        end
+        local ok,message=request("Hatch",plan.remote,plan.id,plan.count)
         status("Hatch",ok==true and "Hatch confirmed" or "Server rejected hatch",{serverMessage=tostring(message or "")})
+        jobs.Hatch.remote=plan.remote;jobs.Hatch.egg=config.Egg;jobs.Hatch.effectiveCount=plan.count
+        jobs.Hatch.maxHatch=plan.maxHatch;jobs.Hatch.price=plan.price;jobs.Hatch.eggDistance=plan.distance
+        jobs.Hatch.nextAt=d.Now()+math.max(0.5,plan.cooldown or 3)
         if ok~=true then jobs.Hatch.nextAt=d.Now()+8 end
     end
     actions.Equip=function()
@@ -133,10 +173,10 @@ return function(config, d, changed)
         status("Rebirth",ok==true and "Rebirth confirmed" or "Server rejected rebirth",{serverMessage=tostring(message or "")})
         if ok~=true then jobs.Rebirth.nextAt=d.Now()+15 end
     end
-    local intervals={Farm=0.8,Tap=0.3,Orbs=0.5,Hatch=3,Equip=8,Gifts=2,Ranks=2,Zones=5,Rebirth=8}
+    local intervals={Farm=0.8,Tap=0.3,Orbs=0.5,Magnet=0.3,Hatch=3,Equip=8,Gifts=2,Ranks=2,Zones=5,Rebirth=8}
     function C.Tick(key)
         local j=jobs[key]
-        if not alive or not config[key] or j.busy or d.Now()<j.nextAt then return end
+        if not alive or not config[key] or j.busy or travelling or d.Now()<j.nextAt then return end
         j.busy=true
         local generation=j.generation
         local ok,problem=xpcall(function()
@@ -157,6 +197,11 @@ return function(config, d, changed)
         assert(jobs[key],"Unknown automation")
         config[key]=value==true
         jobs[key].generation+=1;jobs[key].nextAt=0;jobs[key].pending=nil
+        if key=="Magnet" and d.SetMagnet then
+            local ok,mode=pcall(d.SetMagnet,value==true)
+            jobs[key].mode=ok and mode or "PacketCollect"
+            if not ok then jobs[key].error=tostring(mode) end
+        end
         if key=="Farm" then
             if not value then pcall(d.ClearAssigned,assigned) end
             locked=nil;assigned={}
@@ -164,6 +209,47 @@ return function(config, d, changed)
         status(key,value and "Enabled" or "Disabled")
     end
     function C.Stop() for _,key in ipairs(names) do C.Set(key,false) end end
+    function C.Teleport(probe)
+        if not alive or travelling then return false,"Travel already pending or stopped" end
+        if C.Report.travel and d.Now()-(C.Report.travel.started or 0)<10 then return false,"Wait before another teleport request" end
+        travelling=true
+        local travel={mode=probe and "FinalZoneProbe" or "HighestUnlocked",started=d.Now(),status="Selecting zone"}
+        C.Report.travel=travel
+        local ok,problem=xpcall(function()
+            local best,highest
+            local world=d.WorldNumber()
+            for id,zone in pairs(d.ZoneDirectory()) do
+                if zone.WorldNumber==world and type(zone.ZoneNumber)=="number" then
+                    if not highest or zone.ZoneNumber>highest.number then highest={id=id,number=zone.ZoneNumber} end
+                    if d.ZoneEligible(id) and (not best or zone.ZoneNumber>best.number) then best={id=id,number=zone.ZoneNumber} end
+                end
+            end
+            local goal=probe and highest or best
+            if not goal then travel.status="No eligible zone in this world";return end
+            travel.zone=goal.id;travel.zoneNumber=goal.number;travel.ownedBefore=d.ZoneOwns(goal.id)
+            if not probe then
+                local allowed,reason=d.CanTeleport(goal.id)
+                if not allowed then travel.status="Teleport blocked by game conditions";travel.serverMessage=tostring(reason or "");return end
+            end
+            if d.CanInvoke and not d.CanInvoke() then travel.status="Waiting for previous server request";return end
+            if assigned then pcall(d.ClearAssigned,assigned) end
+            locked=nil;assigned={};lastJoin=nil
+            travel.status="Sending one teleport request";notify()
+            local accepted,reason=d.Invoke("Teleports_RequestTeleport",goal.id)
+            travel.serverAccepted=accepted==true;travel.serverMessage=tostring(reason or "")
+            if not alive then return end
+            if accepted~=true then travel.status="Server rejected teleport";return end
+            travel.arrived=d.WaitForZone(goal.id)
+            travel.ownedAfter=d.ZoneOwns(goal.id)
+            if not alive then return end
+            travel.status=travel.arrived and "Teleport arrival confirmed" or "Accepted; arrival not confirmed"
+            if travel.arrived then config.Zone=goal.id end
+        end,function(err) return tostring(err) end)
+        travelling=false
+        if not ok then travel.status="Teleport error";travel.serverMessage=tostring(problem) end
+        notify()
+        return ok and travel.arrived==true,travel.serverMessage or travel.status
+    end
     function C.Destroy()
         if not alive then return end
         C.Stop();alive=false;if d.Destroy then d.Destroy() end
@@ -230,15 +316,18 @@ local function dirs()
     if not directory then directory=require(RS.Library.Directory) end
     return directory
 end
-local config={Farm=false,Tap=false,Orbs=false,Hatch=false,Equip=false,Gifts=false,Ranks=false,Zones=false,Rebirth=false,
-    Zone="Current",Class="All",Radius=150,Egg="",HatchCount=1,Reserve=0,Language="TH"}
+local config={Farm=false,Tap=false,Orbs=false,Magnet=false,Hatch=false,Equip=false,Gifts=false,Ranks=false,Zones=false,Rebirth=false,
+    Zone="Current",Class="All",Radius=150,MagnetRange=1000,Egg="",HatchCount=1,Reserve=0,Language="TH"}
 local api={Config=config}
 local window,core,paragraphs,controls={},{},{},{}
 window=nil;core=nil
+local build
 local destroyed,rebuilding=false,false
 local connections={}
 local function rpcPending() return env.DevilPetSimRPCPending end
 local orbQueue,orbCount={},0
+local magnetHook
+local magnetMode="PacketCollect"
 local now=os.clock
 local function message(text) if api.Info then api.Info:Set(tostring(text),true) end end
 local function root()
@@ -250,7 +339,10 @@ local function position(model)
     if model:IsA("BasePart") then return model.Position end
     if model:IsA("Model") then return model:GetPivot().Position end
 end
-local function activeZone() return config.Zone=="Current" and module("MapCmds").GetCurrentZone() or config.Zone end
+local function activeZone()
+    if config.Zone~="Current" then return config.Zone end
+    return module("MapCmds").GetCurrentZone()
+end
 local function targetInfo(id,model)
     local r=root();local p=model and model.Parent and position(model)
     if not r or not p then return nil end
@@ -278,8 +370,33 @@ deps.Invoke=function(name,...)
 end
 deps.Fire=function(name,...) module("Network").Fire(name,...) end
 deps.Pets=function() return module("PlayerPet").GetByPlayer(player) end
-deps.PetOnTarget=function(pet,target) return pet:GetTarget()==target.model end
-deps.AssignPet=function(pet,target) pet:SetTarget(target.model) end
+deps.PetOnTarget=function(pet,target)
+    return pet:GetTarget()==target.model and pet:GetTargetType()=="Breakable" and pet:GetTargetValue()==target.id
+end
+deps.AssignPet=function(pet,target)
+    assert(target.model:GetAttribute("BreakableClass") and target.model:GetAttribute("BreakableUID")==target.id,"Invalid native breakable target")
+    pet:SetTarget(target.model)
+end
+deps.JoinPets=function(assigned,target)
+    local route,join={},{}
+    local types=require(RS.Library.Types.Pets)
+    local count=0
+    for id,pet in pairs(deps.Pets()) do
+        if assigned[id]==target.id and not pet.destroyed and pet.euid and deps.PetOnTarget(pet,target) then
+            route[pet.euid]={t=types.TargetTypeId.Breakable,v=target.id}
+            join[pet.euid]=target.id;count+=1
+        end
+    end
+    if count>0 then
+        deps.Fire("CQ_Route",route)
+        deps.Fire("Breakables_JoinPetBulk",join)
+    end
+    return count
+end
+deps.TargetHealth=function(target)
+    local record=module("BreakableFrontend").Get(target.id)
+    return record and type(record.health)=="number" and record.health or nil
+end
 deps.ClearAssigned=function(assigned)
     for id,pet in pairs(deps.Pets()) do if assigned[id] then pet:ClearTarget() end end
 end
@@ -304,26 +421,127 @@ deps.FindTarget=function()
             if t and t.distance<=config.Radius and (not best or t.distance<best.distance) then best=t end
         end
     end
+    -- Also inspect loaded native models when the legacy index has not caught up.
+    if not best then
+        local things=workspace:FindFirstChild("__THINGS")
+        local folder=things and things:FindFirstChild("Breakables")
+        if folder then
+            local parentTypes=require(RS.Library.Types.Breakables).ParentType
+            local instanceId=instance.GetInstanceID()
+            for _,model in ipairs(folder:GetChildren()) do
+                local class=model:GetAttribute("BreakableClass")
+                local uid=model:GetAttribute("BreakableUID")
+                local parent=model:GetAttribute("ParentID")
+                local parentType=model:GetAttribute("ParentType")
+                local inZone=instanceId and parentType==parentTypes.Instance and parent==instanceId or
+                    not instanceId and parentType==parentTypes.Zone and parent==zone
+                if uid and inZone and (config.Class=="All" or class==config.Class) then
+                    local t=targetInfo(uid,model)
+                    if t and t.distance<=config.Radius and (not best or t.distance<best.distance) then best=t end
+                end
+            end
+        end
+    end
     return best
 end
 deps.TargetValid=function(target)
     if target.zone~=activeZone() or target.classSelection~=config.Class then return false end
     local model=module("BreakableCmds").Get(target.id)
-    if model~=target.model or not model.Parent then return false end
+    if not model or not model.Parent then return false end
+    target.model=model
     local t=targetInfo(target.id,model)
     if not t or t.distance>config.Radius then return false end
     target.distance=t.distance;return true
 end
-deps.OrbBatch=function(limit)
+deps.OrbBatch=function(limit,includeItems)
     local out={}
-    for id,created in pairs(orbQueue) do
-        if now()-created>30 then orbQueue[id]=nil;orbCount-=1
-        elseif #out<limit then out[#out+1]=id end
+    for id,record in pairs(orbQueue) do
+        if now()-record.created>30 then orbQueue[id]=nil;orbCount-=1
+        elseif (includeItems or not record.lootbag) and #out<limit then out[#out+1]=id end
     end
     return out
 end
 deps.OrbSent=function(ids) for _,id in ipairs(ids) do if orbQueue[id] then orbQueue[id]=nil;orbCount-=1 end end end
+deps.SetMagnet=function(enabled)
+    if not enabled or magnetHook then return magnetMode end
+    if type(hookfunction)~="function" then return "PacketCollect" end
+    local parent=client:FindFirstChild("OrbCmds")
+    local source=parent and parent:FindFirstChild("Orb")
+    if not source then return "PacketCollect" end
+    local class=require(source)
+    local target=class.RenderStepped
+    if type(target)~="function" then return "PacketCollect" end
+    local original
+    original=hookfunction(target,function(orb,...)
+        if destroyed or not config.Magnet then return original(orb,...) end
+        local args=table.pack(...)
+        if args.n<8 then return original(orb,...) end
+        local previous=orb._superMagnet
+        orb._superMagnet=true
+        args[7]=math.max(tonumber(args[7]) or 0,config.MagnetRange)
+        args[8]=true
+        local result=table.pack(pcall(original,orb,table.unpack(args,1,args.n)))
+        orb._superMagnet=previous
+        if not result[1] then error(result[2],0) end
+        return table.unpack(result,2,result.n)
+    end)
+    if type(original)~="function" then return "PacketCollect" end
+    magnetHook={target=target,original=original};magnetMode="NativeAttraction";return magnetMode
+end
+deps.MagnetMode=function() return magnetMode end
 deps.Egg=function(id) return dirs().Eggs[id] end
+deps.HatchPlan=function(id,egg,requested)
+    local cmd=module("EggCmds")
+    if module("HatchingCmds").IsHatching() then return {blocked="Native auto hatch already running"} end
+    local max=math.max(1,math.floor(cmd.GetMaxHatch(egg)))
+    local plan={id=id,remote="Eggs_RequestPurchase",maxHatch=max,cooldown=cmd.ComputeDebounce()}
+    local r=root()
+    if not r then return {blocked="Waiting for character"} end
+    if egg.eggNumber then
+        if not cmd.IsEggAvailable(id) then return {blocked="Unlock more zones to make this egg available",egg=id} end
+        if not cmd.IsUnlocked(id) then
+            plan.remote="Eggs_RequestUnlock";return plan
+        end
+        local things=workspace:FindFirstChild("__THINGS")
+        local models=things and things:FindFirstChild("ZoneEggs")
+        local modelName=require(RS.Library.Util.WorldsUtil).GetEggsModelName()
+        local worldModels=models and modelName and models:FindFirstChild(modelName)
+        local model=worldModels and worldModels:FindFirstChild(tostring(egg.eggNumber).." - Egg Capsule")
+        if not model and things and modelName then
+            for _,folderName in ipairs({"Eggs","ZoneEggs"}) do
+                local folder=things:FindFirstChild(folderName)
+                local worldFolder=folder and folder:FindFirstChild(modelName)
+                if worldFolder then
+                    for _,stand in ipairs(worldFolder:GetChildren()) do
+                        if tonumber(stand.Name:match("^(%d+)"))==egg.eggNumber then model=stand;break end
+                    end
+                end
+                if model then break end
+            end
+        end
+        local p=model and position(model)
+        plan.distance=p and (r.Position-p).Magnitude or nil
+    else
+        local custom=module("CustomEggsCmds")
+        local uid=custom.GetClosestById(id)
+        local live=uid and custom.Get(uid)
+        if not live or not live:IsHatchable() then return {blocked="Selected custom egg is not active or hatchable",egg=id} end
+        local cap=live:GetMaxEggCount()
+        if type(cap)=="number" then max=math.min(max,math.max(1,math.floor(cap))) end
+        plan.id=uid;plan.remote="CustomEggs_Hatch";plan.maxHatch=max
+        plan.distance=(r.Position-live:GetPosition()).Magnitude
+    end
+    local price=require(RS.Library.Balancing.CalcEggPricePlayer)(egg)
+    if type(price)~="number" or price<0 or price~=price then return {blocked="Egg price unavailable",egg=id} end
+    plan.price=price
+    local count=math.clamp(math.floor(requested),1,max)
+    if price>0 then
+        if not egg.currency then return {blocked="Egg currency unavailable",egg=id} end
+        count=math.min(count,math.floor(module("CurrencyCmds").Get(egg.currency)/price))
+    end
+    if count<1 then return {blocked="Insufficient currency for this egg",egg=id,price=price,distance=plan.distance} end
+    plan.count=count;return plan
+end
 deps.EquipBest=function() module("PetCmds").EquipBest() end
 deps.EquippedSnapshot=function()
     local ids={}
@@ -346,19 +564,60 @@ deps.GatePrice=function(zone) return zone.Currency,require(RS.Library.Balancing)
 deps.Currency=function(currency) return module("CurrencyCmds").Get(currency) end
 deps.NextRebirth=function() return module("RebirthCmds").GetNextRebirth() end
 deps.MaxZoneNumber=function() local _,zone=module("ZoneCmds").GetMaxOwnedZone();return zone and zone.ZoneNumber or 0 end
+deps.WorldNumber=function() return require(RS.Library.Util.WorldsUtil).GetWorldNumber() end
+deps.ZoneDirectory=function() return dirs().Zones end
+deps.ZoneOwns=function(id) return module("ZoneCmds").Owns(id) end
+deps.ZoneEligible=function(id) return module("ZoneCmds").MeetsRequirement(id)==true end
+deps.CanTeleport=function(id)
+    if module("InstancingCmds").IsInInstance() then return false,"Leave the instance before world-zone teleport" end
+    return module("TeleportMapCmds").CanTeleportTo(id)
+end
+deps.WaitForZone=function(id)
+    local started=now()
+    while not destroyed and now()-started<6 do
+        if module("MapCmds").GetCurrentZone()==id then return true end
+        task.wait(0.1)
+    end
+    return false
+end
 deps.Destroy=function()
+    if magnetHook then
+        pcall(hookfunction,magnetHook.target,magnetHook.original)
+        magnetHook=nil
+    end
     for _,connection in ipairs(connections) do pcall(function() connection:Disconnect() end) end
     table.clear(connections);table.clear(orbQueue);orbCount=0
 end
 local labels={
     Farm={"Pet Farm","ฟาร์มด้วยสัตว์"},Tap={"Auto Tap","ตีเป้าหมายอัตโนมัติ"},Orbs={"Collect Orbs","เก็บออร์บอัตโนมัติ"},
+    Magnet={"Item Magnet / Orbs + Lootbags","แม่เหล็กดูดออร์บและของดรอป"},
     Hatch={"Open Selected Egg","เปิดไข่ที่เลือก"},Equip={"Equip Best","ใส่สัตว์ดีที่สุด"},
     Gifts={"Free Gifts","รับของขวัญเวลาเล่น"},Ranks={"Rank Rewards","รับรางวัล Rank"},
     Zones={"Buy Next Zone","ซื้อด่านถัดไป"},Rebirth={"Auto Rebirth","รีเบิร์ธอัตโนมัติ"}}
 local texts={
     Disabled="ปิดอยู่",Enabled="เปิดแล้ว",Confirmed="ยืนยันสำเร็จ",
     ["Waiting for loaded targets in selected zone"]="รอเป้าหมายในโซนที่เลือกโหลด",
-    ["Equip pets first"]="ใส่สัตว์ก่อน",["Pets assigned to locked target"]="ส่งสัตว์ตีเป้าหมายที่ล็อกไว้",
+    ["Equip pets first"]="ใส่สัตว์ก่อน",["Pet target and join requested"]="ส่งเป้าหมายและคำขอให้สัตว์เข้าตีแล้ว",
+    ["No damage observed; check pet reach or selected zone"]="ยังไม่เห็นดาเมจ ตรวจระยะสัตว์และโซนที่เลือก",
+    ["Target taking damage"]="เป้าหมายกำลังเสียเลือด",
+    ["Native auto hatch already running"]="ระบบเปิดไข่ของเกมกำลังทำงานอยู่",
+    ["Waiting for character"]="รอตัวละครพร้อม",
+    ["Unlock more zones to make this egg available"]="ต้องปลดล็อกด่านเพิ่มก่อนเปิดไข่นี้",
+    ["Egg unlock requested; waiting for replication"]="ส่งคำขอปลดล็อกไข่แล้ว รอข้อมูลเกม",
+    ["Server rejected egg unlock"]="เกมปฏิเสธปลดล็อกไข่",
+    ["Selected custom egg is not active or hatchable"]="ไข่ Custom ที่เลือกยังไม่เปิดหรือยังฟักไม่ได้",
+    ["Egg price unavailable"]="ไม่พบราคาไข่",["Egg currency unavailable"]="ไม่พบสกุลเงินของไข่",
+    ["Insufficient currency for this egg"]="เงินไม่พอเปิดไข่นี้",
+    ["Handled by item magnet"]="ใช้ระบบแม่เหล็กเก็บแทน",
+    ["Native item magnet active; server inventory controls rewards"]="เปิดแรงดึงดูดของแล้ว กระเป๋าขึ้นอยู่กับผลจากเกม",
+    ["Selecting zone"]="กำลังเลือกด่าน",["Sending one teleport request"]="ส่งคำขอวาร์ปครั้งเดียว",
+    ["No eligible zone in this world"]="ไม่มีด่านที่เข้าได้ในโลกนี้",
+    ["Teleport blocked by game conditions"]="วาร์ปติดเงื่อนไขของเกม",
+    ["Waiting for previous server request"]="รอคำขอก่อนหน้าเสร็จ",
+    ["Server rejected teleport"]="เกมปฏิเสธการวาร์ป",
+    ["Teleport arrival confirmed"]="ยืนยันถึงด่านแล้ว",
+    ["Accepted; arrival not confirmed"]="เกมรับคำขอ ยังไม่ยืนยันว่าถึงด่าน",
+    ["Teleport error"]="วาร์ปเกิดข้อผิดพลาด",
     ["Move closer to target"]="เข้าใกล้เป้าหมายก่อน",["Select an egg first"]="เลือกไข่ก่อน",
     ["Selected egg unavailable"]="ไม่พบไข่ที่เลือก",["Hatch confirmed"]="เกมยืนยันเปิดไข่",
     ["Server rejected hatch"]="เกมปฏิเสธเปิดไข่",["Waiting for new server-created orbs"]="รอออร์บใหม่จากเกม",
@@ -386,6 +645,18 @@ local function refresh(report)
                 (j.targetName and "\n"..j.targetName or ""),true)
         end
     end
+    if api.TravelInfo and report.travel then
+        local tr=report.travel
+        api.TravelInfo:Set((config.Language=="TH" and texts[tr.status] or nil or tr.status)..(tr.zone and "\n"..tr.zone or "")..
+            (tr.serverMessage and tr.serverMessage~="" and "\n"..tr.serverMessage or ""),true)
+    end
+end
+function api.Teleport(probe)
+    task.spawn(function()
+        local ok,problem=pcall(core.Teleport,probe)
+        if not ok then message(problem) end
+        if ok and not destroyed and build then build() end
+    end)
 end
 function api.SaveReport()
     core.Report.placeId=game.PlaceId;core.Report.userId=player.UserId
@@ -408,7 +679,6 @@ function api.Destroy()
     if env.DevilPetSimTest==api then env.DevilPetSimTest=nil end
 end
 local library
-local build
 build=function()
     rebuilding=true
     if window then window:Destroy() end
@@ -428,7 +698,7 @@ build=function()
     end
     local farmTab=tab("Farm","ฟาร์ม","pickaxe")
     local farm=group(farmTab,"Farming","ระบบฟาร์ม","Left","pickaxe")
-    toggle(farm,"Farm");toggle(farm,"Tap");toggle(farm,"Orbs");toggle(farm,"Equip")
+    toggle(farm,"Farm");toggle(farm,"Tap");toggle(farm,"Orbs");toggle(farm,"Magnet");toggle(farm,"Equip")
     local selection=group(farmTab,"Target filters","เลือกเป้าหมาย","Right","filter")
     local zoneOptions={t("Current zone","โซนที่ยืนอยู่")};local zoneIds={[zoneOptions[1]]="Current"};local zoneCurrent=zoneOptions[1]
     local zones={};for id,zone in pairs(dirs().Zones) do zones[#zones+1]={id=id,n=zone.ZoneNumber or 0} end
@@ -445,9 +715,15 @@ build=function()
         config.Class=type(value)=="table" and value[1] or value
     end})
     selection:CreateSlider({Name=t("Search radius","ระยะหาเป้าหมาย"),Range={25,300},Increment=5,CurrentValue=config.Radius,Callback=function(value) config.Radius=value end})
+    selection:CreateSlider({Name=t("Item magnet radius","ระยะแม่เหล็กดูดของ"),Range={50,3000},Increment=50,CurrentValue=config.MagnetRange,Callback=function(value) config.MagnetRange=value end})
     selection:CreateParagraph({Name=t("Farm behavior","รูปแบบฟาร์ม"),Content=t(
         "Locks one loaded target until it disappears. Sends your equipped pets using the game controller. Stand in a breakable zone. Auto Tap needs a nearby target.",
         "ล็อกเป้าหมายจนหาย ใช้สัตว์ที่ใส่อยู่ผ่านระบบเกม ให้ยืนในโซนฟาร์ม Auto Tap ต้องอยู่ใกล้เป้าหมาย")})
+    selection:CreateButton({Name=t("Teleport to Highest Unlocked Zone","วาร์ปไปด่านสูงสุดที่เข้าได้"),Callback=function() api.Teleport(false) end})
+    selection:CreateButton({Name=t("Try Final Zone Once","ลองเข้าด่านสุดท้ายครั้งเดียว"),Callback=function() api.Teleport(true) end})
+    api.TravelInfo=selection:CreateParagraph({Name=t("Teleport status","สถานะวาร์ป"),Content=t(
+        "Current world only. Final-zone test sends one request, skips the client ownership gate, and stops if the server rejects it. Arrival is checked separately from unlock.",
+        "เฉพาะโลกที่อยู่ ปุ่มทดลองส่งคำขอครั้งเดียว ข้ามตัวเช็คสิทธิ์ฝั่งผู้เล่น หยุดเมื่อเกมปฏิเสธ แยกผลถึงด่านออกจากการปลดล็อก")})
     local eggTab=tab("Eggs","เปิดไข่","egg")
     local hatch=group(eggTab,"Hatching","ระบบเปิดไข่","Left","egg")
     local eggOptions={t("Select an egg","เลือกไข่")};local eggIds={};local eggCurrent=eggOptions[1];local eggs={}
@@ -462,8 +738,9 @@ build=function()
     end})
     hatch:CreateSlider({Name=t("Eggs per request","จำนวนไข่ต่อครั้ง"),Range={1,100},Increment=1,CurrentValue=config.HatchCount,Callback=function(value) config.HatchCount=value end})
     toggle(hatch,"Hatch")
-    hatch:CreateParagraph({Name=t("Game conditions","เงื่อนไขเกม"),Content=t("Requires an unlocked egg, sufficient currency and a hatch amount allowed by the game. Server rejection appears in status.",
-        "ต้องปลดล็อกไข่ มีเงิน และจำนวนเปิดต้องผ่านเงื่อนไขเกม หากเกมปฏิเสธจะแสดงข้อความ")})
+    hatch:CreateParagraph({Name=t("Game conditions","เงื่อนไขเกม"),Content=t(
+        "Unlocks eligible eggs before hatching, clamps the amount to your native hatch limit and funds, and uses CustomEggs_Hatch for active custom eggs. Stand near the selected egg if the server requires distance.",
+        "ปลดล็อกไข่ที่ถึงเงื่อนไขก่อนเปิด จำกัดจำนวนตามสิทธิ์และเงิน ใช้คำขอแยกสำหรับไข่ Custom ที่เปิดอยู่ หากเกมตรวจระยะให้ยืนใกล้ไข่ที่เลือก")})
     local progressTab=tab("Progress & Rewards","ความคืบหน้า / รางวัล","gift")
     local rewards=group(progressTab,"Rewards","รับรางวัล","Left","gift")
     toggle(rewards,"Gifts");toggle(rewards,"Ranks")
@@ -474,7 +751,7 @@ build=function()
     toggle(progress,"Zones");toggle(progress,"Rebirth")
     local settings=tab("Settings / Report","ตั้งค่า / รายงาน","settings")
     local diagnostics=group(settings,"Test report","รายงานทดลอง","Left","file-text")
-    api.Info=diagnostics:CreateParagraph({Name=t("Trial build","รุ่นทดลอง"),Content="petsim-auto-test-1"})
+    api.Info=diagnostics:CreateParagraph({Name=t("Trial build","รุ่นทดลอง"),Content="petsim-auto-test-2"})
     diagnostics:CreateButton({Name=t("Copy / Save Report","คัดลอก / บันทึกรายงาน"),Callback=api.SaveReport})
     diagnostics:CreateButton({Name=t("Stop All","หยุดออโต้ทั้งหมด"),Callback=function() core.Stop();task.defer(build) end})
     diagnostics:CreateButton({Name=t("Unload","ปิดสคริปต์"),Callback=api.Destroy})
@@ -510,7 +787,10 @@ local ok,problem=xpcall(function()
         if destroyed or type(batch)~="table" then return end
         for _,packet in ipairs(batch) do
             if type(packet)=="table" and (type(packet.id)=="string" or type(packet.id)=="number") then
-                if not orbQueue[packet.id] and orbCount<3000 then orbQueue[packet.id]=now();orbCount+=1 end
+                if not orbQueue[packet.id] and orbCount<3000 then
+                    orbQueue[packet.id]={created=now(),lootbag=type(packet.config)=="table" and packet.config.Type==2}
+                    orbCount+=1
+                end
             end
         end
     end)
