@@ -5826,6 +5826,311 @@ end
 	end
 end
 
+
+do
+    local factory = (function()
+-- Client-visible image references and binary image export. No game scripts executed.
+return function(env)
+    local api={Busy=false,Cancelled=false}
+    local serial=0
+    local classes={
+        ImageLabel={"Image","ImageContent"},ImageButton={"Image","ImageContent"},
+        Decal={"Texture","ColorMap","ColorMapContent","NormalMap","RoughnessMap","MetalnessMap"},
+        Texture={"Texture","ColorMap","ColorMapContent","NormalMap","RoughnessMap","MetalnessMap"},
+        MeshPart={"TextureID","TextureContent"},SpecialMesh={"TextureId"},
+        ParticleEmitter={"Texture","TextureContent"},Beam={"Texture","TextureContent"},Trail={"Texture","TextureContent"},
+        SurfaceAppearance={"ColorMap","NormalMap","RoughnessMap","MetalnessMap","ColorMapContent","NormalMapContent","RoughnessMapContent","MetalnessMapContent","EmissiveMaskContent"},
+        MaterialVariant={"ColorMap","NormalMap","RoughnessMap","MetalnessMap"},
+        Sky={"SkyboxBk","SkyboxDn","SkyboxFt","SkyboxLf","SkyboxRt","SkyboxUp","SunTextureId","MoonTextureId"},
+        Shirt={"ShirtTemplate"},Pants={"PantsTemplate"},ShirtGraphic={"Graphic"},
+    }
+    local function uri(value)
+        if type(value)=="string" then return value end
+        local ok,result=pcall(function()return value.Uri end)
+        return ok and type(result)=="string" and result or nil
+    end
+    local function identify(value)
+        local text=uri(value)
+        if not text then return nil end
+        text=text:match("^%s*(.-)%s*$")
+        if text=="" then return nil end
+        if text:match("^rbxthumb://") then return {key=text,content=text,kind="thumbnail"} end
+        local id=text:match("^rbxassetid://(%d+)$") or text:match("^[0-9]+$")
+        if not id and text:match("^https?://") then
+            local host=text:match("^https?://([^/]+)")
+            if host and (host=="roblox.com" or host:match("%.roblox%.com$")) then
+                id=text:match("[?&]id=(%d+)")
+            end
+        end
+        if id then
+            id=id:gsub("^0+","");if id=="" then return nil end
+            return {key="asset:"..id,assetId=id,content=text,kind="asset"}
+        end
+        return {key=text,content=text,kind=text:match("^rbxasset://") and "builtin" or "reference"}
+    end
+    api.Identify=identify
+    local function report(meta)
+        if env.progress then pcall(env.progress,meta) end
+    end
+    function api.Scan()
+        local roots=env.roots()
+        local assets,index,seen,stack={}, {}, {}, {}
+        local meta={schema="devil-ai-images-1",placeId=env.game.PlaceId,universeId=env.game.GameId,
+            exportedAt=(env.date or os.date)("%Y-%m-%d %H:%M:%S"),roots={},scanned=0,referenceCount=0,
+            truncated=false,cancelled=false,errors={},propertyErrors=0,downloaded=0,failed=0,skipped=0,
+            scanLimit=env.scanLimit or 250000,downloadLimit=env.downloadLimit or 5000,
+            maxImageBytes=env.maxImageBytes or 32*1024*1024,note="Client-visible loaded instances only; thumbnails and built-in references are listed separately."}
+        pcall(function()meta.streamingEnabled=env.game:GetService("Workspace").StreamingEnabled end)
+        for _,root in ipairs(roots) do
+            stack[#stack+1]=root
+            local ok,name=pcall(root.GetFullName,root);meta.roots[#meta.roots+1]=ok and name or tostring(root)
+        end
+        while #stack>0 do
+            if api.Cancelled then meta.cancelled=true;break end
+            if meta.scanned>=meta.scanLimit then meta.truncated=true;break end
+            local object=table.remove(stack)
+            if not seen[object] then
+                seen[object]=true;meta.scanned+=1
+                local read,kind=pcall(function()return object.ClassName end)
+                if read and classes[kind] then
+                    for _,property in ipairs(classes[kind]) do
+                        local ok,value=pcall(function()return object[property] end)
+                        if ok then
+                            local record=identify(value)
+                            if record then
+                                local pathOK,path=pcall(object.GetFullName,object)
+                                local stored=index[record.key]
+                                if not stored then
+                                    record.references={};record.referenceCount=0;record.download={status="not_requested"}
+                                    stored=record;index[record.key]=record;assets[#assets+1]=record
+                                end
+                                stored.referenceCount+=1;meta.referenceCount+=1
+                                if #stored.references<(env.referenceLimit or 1000) then
+                                    stored.references[#stored.references+1]={path=pathOK and path or "<unavailable>",class=kind,property=property,content=record.content}
+                                else stored.referencesTruncated=true end
+                            end
+                        else
+                            meta.propertyErrors+=1
+                            if #meta.errors<100 then
+                                local okPath,path=pcall(object.GetFullName,object)
+                                meta.errors[#meta.errors+1]={path=okPath and path or "<unavailable>",property=property,error=tostring(value)}
+                            end
+                        end
+                    end
+                end
+                local ok,children=pcall(object.GetChildren,object)
+                if ok then for _,child in ipairs(children) do stack[#stack+1]=child end
+                else
+                    meta.truncated=true
+                    if #meta.errors<100 then meta.errors[#meta.errors+1]={error=tostring(children),stage="GetChildren"} end
+                end
+                if meta.scanned%200==0 then report(meta);if env.yield then env.yield() end end
+            end
+        end
+        table.sort(assets,function(a,b)return a.key<b.key end)
+        meta.assetCount=#assets
+        return {metadata=meta,assets=assets}
+    end
+    local function extension(body)
+        if body:sub(1,8)=="\137PNG\r\n\26\n" then return "png" end
+        if body:sub(1,3)=="\255\216\255" then return "jpg" end
+        if body:sub(1,6)=="GIF87a" or body:sub(1,6)=="GIF89a" then return "gif" end
+        if body:sub(1,4)=="RIFF" and body:sub(9,12)=="WEBP" then return "webp" end
+        if body:sub(1,2)=="BM" and #body>=54 then return "bmp" end
+        if body:sub(1,4)=="DDS " then return "dds" end
+    end
+    local function image(id,meta)
+        local visited,resolved={}, {}
+        for _=1,4 do
+            if api.Cancelled then return nil,"Cancelled" end
+            if visited[id] then return nil,"Asset reference cycle" end
+            visited[id]=true;resolved[#resolved+1]=id
+            local body=env.fetch("https://assetdelivery.roblox.com/v1/asset/?id="..id)
+            if type(body)~="string" or #body==0 then return nil,"Empty image response" end
+            if #body>meta.maxImageBytes then return nil,"Image exceeds size limit" end
+            local ext=extension(body)
+            if ext then return {body=body,extension=ext,resolvedIds=resolved} end
+            if #body<=1024*1024 and body:find("<roblox",1,true) then
+                local texture
+                for _,name in ipairs({"Texture","TextureId","ColorMap","ShirtTemplate","PantsTemplate","Graphic"}) do
+                    texture=body:match('<Content%s+name="'..name..'"[^>]*>.-<url>(.-)</url>')
+                    if texture then break end
+                end
+                local nextAsset=texture and identify(texture:gsub("&amp;","&"))
+                if nextAsset and nextAsset.kind=="asset" then id=nextAsset.assetId
+                else return nil,"Asset is XML without an image texture reference" end
+            else return nil,"Response is not a supported image (may be private, restricted, or a different asset type)" end
+        end
+        return nil,"Asset texture resolution limit reached"
+    end
+    local function folder(path)
+        if type(env.makefolder)~="function" then return end
+        local present=false
+        if type(env.isfolder)=="function" then local ok,result=pcall(env.isfolder,path);present=ok and result end
+        if not present then pcall(env.makefolder,path) end
+    end
+    local function write(path,name,body,stem)
+        local saved,problem=pcall(env.writefile,path.."/"..name,body)
+        local actual=path.."/"..name
+        if not saved then
+            actual="DevilHub_Place_"..env.game.PlaceId.."_"..stem.."_"..name
+            saved,problem=pcall(env.writefile,actual,body)
+        end
+        if saved and type(env.readfile)=="function" then
+            local read,value=pcall(env.readfile,actual)
+            saved=read and value==body
+            if not saved then problem="readback did not match" end
+        end
+        return saved and actual or nil,problem
+    end
+    function api.Cancel() api.Cancelled=true end
+    function api.Export(download)
+        if api.Busy then return false,"Image export already running" end
+        if type(env.writefile)~="function" then return false,"writefile unavailable; no files saved" end
+        api.Busy=true;api.Cancelled=false
+        local ok,saved,message,result=pcall(function()
+            local document=api.Scan();api.LastReport=document
+            local meta=document.metadata
+            meta.downloadRequested=download==true
+            serial+=1
+            local stem=(env.date or os.date)("%Y%m%d_%H%M%S").."_"..serial
+            local directory="DevilHub_Dumps/Place_"..env.game.PlaceId
+            local imageDirectory=directory.."/Images_"..stem
+            folder("DevilHub_Dumps");folder(directory)
+            if download then folder(imageDirectory) end
+            local paths,failures={}, {}
+            local initial,initialError=write(directory,"Images_"..stem..".json",env.encode(document),stem)
+            if not initial then return false,"Cannot save image manifest: "..tostring(initialError),document end
+            paths[#paths+1]=initial
+            local attempted=0
+            if download then
+                for _,asset in ipairs(document.assets) do
+                    if api.Cancelled then meta.cancelled=true;asset.download={status="skipped",reason="Cancelled"};meta.skipped+=1
+                    elseif asset.kind~="asset" then asset.download={status="skipped",reason="Built-in, thumbnail, or non-asset reference"};meta.skipped+=1
+                    elseif attempted>=meta.downloadLimit then
+                        meta.downloadTruncated=true;asset.download={status="skipped",reason="Download limit reached"};meta.skipped+=1
+                    elseif type(env.fetch)~="function" then asset.download={status="failed",reason="HTTP API unavailable"};meta.failed+=1
+                    else
+                        attempted+=1
+                        local fetched,payload,problem=pcall(image,asset.assetId,meta)
+                        if not fetched then problem=tostring(payload);payload=nil end
+                        if payload then
+                            local path,writeError=write(imageDirectory,"Image_"..asset.assetId.."."..payload.extension,payload.body,stem)
+                            if path then
+                                asset.download={status="saved",path=path,bytes=#payload.body,extension=payload.extension,resolvedIds=payload.resolvedIds}
+                                meta.downloaded+=1
+                            else asset.download={status="failed",reason=tostring(writeError)};meta.failed+=1 end
+                        else asset.download={status="failed",reason=tostring(problem)};meta.failed+=1 end
+                    end
+                    report(meta)
+                    if env.yield then env.yield() end
+                end
+            end
+            local lines={"DEVIL HUB IMAGE DUMP","Place: "..env.game.PlaceId,"Universe: "..env.game.GameId,
+                "Scanned: "..meta.scanned,"Unique image references: "..#document.assets,"Uses: "..meta.referenceCount,
+                "Downloaded: "..meta.downloaded.." | Failed: "..meta.failed.." | Skipped: "..meta.skipped,
+                "Property read errors: "..meta.propertyErrors,
+                "Truncated: "..tostring(meta.truncated or meta.downloadTruncated or false).." | Cancelled: "..tostring(meta.cancelled),""}
+            for _,asset in ipairs(document.assets) do
+                lines[#lines+1]=asset.content.." | "..asset.kind.." | "..asset.download.status.." | "..(asset.download.path or asset.download.reason or "")
+                for _,ref in ipairs(asset.references) do lines[#lines+1]="  "..ref.path.." ["..ref.class.."."..ref.property.."]" end
+            end
+            local summary,summaryError=write(directory,"Images_"..stem..".txt",table.concat(lines,"\n"),stem)
+            if summary then paths[#paths+1]=summary else failures[#failures+1]="Summary: "..tostring(summaryError) end
+            meta.outputPaths=paths
+            local manifest,manifestError=write(directory,"Images_"..stem..".json",env.encode(document),stem)
+            if not manifest then failures[#failures+1]="Manifest: "..tostring(manifestError) end
+            local complete=#failures==0 and meta.failed==0 and not meta.cancelled and not meta.truncated and not meta.downloadTruncated
+            local text=string.format("Images: %d | Uses: %d | Saved images: %d | Failed: %d | Skipped: %d\n%s",#document.assets,meta.referenceCount,meta.downloaded,meta.failed,meta.skipped,table.concat(paths,"\n"))
+            if download and meta.downloaded>0 then text..="\nImage paths: see JSON / ดูตำแหน่งไฟล์รูปใน JSON" end
+            if not complete then text..="\nPartial export; inspect the JSON for errors and limits." end
+            if #failures>0 then text..="\n"..table.concat(failures,"\n") end
+            return complete,text,document
+        end)
+        api.Busy=false
+        if not ok then return false,tostring(saved),api.LastReport end
+        return saved,message,result
+    end
+    return api
+end
+
+    end)()
+    local function roots()
+        local result={}
+        for _,name in ipairs({"Workspace","ReplicatedStorage","Lighting","StarterGui","MaterialService"}) do
+            local ok,root=pcall(game.GetService,game,name)
+            if ok and root then result[#result+1]=root end
+        end
+        local player=game:GetService("Players").LocalPlayer
+        local playerGui=player and player:FindFirstChildOfClass("PlayerGui")
+        if playerGui then result[#result+1]=playerGui end
+        return result
+    end
+    local requester=type(request)=="function" and request or type(http_request)=="function" and http_request
+        or (type(syn)=="table" and syn.request) or (type(http)=="table" and http.request)
+    local function fetchImage(url)
+        if type(requester)~="function" then return game:HttpGet(url) end
+        for _=1,5 do
+            local response=requester({Url=url,Method="GET",Timeout=15})
+            assert(type(response)=="table","HTTP request did not return a response")
+            local code=tonumber(response.StatusCode or response.Status)
+            if code and code>=300 and code<400 then
+                local headers=response.Headers or {}
+                local nextUrl=headers.Location or headers.location
+                local host=type(nextUrl)=="string" and nextUrl:match("^https://([^/]+)")
+                assert(host and (host=="rbxcdn.com" or host:match("%.rbxcdn%.com$") or host=="roblox.com" or host:match("%.roblox%.com$")),"Unsupported asset redirect")
+                url=nextUrl
+            else
+                assert(not code or (code>=200 and code<300),"Asset HTTP "..tostring(code))
+                assert(type(response.Body)=="string","Image response body unavailable")
+                return response.Body
+            end
+        end
+        error("Asset redirect limit reached")
+    end
+    local lastProgress=0
+    local exporter=factory({
+        game=game,roots=roots,fetch=fetchImage,
+        encode=function(value)return game:GetService("HttpService"):JSONEncode(value)end,
+        writefile=writefile,readfile=readfile,makefolder=makefolder,isfolder=isfolder,
+        yield=function()task.wait(.03)end,
+        progress=function(meta)
+            if os.clock()-lastProgress<8 then return end
+            lastProgress=os.clock()
+            local text=string.format("สแกน / Scanned: %d | รูป / Images: %d | Saved: %d | Failed: %d",
+                meta.scanned,meta.assetCount or 0,meta.downloaded,meta.failed)
+            tbl7:Notify({Title="DEVIL HUB • Image Dump Progress",Content=text,Duration=4})
+            fn2("INFO","IMAGE_EXPORT_PROGRESS",text)
+        end,
+    })
+    local previous=getgenv().DevilAIImageExporter
+    if previous then pcall(previous.Cancel)end
+    getgenv().DevilAIImageExporter=exporter
+    local function start(download)
+        if exporter.Busy then
+            tbl7:Notify({Title="DEVIL HUB • Image Dump",Content="กำลัง Dump รูปอยู่ / Image dump is running",Duration=4})
+            return
+        end
+        tbl7:Notify({Title="DEVIL HUB • Image Dump",Content="กำลังสแกนรูปที่โหลดในแมพ / Scanning loaded map images",Duration=4})
+        task.spawn(function()
+            local executed,saved,message=pcall(exporter.Export,download)
+            if not executed then message=tostring(saved);saved=false end
+            tbl7:Notify({Title=saved and "DEVIL HUB • Images Saved" or "DEVIL HUB • Image Export Status",Content=message,Duration=15})
+            fn2(saved and "INFO" or "WARN","IMAGE_EXPORT",message)
+        end)
+    end
+    for _,page in ipairs({v7,v4})do
+        local listing=page:AddButton({Title="Dump รายการรูปแมพ + Asset ID / Dump Image List",Style="primary",Callback=function()start(false)end})
+        listing.LayoutOrder=-99
+        local download=page:AddButton({Title="Dump และดาวน์โหลดไฟล์รูป / Dump + Download Images",Style="primary",Callback=function()start(true)end})
+        download.LayoutOrder=-98
+        local cancel=page:AddButton({Title="หยุด Dump รูป / Cancel Image Dump",Callback=exporter.Cancel})
+        cancel.LayoutOrder=-97
+    end
+    local screen=hui:FindFirstChild("DevilHub_AI_UI")
+    if screen then table.insert(connections,screen.Destroying:Connect(exporter.Cancel))end
+end
+
 local str
 str = ""
 local tbl9
