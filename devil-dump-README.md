@@ -22,6 +22,33 @@ Discord and community links: https://discord.gg/ZY7PRcVJe2
 Default export/config folders are `DevilDump_Dumps` and `DevilDump_service`.
 Existing `ValenHub_service` configurations are not automatically migrated.
 
+## Image Dump: dump-11
+
+Open **Dump รูปภาพ / Image Dump**:
+
+- **Dump รายการรูป + Asset ID** saves the image inventory and instance paths.
+- **Dump + ดาวน์โหลดไฟล์รูป** also downloads image binaries.
+- **หยุด Dump รูป / Cancel** stops further work and retains a partial report.
+- **คัดลอกตำแหน่งไฟล์ / Copy Paths** copies the report locations.
+
+Files are saved inside the executor workspace under
+DevilDump_Dumps/Place_<PlaceId>/. Each export has Images_<timestamp>_<sequence>.json
+and .txt; image files are placed in a matching Images_<timestamp>_<sequence>/
+folder. Unsupported folder writes use workspace-root filenames instead.
+
+The scan covers client-loaded Workspace, ReplicatedStorage, Lighting, StarterGui,
+MaterialService and PlayerGui. It combines duplicate Asset IDs and records every
+retained use. Image UI, decals, textures, mesh textures, particle textures,
+sky faces, clothing and accessible material maps are included. Decal XML texture
+references can be resolved into image bytes. Download failures and restricted
+reads are recorded; built-in and thumbnail references remain inventory entries.
+
+Limits are explicit: 250,000 scanned instances, 1,000 retained references per
+asset, 5,000 image downloads and 32 MiB per image. Closing DEVIL DUMP cancels
+queued/scanning work. Images are not downloaded automatically at startup.
+The supplied main/devil-dump.lua?v=dump-6 link still resolves this updated file;
+its query string is not a commit pin. Live Roblox downloading remains unverified.
+
 ## Item and reward Remote finder: dump-9
 
 The existing `devil-dump.lua?v=5` link still loads this entry; the query is not a pinned Git version.
