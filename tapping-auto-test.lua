@@ -5,7 +5,7 @@ if env.DevilTappingTest then env.DevilTappingTest.Destroy() end
 local makeCore=(function()
 return function(config,d,changed)
     local C={Names={"Stars","Boxes","Tap","Hatch","Rebirth","Upgrade","Quests","Gifts","Equip","Enchant"},
-        Report={release="tapping-auto-test-4",jobs={},errors={},liveVerified=false}}
+        Report={release="tapping-auto-test-5",jobs={},errors={},liveVerified=false}}
     local jobs=C.Report.jobs
     local alive=true
     local intervals={Tap=0,Hatch=1,Rebirth=1,Upgrade=2,Quests=1,Gifts=2,Equip=8,Enchant=.5}
@@ -725,6 +725,17 @@ return function(config,d)
     local F={}
     local active,alive=nil,true
     local collected,retry={},{}
+    local routes=d.Routes or {Stars={},Chests={},Probes={}}
+    local chestCooldown,probeRetry={},{}
+    local streamAt=0
+    local function position(entry)return Vector3.new(entry.x,entry.y,entry.z)end
+    local function serverNow()return d.ServerNow and d.ServerNow()or d.Now()end
+    local function stream(pos,job)
+        if d.Stream and d.Now()>=streamAt then
+            streamAt=d.Now()+4;d.Stream(pos)
+            job.streamRequests=(job.streamRequests or 0)+1
+        end
+    end
     local function status(job,text)job.status=text end
     local function root()
         local c=d.Player.Character
@@ -743,7 +754,7 @@ return function(config,d)
     function F.Cancel(kind)
         if active and active.kind==kind then
             active.job.isTapping=false
-            -- An issued collection call retains movement until its real reply arrives.
+            -- An issued Collect/Claim call retains movement until its real reply arrives.
             if not active.job.collectionTicket then release()end
         end
     end
@@ -767,17 +778,27 @@ return function(config,d)
         local cfg=d.Module("Shared.Game.ShinyStarConfig")
         local data=d.Data()
         local best,nearest
+        local candidates={}
+        for _,entry in ipairs(routes.Stars or {})do
+            if cfg.Get(entry.id)then
+                candidates[entry.id]={id=entry.id,center=position(entry),route=entry,source="Route"}
+            end
+        end
         for _,model in ipairs(d.Collection:GetTagged(cfg.Tag))do
             if live(model)and model:IsA("Model")then
                 local id=model:GetAttribute(cfg.IdAttribute)
                 local center=model:GetAttribute(cfg.CenterAttribute)
                 if type(id)=="string"and kind(center)=="Vector3"and cfg.Get(id)
-                    and not collected[id]and not cfg.IsFound(data,id)and d.Now()>=(retry[id]or 0)then
-                    local distance=(r.Position-center).Magnitude
-                    if not nearest or distance<nearest then
-                        nearest=distance;best={id=id,model=model,center=center}
-                    end
+                    then
+                    local previous=candidates[id]
+                    candidates[id]={id=id,model=model,center=center,route=previous and previous.route,source="Live"}
                 end
+            end
+        end
+        for id,target in pairs(candidates)do
+            if not collected[id]and not cfg.IsFound(data,id)and d.Now()>=(retry[id]or 0)then
+                local distance=(r.Position-target.center).Magnitude
+                if not nearest or distance<nearest then nearest=distance;best=target end
             end
         end
         return best,cfg
@@ -846,7 +867,7 @@ return function(config,d)
             local target=starPlan(root())
             if not target then status(job,"Waiting for uncollected stars to load");return end
             active={kind="Stars",target=target,job=job}
-            job.target={id=target.id};job.reason=nil
+            job.target={id=target.id,source=target.source};job.reason=nil
         end
         stopHatch()
         local target=active.target
@@ -855,7 +876,17 @@ return function(config,d)
             collected[target.id]=true;job.confirmationSource="Replica"
             release();status(job,"Star collection confirmed");return
         end
-        if not live(target.model)then release();status(job,"Star unavailable; rescanning");return end
+        -- A known survey anchor can be used before the star streams in.
+        -- Once loaded, use the native center rather than the approximate route.
+        for _,model in ipairs(d.Collection:GetTagged(cfg.Tag))do
+            if live(model)and model:GetAttribute(cfg.IdAttribute)==target.id then
+                local center=model:GetAttribute(cfg.CenterAttribute)
+                if kind(center)=="Vector3"then target.model=model;target.center=center;target.source="Live"end
+            end
+        end
+        if not live(target.model)and not target.route then release();status(job,"Star unavailable; rescanning");return end
+        job.target.source=target.source
+        if not live(target.model)then stream(target.center,job)end
         local r=root()
         local distance=(r.Position-target.center).Magnitude
         local offset=Vector3.new(r.Position.X-target.center.X,0,r.Position.Z-target.center.Z)
@@ -864,47 +895,151 @@ return function(config,d)
         local reach=math.max(1,(cfg.ServerReach or 22)-2)
         if(position-target.center).Magnitude>reach then position=target.center+offset*8 end
         local ready,why,travel=d.Approach("Stars",{point=position,ready=distance<=reach,distance=distance,
-            live=target.model,key="Star:"..target.id,settle=.2})
+            live=live(target.model)and target.model or target.route,key="Star:"..target.id,settle=.2})
         job.travel=travel
         if not ready then status(job,why);return end
         if not d.CanInvoke()then status(job,"Waiting for previous request");return end
         job.collectionTicket=d.Request("ShinyStarService","Collect",target.id)
         job.requests+=1;status(job,"Waiting for star collection result")
     end
-    local function pollStar(job)
+    local function pollCollection(name,job)
         local ticket=job.collectionTicket
         if not ticket then return false end
         if not ticket.done then
-            status(job,d.Now()-ticket.started>12 and "Request pending; no duplicate sent"or "Waiting for star collection result")
+            status(job,d.Now()-ticket.started>12 and "Request pending; no duplicate sent"or
+                (name=="Stars"and "Waiting for star collection result"or "Waiting for tap chest claim result"))
             return true
         end
         local id=job.target and job.target.id
         job.collectionTicket=nil;job.result=ticket.result
         local accepted=ticket.ok and type(ticket.result)=="table"and ticket.result.Success==true
         if accepted then
-            if id and not collected[id]then job.confirmed+=1;collected[id]=true end
-            job.confirmationSource="Collect reply";job.reason=nil
+            if name=="Stars"then
+                if id and not collected[id]then job.confirmed+=1;collected[id]=true end
+                job.confirmationSource="Collect reply"
+            else
+                local cfg=d.Module("Shared.Game.TapChestConfig")
+                local def=cfg.Get(id)
+                job.confirmed+=1;job.claimed=(job.claimed or 0)+1
+                chestCooldown[id]=serverNow()+(def and def.Cooldown or 5)
+                job.readyAt=chestCooldown[id];job.confirmationSource="Claim reply"
+            end
+            job.reason=nil
         else
             job.rejected+=1
             job.reason=ticket.ok and type(ticket.result)=="table"and ticket.result.Reason or tostring(ticket.error or "No result")
-            if id then retry[id]=d.Now()+8 end
+            if id then retry[(name=="Stars"and ""or "Chest:")..id]=d.Now()+8 end
         end
-        if active and active.kind=="Stars"then release()end
+        if active and active.kind==name then release()end
         job.nextAt=d.Now()+(accepted and .2 or 2)
-        status(job,not config.Stars and "Disabled"or(accepted and "Star collection confirmed"or "Star collection rejected"))
+        status(job,not config[name]and "Disabled"or(accepted and
+            (name=="Stars"and "Star collection confirmed"or "Tap chest claim confirmed")or
+            (name=="Stars"and "Star collection rejected"or "Tap chest claim rejected")))
         return true
     end
+    local function chestPlan(r,near)
+        local cfg=d.Module("Shared.Game.TapChestConfig")
+        local candidates={}
+        for _,entry in ipairs(routes.Chests or {})do
+            if cfg.Get(entry.id)then
+                candidates[entry.id]={mode="TapChest",id=entry.id,center=position(entry),route=entry,source="Route"}
+            end
+        end
+        for _,model in ipairs(d.Collection:GetTagged(cfg.Tag))do
+            if live(model)and model:IsA("Model")then
+                local id=model:GetAttribute(cfg.Attributes.Id)
+                local cf,size=model:GetAttribute(cfg.Attributes.Front),model:GetAttribute(cfg.Attributes.Size)
+                if cfg.Get(id)and kind(cf)=="CFrame"and kind(size)=="Vector3"then
+                    local point=cf.Position-Vector3.new(0,size.Y*.5,0)+
+                        cf.LookVector*(size.Z*.5+cfg.PromptInset)+Vector3.new(0,cfg.PromptHeight,0)
+                    candidates[id]={mode="TapChest",id=id,model=model,center=point,source="Live"}
+                end
+            end
+        end
+        local best,nearest
+        for id,target in pairs(candidates)do
+            local readyAt=math.max(cfg.GetReadyAt(d.Data(),id),chestCooldown[id]or 0)
+            if readyAt<=serverNow()and d.Now()>=(retry["Chest:"..id]or 0)and
+                (not near or(target.center-near).Magnitude<=256)then
+                local distance=(r.Position-target.center).Magnitude
+                if not nearest or distance<nearest then nearest=distance;best=target end
+            end
+        end
+        return best,cfg
+    end
+    local function probePlan(r)
+        local best,nearest
+        for index,entry in ipairs(routes.Probes or {})do
+            if d.Now()>=(probeRetry[index]or 0)then
+                local distance=(r.Position-position(entry)).Magnitude
+                if not nearest or distance<nearest then
+                    nearest=distance;best={mode="Probe",index=index,route=entry,center=position(entry)}
+                end
+            end
+        end
+        return best
+    end
+    local function tapChest(job,target)
+        local cfg=d.Module("Shared.Game.TapChestConfig")
+        local readyAt=math.max(cfg.GetReadyAt(d.Data(),target.id),chestCooldown[target.id]or 0)
+        job.readyAt=readyAt;job.serverNow=serverNow()
+        if readyAt>serverNow()then release();status(job,"Tap chest is on cooldown");return end
+        stream(target.center,job)
+        local distance=(root().Position-target.center).Magnitude
+        local point=stand(target.center+Vector3.new(0,3,0),target.model)
+        local reach=math.min((cfg.ClaimReach or 45)-2,16)
+        if(point-target.center).Magnitude>reach then point=target.center+Vector3.new(0,3,0)end
+        local ready,why,travel=d.Approach("Boxes",{point=point,ready=distance<=reach,distance=distance,
+            live=target.model or target.route,key="TapChest:"..target.id,settle=.3})
+        job.travel=travel;job.isTapping=false
+        if not ready then status(job,why);return end
+        if not d.CanInvoke()then status(job,"Waiting for previous request");return end
+        job.collectionTicket=d.Request("TapChestService","Claim",target.id)
+        job.requests+=1;status(job,"Waiting for tap chest claim result")
+    end
+    local function probe(job,target)
+        stream(target.center,job)
+        local distance=(root().Position-target.center).Magnitude
+        local ready,why,travel=d.Approach("Boxes",{point=target.center+Vector3.new(0,3,0),ready=distance<=12,
+            distance=distance,live=target.route,key="ChestProbe:"..target.index,settle=.3})
+        job.travel=travel;job.isTapping=false
+        if not ready then status(job,why);return end
+        active.probeAt=active.probeAt or d.Now()
+        local found
+        if config.BoxesMode~="Breakables"then found=chestPlan(root(),target.center)end
+        if not found and config.BoxesMode~="TapChest"then
+            found=boxPlan(root())
+            if found and(found.state.cf.Position-target.center).Magnitude>256 then found=nil end
+        end
+        if found then
+            release()
+            active={kind="Boxes",target=found,job=job,lastHealth=found.state and found.state.hp,progressAt=d.Now()}
+            job.target={id=found.id,name=found.model and found.model.Name,source=found.source,mode=found.mode or "Breakables"}
+            status(job,"Target discovered at survey point")
+        elseif d.Now()-active.probeAt>=3 then
+            probeRetry[target.index]=d.Now()+90
+            job.probesSkipped=(job.probesSkipped or 0)+1
+            release();status(job,"No compatible chest at survey point")
+        else status(job,"Loading chest survey point")end
+    end
     local function boxes(job,stopHatch)
-        local cfg=d.Module("Shared.Game.BreakableConfig")
         if not active then
-            local target=boxPlan(root())
-            if not target then status(job,"Waiting for untouched boxes");return end
-            active={kind="Boxes",target=target,job=job,lastHealth=target.state.hp,progressAt=d.Now()}
-            job.target={name=target.model.Name,type=target.state.type}
-            job.reason=nil;job.health=target.state.hp;job.maxHealth=target.state.max
+            local mode=config.BoxesMode or "Breakables"
+            local target
+            if mode~="Breakables"then target=chestPlan(root())end
+            if not target and mode~="TapChest"then target=boxPlan(root())end
+            if not target then target=probePlan(root())end
+            if not target then status(job,mode=="TapChest"and "Waiting for ready tap chests"or "Waiting for untouched boxes");return end
+            active={kind="Boxes",target=target,job=job,lastHealth=target.state and target.state.hp,progressAt=d.Now()}
+            job.target={id=target.id,name=target.model and target.model.Name,type=target.state and target.state.type,
+                mode=target.mode or "Breakables",source=target.source}
+            job.reason=nil;job.health=target.state and target.state.hp;job.maxHealth=target.state and target.state.max
         end
         stopHatch()
         local target=active.target
+        if target.mode=="TapChest"then tapChest(job,target);return end
+        if target.mode=="Probe"then probe(job,target);return end
+        local cfg=d.Module("Shared.Game.BreakableConfig")
         local state,reason=boxState(target.model,cfg)
         if not state then
             job.isTapping=false
@@ -931,7 +1066,7 @@ return function(config,d)
     end
     function F.Tick(name,job,jobs,stopHatch)
         if not alive then return end
-        if name=="Stars"and pollStar(job)then return end
+        if pollCollection(name,job)then return end
         if not config[name]then
             F.Cancel(name)
             if job.status~="All stars collected"then status(job,"Disabled")end
@@ -947,6 +1082,44 @@ return function(config,d)
     function F.Destroy()alive=false;release()end
     return F
 end
+
+end)()
+local surveyRoutes=(function()
+-- User supplied survey points; live attributes take precedence over these anchors.
+-- Missing Spawn3 position is intentionally left to live discovery.
+return {
+    Stars={
+        {id="Autumn1",x=-125.5,y=905.13,z=-1978.3},
+        {id="Autumn2",x=23.6,y=882.83,z=-1947.9},
+        {id="Mushroom1",x=78.9,y=2034.53,z=-1996.0},
+        {id="Mushroom2",x=-124.1,y=2032.53,z=-2067.9},
+        {id="Desert1",x=13.2,y=3643.33,z=-2165.9},
+        {id="Desert2",x=59.1,y=3636.43,z=-1979.1},
+        {id="CrystalCave1",x=-235,y=5444.93,z=-2050.9},
+        {id="CrystalCave2",x=19.7,y=5446.53,z=-2033.5},
+        {id="ShadowRelm1",x=13.2,y=7692.23,z=-2106.3},
+        {id="ShadowRelm2",x=197.8,y=7698.43,z=-1858.6},
+        {id="SkyIsland1",x=-79.7,y=-49.07,z=-1930.4},
+        {id="SkyIsland2",x=14.9,y=-53.57,z=-1770.3},
+        -- Face positions from the supplied client map, rounded survey anchors.
+        {id="Spawn1",x=53.6,y=-513.34,z=-2015.7},
+        {id="Spawn2",x=-4.4,y=-513.02,z=-1699.5},
+    },
+    Chests={
+        -- Native Sky Island TapChest.RootPart from the supplied dump.
+        {id="SkyIsland",x=-15.42363,y=-57.32753,z=-1871.45776},
+    },
+    Probes={
+        -- No TapChest ID was supplied for these points. Discover actual tagged objects there.
+        {x=-99.5,y=879.8,z=-1782.3},
+        {x=-84.1,y=2038.7,z=-2043.2},
+        {x=-297.9,y=2017.6,z=-1972.1},
+        {x=-92.6,y=887.9,z=-1906.5},
+        {x=-124.2,y=2014.8,z=-1814.7},
+        -- A Desert survey position can stream in the native Desert TapChest.
+        {x=13.2,y=3643.33,z=-2165.9},
+    },
+}
 
 end)()
 local makeLogo=(function()
@@ -994,7 +1167,7 @@ local player=game:GetService("Players").LocalPlayer
 local Http=game:GetService("HttpService")
 local runService=game:GetService("RunService")
 local inputs=game:GetService("UserInputService")
-local config={Tap=false,Hatch=false,Rebirth=false,Upgrade=false,Quests=false,Gifts=false,Equip=false,Enchant=false,Stars=false,Boxes=false,BoxesAvoidPlayers=true,
+local config={Tap=false,Hatch=false,Rebirth=false,Upgrade=false,Quests=false,Gifts=false,Equip=false,Enchant=false,Stars=false,Boxes=false,BoxesAvoidPlayers=true,BoxesMode="TapChest",
     InfiniteJump=false,CPS=40,Egg="",HatchCount=1,HatchDelay=2,Gift="",ReserveCoins=0,ReserveGems=0,RebirthAmount="Auto",SkipHatchGUI=true,HatchTap=true,
     Upgrades={ClickMultiplier=true,HatchSpeed=true,CriticalChance=true,AutoClickerSpeed=true},
     EnchantPet="",EnchantSlot=1,EnchantFilters={},ReplaceEnchant=false,Language="TH"}
@@ -1062,6 +1235,8 @@ worldFarm=makeWorldFarm(config,{
     Data=deps.Data,Module=module,Now=now,Player=player,Players=game:GetService("Players"),
     Collection=game:GetService("CollectionService"),World=workspace,Approach=deps.Approach,
     Request=deps.Request,CanInvoke=deps.CanInvoke,CancelMovement=movement.Cancel,
+    Routes=surveyRoutes,ServerNow=function()return workspace:GetServerTimeNow()end,
+    Stream=function(pos)task.spawn(function()pcall(player.RequestStreamAroundAsync,player,pos,2)end)end,
 })
 deps.WorldTick=worldFarm.Tick;deps.WorldBusy=worldFarm.Busy
 deps.WorldCancel=worldFarm.Cancel;deps.BoxTapping=worldFarm.BoxTapping
@@ -1070,7 +1245,7 @@ local labels={
     Rebirth={"Auto Rebirth","รีเบิร์ทอัตโนมัติ"},Upgrade={"Auto Buy Upgrades","ซื้ออัปเกรดอัตโนมัติ"},
     Quests={"Auto Claim Quests","รับเควสต์ที่สำเร็จ"},Gifts={"Auto Open Gift","เปิดของขวัญอัตโนมัติ"},
     Equip={"Auto Equip Best","ใส่สัตว์ที่ดีที่สุด"},Enchant={"Auto Enchant","สุ่ม Enchant อัตโนมัติ"},
-    Stars={"Auto Collect Stars","วาร์ปเก็บดาวอัตโนมัติ"},Boxes={"Auto Break Boxes","วาร์ปทุบกล่องอัตโนมัติ"},
+    Stars={"Auto Collect Stars","วาร์ปเก็บดาวอัตโนมัติ"},Boxes={"Auto Boxes / Tap Chest","ออโต้กล่อง / Tap Chest"},
 }
 local texts={
     Disabled="ปิดอยู่",Enabled="เปิดแล้ว",IslandLocked="ยังไม่ปลดล็อกเกาะ",StorageFull="กระเป๋าสัตว์เต็ม",
@@ -1113,6 +1288,14 @@ local texts={
     ["Box despawned without break confirmation"]="กล่องหมดเวลา ยังยืนยันว่าแตกไม่ได้",
     ["Box belongs to another player"]="กล่องนี้เป็นของผู้เล่นอื่น",
     ["Box data unavailable"]="รอข้อมูลกล่อง",
+    ["Tap chest claim confirmed"]="เกมยืนยันรับรางวัล Tap Chest แล้ว",
+    ["Tap chest claim rejected"]="เกมปฏิเสธ Tap Chest ดูผลตอบกลับด้านล่าง",
+    ["Tap chest is on cooldown"]="Tap Chest ยังติดคูลดาวน์",
+    ["Waiting for tap chest claim result"]="รอผลคำขอรับรางวัล Tap Chest",
+    ["Waiting for ready tap chests"]="รอ Tap Chest ที่พร้อมรับรางวัล",
+    ["Target discovered at survey point"]="พบเป้าหมายจากพิกัดสำรวจแล้ว",
+    ["No compatible chest at survey point"]="ไม่พบกล่องตรงประเภทที่พิกัดนี้ กำลังตรวจจุดถัดไป",
+    ["Loading chest survey point"]="กำลังโหลดกล่องตามพิกัดสำรวจ",
     ["Waiting for position replication"]="รอเกมรับตำแหน่งก่อนส่งคำขอ",
     ["Waiting for selected egg to stream in"]="รอโหลดไข่ที่เลือก ลองเข้าใกล้ไข่ครั้งแรก",
     ["Enchant point not loaded; approach machine once"]="ยังไม่พบจุด Enchant ให้เข้าใกล้เครื่องหนึ่งครั้ง",
@@ -1265,14 +1448,20 @@ build=function()
     local starGroup=group(worldTab,"Shiny stars","เก็บดวงดาว","Left","star")
     toggle(starGroup,"Stars")
     starGroup:CreateParagraph({Name=t("Collection route","การเก็บดาว"),Content=t(
-        "Teleports near the nearest loaded uncollected star and requests Collect with its ID. Waits for confirmation before selecting the next. Stops after all native stars are found.",
-        "วาร์ปไปดาวที่ยังไม่เคยเก็บและอยู่ใกล้ที่สุด ส่ง ID ขอเก็บแล้วรอเกมยืนยันก่อนย้ายต่อ เมื่อเก็บครบจะปิดออโต้เอง ดาวต้องโหลดเข้ามาก่อน")})
+        "Uses live star centers plus your supplied survey coordinates, so unloaded stars can be approached. Collect sends the real star ID and counts native Success / replica confirmation.",
+        "ใช้ตำแหน่งจริงร่วมกับพิกัดสำรวจที่ส่งมา วาร์ปหาดาวได้แม้ยังไม่โหลด ส่ง ID ดาวและนับผลเมื่อเกมตอบ Success หรือข้อมูลผู้เล่นยืนยัน")})
     local boxGroup=group(worldTab,"Break boxes","ทุบกล่อง","Right","box")
+    local modeLabels={TapChest="Tap Chest",Breakables=t("Breakables","กล่องทุบ"),Both=t("Both","ทั้งสองแบบ")}
+    boxGroup:CreateDropdown({Name=t("Box type","ประเภทกล่อง"),Options={modeLabels.TapChest,modeLabels.Breakables,modeLabels.Both},
+        CurrentOption={modeLabels[config.BoxesMode]},Callback=function(value)
+            value=single(value)
+            for mode,label in pairs(modeLabels)do if value==label then config.BoxesMode=mode;worldFarm.Cancel("Boxes");break end end
+        end})
     toggle(boxGroup,"Boxes")
     boxGroup:CreateToggle({Name=t("Avoid nearby players","หลีกเลี่ยงกล่องใกล้ผู้เล่นอื่น"),CurrentValue=config.BoxesAvoidPlayers,Callback=function(value)config.BoxesAvoidPlayers=value==true end})
     boxGroup:CreateParagraph({Name=t("Locked target","ล็อกเป้าหมายจนแตก"),Content=t(
-        "Selects a full-health Crate, Chest or WorldChest owned by you or shared. Teleports nearby and taps at the selected CPS until Broken or zero health. Does not change targets just because health decreases.",
-        "เลือก Crate / Chest / WorldChest ที่เลือดเต็มและเป็นของเราหรือกล่องส่วนกลาง วาร์ปเข้าใกล้แล้ว Tap ตาม CPS จนเลือดหมดหรือเกมระบุว่าแตก เลือดลดแล้วจะยังตีเป้าหมายเดิม")})
+        "Tap Chest: teleports to a ready chest, sends Claim(chestId), then waits for Success and honors the native cooldown. Breakables: keeps tapping one full-health box until Broken / zero HP. Survey points without IDs are scanned before any claim.",
+        "Tap Chest: วาร์ปไปกล่องที่พร้อม ส่ง Claim พร้อม ID แล้วรอ Success และคูลดาวน์ ส่วนกล่องทุบจะตีเป้าหมายเดิมจนแตก พิกัดที่ไม่มี ID จะตรวจหากล่องจริงก่อนส่งคำขอ")})
     boxGroup:CreateParagraph({Name=t("Movement queue","คิวการวาร์ป"),Content=t(
         "Finishes the current box or star before another movement task. Between targets, Enchant runs first, then Stars / Boxes, then hatching.",
         "ทำกล่องหรือดาวเป้าหมายปัจจุบันให้จบก่อน ระหว่างเป้าหมายจะให้ Enchant ทำก่อน ตามด้วยดาว / กล่อง แล้วจึงเปิดไข่ต่อ")})
@@ -1323,7 +1512,7 @@ build=function()
         "สุ่มครั้งละคำขอ ใช้เฉพาะผลที่เลือก ผลอื่นคง Enchant เดิม หยุดเมื่อเกมยืนยันผลที่ต้องการ หากเกมกำหนดระยะให้ยืนที่เครื่อง Enchant ใช้เพชรจริงตามราคาเกม")})
     local settings=tab("Settings / Report","ตั้งค่า / รายงาน","settings")
     local diagnostics=group(settings,"Trial controls","ตัวควบคุมรุ่นทดลอง","Left","file-text")
-    api.Info=diagnostics:CreateParagraph({Name=t("Build","รุ่น"),Content="tapping-auto-test-4"})
+    api.Info=diagnostics:CreateParagraph({Name=t("Build","รุ่น"),Content="tapping-auto-test-5"})
     diagnostics:CreateButton({Name=t("Copy / Save Report","คัดลอก / บันทึกรายงาน"),Callback=api.SaveReport})
     diagnostics:CreateButton({Name=t("Stop All","หยุดทั้งหมด"),Callback=function()core.Stop();task.defer(build)end})
     diagnostics:CreateButton({Name=t("Unload","ปิดสคริปต์"),Callback=api.Destroy})
