@@ -5,7 +5,7 @@ if env.DevilTappingTest then env.DevilTappingTest.Destroy() end
 local makeCore=(function()
 return function(config,d,changed)
     local C={Names={"Tap","Hatch","Rebirth","Upgrade","Quests","Gifts","Equip","Enchant"},
-        Report={release="tapping-auto-test-1",jobs={},errors={},liveVerified=false}}
+        Report={release="tapping-auto-test-2",jobs={},errors={},liveVerified=false}}
     local jobs=C.Report.jobs
     local alive=true
     local intervals={Tap=0,Hatch=1,Rebirth=1,Upgrade=2,Quests=1,Gifts=2,Equip=8,Enchant=.5}
@@ -65,7 +65,7 @@ return function(config,d,changed)
             if name=="Enchant" and plan.method=="Resolve" and job.reason=="PetChangedChooseKeep" then job.keepPrevious=true end
             if not ticket.ok then
                 config[name]=false;job.uncertain=true
-            elseif name=="Enchant" and plan.method=="Enchant" and job.reason~="RateLimited" then
+            elseif name=="Enchant" and plan.method=="Enchant" and job.reason~="RateLimited" and job.reason~="VisitEnchantMachine" then
                 config.Enchant=false
             end
         end
@@ -92,8 +92,14 @@ return function(config,d,changed)
     end
     actions.Hatch=function()
         local job=jobs.Hatch
+        if config.Enchant then stopHatch();status("Hatch","Waiting for enchant movement");return end
         local plan,why=d.HatchPlan(config)
         if not plan then status("Hatch",why);return end
+        if d.Approach then
+            local ready,reason,travel=d.Approach("Hatch",plan.egg)
+            job.travel=travel
+            if not ready then job.nextAt=d.Now()+.2;status("Hatch",reason);return end
+        end
         sequence+=1
         job.pending={sequence=sequence,egg=plan.egg,at=d.Now(),count=plan.count}
         job.ownsAuto=true;job.stoppedPending=nil
@@ -106,6 +112,7 @@ return function(config,d,changed)
         if not plan then status("Rebirth",why);return end
         jobs.Rebirth.pending={index=plan.index,at=d.Now()}
         jobs.Rebirth.index=plan.index
+        jobs.Rebirth.amount=plan.amount
         send("Rebirth","RebirthService","RebirthRequested",{Index=plan.index})
         status("Rebirth","Waiting for server result")
     end
@@ -132,9 +139,19 @@ return function(config,d,changed)
     end
     actions.Enchant=function()
         local job=jobs.Enchant
+        if jobs.Hatch.pending then status("Enchant","Waiting for hatch result before moving");return end
+        stopHatch()
+        local function approach()
+            if not d.Approach then return true end
+            local ready,reason,travel=d.Approach("Enchant")
+            job.travel=travel
+            if not ready then job.nextAt=d.Now()+.2;status("Enchant",reason)end
+            return ready
+        end
         local pending=job.enchantPending
         if pending then
             if pending.PetId and pending.PetId~=config.EnchantPet then status("Enchant","Finish pending enchant on previous pet");return end
+            if not approach() then return end
             assert(type(pending.Token)=="string","Missing native enchant token")
             local wanted=not job.keepPrevious and config.EnchantFilters[pending.Enchant]==true
             rpc("Enchant","Resolve",{Token=pending.Token,UseNew=wanted},{enchant=pending.Enchant,wanted=wanted})
@@ -145,6 +162,7 @@ return function(config,d,changed)
             if why=="Selected pet already has wanted enchant" then config.Enchant=false end
             status("Enchant",why);return
         end
+        if not approach() then return end
         job.keepPrevious=nil
         rpc("Enchant","Enchant",{PetId=plan.id,Slot=config.EnchantSlot,RequestId=d.GUID()},{pet=plan.id})
     end
@@ -221,11 +239,19 @@ end
 end)()
 local makeAdapter=(function()
 return function(config,d)
-    local A={Data=d.Data,Now=d.Now,Fire=d.Fire,Request=d.Request,CanInvoke=d.CanInvoke,GUID=d.GUID,SequenceStart=d.SequenceStart}
+    local A={Data=d.Data,Now=d.Now,Fire=d.Fire,Request=d.Request,CanInvoke=d.CanInvoke,GUID=d.GUID,SequenceStart=d.SequenceStart,Approach=d.Approach}
     local function get(path) return d.Module(path) end
     function A.Eggs() return get("Shared.Pets.LaunchEggConfig") end
     function A.Gifts() return get("Shared.Items.GiftConfig").Pools end
     function A.Enchants() return get("Shared.Pets.EnchantConfig").Enchants end
+    function A.RebirthAmounts()
+        local world=d.Data() and d.Data().Progression.World or "Main"
+        local out={"Auto"}
+        for index=1,get("Shared.Progression.RebirthButtonConfig").GetMaximumOptions(world) do
+            out[#out+1]=tostring(get("Shared.Progression.RebirthConfig").GetAmountFromIndex(index))
+        end
+        return out
+    end
     function A.TapBlocked()
         for _,key in ipairs({"MiningActive","AtDigsite","DiggingActive","ColosseumActive"}) do
             if d.Attribute(key)==true then return "Finish current minigame before tapping" end
@@ -262,10 +288,22 @@ return function(config,d)
         local buttons=get("Shared.Progression.RebirthButtonConfig")
         local formula=get("Shared.Progression.RebirthConfig")
         local max=buttons.GetOptionCount(data.Upgrades.RebirthButtons or 0,data.Progression.World or "Main")
-        for index=max,1,-1 do
+        local selected=c.RebirthAmount or "Auto"
+        local first,last=max,1
+        if selected~="Auto" then
+            local wanted=tonumber(selected)
+            first=nil
+            for index=1,buttons.GetMaximumOptions(data.Progression.World or "Main") do
+                if formula.GetAmountFromIndex(index)==wanted then first=index;break end
+            end
+            if not first then return nil,"Invalid rebirth amount" end
+            if first>max then return nil,"Selected rebirth amount not unlocked" end
+            last=first
+        end
+        for index=first,last,-1 do
             local amount=formula.GetAmountFromIndex(index)
             local price=formula.GetPrice(amount,data.Statistics.Rebirths or 0)
-            if type(price)=="number" and price>0 and price<=data.Currencies.Coins-c.ReserveCoins then return {index=index,price=price} end
+            if type(price)=="number" and price>0 and price<=data.Currencies.Coins-c.ReserveCoins then return {index=index,amount=amount,price=price} end
         end
         return nil,"Not enough coins to rebirth"
     end
@@ -320,6 +358,241 @@ return function(config,d)
 end
 
 end)()
+local makeMovement=(function()
+return function(config,d)
+    local M={Report={mode="GameWalk"},JumpReport={mode="NativeDoubleJump",jumps=0}}
+    local player,world=d.Player,d.World
+    local active,alive,serial=nil,true,0
+    local knownEggs,knownEnchant={},nil
+    local streamAt=0
+    local function character()
+        local c=player.Character
+        local h=c and c:FindFirstChildOfClass("Humanoid")
+        local r=c and c:FindFirstChild("HumanoidRootPart")
+        if c and h and r and h.Health>0 then return c,h,r end
+    end
+    local function point(v)return {x=v.X,y=v.Y,z=v.Z}end
+    local function stop()
+        serial+=1
+        if active then
+            local _,h,r=character()
+            if h and h==active.h then h:MoveTo(r.Position)end
+        end
+        active=nil
+    end
+    local function stream(position)
+        if d.Now()<streamAt then return end
+        streamAt=d.Now()+5
+        d.Spawn(function()pcall(player.RequestStreamAroundAsync,player,position,2)end)
+    end
+    local function box(item)
+        if item:IsA("BasePart")then return item.CFrame,item.Size end
+        if item:IsA("Model")then return item:GetBoundingBox()end
+    end
+    local function inside(cf,size,pos)
+        local offset=cf:PointToObjectSpace(pos)
+        local half=size/2+Vector3.new(3,2,3)
+        return math.abs(offset.X)<=half.X and math.abs(offset.Y)<=half.Y and math.abs(offset.Z)<=half.Z
+    end
+    local function locate(kind,egg,r)
+        if kind=="Hatch"then
+            local folder=world:FindFirstChild("Eggs")
+            local model=folder and folder:FindFirstChild(egg)
+            local pos
+            if model and model:IsA("Model") then
+                pos=d.Module("Modules.Client.Pets.EggIdleAnimation").GetPosition(model)
+                if not pos then
+                    local source=model:FindFirstChild("Egg")
+                    local part
+                    if source and source:IsA("BasePart")then part=source
+                    elseif source and source:IsA("Model")then part=source.PrimaryPart or source:FindFirstChildWhichIsA("BasePart",true)end
+                    part=part or model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart",true)
+                    pos=part and part.Position
+                end
+                if pos then knownEggs[egg]=pos end
+            end
+            if not pos then
+                if knownEggs[egg]then stream(knownEggs[egg])end
+                return nil,"Waiting for selected egg to stream in"
+            end
+            local distance=(r.Position-pos).Magnitude
+            local offset=Vector3.new(r.Position.X-pos.X,0,r.Position.Z-pos.Z)
+            offset=offset.Magnitude>.1 and offset.Unit or Vector3.new(1,0,0)
+            local destination=pos+offset*5
+            -- Raycast beside the egg, excluding its pedestal/model. Avoid walking into its center.
+            local params=RaycastParams.new()
+            params.FilterType=Enum.RaycastFilterType.Exclude
+            params.FilterDescendantsInstances={player.Character,model}
+            params.RespectCanCollide=true
+            local floor=world:Raycast(destination+Vector3.new(0,8,0),Vector3.new(0,-30,0),params)
+            if floor then destination=Vector3.new(destination.X,floor.Position.Y,destination.Z)end
+            return {point=destination,ready=distance<=9,distance=distance,live=model,key="Hatch:"..egg}
+        end
+        local best,nearest
+        for _,item in ipairs(d.Collection:GetTagged("InteractionPoint"))do
+            if item.Name=="Enchant"and item:IsDescendantOf(world)then
+                local cf,size=box(item)
+                if cf then
+                    local distance=(r.Position-cf.Position).Magnitude
+                    if not nearest or distance<nearest then best={cf=cf,size=size,item=item};nearest=distance end
+                end
+            end
+        end
+        if not best then
+            if knownEnchant then stream(knownEnchant.cf.Position)end
+            return nil,"Enchant point not loaded; approach machine once"
+        end
+        knownEnchant=best
+        return {point=best.cf.Position,ready=inside(best.cf,best.size,r.Position),
+            distance=nearest,live=best.item,key="Enchant"}
+    end
+    local function compute(a,r)
+        if a.pending or d.Now()<(a.retryAt or 0)then return end
+        a.pending=true;a.retryAt=d.Now()+4
+        local id=serial
+        local origin=r.Position
+        d.Spawn(function()
+            local ok,path=pcall(function()
+                local p=d.Pathfinding:CreatePath({AgentRadius=2,AgentHeight=5,AgentCanJump=true,WaypointSpacing=5})
+                p:ComputeAsync(origin,a.target)
+                return p
+            end)
+            if not alive or active~=a or id~=serial then return end
+            a.pending=false
+            if ok and path.Status==Enum.PathStatus.Success then
+                a.waypoints=path:GetWaypoints();a.index=2
+                a.pathAt=d.Now();a.lastMove=nil;a.pathFailed=nil
+                M.Report.path="Ready"
+            else
+                a.waypoints=nil;a.pathFailed=true;M.Report.path="No path; waiting"
+            end
+        end)
+    end
+    function M.Approach(kind,egg)
+        if not alive then return false,"Disabled",M.Report end
+        local _,h,r=character()
+        if not h then stop();return false,"Waiting for character",M.Report end
+        local target,reason=locate(kind,egg,r)
+        if not target then stop();M.Report.status=reason;return false,reason,M.Report end
+        if not active or active.key~=target.key or active.h~=h or active.live~=target.live then
+            stop()
+            active={key=target.key,h=h,live=target.live,kind=kind,target=target.point}
+            M.Report.path=nil
+        end
+        active.target=target.point
+        M.Report.owner=kind;M.Report.target=point(target.point);M.Report.distance=target.distance
+        if target.ready then
+            if not active.arrivedAt then
+                active.arrivedAt=d.Now();h:MoveTo(r.Position)
+            end
+            local ready=d.Now()-active.arrivedAt>=.6
+            M.Report.status=ready and "In native interaction range"or "Waiting for position replication"
+            return ready,M.Report.status,M.Report
+        end
+        active.arrivedAt=nil
+        M.Report.status=active.pathFailed and "No walking path; move closer"or(kind=="Hatch"and "Walking to selected egg"or "Walking to enchant machine")
+        return false,M.Report.status,M.Report
+    end
+    local jumpModule,jumpTrack,jumpCharacter,jumpAt
+    local function jumpController()
+        jumpModule=jumpModule or d.Module("Controllers.Game.DoubleJumpController")
+        return jumpModule
+    end
+    local function jumpBlocked(c)
+        if d.IsFocused()then return true end
+        for _,key in ipairs({"SecretCutsceneActive","BallTrialActive","BouncyObbyActive","MiningActive"})do
+            if player:GetAttribute(key)==true then return true end
+        end
+        if c:GetAttribute("BouncyBallMounted")==true then return true end
+        local cf,size=world:GetAttribute("BouncyObbyBoxCFrame"),world:GetAttribute("BouncyObbyBoxSize")
+        if typeof(cf)=="CFrame"and typeof(size)=="Vector3"then
+            local r=c:FindFirstChild("HumanoidRootPart")
+            if r then
+                local v=cf:PointToObjectSpace(r.Position);local half=size/2+Vector3.new(40,120,40)
+                if math.abs(v.X)<=half.X and math.abs(v.Y)<=half.Y and math.abs(v.Z)<=half.Z then return true end
+            end
+        end
+        return false
+    end
+    local function clearTrack()
+        if jumpTrack then pcall(jumpTrack.Stop,jumpTrack);pcall(jumpTrack.Destroy,jumpTrack)end
+        jumpTrack=nil;jumpCharacter=nil
+    end
+    function M.Jump()
+        if not alive or not config.InfiniteJump then return end
+        local c,h,r=character()
+        if not h or jumpBlocked(c)then return end
+        local native=jumpController()
+        local state=native:GetState()
+        -- Owned air jumps are performed by the game's existing JumpRequest listener.
+        -- Refilling in Tick removes only the per-flight count; never apply a second impulse.
+        if state.Maximum>0 then return end
+        if state.Character~=c or not state.CanJump or h:GetState()~=Enum.HumanoidStateType.Freefall then return end
+        local cfg=d.Module("Shared.Progression.DoubleJumpConfig")
+        if d.Now()<(jumpAt or 0)then return end
+        jumpAt=d.Now()+math.max(cfg.FreefallDelay,.15)
+        local direction=h.MoveDirection
+        local force=cfg.VelocityMultiplier
+        if math.abs(direction.X)<.01 and math.abs(direction.Z)<.01 then force*=1.15 end
+        r.AssemblyLinearVelocity=Vector3.new(direction.X,1.35,direction.Z)*force
+        h:ChangeState(Enum.HumanoidStateType.Jumping)
+        M.JumpReport.jumps+=1;M.JumpReport.mode="NativePhysics"
+        -- Reuse the game's own animation and already-created particle attachment.
+        if jumpCharacter~=c then clearTrack();jumpCharacter=c end
+        pcall(function()
+            local animator=h:FindFirstChildOfClass("Animator")
+            local controllers=d.Replicated:FindFirstChild("Controllers")
+            local gameModules=controllers and controllers:FindFirstChild("Game")
+            local controller=gameModules and gameModules:FindFirstChild("DoubleJumpController")
+            local animation=controller and controller:FindFirstChild("Animation")
+            if animator and animation then
+                jumpTrack=jumpTrack or animator:LoadAnimation(animation)
+                jumpTrack:Play()
+            end
+        end)
+        pcall(function()d.Module("Controllers.Audio.SoundController"):Play("DoubleJump",1.01)end)
+        pcall(function()d.Module("Controllers.Pets.PetController"):FlipOwnedPets()end)
+        local particles=r:FindFirstChild("TS2DoubleJumpParticles")
+        local wind=particles and particles:FindFirstChild("Wind")
+        if wind and wind:IsA("ParticleEmitter")then wind:Emit(wind:GetAttribute("EmitCount")or 1)end
+    end
+    function M.Tick()
+        if not alive then return end
+        if config.InfiniteJump then
+            local c=character()
+            if c and not jumpBlocked(c)then
+                local native=jumpController()
+                local state=native:GetState()
+                if state.Current>0 then native:Refill()end
+                M.JumpReport.maximum=state.Maximum
+                M.JumpReport.mode=state.Maximum>0 and "NativeControllerRefill"or "NativePhysics"
+            end
+        else clearTrack()end
+        local a=active
+        if not a then return end
+        if not config[a.kind]or(a.kind=="Hatch"and config.Enchant)then stop();return end
+        local _,h,r=character()
+        if not h or h~=a.h then stop();return end
+        if a.arrivedAt then return end
+        -- Recompute after a stuck path, without repeatedly resetting MoveTo every frame.
+        if not a.waypoints or d.Now()-(a.pathAt or 0)>8 then compute(a,r)end
+        local waypoint=a.waypoints and a.waypoints[a.index]
+        if waypoint and (r.Position-waypoint.Position).Magnitude<4 then
+            a.index+=1;waypoint=a.waypoints[a.index];a.lastMove=nil
+        end
+        if waypoint and (not a.lastMove or d.Now()-a.lastMove>=3)then
+            if waypoint.Action==Enum.PathWaypointAction.Jump then h.Jump=true end
+            h:MoveTo(waypoint.Position);a.lastMove=d.Now()
+        elseif not waypoint and a.waypoints then
+            a.waypoints=nil;a.retryAt=0
+        end
+    end
+    function M.Cancel()stop()end
+    function M.Destroy()alive=false;stop();clearTrack()end
+    return M
+end
+
+end)()
 local makeLogo=(function()
 local function logo()
     local version="silver-break-20261014"
@@ -366,12 +639,12 @@ local Http=game:GetService("HttpService")
 local runService=game:GetService("RunService")
 local inputs=game:GetService("UserInputService")
 local config={Tap=false,Hatch=false,Rebirth=false,Upgrade=false,Quests=false,Gifts=false,Equip=false,Enchant=false,
-    InfiniteJump=false,CPS=40,Egg="",HatchCount=1,HatchDelay=2,Gift="",ReserveCoins=0,ReserveGems=0,
+    InfiniteJump=false,CPS=40,Egg="",HatchCount=1,HatchDelay=2,Gift="",ReserveCoins=0,ReserveGems=0,RebirthAmount="Auto",
     Upgrades={ClickMultiplier=true,HatchSpeed=true,CriticalChance=true,AutoClickerSpeed=true},
     EnchantPet="",EnchantSlot=1,EnchantFilters={},ReplaceEnchant=false,Language="TH"}
 local api={Config=config}
 local alive,rebuilding=true,false
-local core,adapter,window,replica
+local core,adapter,window,replica,movement
 local connections,controls,paragraphs={},{},{}
 local cache={}
 local now=os.clock
@@ -390,6 +663,11 @@ local function remote(service,folder,name)
     assert(item,"Missing remote: "..service.."/"..name)
     return item
 end
+movement=makeMovement(config,{
+    Player=player,World=workspace,Replicated=RS,Collection=game:GetService("CollectionService"),
+    Pathfinding=game:GetService("PathfindingService"),Module=module,Now=now,
+    Spawn=task.spawn,IsFocused=function()return inputs:GetFocusedTextBox()~=nil end,
+})
 local deps={
     Data=function() return replica and replica.Data end,
     Module=module,Now=now,Attribute=function(name)return player:GetAttribute(name)end,
@@ -401,6 +679,7 @@ local deps={
         if packet==nil then endpoint:FireServer()else endpoint:FireServer(packet)end
     end,
     NativeHatch=function()return module("Controllers.Pets.EggController"):GetAutoHatchEgg()~=nil end,
+    Approach=function(kind,egg)return movement.Approach(kind,egg)end,
     Request=function(service,name,packet)
         assert(not env.DevilTappingRPCPending,"Previous request still pending")
         local endpoint=remote(service,"RF",name)
@@ -438,6 +717,17 @@ local texts={
     ["Finish pending enchant on previous pet"]="มีผล Enchant ของสัตว์ก่อนหน้าค้างอยู่",
     ["No affordable selected upgrades"]="ยังไม่มีอัปเกรดที่เลือกและเงินพอ",
     ["Not enough coins to rebirth"]="เงินยังไม่พอรีเบิร์ท",
+    ["Selected rebirth amount not unlocked"]="ยังไม่ปลดล็อกจำนวนรีเบิร์ทที่เลือก",
+    ["Invalid rebirth amount"]="จำนวนรีเบิร์ทไม่ถูกต้อง",
+    ["Waiting for enchant movement"]="รอ Enchant เสร็จก่อนเปิดไข่",
+    ["Waiting for hatch result before moving"]="รอผลเปิดไข่ก่อนเดินไป Enchant",
+    ["Walking to selected egg"]="กำลังเดินไปหาไข่ที่เลือก",
+    ["Walking to enchant machine"]="กำลังเดินไปเครื่อง Enchant",
+    ["Waiting for position replication"]="รอเกมรับตำแหน่งก่อนส่งคำขอ",
+    ["Waiting for selected egg to stream in"]="รอโหลดไข่ที่เลือก ลองเข้าใกล้ไข่ครั้งแรก",
+    ["Enchant point not loaded; approach machine once"]="ยังไม่พบจุด Enchant ให้เข้าใกล้เครื่องหนึ่งครั้ง",
+    ["Waiting for character"]="รอตัวละครพร้อม",
+    ["No walking path; move closer"]="ยังหาเส้นทางเดินไม่ได้ ให้เข้าใกล้จุดนั้นก่อน",
     ["Not enough coins for selected egg"]="เงินยังไม่พอเปิดไข่",
     ["Not enough gems for enchant"]="เพชรยังไม่พอ Enchant",
     ["Waiting for completed quests"]="รอเควสต์สำเร็จ",
@@ -484,6 +774,7 @@ end
 function api.SaveReport()
     core.Report.placeId=game.PlaceId;core.Report.userId=player.UserId;core.Report.config=config
     core.Report.pendingRPC=env.DevilTappingRPCPending
+    core.Report.movement=movement.Report;core.Report.jump=movement.JumpReport
     local bytes=Http:JSONEncode(clean(core.Report,0))
     if type(writefile)=="function" then pcall(writefile,"DevilTappingTestReport.json",bytes) end
     if type(setclipboard)=="function" then pcall(setclipboard,bytes) end
@@ -494,6 +785,7 @@ function api.Destroy()
     if not alive then return end
     alive=false
     if core then core.Destroy() end
+    movement.Destroy()
     for _,link in ipairs(connections) do pcall(link.Disconnect,link) end
     table.clear(connections)
     if window then window:Destroy();window=nil end
@@ -557,7 +849,9 @@ build=function()
     toggle(taps,"Equip")
     local movement=group(farm,"Player","ผู้เล่น","Right","person-standing")
     controls.InfiniteJump=movement:CreateToggle({Name=t("Infinite Jump","กระโดดไม่จำกัด"),CurrentValue=config.InfiniteJump,Callback=function(value)config.InfiniteJump=value==true end})
-    movement:CreateParagraph({Name=t("Jump control","วิธีกระโดด"),Content=t("Press the normal jump button again in midair.","กดปุ่มกระโดดของเกมซ้ำกลางอากาศได้ ใช้ได้ทั้งมือถือและคอมพิวเตอร์")})
+    movement:CreateParagraph({Name=t("Jump control","วิธีกระโดด"),Content=t(
+        "Press jump again in midair. Reuses native double jumps; players without an air jump use the map's jump force, direction and animation.",
+        "กดปุ่มกระโดดของเกมซ้ำกลางอากาศ ใช้ Double Jump ของแมพต่อเนื่อง หากยังไม่มี ใช้แรงส่ง ทิศทาง และท่ากระโดดแบบเดียวกับแมพ")})
     local eggs=tab("Eggs","เปิดไข่","egg")
     local hatch=group(eggs,"Auto hatching","เปิดไข่อัตโนมัติ","Left","egg")
     local eggOptions=keys(adapter.Eggs());table.insert(eggOptions,1,t("Select an egg","เลือกไข่"))
@@ -568,11 +862,17 @@ build=function()
     hatch:CreateSlider({Name=t("Delay after confirmation","เว้นช่วงหลังเกมยืนยัน"),Range={.5,5},Increment=.1,CurrentValue=config.HatchDelay,Callback=function(value)config.HatchDelay=value end})
     toggle(hatch,"Hatch")
     local hatchInfo=group(eggs,"Hatch results","ผลเปิดไข่","Right","info")
-    hatchInfo:CreateParagraph({Name=t("Current position","เปิดจากตำแหน่งปัจจุบัน"),Content=t(
-        "Requests Auto hatching without moving your character. Server TooFar / IslandLocked / RateLimited results are shown. Eight eggs require native entitlement.",
-        "ส่งเปิดไข่โหมด Auto จากตำแหน่งที่อยู่ แสดง TooFar / IslandLocked / RateLimited ตามเกม จำนวน 8 ฟองใช้สิทธิ์ตามเกม หากเกมไม่ตอบจะหยุดเพื่อไม่ซื้อซ้ำ")})
+    hatchInfo:CreateParagraph({Name=t("Automatic approach","เดินเข้าใกล้อัตโนมัติ"),Content=t(
+        "Walks to the selected loaded egg before requesting. Enchant takes movement priority; hatching resumes afterwards. Locked islands remain unavailable.",
+        "เดินเข้าใกล้ไข่ที่เลือกก่อนส่งคำขอ หากเปิด Enchant จะทำ Enchant ก่อน แล้วกลับมาเปิดไข่ต่อ ไข่บนเกาะที่ยังไม่ปลดล็อกใช้ไม่ได้")})
     local progressTab=tab("Progress / Rewards","พัฒนา / รางวัล","gift")
     local progress=group(progressTab,"Progression","พัฒนาตัวละคร","Left","trending-up")
+    progress:CreateDropdown({Name=t("Rebirth amount","จำนวนรีเบิร์ท"),Options=adapter.RebirthAmounts(),CurrentOption={config.RebirthAmount},Callback=function(value)
+        config.RebirthAmount=tostring(single(value))
+    end})
+    progress:CreateParagraph({Name=t("Rebirth selection","การเลือกจำนวน"),Content=t(
+        "Auto chooses the largest unlocked amount you can afford. A specific amount waits for its unlock and full price.",
+        "Auto เลือกจำนวนสูงสุดที่ปลดล็อกและเงินพอ หากเลือก 1 / 5 / 25 / 125 จะใช้จำนวนนั้นเท่านั้น รอจนปลดล็อกและเงินพอ")})
     toggle(progress,"Rebirth");toggle(progress,"Upgrade")
     progress:CreateDropdown({Name=t("Selected upgrades","อัปเกรดที่ซื้อ"),Options={"ClickMultiplier","HatchSpeed","CriticalChance","AutoClickerSpeed"},
         CurrentOption=selected(config.Upgrades),MultipleOptions=true,Callback=function(value)config.Upgrades=selection(value)end})
@@ -590,6 +890,9 @@ build=function()
     toggle(rewards,"Gifts")
     local enchantTab=tab("Enchant","Enchant","sparkles")
     local enchant=group(enchantTab,"Selected pet","เลือกสัตว์และผลลัพธ์","Left","paw-print")
+    enchant:CreateParagraph({Name=t("Machine approach","เข้าใกล้เครื่อง"),Content=t(
+        "Walks inside the game's Enchant interaction point. If it is not loaded, approach the machine once so the script can locate it.",
+        "เดินเข้าจุด Enchant ของเกมก่อนสุ่ม หากจุดเครื่องยังไม่โหลด ให้เข้าใกล้เครื่องหนึ่งครั้งเพื่อให้สคริปต์พบตำแหน่ง")})
     controls.EnchantPet=enchant:CreateDropdown({Name=t("Pet","สัตว์"),Options={t("Select a pet","เลือกสัตว์")},CurrentOption={t("Select a pet","เลือกสัตว์")},Searchable=true,Callback=function(value)
         config.EnchantPet=api.PetIds[single(value)]or ""
     end})
@@ -609,7 +912,7 @@ build=function()
         "สุ่มครั้งละคำขอ ใช้เฉพาะผลที่เลือก ผลอื่นคง Enchant เดิม หยุดเมื่อเกมยืนยันผลที่ต้องการ หากเกมกำหนดระยะให้ยืนที่เครื่อง Enchant ใช้เพชรจริงตามราคาเกม")})
     local settings=tab("Settings / Report","ตั้งค่า / รายงาน","settings")
     local diagnostics=group(settings,"Trial controls","ตัวควบคุมรุ่นทดลอง","Left","file-text")
-    api.Info=diagnostics:CreateParagraph({Name=t("Build","รุ่น"),Content="tapping-auto-test-1"})
+    api.Info=diagnostics:CreateParagraph({Name=t("Build","รุ่น"),Content="tapping-auto-test-2"})
     diagnostics:CreateButton({Name=t("Copy / Save Report","คัดลอก / บันทึกรายงาน"),Callback=api.SaveReport})
     diagnostics:CreateButton({Name=t("Stop All","หยุดทั้งหมด"),Callback=function()core.Stop();task.defer(build)end})
     diagnostics:CreateButton({Name=t("Unload","ปิดสคริปต์"),Callback=api.Destroy})
@@ -644,13 +947,13 @@ local ok,problem=xpcall(function()
         local name=entry[1]
         connections[#connections+1]=remote(entry[2],"RE",entry[3]).OnClientEvent:Connect(function(result)core.Receive(name,result)end)
     end
-    local jumpAt=0
     connections[#connections+1]=inputs.JumpRequest:Connect(function()
-        if not config.InfiniteJump or not alive or now()<jumpAt or inputs:GetFocusedTextBox()then return end
-        local c=player.Character;local h=c and c:FindFirstChildOfClass("Humanoid")
-        if h and h.Health>0 then jumpAt=now()+.08;h:ChangeState(Enum.HumanoidStateType.Jumping)end
+        local success,err=pcall(movement.Jump)
+        if not success then movement.JumpReport.error=tostring(err)end
     end)
     connections[#connections+1]=runService.Heartbeat:Connect(function()
+        local success,err=pcall(movement.Tick)
+        if not success then movement.Report.error=tostring(err)end
         for _,name in ipairs(core.Names)do core.Tick(name)end
         refresh(core.Report)
     end)
