@@ -1,14 +1,26 @@
 # DEVIL HUB Tapping automation trial
 
-Release: tapping-auto-test-7. Standalone trial for Place 72858262610964 / Universe 10629695169, based on the supplied client dump under Downloads/Devildumper.
+Release: tapping-auto-test-8. Standalone trial for Place 72858262610964 / Universe 10629695169, based on the supplied client dump under Downloads/Devildumper.
 
 Run:
 
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/tapping-auto-test.lua?v=test-7"))()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/tapping-auto-test.lua?v=test-8"))()
 
-This release adds Auto Unlock Islands. Auto Open Egg and Enchant remain removed, including their controls, workers, requests and renderer hooks. Per-mode accepted/rejected messages and request/result counters remain hidden in the GUI. Internal diagnostics remain available through Copy / Save Report.
+This release adds filtered permanent pet deletion and optional hatch animation skipping for the game's own opening controls. Auto Open Egg and Enchant workers and purchase/roll requests remain removed. Per-mode accepted/rejected messages and request/result counters remain hidden in the GUI. Internal diagnostics remain available through Copy / Save Report.
 
-DEVIL HUB retains its pinned OuroFlow GUI, silver DEVIL logo, profile, Thai/English button beside minimize, Discord invite/copy button, width/transparency controls, Stop All and Unload. Five tabs: Click / Player, Stars / Boxes, Progress / Rewards, Settings / Report and Discord. All automation starts disabled.
+DEVIL HUB retains its pinned OuroFlow GUI, silver DEVIL logo, profile, Thai/English button beside minimize, Discord invite/copy button, width/transparency controls, Stop All and Unload. Six tabs: Click / Player, Stars / Boxes, Progress / Rewards, Pets / Hatch, Settings / Report and Discord. All automation and animation skipping start disabled.
+
+## Pet deletion and hatch animation
+
+Open Pets / Hatch. Auto Delete Selected Pets permanently removes matching owned pets. Choose names and/or rarities, then at least one tier. Selecting both names and rarities uses an intersection: a pet must match both. Empty name and rarity filters never mean all pets. Empty tier selection deletes nothing. Tier choices are Normal, Golden, Diamond and Rainbow (native Shiny). Names and rarities come from LaunchPetConfig plus current inventory; Refresh pet filters updates those lists.
+
+Normal is the default selected tier. Keep best per name and tier defaults to 1 and ranges from 0 to 5, ranked with native PetPower.GetOwnedPowers. Set it to 0 to remove all otherwise eligible pets matching the filters. Locked/favorite/equipped pets, saved-team pets, EnchantHeldPet and pending-enchant pets are excluded. Reserved/frozen pets and mutated, enchanted, named, signed or serialized collectible pets are preserved, following the native cleanup protections. The plan is rebuilt immediately before sending to catch inventory/protection changes.
+
+The native event is PetService.RE.PetActionRequested({Action="Delete", PetIds={...}, Batch=...}), matching the supplied recording and 0361_PetDeleteRequest.lua. At most 400 IDs go into one event, with one pending batch. Auto Equip Best and deletion wait for each other's pending inventory operation. Success is recorded only from a matching Delete/Batch result or actual disappearance of every requested ID from owned inventory. Partial Count/Skipped results retain their native meaning. Requested IDs back off thirty seconds after success and eight after explicit rejection, preventing repeated requests during replica lag. Pending batch IDs and sequence persist across reruns. After twelve seconds without confirmation the toggle stops and leaves the unresolved batch locked; late results/removals can still resolve it. A transport exception is treated as uncertain and does not repeat the destructive request. Turning the toggle off cannot retract an event already sent.
+
+Skip hatch animation works with manual egg opening and the game's own auto hatch. It wraps native HatchRenderer.Play only while enabled, skips successful non-forced reveals and runs the original controller's finish callback. Secret Play/PlayReveal and cutscene callbacks are skipped only for pet IDs observed in real successful non-forced hatch results. Deferred checks handle native listener ordering; receipt cleanup and secret acknowledgement remain with the game's callbacks. Forced, failed, empty and unrelated secret presentations keep native handling. Disabling or unloading restores the exact original methods unless another tool replaced them later; partial installation rolls back. No hatch purchase event, fabricated reward or server-speed change is sent. Existing animations already running when enabled finish normally; new openings use the wrappers.
+
+Stop All disables both features. Copy / Save Report includes the current deletion preview, pending batch, real counts/reasons and animation hook diagnostics, without adding per-mode status paragraphs.
 
 ## Movement corrections
 
@@ -36,12 +48,12 @@ DEVIL HUB retains its pinned OuroFlow GUI, silver DEVIL logo, profile, Thai/Engl
 
 Islands, stars and boxes share movement ownership; selected targets finish before another movement task. An affordable island purchase takes the next free movement turn. Already-issued star/chest collection calls retain ownership until the actual reply, including after disabling. Changing box type releases only an unissued target. There is one RemoteFunction lock across workers and reruns, retained until actual completion. Ambiguous consuming-call exceptions stop that automation; unacknowledged event requests retain their pending request to avoid duplication.
 
-Copy / Save Report writes DevilTappingTestReport.json and copies JSON when supported. It retains configuration, counters, native reasons/results, pending calls, island price/coins/target/pending result, movement target/actual/landing error, jump mode, chest cooldown, box HP and errors. These details are not displayed as per-mode status messages.
+Copy / Save Report writes DevilTappingTestReport.json and copies JSON when supported. It retains configuration, counters, native reasons/results, pending calls, island price/coins/target/pending result, deletion preview and pending state, hatch animation diagnostics, movement target/actual/landing error, jump mode, chest cooldown, box HP and errors. These details are not displayed as per-mode status messages.
 
 The saved routes contain twelve supplied non-Spawn star coordinates, two known Spawn anchors, an identified SkyIsland chest anchor and six chest discovery points. Spawn3 still requires live discovery. Approximate survey positions may need further in-game verification.
 
 The supplied native island snapshot has Sky Island (5,000,000), Autumn (1,000,000,000), Mushroom (800,000,000,000), Desert (45,000,000,000,000), Crystal Cave (590,000,000,000,000) and Shadow Realm (19,000,000,000,000,000). The implementation reads live configuration rather than hardcoding these prices. Evidence: 0525_IslandConfig.lua, 0069_IslandController.lua and RemoteDump_72858262610964.txt lines 112–116. The dump does not contain server source; acceptance and any additional server requirements require an in-game test.
 
-Validation: Luau compilation and 360 checks (33 core, 28 adapter, 31 movement, 87 world-farm, 57 island and 124 full GUI/native-contract checks). New coverage includes budget/reserve gates, bridge prerequisites, stable portal landing, exact event contract, matching result validation, replica latency, cross-rerun pending purchases, late results, timeout/rejection handling, shared movement and rebirth spending. Prior star/chest landing, box locking, native jump, hidden statuses and removed egg/enchant regression checks remain. No Roblox client was available for live verification of saved coordinates, server acceptance or ordinary-tap damage on Breakables.
+Validation: Luau compilation and 521 checks (37 core, 28 adapter, 31 movement, 87 world-farm, 57 island, 64 permanent-deletion, 19 manual-animation and 198 full GUI/native-contract checks). New coverage includes exact name/rarity intersections, tier filters, strongest-pet retention, protected inventory, matching batch responses, partial deletion, replica lag, rerun/timeouts, native batch limits, last-moment protection changes and transport exceptions. Animation coverage verifies native callbacks, manual and secret reveals, listener ordering, toggle/unload restoration and rollback. GUI tests cover Thai/English rebuilds, both new controls, report diagnostics, inventory operation coordination and the continued absence of an auto-hatch purchase endpoint. Prior island, star/chest, jump and hidden-status coverage remains. No Roblox client was available for live verification of server acceptance, inventory behavior or renderer integration.
 
 The main hub loader is unchanged; this remains a separate trial link.
