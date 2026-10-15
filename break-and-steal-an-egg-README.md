@@ -615,3 +615,13 @@ The corrected regression removes the injected `env` global and reproduces the
 old failure. The replacement passes both getgenv and _G environments, input
 scheduling/release/fallback/unload checks, direct compilation of the gameplay
 string, packed-host compilation, protected boundaries and main router checks.
+
+## Auto Break native swing x2 (break-auto-swing-x2-18, 2026-10-16)
+
+Auto Break automatically requests the native x2 swing-speed behavior with no separate toggle. Damage continues through PickaxeController.Swing using the game's current Pickaxe tier, native hit ID, hit confirmation and rejection flow. No damage field, tool tier or purchase ownership attribute is changed.
+
+The shared RobuxShopConfig.SwingMultiplierFor export is wrapped only while Auto Break is enabled. The boost applies only inside this worker's native Swing call, scoped to its coroutine. Other callers, including manual and Event swings, see the original value. Native potions/global Swing multipliers are preserved; an account already owning FastSwingOwned keeps its native x2 rather than receiving x4. The worker interval follows the same effective multiplier instead of imposing the previous 0.5-second delay. Missing/unwritable native exports retain the original speed and are reported as unavailable.
+
+Disabling Auto Break or unloading restores the original export when it still belongs to this script. A later replacement made by another script is preserved. The movement report includes swingSpeed.requested, effective, mode, confirmed, rejected and lastServerHealth. Confirmation/rejection counts are native responses for the currently locked egg, separate from local Swing acceptance; they do not establish a measured x2 server throughput ratio by themselves.
+
+Validation: scoped native-controller simulation checks x2 scheduling, unchanged per-hit damage, preserved potion effects, no x4 for existing owners, unmodified ownership, Event/manual isolation, error cleanup, rejection reporting and unload. Existing walking/carry recovery, control hooks, saved settings, runtime loading and protected startup boundary tests pass. The public runtime retains two startup VM layers with native gameplay callbacks. Live server acceptance of faster hits has not been established; the supplied dump does not include the EggHitRequest server handler.
