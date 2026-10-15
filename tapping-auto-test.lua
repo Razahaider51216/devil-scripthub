@@ -4,8 +4,8 @@ local env=type(getgenv)=="function" and getgenv() or _G
 if env.DevilTappingTest then env.DevilTappingTest.Destroy() end
 local makeCore=(function()
 return function(config,d,changed)
-    local C={Names={"Islands","Stars","Boxes","Tap","Rebirth","Upgrade","Quests","Gifts","Equip"},
-        Report={release="tapping-auto-test-7",jobs={},errors={},liveVerified=false}}
+    local C={Names={"Delete","Islands","Stars","Boxes","Tap","Rebirth","Upgrade","Quests","Gifts","Equip"},
+        Report={release="tapping-auto-test-8",jobs={},errors={},liveVerified=false}}
     local jobs=C.Report.jobs
     local alive=true
     local intervals={Tap=0,Rebirth=1,Upgrade=2,Quests=1,Gifts=2,Equip=8}
@@ -97,6 +97,7 @@ return function(config,d,changed)
         rpc("Gifts","OpenGift",{Gift=name,Amount=1})
     end
     actions.Equip=function()
+        if d.DeleteBusy and d.DeleteBusy()then status("Equip","Waiting for deletion result");return end
         jobs.Equip.pending={at=d.Now()}
         send("Equip","PetService","PetActionRequested",{Action="EquipBest",Mode="Clicks"})
         status("Equip","Waiting for server result")
@@ -104,12 +105,15 @@ return function(config,d,changed)
     function C.Tick(name)
         local job=assert(jobs[name])
         if not alive then return end
-        if name=="Islands"then
-            if d.IslandTick then
-                local ok,err=pcall(d.IslandTick,job,jobs)
+        if name=="Islands"or name=="Delete"then
+            local worker
+            if name=="Islands"then worker=d.IslandTick else worker=d.DeleteTick end
+            if worker then
+                local ok,err=pcall(worker,job,jobs)
                 if not ok then
                     job.error=tostring(err);job.status="Error; save report";job.nextAt=d.Now()+5
-                    if d.IslandCancel then d.IslandCancel()end
+                    if name=="Islands"and d.IslandCancel then d.IslandCancel()end
+                    if name=="Delete"then config.Delete=false end
                     table.insert(C.Report.errors,{job=name,message=job.error,t=d.Now()})
                     if #C.Report.errors>30 then table.remove(C.Report.errors,1)end
                 end
@@ -155,6 +159,7 @@ return function(config,d,changed)
     function C.Receive(name,result)
         if not alive or type(result)~="table" then return end
         if name=="Islands"then if d.IslandReceive then d.IslandReceive(result)end;return end
+        if name=="Delete"then if d.DeleteReceive then d.DeleteReceive(result)end;return end
         local job=jobs[name]
         if name=="Tap" then
             local id=result.ClientSequence
@@ -187,7 +192,7 @@ return function(config,d,changed)
     end
     function C.Stop()
         for _,name in ipairs(C.Names) do C.Set(name,false) end
-        config.InfiniteJump=false;notify()
+        config.InfiniteJump=false;config.SkipHatchAnimation=false;notify()
     end
     function C.Destroy() C.Stop();alive=false;table.clear(tapPending) end
     return C
@@ -198,7 +203,8 @@ local makeAdapter=(function()
 return function(config,d)
     local A={Data=d.Data,Now=d.Now,Fire=d.Fire,Request=d.Request,CanInvoke=d.CanInvoke,SequenceStart=d.SequenceStart,
         WorldTick=d.WorldTick,WorldBusy=d.WorldBusy,WorldCancel=d.WorldCancel,BoxTapping=d.BoxTapping,
-        IslandTick=d.IslandTick,IslandReceive=d.IslandReceive,IslandCancel=d.IslandCancel,CoinBusy=d.CoinBusy}
+        IslandTick=d.IslandTick,IslandReceive=d.IslandReceive,IslandCancel=d.IslandCancel,CoinBusy=d.CoinBusy,
+        DeleteTick=d.DeleteTick,DeleteReceive=d.DeleteReceive,DeleteBusy=d.DeleteBusy}
     local function get(path) return d.Module(path) end
     function A.Gifts() return get("Shared.Items.GiftConfig").Pools end
     function A.RebirthAmounts()
@@ -964,6 +970,238 @@ return function(config,d)
 end
 
 end)()
+local makeDelete=(function()
+return function(config,d)
+    local D={}
+    local shared=d.Shared or {}
+    shared.retry=shared.retry or {}
+    shared.sequence=shared.sequence or math.floor(d.Now()*1000)+1500000000
+    local alive=true
+    local function data()return d.Data()end
+    local function selected(map)return type(map)=="table"and next(map)~=nil end
+    function D.Options()
+        local names,rarities={},{}
+        for name,def in pairs(d.Module("Shared.Pets.LaunchPetConfig"))do
+            names[name]=true
+            if type(def.Rarity)=="string"then rarities[def.Rarity]=true end
+        end
+        local actual=data()
+        for _,pet in pairs(actual and actual.Pets.Owned or {})do
+            if type(pet.Name)=="string"then names[pet.Name]=true end
+            if type(pet.Rarity)=="string"then rarities[pet.Rarity]=true end
+        end
+        return names,rarities
+    end
+    local function protected(pet,id,used,held,pending)
+        if used[id]or id==held or id==pending then return true end
+        if pet.Locked or pet.Favorite or pet.Favourited or pet.Equipped or pet.InEnchanter or pet.EnchantPending then return true end
+        if pet.Reserved~=nil and pet.Reserved~=false or pet.Frozen~=nil then return true end
+        if pet.Mutation and pet.Mutation~=""and pet.Mutation~="None"or pet.Electrified then return true end
+        if pet.Enchant and pet.Enchant~=""or pet.Enchant2 and pet.Enchant2~=""then return true end
+        return pet.ChangedNickname==true or pet.Signature~=nil or pet.Serial~=nil or pet.LeaderboardSerial~=nil or pet.PendingSerial==true
+    end
+    function D.Plan()
+        local actual=data()
+        if not actual then return {},"Waiting for player data"end
+        if not selected(config.DeleteNames)and not selected(config.DeleteRarities)then return {},"Select pet names or rarities"end
+        if not selected(config.DeleteTiers)then return {},"Select pet tiers"end
+        local owned=actual.Pets.Owned
+        local used={}
+        for key,value in pairs(actual.Pets.Equipped or {})do
+            if type(value)=="string"then used[value]=true elseif value==true and type(key)=="string"then used[key]=true end
+        end
+        for _,team in pairs(actual.PetTeams or {})do
+            if type(team)=="table"then
+                for key,value in pairs(team)do
+                    if type(value)=="string"then used[value]=true elseif value==true and type(key)=="string"then used[key]=true end
+                end
+            end
+        end
+        local held=d.Attribute("EnchantHeldPet")
+        local pending=(actual.Enchanting or {}).Pending
+        pending=type(pending)=="table"and pending.PetId or nil
+        local catalog=d.Module("Shared.Pets.LaunchPetConfig")
+        local keep=math.clamp(math.floor(tonumber(config.DeleteKeepBest)or 1),0,5)
+        local powers=keep>0 and d.Module("Shared.Pets.PetPower").GetOwnedPowers(owned)or {}
+        local groups={}
+        for id,pet in pairs(owned)do
+            if type(id)~="string"or type(pet)~="table"then continue end
+            local def=catalog[pet.Name]
+            local rarity=pet.Rarity or(def and def.Rarity)
+            local tier=pet.Tier or "Normal"
+            if (selected(config.DeleteNames)and not config.DeleteNames[pet.Name])or
+                (selected(config.DeleteRarities)and not config.DeleteRarities[rarity])or not config.DeleteTiers[tier]then continue end
+            local key=tostring(pet.Name).."\0"..tier
+            groups[key]=groups[key]or {}
+            groups[key][#groups[key]+1]={id=id,pet=pet,power=tonumber(powers[id])or 0}
+        end
+        local out={}
+        for _,group in pairs(groups)do
+            table.sort(group,function(a,b)return a.power==b.power and a.id<b.id or a.power>b.power end)
+            for index,row in ipairs(group)do
+                if index<=keep or protected(row.pet,row.id,used,held,pending)or d.Now()<(shared.retry[row.id]or 0)then continue end
+                out[#out+1]=row.id
+            end
+        end
+        table.sort(out)
+        return out
+    end
+    function D.Busy()return shared.pending~=nil end
+    function D.Receive(result)
+        local pending=shared.pending
+        if not alive or not pending or type(result)~="table"then return end
+        if result.Action~="Delete"or result.Batch~=pending.batch then return end
+        if not pending.done then pending.result=result;pending.done=true end
+    end
+    local function poll(job)
+        local pending=shared.pending
+        if not pending then return false end
+        job.pending=pending
+        local actual=data()
+        local removed=0
+        if actual then
+            for _,id in ipairs(pending.ids)do if actual.Pets.Owned[id]==nil then removed+=1 end end
+        end
+        job.observedRemoved=removed
+        if pending.done or removed==#pending.ids then
+            local result=pending.result
+            local accepted=removed==#pending.ids or(type(result)=="table"and result.Success==true)
+            job.result=result;job.reason=result and(result.Error or result.SkipReason)or nil
+            if accepted then
+                local count=math.clamp(math.floor(tonumber(result and result.Count)or removed),0,#pending.ids)
+                job.confirmed+=math.max(count,removed)
+                job.skipped=(job.skipped or 0)+(tonumber(result and result.Skipped)or 0)
+                job.confirmationSource=removed==#pending.ids and "Replica"or "Delete result"
+            else job.rejected+=1 end
+            for _,id in ipairs(pending.ids)do shared.retry[id]=d.Now()+(accepted and 30 or 8)end
+            shared.pending=nil;job.pending=nil;job.nextAt=d.Now()+(accepted and 1 or 8)
+            job.status=not config.Delete and "Disabled"or accepted and "Selected pets deleted"or "Delete request rejected"
+        elseif d.Now()-pending.started>12 then
+            pending.uncertain=true;job.uncertain=true;config.Delete=false
+            job.status="Unconfirmed deletion; stopped without repeating"
+        else job.status="Waiting for deletion result"end
+        return true
+    end
+    function D.Tick(job,jobs)
+        if not alive then return end
+        for id,expires in pairs(shared.retry)do if expires<d.Now()then shared.retry[id]=nil end end
+        if poll(job)then return end
+        if not config.Delete then job.status="Disabled";return end
+        if d.Now()<(job.nextAt or 0)then return end
+        job.nextAt=d.Now()+1
+        if not d.CanInvoke()or(jobs.Equip and jobs.Equip.pending)then job.status="Waiting for inventory task";return end
+        local ids,why=D.Plan()
+        job.eligible=#ids
+        if #ids==0 then job.status=why or "No matching unprotected pets";return end
+        local batch={}
+        for i=1,math.min(#ids,400)do batch[i]=ids[i]end
+        -- Rebuild from current ownership and protection immediately before sending.
+        local latest=D.Plan()
+        local valid={}
+        for _,id in ipairs(latest)do valid[id]=true end
+        local sendIds={}
+        for _,id in ipairs(batch)do if valid[id]then sendIds[#sendIds+1]=id end end
+        if #sendIds==0 then job.status="Inventory changed; rescanning";return end
+        shared.sequence+=1
+        shared.pending={ids=sendIds,batch=shared.sequence,started=d.Now()}
+        job.pending=shared.pending;job.requests+=1;job.requestedPets=(job.requestedPets or 0)+#sendIds
+        local ok,err=pcall(d.Fire,"PetService","PetActionRequested",{Action="Delete",PetIds=sendIds,Batch=shared.sequence})
+        if not ok then
+            shared.pending.uncertain=true;job.uncertain=true;job.error=tostring(err);config.Delete=false
+            job.status="Uncertain deletion request; stopped"
+        else job.status="Waiting for deletion result"end
+    end
+    function D.Destroy()alive=false end
+    return D
+end
+
+end)()
+local makeFastHatch=(function()
+return function(config,d)
+    local P={Report={installed=false,skipped=0,secretSkipped=0}}
+    local alive=true
+    local patches,petIds={},{}
+    local retryAt=0
+    local function enabled()return alive and config.SkipHatchAnimation==true end
+    local function valid(result)
+        return type(result)=="table"and result.Success==true and result.Forced~=true and
+            type(result.Pets)=="table"and #result.Pets>0
+    end
+    function P.Observe(result)
+        if not enabled()or not valid(result)then return end
+        for _,pet in ipairs(result.Pets)do
+            if type(pet)=="table"and type(pet.Id)=="string"then petIds[pet.Id]=d.Now()+180 end
+        end
+    end
+    local function known(pet)
+        return type(pet)=="table"and type(pet.Id)=="string"and petIds[pet.Id]and petIds[pet.Id]>=d.Now()
+    end
+    local function restore()
+        for i=#patches,1,-1 do
+            local patch=patches[i]
+            if patch.object[patch.key]==patch.replacement then patch.object[patch.key]=patch.original end
+        end
+        table.clear(patches);table.clear(petIds)
+        P.Report.installed=false
+    end
+    local function patch(object,key,wrap)
+        local original=object[key]
+        assert(type(original)=="function","Missing native hatch method: "..key)
+        local replacement=wrap(original)
+        object[key]=replacement
+        patches[#patches+1]={object=object,key=key,original=original,replacement=replacement}
+    end
+    function P.Install()
+        if not enabled()or P.Report.installed then return end
+        patch(d.Module("Modules.Client.Pets.HatchRenderer"),"Play",function(original)
+            return function(self,egg,result,done,...)
+                if enabled()and valid(result)and type(done)=="function"then
+                    P.Observe(result)
+                    P.Report.skipped+=1;d.Defer(done);return
+                end
+                return original(self,egg,result,done,...)
+            end
+        end)
+        local secret=d.Module("Modules.Client.Pets.SecretHatchRenderer")
+        for _,key in ipairs({"Play","PlayReveal"})do
+            patch(secret,key,function(original)
+                return function(self,pet,done,...)
+                    if not enabled()then return original(self,pet,done,...)end
+                    local args=table.pack(...)
+                    -- The game's result listener may start the secret sequence before our observer.
+                    d.Defer(function()
+                        if enabled()and known(pet)and type(done)=="function"then
+                            P.Report.secretSkipped+=1;done()
+                        else original(self,pet,done,table.unpack(args,1,args.n))end
+                    end)
+                end
+            end)
+        end
+        patch(d.Module("Modules.Client.Pets.SecretHatchCutscenes"),"Play",function(original)
+            return function(self,pet,done,...)
+                if enabled()and known(pet)and type(done)=="function"then
+                    d.Defer(function()done("Skipped")end)
+                    return true,"Skipped by DEVIL HUB"
+                end
+                return original(self,pet,done,...)
+            end
+        end)
+        P.Report.installed=true;P.Report.error=nil
+    end
+    function P.Tick()
+        if not alive then return end
+        if not config.SkipHatchAnimation then if #patches>0 then restore()end;return end
+        if not P.Report.installed and d.Now()>=retryAt then
+            local ok,err=pcall(P.Install)
+            if not ok then restore();P.Report.error=tostring(err);retryAt=d.Now()+5 end
+        end
+        for id,expires in pairs(petIds)do if expires<d.Now()then petIds[id]=nil end end
+    end
+    function P.Destroy()alive=false;restore()end
+    return P
+end
+
+end)()
 local surveyRoutes=(function()
 -- User supplied survey points; live attributes take precedence over these anchors.
 -- Missing Spawn3 position is intentionally left to live discovery.
@@ -1047,13 +1285,14 @@ local player=game:GetService("Players").LocalPlayer
 local Http=game:GetService("HttpService")
 local runService=game:GetService("RunService")
 local inputs=game:GetService("UserInputService")
-local config={Tap=false,Rebirth=false,Upgrade=false,Quests=false,Gifts=false,Equip=false,Islands=false,Stars=false,Boxes=false,BoxesAvoidPlayers=true,BoxesMode="TapChest",
+local config={Tap=false,Rebirth=false,Upgrade=false,Quests=false,Gifts=false,Equip=false,Delete=false,Islands=false,Stars=false,Boxes=false,BoxesAvoidPlayers=true,BoxesMode="TapChest",
     InfiniteJump=false,CPS=40,Gift="",ReserveCoins=0,ReserveGems=0,RebirthAmount="Auto",
+    DeleteNames={},DeleteRarities={},DeleteTiers={Normal=true},DeleteKeepBest=1,SkipHatchAnimation=false,
     Upgrades={ClickMultiplier=true,CriticalChance=true,AutoClickerSpeed=true},
     Language="TH"}
 local api={Config=config}
 local alive,rebuilding=true,false
-local core,adapter,window,replica,movement,worldFarm,islands
+local core,adapter,window,replica,movement,worldFarm,islands,petDelete,fastHatch
 local connections,controls={},{}
 local cache={}
 local now=os.clock
@@ -1125,6 +1364,13 @@ islands=makeIslands(config,{
 })
 deps.IslandTick=islands.Tick;deps.IslandReceive=islands.Receive
 deps.IslandCancel=islands.Cancel;deps.CoinBusy=islands.CoinBusy
+env.DevilTappingDeleteState=env.DevilTappingDeleteState or {}
+petDelete=makeDelete(config,{
+    Data=deps.Data,Module=module,Now=now,Attribute=deps.Attribute,Fire=deps.Fire,
+    CanInvoke=deps.CanInvoke,Shared=env.DevilTappingDeleteState,
+})
+fastHatch=makeFastHatch(config,{Module=module,Now=now,Defer=task.defer})
+deps.DeleteTick=petDelete.Tick;deps.DeleteReceive=petDelete.Receive;deps.DeleteBusy=petDelete.Busy
 deps.WorldTick=worldFarm.Tick;deps.WorldBusy=worldFarm.Busy
 deps.WorldCancel=worldFarm.Cancel;deps.BoxTapping=worldFarm.BoxTapping
 local labels={
@@ -1134,6 +1380,7 @@ local labels={
     Equip={"Auto Equip Best","ใส่สัตว์ที่ดีที่สุด"},
     Stars={"Auto Collect Stars","วาร์ปเก็บดาวอัตโนมัติ"},Boxes={"Auto Boxes / Tap Chest","ออโต้กล่อง / Tap Chest"},
     Islands={"Auto Unlock Islands","ปลดล็อกเกาะอัตโนมัติ"},
+    Delete={"Auto Delete Selected Pets","ลบสัตว์ที่เลือกอัตโนมัติ"},
 }
 local function t(en,th)return config.Language=="TH" and th or en end
 local refreshAt=0
@@ -1145,6 +1392,7 @@ local function refresh(report,force)
         if controls[name] then controls[name]:Set(config[name],true) end
     end
     if controls.InfiniteJump then controls.InfiniteJump:Set(config.InfiniteJump,true) end
+    if controls.SkipHatchAnimation then controls.SkipHatchAnimation:Set(config.SkipHatchAnimation,true)end
 end
 local function clean(value,depth)
     if depth>7 then return "[depth limit]" end
@@ -1164,6 +1412,10 @@ function api.SaveReport()
     core.Report.pendingRPC=env.DevilTappingRPCPending
     core.Report.movement=movement.Report;core.Report.jump=movement.JumpReport
     core.Report.islandState=env.DevilTappingIslandState
+    core.Report.deleteState=env.DevilTappingDeleteState
+    core.Report.fastHatch=fastHatch.Report
+    local ok,plan,reason=pcall(petDelete.Plan)
+    core.Report.deletePreview=ok and {count=#plan,ids=plan,reason=reason}or {error=tostring(plan)}
     local bytes=Http:JSONEncode(clean(core.Report,0))
     if type(writefile)=="function" then pcall(writefile,"DevilTappingTestReport.json",bytes) end
     if type(setclipboard)=="function" then pcall(setclipboard,bytes) end
@@ -1175,6 +1427,8 @@ function api.Destroy()
     if core then core.Destroy() end
     worldFarm.Destroy()
     islands.Destroy()
+    petDelete.Destroy()
+    fastHatch.Destroy()
     movement.Destroy()
     for _,link in ipairs(connections) do pcall(link.Disconnect,link) end
     table.clear(connections)
@@ -1194,6 +1448,14 @@ local function selection(value)
 end
 local function keys(map)local out={};for name in pairs(map or {})do out[#out+1]=name end;table.sort(out);return out end
 local function selected(map)local out={};for name,value in pairs(map)do if value then out[#out+1]=name end end;table.sort(out);return out end
+function api.RefreshDeleteOptions()
+    if not controls.DeleteNames then return end
+    local names,rarities=petDelete.Options()
+    for name in pairs(config.DeleteNames)do names[name]=true end
+    for rarity in pairs(config.DeleteRarities)do rarities[rarity]=true end
+    controls.DeleteNames:Refresh(keys(names),true,true);controls.DeleteNames:Set(selected(config.DeleteNames),true)
+    controls.DeleteRarities:Refresh(keys(rarities),true,true);controls.DeleteRarities:Set(selected(config.DeleteRarities),true)
+end
 local build
 local library
 build=function()
@@ -1270,9 +1532,38 @@ build=function()
         value=single(value);config.Gift=adapter.Gifts()[value] and value or ""
     end})
     toggle(rewards,"Gifts")
+    local petTab=tab("Pets / Hatch","สัตว์ / เปิดไข่","paw-print")
+    local deletion=group(petTab,"Permanent deletion","ลบสัตว์ถาวร","Left","trash-2")
+    local names,rarities=petDelete.Options()
+    controls.DeleteNames=deletion:CreateDropdown({Name=t("Pet names to delete","ชื่อสัตว์ที่จะลบ"),Options=keys(names),
+        CurrentOption=selected(config.DeleteNames),MultipleOptions=true,Searchable=true,Callback=function(value)config.DeleteNames=selection(value)end})
+    controls.DeleteRarities=deletion:CreateDropdown({Name=t("Rarities to delete","ระดับสัตว์ที่จะลบ"),Options=keys(rarities),
+        CurrentOption=selected(config.DeleteRarities),MultipleOptions=true,Searchable=true,Callback=function(value)config.DeleteRarities=selection(value)end})
+    local tierLabels={Normal=t("Normal","ปกติ"),Golden="Golden",Diamond="Diamond",Shiny="Rainbow"}
+    local chosenTiers={}
+    for tier,value in pairs(config.DeleteTiers)do if value then chosenTiers[#chosenTiers+1]=tierLabels[tier]end end
+    deletion:CreateDropdown({Name=t("Pet tiers to delete","ชนิดสัตว์ที่จะลบ"),Options={tierLabels.Normal,"Golden","Diamond","Rainbow"},
+        CurrentOption=chosenTiers,MultipleOptions=true,Callback=function(value)
+            local picked=selection(value);local out={}
+            for tier,label in pairs(tierLabels)do if picked[label]then out[tier]=true end end
+            config.DeleteTiers=out
+        end})
+    deletion:CreateSlider({Name=t("Keep best per name and tier","เก็บตัวดีที่สุดต่อชื่อและชนิด"),Range={0,5},Increment=1,
+        CurrentValue=config.DeleteKeepBest,Callback=function(value)config.DeleteKeepBest=value end})
+    deletion:CreateButton({Name=t("Refresh pet filters","รีเฟรชตัวกรองสัตว์"),Callback=api.RefreshDeleteOptions})
+    toggle(deletion,"Delete")
+    deletion:CreateParagraph({Name=t("Filter rules","วิธีเลือกตัวกรอง"),Content=t(
+        "Select names or rarities and at least one tier. When both names and rarities are selected, both must match. Deletes permanently. Keeps locked, equipped, team, reserved, enchanted, mutated and special collectible pets.",
+        "เลือกชื่อหรือระดับ และเลือกชนิดอย่างน้อยหนึ่งชนิด หากเลือกทั้งชื่อและระดับต้องตรงทั้งคู่ ลบถาวร โดยเก็บตัวที่ล็อก ใส่อยู่ อยู่ในทีม ติดธุรกรรม ติด Enchant กลายพันธุ์ และตัวสะสมพิเศษไว้")})
+    local hatchEffects=group(petTab,"Hatch animation","อนิเมชันเปิดไข่","Right","egg")
+    controls.SkipHatchAnimation=hatchEffects:CreateToggle({Name=t("Skip hatch animation","ข้ามอนิเมชันเปิดไข่"),
+        CurrentValue=config.SkipHatchAnimation,Callback=function(value)config.SkipHatchAnimation=value==true;fastHatch.Tick()end})
+    hatchEffects:CreateParagraph({Name=t("Open eggs in game","เปิดไข่ผ่านเมนูเกม"),Content=t(
+        "Applies to manual opening and the game's auto hatch. Skips the reveal and completes its normal callback. Server hatch timing and rewards remain controlled by the game.",
+        "ใช้กับการเปิดไข่เองหรือออโต้เปิดไข่ของเกม ข้ามฉากแสดงผลและจบขั้นตอนแสดงผลตามปกติ ส่วนเวลาฟักและสัตว์ที่ได้รับยังขึ้นกับเกม")})
     local settings=tab("Settings / Report","ตั้งค่า / รายงาน","settings")
     local diagnostics=group(settings,"Trial controls","ตัวควบคุมรุ่นทดลอง","Left","file-text")
-    api.Info=diagnostics:CreateParagraph({Name=t("Build","รุ่น"),Content="tapping-auto-test-7"})
+    api.Info=diagnostics:CreateParagraph({Name=t("Build","รุ่น"),Content="tapping-auto-test-8"})
     diagnostics:CreateButton({Name=t("Copy / Save Report","คัดลอก / บันทึกรายงาน"),Callback=api.SaveReport})
     diagnostics:CreateButton({Name=t("Stop All","หยุดทั้งหมด"),Callback=function()core.Stop();task.defer(build)end})
     diagnostics:CreateButton({Name=t("Unload","ปิดสคริปต์"),Callback=api.Destroy})
@@ -1306,8 +1597,10 @@ local ok,problem=xpcall(function()
         local name=entry[1]
         connections[#connections+1]=remote(entry[2],"RE",entry[3]).OnClientEvent:Connect(function(result)
             core.Receive(name,result)
+            if name=="Equip"and type(result)=="table"and result.Action=="Delete"then core.Receive("Delete",result)end
         end)
     end
+    connections[#connections+1]=remote("EggService","RE","EggHatchResult").OnClientEvent:Connect(fastHatch.Observe)
     connections[#connections+1]=inputs.JumpRequest:Connect(function()
         local success,err=pcall(movement.Jump)
         if not success then movement.JumpReport.error=tostring(err)end
@@ -1315,13 +1608,14 @@ local ok,problem=xpcall(function()
     connections[#connections+1]=runService.Heartbeat:Connect(function()
         local success,err=pcall(movement.Tick)
         if not success then movement.Report.error=tostring(err)end
+        fastHatch.Tick()
         for _,name in ipairs(core.Names)do core.Tick(name)end
         refresh(core.Report)
     end)
     task.spawn(function()
         local loaded,value=pcall(function()return module("Controllers.Core.DataController"):GetReplica()end)
         if alive then
-            if loaded then replica=value
+            if loaded then replica=value;api.RefreshDeleteOptions()
             else core.Report.dataError=tostring(value)end
         end
     end)
