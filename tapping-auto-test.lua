@@ -4,15 +4,15 @@ local env=type(getgenv)=="function" and getgenv() or _G
 if env.DevilTappingTest then env.DevilTappingTest.Destroy() end
 local makeCore=(function()
 return function(config,d,changed)
-    local C={Names={"Tap","Hatch","Rebirth","Upgrade","Quests","Gifts","Equip","Enchant"},
-        Report={release="tapping-auto-test-3",jobs={},errors={},liveVerified=false}}
+    local C={Names={"Stars","Boxes","Tap","Hatch","Rebirth","Upgrade","Quests","Gifts","Equip","Enchant"},
+        Report={release="tapping-auto-test-4",jobs={},errors={},liveVerified=false}}
     local jobs=C.Report.jobs
     local alive=true
     local intervals={Tap=0,Hatch=1,Rebirth=1,Upgrade=2,Quests=1,Gifts=2,Equip=8,Enchant=.5}
     local tapPending={}
     local sequence=d.SequenceStart or 1000000000
     local function enabled(name)
-        return config[name] or(name=="Tap"and config.Hatch and config.HatchTap)
+        return config[name] or(name=="Tap"and((config.Hatch and config.HatchTap)or(d.BoxTapping and d.BoxTapping())))
     end
     local function notify() if changed then pcall(changed,C.Report) end end
     local function status(name,text) jobs[name].status=text;notify() end
@@ -90,12 +90,15 @@ return function(config,d,changed)
             send("Tap","TapService","TapRequested",{Auto=false,ClientSequence=sequence,Source="button_hold"})
         end
         job.requestedCPS=rate
-        job.mode=config.Tap and "ManualToggle"or "HatchLinked"
+        local boxTap=d.BoxTapping and d.BoxTapping()
+        if boxTap then jobs.Boxes.requests+=count end
+        job.mode=boxTap and "BoxLinked"or(config.Tap and "ManualToggle"or "HatchLinked")
         for id,at in pairs(tapPending) do if d.Now()-at>5 then tapPending[id]=nil;job.unanswered=(job.unanswered or 0)+1 end end
         status("Tap","Sending taps; counting server replies")
     end
     actions.Hatch=function()
         local job=jobs.Hatch
+        if d.WorldBusy and d.WorldBusy()then status("Hatch","Waiting for current world target");return end
         if config.Enchant then stopHatch();status("Hatch","Waiting for enchant movement");return end
         local plan,why=d.HatchPlan(config)
         if not plan then status("Hatch",why);return end
@@ -143,6 +146,7 @@ return function(config,d,changed)
     end
     actions.Enchant=function()
         local job=jobs.Enchant
+        if d.WorldBusy and d.WorldBusy()then status("Enchant","Waiting for current world target");return end
         if jobs.Hatch.pending then status("Enchant","Waiting for hatch result before moving");return end
         stopHatch()
         local function approach()
@@ -173,9 +177,21 @@ return function(config,d,changed)
     function C.Tick(name)
         local job=assert(jobs[name])
         if not alive then return end
+        if name=="Stars"or name=="Boxes"then
+            if d.WorldTick then
+                local ok,err=pcall(d.WorldTick,name,job,jobs,stopHatch)
+                if not ok then
+                    job.error=tostring(err);job.isTapping=false;job.status="Error; save report";job.nextAt=d.Now()+5
+                    if d.WorldCancel then d.WorldCancel(name)end
+                    table.insert(C.Report.errors,{job=name,message=job.error,t=d.Now()})
+                    if #C.Report.errors>30 then table.remove(C.Report.errors,1)end
+                end
+            end
+            return
+        end
         if poll(name) then return end
         if not enabled(name) then
-            if name=="Tap"and job.mode=="HatchLinked"then job.mode=nil;status(name,"Disabled")end
+            if name=="Tap"and(job.mode=="HatchLinked"or job.mode=="BoxLinked")then job.mode=nil;status(name,"Disabled")end
             return
         end
         if job.pending then
@@ -233,6 +249,7 @@ return function(config,d,changed)
         assert(jobs[name],"Unknown automation")
         config[name]=value==true;jobs[name].generation+=1;jobs[name].nextAt=d.Now()
         if name=="Hatch" and not config.Hatch then stopHatch() end
+        if(name=="Stars"or name=="Boxes")and not config[name]and d.WorldCancel then d.WorldCancel(name)end
         status(name,value and "Enabled" or "Disabled")
     end
     function C.Stop()
@@ -246,7 +263,8 @@ end
 end)()
 local makeAdapter=(function()
 return function(config,d)
-    local A={Data=d.Data,Now=d.Now,Fire=d.Fire,Request=d.Request,CanInvoke=d.CanInvoke,GUID=d.GUID,SequenceStart=d.SequenceStart,Approach=d.Approach}
+    local A={Data=d.Data,Now=d.Now,Fire=d.Fire,Request=d.Request,CanInvoke=d.CanInvoke,GUID=d.GUID,SequenceStart=d.SequenceStart,Approach=d.Approach,
+        WorldTick=d.WorldTick,WorldBusy=d.WorldBusy,WorldCancel=d.WorldCancel,BoxTapping=d.BoxTapping}
     local function get(path) return d.Module(path) end
     function A.Eggs() return get("Shared.Pets.LaunchEggConfig") end
     function A.Gifts() return get("Shared.Items.GiftConfig").Pools end
@@ -401,6 +419,10 @@ return function(config,d)
         return math.abs(offset.X)<=half.X and math.abs(offset.Y)<=half.Y and math.abs(offset.Z)<=half.Z
     end
     local function locate(kind,egg,r)
+        if kind=="Stars"or kind=="Boxes"then
+            assert(type(egg)=="table"and egg.point and egg.live,"Missing live world target")
+            return egg
+        end
         if kind=="Hatch"then
             local folder=world:FindFirstChild("Eggs")
             local model=folder and folder:FindFirstChild(egg)
@@ -484,7 +506,7 @@ return function(config,d)
             if not active.arrivedAt then
                 active.arrivedAt=d.Now();h:MoveTo(r.Position)
             end
-            local ready=d.Now()-active.arrivedAt>=.6
+            local ready=d.Now()-active.arrivedAt>=(target.settle or .6)
             M.Report.status=ready and "In native interaction range"or "Waiting for position replication"
             return ready,M.Report.status,M.Report
         end
@@ -498,7 +520,8 @@ return function(config,d)
             M.Report.teleports+=1;M.Report.attempt=active.attempts
         end
         M.Report.status=active.attempts>=3 and "Position not retained; waiting to retry"or
-            (kind=="Hatch"and "Teleporting to selected egg"or "Teleporting to enchant machine")
+            (kind=="Hatch"and "Teleporting to selected egg"or(kind=="Stars"and "Teleporting to star"or
+            (kind=="Boxes"and "Teleporting to locked box"or "Teleporting to enchant machine")))
         return false,M.Report.status,M.Report
     end
     local jumpModule,jumpTrack,jumpCharacter,jumpAt
@@ -697,6 +720,235 @@ return function(config,d)
 end
 
 end)()
+local makeWorldFarm=(function()
+return function(config,d)
+    local F={}
+    local active,alive=nil,true
+    local collected,retry={},{}
+    local function status(job,text)job.status=text end
+    local function root()
+        local c=d.Player.Character
+        local h=c and c:FindFirstChildOfClass("Humanoid")
+        local r=c and c:FindFirstChild("HumanoidRootPart")
+        if h and r and h.Health>0 then return r end
+    end
+    local function release()
+        if active and active.job then active.job.isTapping=false end
+        active=nil;d.CancelMovement()
+    end
+    function F.Busy()return active and active.kind end
+    function F.BoxTapping()
+        return alive and config.Boxes and active and active.kind=="Boxes"and active.job.isTapping==true
+    end
+    function F.Cancel(kind)
+        if active and active.kind==kind then
+            active.job.isTapping=false
+            -- An issued collection call retains movement until its real reply arrives.
+            if not active.job.collectionTicket then release()end
+        end
+    end
+    local function stand(pos,model)
+        local r=root()
+        local h=d.Player.Character and d.Player.Character:FindFirstChildOfClass("Humanoid")
+        local params=RaycastParams.new()
+        params.FilterType=Enum.RaycastFilterType.Exclude
+        params.FilterDescendantsInstances={d.Player.Character,model}
+        params.RespectCanCollide=true
+        local hit=d.World:Raycast(pos+Vector3.new(0,8,0),Vector3.new(0,-32,0),params)
+        if hit then
+            local height=math.max(3,(h and h.HipHeight or 2)+(r and r.Size and r.Size.Y/2 or 1))
+            return Vector3.new(pos.X,hit.Position.Y+height,pos.Z)
+        end
+        return pos
+    end
+    local function live(model)return model and model:IsDescendantOf(d.World)end
+    local function kind(value)return d.Typeof and d.Typeof(value)or typeof(value)end
+    local function starPlan(r)
+        local cfg=d.Module("Shared.Game.ShinyStarConfig")
+        local data=d.Data()
+        local best,nearest
+        for _,model in ipairs(d.Collection:GetTagged(cfg.Tag))do
+            if live(model)and model:IsA("Model")then
+                local id=model:GetAttribute(cfg.IdAttribute)
+                local center=model:GetAttribute(cfg.CenterAttribute)
+                if type(id)=="string"and kind(center)=="Vector3"and cfg.Get(id)
+                    and not collected[id]and not cfg.IsFound(data,id)and d.Now()>=(retry[id]or 0)then
+                    local distance=(r.Position-center).Magnitude
+                    if not nearest or distance<nearest then
+                        nearest=distance;best={id=id,model=model,center=center}
+                    end
+                end
+            end
+        end
+        return best,cfg
+    end
+    local function boxState(model,cfg)
+        local a=cfg.Attributes
+        if not model then return nil,"Box disappeared without break confirmation"end
+        local hp,max=model:GetAttribute(a.Health),model:GetAttribute(a.MaxHealth)
+        if model:GetAttribute(a.Broken)==true or(type(hp)=="number"and hp<=0)then return nil,"Broken"end
+        if not live(model)then return nil,"Box disappeared without break confirmation"end
+        if model:GetAttribute(a.Despawned)==true then return nil,"Box despawned without break confirmation"end
+        local owner=model:GetAttribute(a.Owner)
+        if owner~=nil and owner~=d.Player.UserId then return nil,"Box belongs to another player"end
+        local cf,size=model:GetAttribute(a.Rest),model:GetAttribute(a.Size)
+        if kind(cf)~="CFrame"or kind(size)~="Vector3"or type(hp)~="number"or type(max)~="number"or max<=0 then
+            return nil,"Box data unavailable"
+        end
+        return {hp=hp,max=max,cf=cf,size=size,type=model:GetAttribute(a.Type)}
+    end
+    local function nearbyPlayer(cf,size)
+        if not config.BoxesAvoidPlayers then return false end
+        local radius=math.max(size.X,size.Z)/2+18
+        for _,p in ipairs(d.Players:GetPlayers())do
+            if p~=d.Player then
+                local c=p.Character
+                local r=c and c:FindFirstChild("HumanoidRootPart")
+                local h=c and c:FindFirstChildOfClass("Humanoid")
+                if r and h and h.Health>0 and(r.Position-cf.Position).Magnitude<=radius then return true end
+            end
+        end
+        return false
+    end
+    local function boxPlan(r)
+        local cfg=d.Module("Shared.Game.BreakableConfig")
+        local best,nearest
+        for _,model in ipairs(d.Collection:GetTagged(cfg.Tag))do
+            if model:IsA("Model")then
+                local state=boxState(model,cfg)
+                if state and(state.type=="Crate"or state.type=="Chest"or state.type=="WorldChest")
+                    and state.hp==state.max and not nearbyPlayer(state.cf,state.size)then
+                    local distance=(r.Position-state.cf.Position).Magnitude
+                    if not nearest or distance<nearest then
+                        nearest=distance;best={model=model,state=state}
+                    end
+                end
+            end
+        end
+        return best
+    end
+    local function prepare(name,job,jobs,stopHatch)
+        if active then
+            if active.kind~=name then status(job,"Waiting for current world target");return false end
+        else
+            if config.Enchant or jobs.Enchant.rpc then status(job,"Waiting for enchant movement");return false end
+            if jobs.Hatch.pending then status(job,"Waiting for hatch result before moving");return false end
+        end
+        return true
+    end
+    local function stars(job,stopHatch)
+        local cfg=d.Module("Shared.Game.ShinyStarConfig")
+        if cfg.CountFound(d.Data())>=cfg.Total then
+            if active and active.kind=="Stars"then release()end
+            config.Stars=false;status(job,"All stars collected");return
+        end
+        if not active then
+            local target=starPlan(root())
+            if not target then status(job,"Waiting for uncollected stars to load");return end
+            active={kind="Stars",target=target,job=job}
+            job.target={id=target.id};job.reason=nil
+        end
+        stopHatch()
+        local target=active.target
+        if cfg.IsFound(d.Data(),target.id)then
+            if not collected[target.id]then job.confirmed+=1 end
+            collected[target.id]=true;job.confirmationSource="Replica"
+            release();status(job,"Star collection confirmed");return
+        end
+        if not live(target.model)then release();status(job,"Star unavailable; rescanning");return end
+        local r=root()
+        local distance=(r.Position-target.center).Magnitude
+        local offset=Vector3.new(r.Position.X-target.center.X,0,r.Position.Z-target.center.Z)
+        offset=offset.Magnitude>.1 and offset.Unit or Vector3.new(1,0,0)
+        local position=stand(target.center+offset*8,target.model)
+        local reach=math.max(1,(cfg.ServerReach or 22)-2)
+        if(position-target.center).Magnitude>reach then position=target.center+offset*8 end
+        local ready,why,travel=d.Approach("Stars",{point=position,ready=distance<=reach,distance=distance,
+            live=target.model,key="Star:"..target.id,settle=.2})
+        job.travel=travel
+        if not ready then status(job,why);return end
+        if not d.CanInvoke()then status(job,"Waiting for previous request");return end
+        job.collectionTicket=d.Request("ShinyStarService","Collect",target.id)
+        job.requests+=1;status(job,"Waiting for star collection result")
+    end
+    local function pollStar(job)
+        local ticket=job.collectionTicket
+        if not ticket then return false end
+        if not ticket.done then
+            status(job,d.Now()-ticket.started>12 and "Request pending; no duplicate sent"or "Waiting for star collection result")
+            return true
+        end
+        local id=job.target and job.target.id
+        job.collectionTicket=nil;job.result=ticket.result
+        local accepted=ticket.ok and type(ticket.result)=="table"and ticket.result.Success==true
+        if accepted then
+            if id and not collected[id]then job.confirmed+=1;collected[id]=true end
+            job.confirmationSource="Collect reply";job.reason=nil
+        else
+            job.rejected+=1
+            job.reason=ticket.ok and type(ticket.result)=="table"and ticket.result.Reason or tostring(ticket.error or "No result")
+            if id then retry[id]=d.Now()+8 end
+        end
+        if active and active.kind=="Stars"then release()end
+        job.nextAt=d.Now()+(accepted and .2 or 2)
+        status(job,not config.Stars and "Disabled"or(accepted and "Star collection confirmed"or "Star collection rejected"))
+        return true
+    end
+    local function boxes(job,stopHatch)
+        local cfg=d.Module("Shared.Game.BreakableConfig")
+        if not active then
+            local target=boxPlan(root())
+            if not target then status(job,"Waiting for untouched boxes");return end
+            active={kind="Boxes",target=target,job=job,lastHealth=target.state.hp,progressAt=d.Now()}
+            job.target={name=target.model.Name,type=target.state.type}
+            job.reason=nil;job.health=target.state.hp;job.maxHealth=target.state.max
+        end
+        stopHatch()
+        local target=active.target
+        local state,reason=boxState(target.model,cfg)
+        if not state then
+            job.isTapping=false
+            if reason=="Broken"then job.confirmed+=1;job.health=0
+            else job.lost=(job.lost or 0)+1 end
+            release();status(job,reason=="Broken"and "Box broken; selecting next"or reason);return
+        end
+        if state.hp<active.lastHealth then
+            job.healthChanges=(job.healthChanges or 0)+1;active.progressAt=d.Now()
+        end
+        active.lastHealth=state.hp;job.health=state.hp;job.maxHealth=state.max
+        local r=root()
+        local offset=Vector3.new(r.Position.X-state.cf.Position.X,0,r.Position.Z-state.cf.Position.Z)
+        offset=offset.Magnitude>.1 and offset.Unit or Vector3.new(1,0,0)
+        local radius=math.max(state.size.X,state.size.Z)/2+4
+        local position=state.cf.Position+offset*radius
+        position=Vector3.new(position.X,state.cf.Position.Y-state.size.Y/2+3,position.Z)
+        position=stand(position,target.model)
+        local ready,why,travel=d.Approach("Boxes",{point=position,ready=cfg.InRange(r.Position,state.cf,state.size),
+            distance=(r.Position-state.cf.Position).Magnitude,live=target.model,key="Box:"..tostring(target.model)})
+        job.travel=travel;job.isTapping=ready==true
+        if not ready then status(job,why)
+        else status(job,d.Now()-active.progressAt>10 and "Tapping locked box; no health change yet"or "Tapping locked box until broken")end
+    end
+    function F.Tick(name,job,jobs,stopHatch)
+        if not alive then return end
+        if name=="Stars"and pollStar(job)then return end
+        if not config[name]then
+            F.Cancel(name)
+            if job.status~="All stars collected"then status(job,"Disabled")end
+            return
+        end
+        if d.Now()<(job.nextAt or 0)then return end
+        job.nextAt=d.Now()+.1
+        if not d.Data()then status(job,"Waiting for player data");return end
+        if not root()then job.isTapping=false;status(job,"Waiting for character");return end
+        if not prepare(name,job,jobs,stopHatch)then return end
+        if name=="Stars"then stars(job,stopHatch)else boxes(job,stopHatch)end
+    end
+    function F.Destroy()alive=false;release()end
+    return F
+end
+
+end)()
 local makeLogo=(function()
 local function logo()
     local version="silver-break-20261014"
@@ -742,13 +994,13 @@ local player=game:GetService("Players").LocalPlayer
 local Http=game:GetService("HttpService")
 local runService=game:GetService("RunService")
 local inputs=game:GetService("UserInputService")
-local config={Tap=false,Hatch=false,Rebirth=false,Upgrade=false,Quests=false,Gifts=false,Equip=false,Enchant=false,
+local config={Tap=false,Hatch=false,Rebirth=false,Upgrade=false,Quests=false,Gifts=false,Equip=false,Enchant=false,Stars=false,Boxes=false,BoxesAvoidPlayers=true,
     InfiniteJump=false,CPS=40,Egg="",HatchCount=1,HatchDelay=2,Gift="",ReserveCoins=0,ReserveGems=0,RebirthAmount="Auto",SkipHatchGUI=true,HatchTap=true,
     Upgrades={ClickMultiplier=true,HatchSpeed=true,CriticalChance=true,AutoClickerSpeed=true},
     EnchantPet="",EnchantSlot=1,EnchantFilters={},ReplaceEnchant=false,Language="TH"}
 local api={Config=config}
 local alive,rebuilding=true,false
-local core,adapter,window,replica,movement,presentation
+local core,adapter,window,replica,movement,presentation,worldFarm
 local connections,controls,paragraphs={},{},{}
 local cache={}
 local now=os.clock
@@ -806,11 +1058,19 @@ local deps={
         return ticket
     end,
 }
+worldFarm=makeWorldFarm(config,{
+    Data=deps.Data,Module=module,Now=now,Player=player,Players=game:GetService("Players"),
+    Collection=game:GetService("CollectionService"),World=workspace,Approach=deps.Approach,
+    Request=deps.Request,CanInvoke=deps.CanInvoke,CancelMovement=movement.Cancel,
+})
+deps.WorldTick=worldFarm.Tick;deps.WorldBusy=worldFarm.Busy
+deps.WorldCancel=worldFarm.Cancel;deps.BoxTapping=worldFarm.BoxTapping
 local labels={
     Tap={"Fast Auto Click","ออโต้คลิกเร็ว"},Hatch={"Auto Open Egg","เปิดไข่อัตโนมัติ"},
     Rebirth={"Auto Rebirth","รีเบิร์ทอัตโนมัติ"},Upgrade={"Auto Buy Upgrades","ซื้ออัปเกรดอัตโนมัติ"},
     Quests={"Auto Claim Quests","รับเควสต์ที่สำเร็จ"},Gifts={"Auto Open Gift","เปิดของขวัญอัตโนมัติ"},
     Equip={"Auto Equip Best","ใส่สัตว์ที่ดีที่สุด"},Enchant={"Auto Enchant","สุ่ม Enchant อัตโนมัติ"},
+    Stars={"Auto Collect Stars","วาร์ปเก็บดาวอัตโนมัติ"},Boxes={"Auto Break Boxes","วาร์ปทุบกล่องอัตโนมัติ"},
 }
 local texts={
     Disabled="ปิดอยู่",Enabled="เปิดแล้ว",IslandLocked="ยังไม่ปลดล็อกเกาะ",StorageFull="กระเป๋าสัตว์เต็ม",
@@ -836,6 +1096,23 @@ local texts={
     ["Teleporting to selected egg"]="กำลังวาร์ปไปใกล้ไข่ที่เลือก",
     ["Teleporting to enchant machine"]="กำลังวาร์ปไปจุด Enchant ใกล้ที่สุด",
     ["Position not retained; waiting to retry"]="ตำแหน่งถูกดึงกลับ รอก่อนลองใหม่",
+    ["Teleporting to star"]="กำลังวาร์ปไปเก็บดาว",
+    ["Teleporting to locked box"]="กำลังวาร์ปไปกล่องเป้าหมาย",
+    ["Waiting for current world target"]="รอเก็บดาวหรือทุบกล่องเป้าหมายให้เสร็จ",
+    ["Waiting for uncollected stars to load"]="รอดาวที่ยังไม่ได้เก็บโหลดเข้ามา",
+    ["Waiting for star collection result"]="รอเกมยืนยันการเก็บดาว",
+    ["Star collection confirmed"]="เกมยืนยันการเก็บดาวแล้ว",
+    ["Star collection rejected"]="เกมปฏิเสธการเก็บดาว ดูเหตุผลด้านล่าง",
+    ["All stars collected"]="เก็บดาวครบแล้ว",
+    ["Star unavailable; rescanning"]="ดาวไม่อยู่แล้ว กำลังค้นหาใหม่",
+    ["Waiting for untouched boxes"]="รอกล่องเลือดเต็มที่ยังไม่ถูกทุบ",
+    ["Tapping locked box until broken"]="กำลังทุบกล่องเป้าหมายจนแตก",
+    ["Tapping locked box; no health change yet"]="กำลังทุบเป้าหมาย แต่เลือดยังไม่ลด กรุณาบันทึกรายงาน",
+    ["Box broken; selecting next"]="กล่องแตกแล้ว กำลังหาเป้าหมายต่อไป",
+    ["Box disappeared without break confirmation"]="กล่องหายไป ยังยืนยันว่าแตกไม่ได้",
+    ["Box despawned without break confirmation"]="กล่องหมดเวลา ยังยืนยันว่าแตกไม่ได้",
+    ["Box belongs to another player"]="กล่องนี้เป็นของผู้เล่นอื่น",
+    ["Box data unavailable"]="รอข้อมูลกล่อง",
     ["Waiting for position replication"]="รอเกมรับตำแหน่งก่อนส่งคำขอ",
     ["Waiting for selected egg to stream in"]="รอโหลดไข่ที่เลือก ลองเข้าใกล้ไข่ครั้งแรก",
     ["Enchant point not loaded; approach machine once"]="ยังไม่พบจุด Enchant ให้เข้าใกล้เครื่องหนึ่งครั้ง",
@@ -865,6 +1142,8 @@ local function refresh(report,force)
         label:Set((text or job.status).."\n"..t("Requests: ","ส่งคำขอ: ")..job.requests..
             t(" | Server accepted: "," | เกมตอบรับ: ")..job.confirmed..
             t(" | Rejected: "," | ปฏิเสธ: ")..job.rejected..
+            (job.health and "\nHP: "..tostring(job.health).." / "..tostring(job.maxHealth)or "")..
+            (job.target and type(job.target)=="table"and "\n"..t("Target: ","เป้าหมาย: ")..tostring(job.target.id or job.target.name or "")or "")..
             (job.reason and "\n"..tostring(job.reason) or "")..(job.error and "\n"..job.error or ""),true)
         if controls[name] then controls[name]:Set(config[name],true) end
     end
@@ -898,6 +1177,7 @@ function api.Destroy()
     if not alive then return end
     alive=false
     if core then core.Destroy() end
+    worldFarm.Destroy()
     movement.Destroy()
     presentation.Destroy()
     for _,link in ipairs(connections) do pcall(link.Disconnect,link) end
@@ -981,6 +1261,21 @@ build=function()
     hatchInfo:CreateParagraph({Name=t("Automatic teleport","วาร์ปเข้าใกล้อัตโนมัติ"),Content=t(
         "Teleports beside the selected loaded egg, skips its reveal and taps at the selected CPS. Enchant takes movement priority. Locked islands remain unavailable.",
         "วาร์ปไปด้านใกล้ของไข่ที่เลือก ข้ามหน้าเปิดไข่ และส่ง Tap ตาม CPS ที่ตั้ง หากเปิด Enchant จะทำ Enchant ก่อน ไข่บนเกาะที่ยังไม่ปลดล็อกใช้ไม่ได้")})
+    local worldTab=tab("Stars / Boxes","ดาว / กล่อง","star")
+    local starGroup=group(worldTab,"Shiny stars","เก็บดวงดาว","Left","star")
+    toggle(starGroup,"Stars")
+    starGroup:CreateParagraph({Name=t("Collection route","การเก็บดาว"),Content=t(
+        "Teleports near the nearest loaded uncollected star and requests Collect with its ID. Waits for confirmation before selecting the next. Stops after all native stars are found.",
+        "วาร์ปไปดาวที่ยังไม่เคยเก็บและอยู่ใกล้ที่สุด ส่ง ID ขอเก็บแล้วรอเกมยืนยันก่อนย้ายต่อ เมื่อเก็บครบจะปิดออโต้เอง ดาวต้องโหลดเข้ามาก่อน")})
+    local boxGroup=group(worldTab,"Break boxes","ทุบกล่อง","Right","box")
+    toggle(boxGroup,"Boxes")
+    boxGroup:CreateToggle({Name=t("Avoid nearby players","หลีกเลี่ยงกล่องใกล้ผู้เล่นอื่น"),CurrentValue=config.BoxesAvoidPlayers,Callback=function(value)config.BoxesAvoidPlayers=value==true end})
+    boxGroup:CreateParagraph({Name=t("Locked target","ล็อกเป้าหมายจนแตก"),Content=t(
+        "Selects a full-health Crate, Chest or WorldChest owned by you or shared. Teleports nearby and taps at the selected CPS until Broken or zero health. Does not change targets just because health decreases.",
+        "เลือก Crate / Chest / WorldChest ที่เลือดเต็มและเป็นของเราหรือกล่องส่วนกลาง วาร์ปเข้าใกล้แล้ว Tap ตาม CPS จนเลือดหมดหรือเกมระบุว่าแตก เลือดลดแล้วจะยังตีเป้าหมายเดิม")})
+    boxGroup:CreateParagraph({Name=t("Movement queue","คิวการวาร์ป"),Content=t(
+        "Finishes the current box or star before another movement task. Between targets, Enchant runs first, then Stars / Boxes, then hatching.",
+        "ทำกล่องหรือดาวเป้าหมายปัจจุบันให้จบก่อน ระหว่างเป้าหมายจะให้ Enchant ทำก่อน ตามด้วยดาว / กล่อง แล้วจึงเปิดไข่ต่อ")})
     local progressTab=tab("Progress / Rewards","พัฒนา / รางวัล","gift")
     local progress=group(progressTab,"Progression","พัฒนาตัวละคร","Left","trending-up")
     progress:CreateDropdown({Name=t("Rebirth amount","จำนวนรีเบิร์ท"),Options=adapter.RebirthAmounts(),CurrentOption={config.RebirthAmount},Callback=function(value)
@@ -1028,7 +1323,7 @@ build=function()
         "สุ่มครั้งละคำขอ ใช้เฉพาะผลที่เลือก ผลอื่นคง Enchant เดิม หยุดเมื่อเกมยืนยันผลที่ต้องการ หากเกมกำหนดระยะให้ยืนที่เครื่อง Enchant ใช้เพชรจริงตามราคาเกม")})
     local settings=tab("Settings / Report","ตั้งค่า / รายงาน","settings")
     local diagnostics=group(settings,"Trial controls","ตัวควบคุมรุ่นทดลอง","Left","file-text")
-    api.Info=diagnostics:CreateParagraph({Name=t("Build","รุ่น"),Content="tapping-auto-test-3"})
+    api.Info=diagnostics:CreateParagraph({Name=t("Build","รุ่น"),Content="tapping-auto-test-4"})
     diagnostics:CreateButton({Name=t("Copy / Save Report","คัดลอก / บันทึกรายงาน"),Callback=api.SaveReport})
     diagnostics:CreateButton({Name=t("Stop All","หยุดทั้งหมด"),Callback=function()core.Stop();task.defer(build)end})
     diagnostics:CreateButton({Name=t("Unload","ปิดสคริปต์"),Callback=api.Destroy})
