@@ -4,8 +4,8 @@ local env=type(getgenv)=="function" and getgenv() or _G
 if env.DevilTappingTest then env.DevilTappingTest.Destroy() end
 local makeCore=(function()
 return function(config,d,changed)
-    local C={Names={"Stars","Boxes","Tap","Rebirth","Upgrade","Quests","Gifts","Equip"},
-        Report={release="tapping-auto-test-6",jobs={},errors={},liveVerified=false}}
+    local C={Names={"Islands","Stars","Boxes","Tap","Rebirth","Upgrade","Quests","Gifts","Equip"},
+        Report={release="tapping-auto-test-7",jobs={},errors={},liveVerified=false}}
     local jobs=C.Report.jobs
     local alive=true
     local intervals={Tap=0,Rebirth=1,Upgrade=2,Quests=1,Gifts=2,Equip=8}
@@ -71,6 +71,7 @@ return function(config,d,changed)
         status("Tap","Sending taps; counting server replies")
     end
     actions.Rebirth=function()
+        if d.CoinBusy and d.CoinBusy()then status("Rebirth","Waiting for island purchase");return end
         local plan,why=d.RebirthPlan(config)
         if not plan then status("Rebirth",why);return end
         jobs.Rebirth.pending={index=plan.index,at=d.Now()}
@@ -103,6 +104,18 @@ return function(config,d,changed)
     function C.Tick(name)
         local job=assert(jobs[name])
         if not alive then return end
+        if name=="Islands"then
+            if d.IslandTick then
+                local ok,err=pcall(d.IslandTick,job,jobs)
+                if not ok then
+                    job.error=tostring(err);job.status="Error; save report";job.nextAt=d.Now()+5
+                    if d.IslandCancel then d.IslandCancel()end
+                    table.insert(C.Report.errors,{job=name,message=job.error,t=d.Now()})
+                    if #C.Report.errors>30 then table.remove(C.Report.errors,1)end
+                end
+            end
+            return
+        end
         if name=="Stars"or name=="Boxes"then
             if d.WorldTick then
                 local ok,err=pcall(d.WorldTick,name,job,jobs)
@@ -141,6 +154,7 @@ return function(config,d,changed)
     end
     function C.Receive(name,result)
         if not alive or type(result)~="table" then return end
+        if name=="Islands"then if d.IslandReceive then d.IslandReceive(result)end;return end
         local job=jobs[name]
         if name=="Tap" then
             local id=result.ClientSequence
@@ -167,6 +181,7 @@ return function(config,d,changed)
     function C.Set(name,value)
         assert(jobs[name],"Unknown automation")
         config[name]=value==true;jobs[name].generation+=1;jobs[name].nextAt=d.Now()
+        if name=="Islands"and not config.Islands and d.IslandCancel then d.IslandCancel()end
         if(name=="Stars"or name=="Boxes")and not config[name]and d.WorldCancel then d.WorldCancel(name)end
         status(name,value and "Enabled" or "Disabled")
     end
@@ -182,7 +197,8 @@ end)()
 local makeAdapter=(function()
 return function(config,d)
     local A={Data=d.Data,Now=d.Now,Fire=d.Fire,Request=d.Request,CanInvoke=d.CanInvoke,SequenceStart=d.SequenceStart,
-        WorldTick=d.WorldTick,WorldBusy=d.WorldBusy,WorldCancel=d.WorldCancel,BoxTapping=d.BoxTapping}
+        WorldTick=d.WorldTick,WorldBusy=d.WorldBusy,WorldCancel=d.WorldCancel,BoxTapping=d.BoxTapping,
+        IslandTick=d.IslandTick,IslandReceive=d.IslandReceive,IslandCancel=d.IslandCancel,CoinBusy=d.CoinBusy}
     local function get(path) return d.Module(path) end
     function A.Gifts() return get("Shared.Items.GiftConfig").Pools end
     function A.RebirthAmounts()
@@ -281,7 +297,7 @@ return function(config,d)
         if not alive then return false,"Disabled",M.Report end
         local c,h,r=character()
         if not h then stop();return false,"Waiting for character",M.Report end
-        assert(kind=="Stars"or kind=="Boxes","Unknown movement owner")
+        assert(kind=="Stars"or kind=="Boxes"or kind=="Islands","Unknown movement owner")
         local target=egg
         assert(type(target)=="table"and target.point and target.live,"Missing live world target")
         if not active or active.key~=target.key or active.h~=h or active.live~=target.live then
@@ -322,7 +338,7 @@ return function(config,d)
             M.Report.landingError=target.pointTolerance and(r.Position-target.point).Magnitude or nil
         end
         M.Report.status=active.attempts>=3 and "Position not retained; waiting to retry"or
-            (kind=="Stars"and "Teleporting to star"or "Teleporting to locked box")
+            (kind=="Stars"and "Teleporting to star"or kind=="Islands"and "Teleporting to island portal"or "Teleporting to locked box")
         return false,M.Report.status,M.Report
     end
     local jumpModule,jumpTrack,jumpCharacter,jumpAt
@@ -545,6 +561,7 @@ return function(config,d)
         return best
     end
     local function prepare(name,job)
+        if d.OtherBusy and d.OtherBusy()then status(job,"Waiting for island purchase");return false end
         if active and active.kind~=name then status(job,"Waiting for current world target");return false end
         return true
     end
@@ -774,6 +791,179 @@ return function(config,d)
 end
 
 end)()
+local makeIslands=(function()
+return function(config,d)
+    local I={}
+    local shared=d.Shared or {}
+    local active,alive=nil,true
+    local streamAt=0
+    local function status(job,text)job.status=text end
+    local function release()
+        if active then d.CancelMovement()end
+        active=nil
+    end
+    local function root()
+        local c=d.Player.Character
+        local h=c and c:FindFirstChildOfClass("Humanoid")
+        local r=c and c:FindFirstChild("HumanoidRootPart")
+        if h and r and h.Health>0 then return r,h end
+    end
+    function I.Busy()return active~=nil end
+    function I.CoinBusy()return active~=nil or shared.pending~=nil or shared.awaitReplica~=nil end
+    function I.Cancel()
+        if not shared.pending or shared.pending.uncertain then release()end
+    end
+    function I.Receive(result)
+        local pending=shared.pending
+        if not alive or not pending or type(result)~="table"then return end
+        if result.Action~="Purchase"or result.Island~=pending.island then return end
+        pending.result=result;pending.done=true
+    end
+    local function poll(job,data)
+        local pending=shared.pending
+        if pending then
+            job.target=pending.island;job.price=pending.price;job.pending=pending
+            local owned=data and(data.Progression.UnlockedIslands or {})[pending.island]==true
+            if owned or pending.done then
+                local result=pending.result
+                local accepted=owned or(type(result)=="table"and result.Success==true)
+                job.result=result;job.pending=nil;job.reason=nil
+                if accepted then
+                    job.confirmed+=1;job.confirmationSource=owned and "Replica"or "Purchase result"
+                    if not owned then shared.awaitReplica=pending.island end
+                else
+                    job.rejected+=1;job.reason=result and result.Reason or "No result"
+                end
+                shared.pending=nil;job.nextAt=d.Now()+(accepted and .5 or 8)
+                release();status(job,config.Islands and(accepted and "Island unlocked"or "Island purchase rejected")or "Disabled")
+            elseif d.Now()-pending.started>12 then
+                pending.uncertain=true;job.uncertain=true;config.Islands=false;release()
+                status(job,"Purchase pending; stopped without duplicate request")
+            else status(job,"Waiting for island unlock result")end
+            return true
+        end
+        if shared.awaitReplica then
+            local id=shared.awaitReplica
+            if data and(data.Progression.UnlockedIslands or {})[id]==true then shared.awaitReplica=nil
+            else
+                job.target=id;status(job,"Waiting for unlocked island data");return true
+            end
+        end
+        return false
+    end
+    local function nextIsland(data)
+        local islands=d.Module("Shared.Progression.IslandConfig").Islands
+        local first,def
+        for name,item in pairs(islands)do
+            if(data.Progression.UnlockedIslands or {})[name]~=true and(not def or item.Order<def.Order)then
+                first=name;def=item
+            end
+        end
+        if def and def.Order>1 then
+            local previous
+            for name,item in pairs(islands)do if item.Order==def.Order-1 then previous=name;break end end
+            if not previous or(data.Progression.UnlockedIslands or {})[previous]~=true then return nil,nil,"Previous island is locked"end
+        end
+        return first,def
+    end
+    local function portalFor(name,def,r)
+        local best,nearest
+        local portals=d.World:FindFirstChild("Portals")
+        local hub=portals and portals:FindFirstChild("Portals")
+        local nextPortals=d.World:FindFirstChild("NextPortals")
+        for _,entry in ipairs({{folder=hub,name=def.PortalName},{folder=nextPortals,name=name}})do
+            local model=entry.folder and entry.folder:FindFirstChild(entry.name)
+            local part=model and model:FindFirstChild("Portal")
+            if part and part:IsA("BasePart")and part:IsDescendantOf(d.World)then
+                local distance=(r.Position-part.Position).Magnitude
+                if not nearest or distance<nearest then best=part;nearest=distance end
+            end
+        end
+        return best
+    end
+    local function landing(part,r,h)
+        local frame,size=part.CFrame,part.Size
+        local p=frame:PointToObjectSpace(r.Position)
+        local height=math.max(3,(h.HipHeight or 2)+(r.Size and r.Size.Y/2 or 1))
+        local x,z=0,0
+        if size.X<=size.Z then x=(p.X<0 and -1 or 1)*(size.X/2+4)
+        else z=(p.Z<0 and -1 or 1)*(size.Z/2+4)end
+        return frame:PointToWorldSpace(Vector3.new(x,-size.Y/2+height+.1,z))
+    end
+    function I.Tick(job,jobs)
+        if not alive then return end
+        local data=d.Data()
+        if poll(job,data)then return end
+        if not config.Islands then release();status(job,"Disabled");return end
+        if d.Now()<(job.nextAt or 0)then return end
+        job.nextAt=d.Now()+.2
+        if not data then status(job,"Waiting for player data");return end
+        local r,h=root()
+        if not r then release();status(job,"Waiting for character");return end
+        local progression=data.Progression
+        if progression.World and progression.World~="Main"then release();status(job,"Return to the main world");return end
+        if progression.BridgeLowered~=true then release();status(job,"Unlock the bridge first");return end
+        if d.Blocked then
+            local reason=d.Blocked()
+            if reason then release();status(job,reason);return end
+        end
+        if d.WorldBusy()or(jobs.Rebirth and jobs.Rebirth.pending)or not d.CanInvoke()then
+            status(job,"Waiting for current task");return
+        end
+        local name,def,reason=nextIsland(data)
+        if not name then
+            release()
+            if reason then status(job,reason)
+            else config.Islands=false;status(job,"All islands unlocked")end
+            return
+        end
+        job.target=name;job.price=def.Price;job.coins=data.Currencies.Coins
+        local price=def.Price
+        if type(price)~="number"or price~=price or price<0 or price==math.huge then
+            release();status(job,"Invalid native island price");return
+        end
+        if data.Currencies.Coins-(config.ReserveCoins or 0)<price then
+            release();status(job,"Waiting for island funds");return
+        end
+        local portal=portalFor(name,def,r)
+        if not portal then
+            release()
+            -- Stream the hub using the verified portal anchor from the supplied map.
+            if d.Stream and d.Now()>=streamAt then
+                streamAt=d.Now()+5;d.Stream(Vector3.new(-50.151222,-501.553345,-1638.13501))
+                job.streamRequests=(job.streamRequests or 0)+1
+            end
+            status(job,"Waiting for live island portal");return
+        end
+        if not active or active.island~=name or active.portal~=portal or active.character~=d.Player.Character then
+            release()
+            active={island=name,portal=portal,character=d.Player.Character,point=landing(portal,r,h),frame=portal.CFrame,size=portal.Size}
+        elseif active.frame~=portal.CFrame or active.size~=portal.Size then
+            active.point=landing(portal,r,h);active.frame=portal.CFrame;active.size=portal.Size
+        end
+        local distance=(r.Position-active.point).Magnitude
+        local ready,why,travel=d.Approach("Islands",{point=active.point,ready=distance<=4,distance=distance,
+            live=portal,key="Island:"..name,pointTolerance=3,settle=.4})
+        job.travel=table.clone(travel)
+        if not ready then status(job,why);return end
+        -- Re-read funds after arrival; no other coin purchase starts while this owner is active.
+        data=d.Data()
+        if not data or(data.Currencies.Coins-(config.ReserveCoins or 0))<price then
+            release();status(job,"Waiting for island funds");return
+        end
+        shared.pending={island=name,price=price,started=d.Now()}
+        job.pending=shared.pending;job.requests+=1;job.reason=nil
+        local ok,err=pcall(d.Fire,"IslandService","IslandUnlockRequested",{Action="Purchase",Island=name})
+        if not ok then
+            shared.pending.uncertain=true;job.uncertain=true;job.error=tostring(err);config.Islands=false;release()
+            status(job,"Uncertain island request; stopped")
+        else status(job,"Waiting for island unlock result")end
+    end
+    function I.Destroy()alive=false;release()end
+    return I
+end
+
+end)()
 local surveyRoutes=(function()
 -- User supplied survey points; live attributes take precedence over these anchors.
 -- Missing Spawn3 position is intentionally left to live discovery.
@@ -857,13 +1047,13 @@ local player=game:GetService("Players").LocalPlayer
 local Http=game:GetService("HttpService")
 local runService=game:GetService("RunService")
 local inputs=game:GetService("UserInputService")
-local config={Tap=false,Rebirth=false,Upgrade=false,Quests=false,Gifts=false,Equip=false,Stars=false,Boxes=false,BoxesAvoidPlayers=true,BoxesMode="TapChest",
+local config={Tap=false,Rebirth=false,Upgrade=false,Quests=false,Gifts=false,Equip=false,Islands=false,Stars=false,Boxes=false,BoxesAvoidPlayers=true,BoxesMode="TapChest",
     InfiniteJump=false,CPS=40,Gift="",ReserveCoins=0,ReserveGems=0,RebirthAmount="Auto",
     Upgrades={ClickMultiplier=true,CriticalChance=true,AutoClickerSpeed=true},
     Language="TH"}
 local api={Config=config}
 local alive,rebuilding=true,false
-local core,adapter,window,replica,movement,worldFarm
+local core,adapter,window,replica,movement,worldFarm,islands
 local connections,controls={},{}
 local cache={}
 local now=os.clock
@@ -923,7 +1113,18 @@ worldFarm=makeWorldFarm(config,{
     Request=deps.Request,CanInvoke=deps.CanInvoke,CancelMovement=movement.Cancel,
     Routes=surveyRoutes,ServerNow=function()return workspace:GetServerTimeNow()end,
     Stream=function(pos)task.spawn(function()pcall(player.RequestStreamAroundAsync,player,pos,2)end)end,
+    OtherBusy=function()return islands and islands.Busy()end,
 })
+env.DevilTappingIslandState=env.DevilTappingIslandState or {}
+islands=makeIslands(config,{
+    Data=deps.Data,Module=module,Now=now,Player=player,World=workspace,
+    WorldBusy=worldFarm.Busy,Approach=deps.Approach,CancelMovement=movement.Cancel,
+    Fire=deps.Fire,CanInvoke=deps.CanInvoke,Shared=env.DevilTappingIslandState,
+    Blocked=function()return adapter and adapter.TapBlocked()end,
+    Stream=function(pos)task.spawn(function()pcall(player.RequestStreamAroundAsync,player,pos,2)end)end,
+})
+deps.IslandTick=islands.Tick;deps.IslandReceive=islands.Receive
+deps.IslandCancel=islands.Cancel;deps.CoinBusy=islands.CoinBusy
 deps.WorldTick=worldFarm.Tick;deps.WorldBusy=worldFarm.Busy
 deps.WorldCancel=worldFarm.Cancel;deps.BoxTapping=worldFarm.BoxTapping
 local labels={
@@ -932,6 +1133,7 @@ local labels={
     Quests={"Auto Claim Quests","รับเควสต์ที่สำเร็จ"},Gifts={"Auto Open Gift","เปิดของขวัญอัตโนมัติ"},
     Equip={"Auto Equip Best","ใส่สัตว์ที่ดีที่สุด"},
     Stars={"Auto Collect Stars","วาร์ปเก็บดาวอัตโนมัติ"},Boxes={"Auto Boxes / Tap Chest","ออโต้กล่อง / Tap Chest"},
+    Islands={"Auto Unlock Islands","ปลดล็อกเกาะอัตโนมัติ"},
 }
 local function t(en,th)return config.Language=="TH" and th or en end
 local refreshAt=0
@@ -961,6 +1163,7 @@ function api.SaveReport()
     core.Report.placeId=game.PlaceId;core.Report.userId=player.UserId;core.Report.config=config
     core.Report.pendingRPC=env.DevilTappingRPCPending
     core.Report.movement=movement.Report;core.Report.jump=movement.JumpReport
+    core.Report.islandState=env.DevilTappingIslandState
     local bytes=Http:JSONEncode(clean(core.Report,0))
     if type(writefile)=="function" then pcall(writefile,"DevilTappingTestReport.json",bytes) end
     if type(setclipboard)=="function" then pcall(setclipboard,bytes) end
@@ -971,6 +1174,7 @@ function api.Destroy()
     alive=false
     if core then core.Destroy() end
     worldFarm.Destroy()
+    islands.Destroy()
     movement.Destroy()
     for _,link in ipairs(connections) do pcall(link.Disconnect,link) end
     table.clear(connections)
@@ -1048,6 +1252,10 @@ build=function()
         "Auto chooses the largest unlocked amount you can afford. A specific amount waits for its unlock and full price.",
         "Auto เลือกจำนวนสูงสุดที่ปลดล็อกและเงินพอ หากเลือก 1 / 5 / 25 / 125 จะใช้จำนวนนั้นเท่านั้น รอจนปลดล็อกและเงินพอ")})
     toggle(progress,"Rebirth");toggle(progress,"Upgrade")
+    toggle(progress,"Islands")
+    progress:CreateParagraph({Name=t("Island unlocks","การปลดล็อกเกาะ"),Content=t(
+        "When coins cover the next island and your reserve, teleports beside its portal and unlocks it in order. Requires the bridge; finishes the current star or box first.",
+        "เมื่อเงินครบราคาเกาะถัดไปและเงินสำรอง จะวาร์ปไปข้างประตูแล้วปลดล็อกตามลำดับ ต้องเปิดสะพานก่อน และจะเก็บดาวหรือทุบกล่องเป้าหมายปัจจุบันให้เสร็จก่อน")})
     progress:CreateDropdown({Name=t("Selected upgrades","อัปเกรดที่ซื้อ"),Options={"ClickMultiplier","CriticalChance","AutoClickerSpeed"},
         CurrentOption=selected(config.Upgrades),MultipleOptions=true,Callback=function(value)config.Upgrades=selection(value)end})
     for _,name in ipairs({"Coins","Gems"})do
@@ -1064,7 +1272,7 @@ build=function()
     toggle(rewards,"Gifts")
     local settings=tab("Settings / Report","ตั้งค่า / รายงาน","settings")
     local diagnostics=group(settings,"Trial controls","ตัวควบคุมรุ่นทดลอง","Left","file-text")
-    api.Info=diagnostics:CreateParagraph({Name=t("Build","รุ่น"),Content="tapping-auto-test-6"})
+    api.Info=diagnostics:CreateParagraph({Name=t("Build","รุ่น"),Content="tapping-auto-test-7"})
     diagnostics:CreateButton({Name=t("Copy / Save Report","คัดลอก / บันทึกรายงาน"),Callback=api.SaveReport})
     diagnostics:CreateButton({Name=t("Stop All","หยุดทั้งหมด"),Callback=function()core.Stop();task.defer(build)end})
     diagnostics:CreateButton({Name=t("Unload","ปิดสคริปต์"),Callback=api.Destroy})
@@ -1094,7 +1302,7 @@ local ok,problem=xpcall(function()
     local source=game:HttpGet("https://raw.githubusercontent.com/joustingmatch/OuroFlow/c8251f76f74d9942114ebccb0564aa0ac196320a/Source.luau")
     library=assert(loadstring(source,"DEVIL HUB / OuroFlow"))()
     build()
-    for _,entry in ipairs({{"Tap","TapService","TapResult"},{"Rebirth","RebirthService","RebirthResult"},{"Equip","PetService","PetActionResult"}})do
+    for _,entry in ipairs({{"Tap","TapService","TapResult"},{"Rebirth","RebirthService","RebirthResult"},{"Equip","PetService","PetActionResult"},{"Islands","IslandService","IslandUnlockResult"}})do
         local name=entry[1]
         connections[#connections+1]=remote(entry[2],"RE",entry[3]).OnClientEvent:Connect(function(result)
             core.Receive(name,result)
