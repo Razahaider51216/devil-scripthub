@@ -5,7 +5,7 @@ if env.DevilTappingTest then env.DevilTappingTest.Destroy() end
 local makeCore=(function()
 return function(config,d,changed)
     local C={Names={"Delete","Islands","Stars","Boxes","Tap","Rebirth","Upgrade","Quests","Gifts","Equip"},
-        Report={release="tapping-auto-test-9",jobs={},errors={},liveVerified=false}}
+        Report={release="tapping-auto-test-10",jobs={},errors={},liveVerified=false}}
     local jobs=C.Report.jobs
     local alive=true
     local intervals={Tap=0,Rebirth=1,Upgrade=2,Quests=1,Gifts=2,Equip=8}
@@ -975,6 +975,13 @@ return function(config,d)
     local D={}
     local shared=d.Shared or {}
     shared.retry=shared.retry or {}
+    shared.backlog=shared.backlog or {}
+    shared.attempts=shared.attempts or {}
+    shared.lastAttempt=shared.lastAttempt or {}
+    if shared.deleteVersion~="delete-backscan-10"then
+        shared.deleteVersion="delete-backscan-10";shared.lastSweepAt=nil
+        for id,expires in pairs(shared.retry)do shared.retry[id]=math.min(expires,d.Now()+3)end
+    end
     shared.sequence=shared.sequence or math.floor(d.Now()*1000)+1500000000
     local alive=true
     local function data()return d.Data()end
@@ -995,12 +1002,12 @@ return function(config,d)
     local function protected(pet,id,used,held,pending)
         if used[id]or id==held or id==pending then return true end
         if pet.Locked or pet.Favorite or pet.Favourited or pet.Equipped or pet.InEnchanter or pet.EnchantPending then return true end
-        if pet.Reserved~=nil and pet.Reserved~=false or pet.Frozen~=nil then return true end
+        if pet.Reserved~=nil and pet.Reserved~=false or pet.Frozen~=nil and pet.Frozen~=false then return true end
         if pet.Mutation and pet.Mutation~=""and pet.Mutation~="None"or pet.Electrified then return true end
         if pet.Enchant and pet.Enchant~=""or pet.Enchant2 and pet.Enchant2~=""then return true end
         return pet.ChangedNickname==true or pet.Signature~=nil or pet.Serial~=nil or pet.LeaderboardSerial~=nil or pet.PendingSerial==true
     end
-    function D.Plan()
+    function D.Plan(ignoreRetry)
         local actual=data()
         if not actual then return {},"Waiting for player data"end
         if not selected(config.DeleteNames)and not selected(config.DeleteRarities)then return {},"Select pet names or rarities"end
@@ -1039,7 +1046,7 @@ return function(config,d)
         for _,group in pairs(groups)do
             table.sort(group,function(a,b)return a.power==b.power and a.id<b.id or a.power>b.power end)
             for index,row in ipairs(group)do
-                if index<=keep or protected(row.pet,row.id,used,held,pending)or d.Now()<(shared.retry[row.id]or 0)then continue end
+                if index<=keep or protected(row.pet,row.id,used,held,pending)or not ignoreRetry and d.Now()<(shared.retry[row.id]or 0)then continue end
                 out[#out+1]=row.id
             end
         end
@@ -1047,6 +1054,33 @@ return function(config,d)
         return out
     end
     function D.Busy()return shared.pending~=nil end
+    local function reconcileRemaining(pending,actual,delay)
+        local retained=0
+        for _,id in ipairs(pending.ids)do
+            if actual and actual.Pets.Owned[id]~=nil then
+                retained+=1
+                shared.backlog[id]=shared.backlog[id]or pending.started
+                shared.retry[id]=d.Now()+delay(id)
+            else
+                shared.retry[id]=nil;shared.backlog[id]=nil
+                shared.attempts[id]=nil;shared.lastAttempt[id]=nil
+            end
+        end
+        return retained
+    end
+    local function rescan(job)
+        local ids=D.Plan(true)
+        local current={}
+        for _,id in ipairs(ids)do
+            current[id]=true
+            shared.backlog[id]=shared.backlog[id]or d.Now()
+        end
+        for id in pairs(shared.backlog)do if not current[id]then shared.backlog[id]=nil end end
+        shared.lastSweepAt=d.Now()
+        job.sweeps=(job.sweeps or 0)+1
+        job.lastSweepAt=shared.lastSweepAt
+        job.backlogMatches=#ids
+    end
     function D.Receive(result)
         local pending=shared.pending
         if not alive or not pending or type(result)~="table"then return end
@@ -1078,7 +1112,9 @@ return function(config,d)
                 job.skipped=(job.skipped or 0)+(tonumber(result and result.Skipped)or 0)
                 job.confirmationSource=(removed==#pending.ids or partial)and "Replica"or "Delete result"
             else job.rejected+=1 end
-            for _,id in ipairs(pending.ids)do shared.retry[id]=d.Now()+(accepted and 30 or 8)end
+            job.remaining=reconcileRemaining(pending,actual,function(id)
+                return accepted and math.min(20,3*2^math.min((shared.attempts[id]or 1)-1,3))or 8
+            end)
             shared.pending=nil;job.pending=nil;job.nextAt=d.Now()+(accepted and .1 or(result and result.Error=="RateLimited"and 2 or 8))
             job.status=not config.Delete and "Disabled"or accepted and "Selected pets deleted"or "Delete request rejected"
         elseif d.Now()-pending.started>12 and actual then
@@ -1087,7 +1123,7 @@ return function(config,d)
             job.confirmed+=removed;job.reconciled=(job.reconciled or 0)+1
             job.unsequencedResult=pending.unsequencedResult
             job.remaining=#pending.ids-removed
-            for _,id in ipairs(pending.ids)do shared.retry[id]=d.Now()+3 end
+            job.remaining=reconcileRemaining(pending,actual,function()return 3 end)
             shared.pending=nil;job.pending=nil;job.nextAt=d.Now()+3
             job.status=config.Delete and "Inventory reconciled; retrying remaining matches"or "Disabled"
         elseif not actual then
@@ -1097,6 +1133,14 @@ return function(config,d)
     end
     function D.Tick(job,jobs)
         if not alive then return end
+        local actual=data()
+        if actual then
+            for id in pairs(shared.attempts)do
+                if actual.Pets.Owned[id]==nil then
+                    shared.attempts[id]=nil;shared.lastAttempt[id]=nil;shared.backlog[id]=nil;shared.retry[id]=nil
+                end
+            end
+        end
         for id,expires in pairs(shared.retry)do if expires<d.Now()then shared.retry[id]=nil end end
         if poll(job)then return end
         if not config.Delete then job.status="Disabled";return end
@@ -1106,7 +1150,20 @@ return function(config,d)
         if not d.CanInvoke()or(jobs.Equip and jobs.Equip.pending)then job.status="Waiting for inventory task";return end
         local ids,why=D.Plan()
         job.eligible=#ids
+        local sweepDue=d.Now()-(shared.lastSweepAt or -math.huge)>=3
+        if sweepDue then rescan(job)end
         if #ids==0 then job.status=why or "No matching unprotected pets";return end
+        if sweepDue then
+            table.sort(ids,function(a,b)
+                local ba,bb=shared.backlog[a],shared.backlog[b]
+                if ba~=nil and bb==nil then return true elseif bb~=nil and ba==nil then return false end
+                if ba and bb and ba~=bb then return ba<bb end
+                local aa,ab=shared.lastAttempt[a]or -math.huge,shared.lastAttempt[b]or -math.huge
+                if aa~=ab then return aa<ab end
+                return a<b
+            end)
+            job.mode="BacklogSweep"
+        else job.mode="NewAndRemaining"end
         local batch={}
         for i=1,math.min(#ids,400)do batch[i]=ids[i]end
         -- Rebuild from current ownership and protection immediately before sending.
@@ -1119,6 +1176,10 @@ return function(config,d)
         shared.sequence+=1
         shared.nextSend=d.Now()+.4
         shared.pending={ids=sendIds,batch=shared.sequence,started=d.Now()}
+        for _,id in ipairs(sendIds)do
+            shared.attempts[id]=(shared.attempts[id]or 0)+1
+            shared.lastAttempt[id]=d.Now()
+        end
         job.pending=shared.pending;job.requests+=1;job.requestedPets=(job.requestedPets or 0)+#sendIds
         local ok,err=pcall(d.Fire,"PetService","PetActionRequested",{Action="Delete",PetIds=sendIds,Batch=shared.sequence})
         if not ok then
@@ -1689,8 +1750,8 @@ build=function()
     deletion:CreateButton({Name=t("Refresh pet filters","รีเฟรชตัวกรองสัตว์"),Callback=api.RefreshDeleteOptions})
     toggle(deletion,"Delete")
     deletion:CreateParagraph({Name=t("Filter rules","วิธีเลือกตัวกรอง"),Content=t(
-        "Select names or rarities and at least one tier. When both names and rarities are selected, both must match. Deletes permanently. Keeps locked, equipped, team, reserved, enchanted, mutated and special collectible pets.",
-        "เลือกชื่อหรือระดับ และเลือกชนิดอย่างน้อยหนึ่งชนิด หากเลือกทั้งชื่อและระดับต้องตรงทั้งคู่ ลบถาวร โดยเก็บตัวที่ล็อก ใส่อยู่ อยู่ในทีม ติดธุรกรรม ติด Enchant กลายพันธุ์ และตัวสะสมพิเศษไว้")})
+        "Select names or rarities and at least one tier. Both filters must match when selected together. Periodically rescans the entire bag and retries remaining matches after the pending request settles. Locked, equipped, team, reserved and special pets stay protected.",
+        "เลือกชื่อหรือระดับ และชนิดอย่างน้อยหนึ่งชนิด หากเลือกทั้งชื่อและระดับต้องตรงทั้งคู่ ตรวจย้อนหลังทั้งกระเป๋าเป็นระยะ รอผลรอบก่อนแล้ววนลบตัวที่ยังเหลือ โดยเก็บตัวที่ล็อก ใส่อยู่ อยู่ในทีม ติดธุรกรรม และตัวพิเศษไว้")})
     local hatchEffects=group(petTab,"Hatch animation","อนิเมชันเปิดไข่","Right","egg")
     controls.SkipHatchAnimation=hatchEffects:CreateToggle({Name=t("Skip hatch animation","ข้ามอนิเมชันเปิดไข่"),
         CurrentValue=config.SkipHatchAnimation,Callback=function(value)config.SkipHatchAnimation=value==true;fastHatch.Tick()end})
@@ -1699,7 +1760,7 @@ build=function()
         "ใช้กับการเปิดไข่เองหรือออโต้เปิดไข่ของเกม ข้ามฉากแสดงผลและจบขั้นตอนแสดงผลตามปกติ ส่วนเวลาฟักและสัตว์ที่ได้รับยังขึ้นกับเกม")})
     local settings=tab("Settings / Report","ตั้งค่า / รายงาน","settings")
     local diagnostics=group(settings,"Trial controls","ตัวควบคุมรุ่นทดลอง","Left","file-text")
-    api.Info=diagnostics:CreateParagraph({Name=t("Build","รุ่น"),Content="tapping-auto-test-9"})
+    api.Info=diagnostics:CreateParagraph({Name=t("Build","รุ่น"),Content="tapping-auto-test-10"})
     diagnostics:CreateButton({Name=t("Copy / Save Report","คัดลอก / บันทึกรายงาน"),Callback=api.SaveReport})
     diagnostics:CreateButton({Name=t("Stop All","หยุดทั้งหมด"),Callback=function()core.Stop();task.defer(build)end})
     diagnostics:CreateButton({Name=t("Unload","ปิดสคริปต์"),Callback=api.Destroy})
