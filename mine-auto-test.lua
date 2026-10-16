@@ -85,7 +85,7 @@ return function(config, deps)
             local j=api.Jobs[name]
             jobs[name]={status=j.Status,requests=j.Requests,progressUpdates=j.Progress,misses=j.Misses,lastEvent=j.LastEvent,updatedAt=j.UpdatedAt}
         end
-        return {release="mine-auto-test-3",jobs=jobs,errors=api.Errors,liveVerified=false}
+        return {release="mine-auto-test-4",jobs=jobs,errors=api.Errors,liveVerified=false}
     end
     function api.Destroy()api.Stopped=true;api.StopAll()end
     return api
@@ -414,6 +414,45 @@ return function(config,deps,core)
 end
 
 end)()
+local resolveLogo=(function()
+return function(deps)
+    local env=deps.Env
+    local apis=deps.APIs
+    local version="silver-break-20261014"
+    local file="DevilHub_Silver_20261014.png"
+    local function valid(value)
+        return type(value)=="string"and value~=""and not value:match("^https?://")
+    end
+    if env.DevilHubSilverLogoVersion==version and valid(env.DevilHubSilverLogo)then return env.DevilHubSilverLogo end
+    local ok,result=pcall(function()
+        local exists=false
+        if type(apis.isfile)=="function"then
+            local checked,value=pcall(apis.isfile,file);exists=checked and value==true
+        end
+        if exists and type(apis.readfile)=="function"then
+            local checked,body=pcall(apis.readfile,file)
+            exists=checked and type(body)=="string"and body:sub(1,8)=="\137PNG\r\n\26\n"
+        end
+        if not exists then
+            assert(type(apis.writefile)=="function","Logo needs writefile")
+            local body=deps.Fetch("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/a28a74d3b5c98f687c165dcefaadfe0a743d280c/assets/devil-logo.png")
+            assert(type(body)=="string"and body:sub(1,8)=="\137PNG\r\n\26\n","Invalid logo PNG")
+            apis.writefile(file,body)
+        end
+        for _,name in ipairs({"getcustomasset","getsynasset","get_custom_asset"})do
+            if type(apis[name])=="function"then
+                local checked,value=pcall(apis[name],file)
+                if checked and valid(value)then return value end
+            end
+        end
+        error("Executor has no usable custom asset API")
+    end)
+    if not ok then env.DevilHubLogoError=tostring(result);return ""end
+    env.DevilHubSilverLogo=result;env.DevilHubSilverLogoVersion=version;env.DevilHubLogoError=nil
+    return result
+end
+
+end)()
 local Players=game:GetService("Players")
 local RS=game:GetService("ReplicatedStorage")
 local Http=game:GetService("HttpService")
@@ -672,7 +711,9 @@ local function refresh()
 end
 local function buildUI()
     local opts=options()
-    local logo="https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png"
+    local logo=resolveLogo({Env=env,Fetch=fetch,APIs={
+        writefile=writefile or write_file,readfile=readfile or read_file,isfile=isfile or is_file,
+        getcustomasset=getcustomasset,getsynasset=getsynasset,get_custom_asset=get_custom_asset}})
     window=library:CreateWindow({Name="DEVIL HUB",Icon=logo,Theme="Abyss",Density="Compact",Profile=true,
         Search=false,Home=false,Loading=false,Backdrop=false,Disclaimer=false,UnsupportedExecutor=false,
         Size=UDim2.fromOffset(850,590),KeepOnScreen=true,ToggleButton={Platform="Both",Icon=logo},
@@ -750,7 +791,7 @@ local function buildUI()
     toggle(movement,"InfiniteJump","กระโดดไม่จำกัด")
     local settings=tab("ตั้งค่า / รายงาน","settings")
     local save=group(settings,"บันทึกการตั้งค่า","Left","save")
-    controls.Message=save:CreateParagraph({Name="ข้อความ",Content="พร้อมใช้งาน • mine-auto-test-3"})
+    controls.Message=save:CreateParagraph({Name="ข้อความ",Content="พร้อมใช้งาน • mine-auto-test-4"})
     save:CreateButton({Name="บันทึกตั้งค่า",Callback=function()local _,msg=api.Save();notify(msg)end})
     save:CreateParagraph({Name="เรียกคืนอัตโนมัติ",Content="รันใหม่จะใช้ค่าที่บันทึกไว้ รวมสถานะเปิดออโต้ของแต่ละระบบ"})
     save:CreateButton({Name="รีเฟรชรายการจากเกม",Callback=refresh})
