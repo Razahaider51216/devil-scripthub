@@ -85,7 +85,7 @@ return function(config, deps)
             local j=api.Jobs[name]
             jobs[name]={status=j.Status,requests=j.Requests,progressUpdates=j.Progress,misses=j.Misses,lastEvent=j.LastEvent,updatedAt=j.UpdatedAt}
         end
-        return {release="mine-auto-test-2",jobs=jobs,errors=api.Errors,liveVerified=false}
+        return {release="mine-auto-test-3",jobs=jobs,errors=api.Errors,liveVerified=false}
     end
     function api.Destroy()api.Stopped=true;api.StopAll()end
     return api
@@ -189,7 +189,7 @@ return function(config,deps,core)
             if e.Kind=="Character"and(not bestRank or(e.Rank or 0)>bestRank)then bestRank=e.Rank or 0;bestKey=e.Key end
         end
         local keys={}
-        for _,e in ipairs(entries())do
+        local function matches(e)
             local filter=(empty(config.SellNames)or selected(config.SellNames,e.Name))
                 and(empty(config.SellRarities)or selected(config.SellRarities,e.Rarity))
                 and(empty(config.SellKinds)or selected(config.SellKinds,e.Kind))
@@ -197,12 +197,31 @@ return function(config,deps,core)
             if filter and sellable and(e.SellCount or e.Count or 0)>0 and(e.Worth or 0)>0
                 and not protected[e.Key]and not protectedNames[e.Name]and not e.Locked and not e.Favorite
                 and not(config.KeepBest and e.Key==bestKey)then
-                keys[#keys+1]=e.Key;if #keys>=50 then break end
+                return true
             end
+            return false
+        end
+        for _,e in ipairs(entries())do
+            if matches(e)then keys[#keys+1]=e.Key;if #keys>=50 then break end end
         end
         api.SellInfo=api.SellInfo or {}
         api.SellInfo.candidates=#keys
         if #keys==0 then
+            -- Sell can collect matching chest items even when the separate
+            -- Take All toggle is disabled. Never take unselected chest items.
+            for _,e in ipairs(I.ChestEntries(m))do
+                if not matches(e)then continue end
+                if deps.ChestStep then
+                    local ready,step,status=deps.ChestStep()
+                    if not ready then
+                        if step then saleTrip="Collecting"end
+                        api.SellInfo.stage="ToChest"
+                        return step,status
+                    end
+                end
+                api.SellInfo.stage="TakingFilteredChest"
+                return action("MineTakeChest",{e.Key},watch("Chest"))
+            end
             if saleTrip then saleTrip="Return";return nil,"ไม่มีรายการเหลือ เตรียมกลับบ้าน"end
             return nil,"ไม่มีของตรงตัวกรอง หรือเก็บไว้"
         end
@@ -236,7 +255,10 @@ return function(config,deps,core)
     end,1.5)
     local lastAutoSell
     core.Add("ChestSell",function()
-        local m=mine();if not m then return nil,"รอข้อมูลผู้เล่น"end
+        local d,m=data();if not m then return nil,"รอข้อมูลผู้เล่น"end
+        if type(C.PlayerHasPass)=="function"and not C.PlayerHasPass(d,C.AutoSellPassLabel or "Auto Sell")then
+            return nil,"เกมต้องมี Gamepass Auto Sell ใช้ขายแบบวาร์ปแทนได้"
+        end
         local desired=sig(config.ChestSellNames)
         if lastAutoSell==desired then return nil,"ตั้งขายจากหีบแล้ว"end
         for name,on in pairs(config.ChestSellNames)do
@@ -467,6 +489,7 @@ local function findNode(mode)
     return best
 end
 local sellerState={phase="Idle",at=0}
+local chestAt
 local function sellerPosition()
     local stand=workspace:FindFirstChild("SellStand")
     if not stand then return nil end
@@ -485,7 +508,14 @@ local function sellerPosition()
     part=part or stand:FindFirstChildWhichIsA("BasePart",true)
     return part and part.Position
 end
-local function cancelSeller()sellerState={phase="Idle",at=0}end
+local function cancelSeller()sellerState={phase="Idle",at=0};chestAt=nil end
+local function chestStep()
+    if not chestAt then
+        return false,{Event="MineTeleport",Args={"Plot"},Sent=function()chestAt=os.clock()end},"กลับบ้านเพื่อหยิบของที่เลือกจากหีบ"
+    end
+    if os.clock()-chestAt<1 then return false,nil,"รอวาร์ปกลับถึงหีบ"end
+    return true
+end
 local function sellerStep()
     local now=os.clock()
     local char=player.Character
@@ -520,7 +550,7 @@ local function sellerStep()
 end
 core=makeCore(config,{Now=os.clock,Send=send})
 adapter=makeAdapter(config,{Module=module,FindNode=findNode,NodeAlive=nodeAlive,NodeHealth=nodeHealth,Manual=manual,
-    SellerStep=sellerStep,CancelSeller=cancelSeller},core)
+    SellerStep=sellerStep,ChestStep=chestStep,CancelSeller=cancelSeller},core)
 api.Core=core
 local file="DevilMineAuto79389059854988.json"
 local function textSet(value)
@@ -671,7 +701,7 @@ local function buildUI()
     dropdown(sell,"SellRarities","ระดับที่จะขาย",{"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythical", "Exotic", "Limited", "Exclusive", "Scaled"},true)
     dropdown(sell,"SellNames","ชื่อที่จะขาย",opts.Names,true)
     toggle(sell,"KeepBest","เก็บตัวละครที่ดีที่สุดไว้")
-    sell:CreateParagraph({Name="ตัวกรอง / เส้นทางขาย",Content="วาร์ปเข้า Hub และจุดขาย ขายตามตัวกรองแล้ววาร์ปกลับบ้านเมื่อจำนวนของลดลง ตัวกรองแต่ละช่องใช้ร่วมกัน ข้ามของใน Hotbar และของที่ขายไม่ได้"})
+    sell:CreateParagraph({Name="ตัวกรอง / เส้นทางขาย",Content="ถ้ากระเป๋าว่างจะหยิบของตรงตัวกรองจากหีบ วาร์ปไปขาย แล้วกลับบ้านเมื่อจำนวนของลดลง ตัวกรองแต่ละช่องใช้ร่วมกัน"})
     local chest=group(bag,"ขายจากหีบ","Right","archive")
     toggle(chest,"ChestSell");dropdown(chest,"ChestSellNames","ชื่อที่ให้เกมขายทันที",opts.Names,true)
     chest:CreateParagraph({Name="การตั้งค่าขายของเกม",Content="เปิดเพื่อเพิ่มชื่อที่เลือกลง Auto Sell ของเกม ปิดออโต้จะไม่ลบการตั้งค่าที่ส่งไปแล้ว ปรับปิดชื่อได้จากเมนู Auto Sell ของเกม"})
@@ -720,7 +750,7 @@ local function buildUI()
     toggle(movement,"InfiniteJump","กระโดดไม่จำกัด")
     local settings=tab("ตั้งค่า / รายงาน","settings")
     local save=group(settings,"บันทึกการตั้งค่า","Left","save")
-    controls.Message=save:CreateParagraph({Name="ข้อความ",Content="พร้อมใช้งาน • mine-auto-test-2"})
+    controls.Message=save:CreateParagraph({Name="ข้อความ",Content="พร้อมใช้งาน • mine-auto-test-3"})
     save:CreateButton({Name="บันทึกตั้งค่า",Callback=function()local _,msg=api.Save();notify(msg)end})
     save:CreateParagraph({Name="เรียกคืนอัตโนมัติ",Content="รันใหม่จะใช้ค่าที่บันทึกไว้ รวมสถานะเปิดออโต้ของแต่ละระบบ"})
     save:CreateButton({Name="รีเฟรชรายการจากเกม",Callback=refresh})
