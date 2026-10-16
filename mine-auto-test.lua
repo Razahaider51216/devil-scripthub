@@ -14,7 +14,10 @@ return function(config, deps)
     function api.Set(name,on)
         config[name]=on==true
         local job=api.Jobs[name]
-        if job then job.Next=0;job.Status=on and "รอรอบทำงาน" or "ปิดอยู่" end
+        if job then
+            job.Next=0;job.Status=on and "รอรอบทำงาน" or "ปิดอยู่"
+            if not on then job.Pending=nil end
+        end
     end
     function api.Error(name,message)
         api.Errors[#api.Errors+1]={job=name,message=tostring(message),t=deps.Now()}
@@ -28,10 +31,6 @@ return function(config, deps)
             local name=order[index];local job=api.Jobs[name]
             if not config[name] then job.Status="ปิดอยู่";continue end
             if now<job.Next then continue end
-            local ok,action,status=pcall(job.Plan)
-            if not ok then
-                api.Error(name,action);job.Status="เกิดข้อผิดพลาด ดูรายงาน";job.Next=now+10;continue
-            end
             if job.Pending then
                 local previous=job.Pending
                 local changed=false
@@ -49,6 +48,10 @@ return function(config, deps)
                     job.Status="ยังไม่เห็นผลอัปเดต พักก่อนลองใหม่"
                     continue
                 end
+            end
+            local ok,action,status=pcall(job.Plan)
+            if not ok then
+                api.Error(name,action);job.Status="เกิดข้อผิดพลาด ดูรายงาน";job.Next=now+10;continue
             end
             if not action then job.Status=status or "รอเงื่อนไข";job.Next=now+.75;continue end
             if now<nextSend then continue end
@@ -82,7 +85,7 @@ return function(config, deps)
             local j=api.Jobs[name]
             jobs[name]={status=j.Status,requests=j.Requests,progressUpdates=j.Progress,misses=j.Misses,lastEvent=j.LastEvent,updatedAt=j.UpdatedAt}
         end
-        return {release="mine-auto-test-1",jobs=jobs,errors=api.Errors,liveVerified=false}
+        return {release="mine-auto-test-2",jobs=jobs,errors=api.Errors,liveVerified=false}
     end
     function api.Destroy()api.Stopped=true;api.StopAll()end
     return api
@@ -160,8 +163,20 @@ return function(config,deps,core)
         if not m or next(m.Chest or {})==nil then return nil,"รอของในหีบ"end
         return action("MineTakeChest",{},watch("Chest"))
     end,1)
+    local saleTrip
+    function api.SellBusy()return saleTrip~=nil end
+    function api.CancelSale()saleTrip=nil;if deps.CancelSeller then deps.CancelSeller()end end
     core.Add("Sell",function()
         local m=mine();if not m then return nil,"รอข้อมูลผู้เล่น"end
+        if saleTrip=="Return" then
+            api.SellInfo=api.SellInfo or {};api.SellInfo.stage="ReturningHome"
+            local out=action("MineTeleport",{"Plot"})
+            out.Sent=function()
+                saleTrip=nil
+                if deps.CancelSeller then deps.CancelSeller()end
+            end
+            return out
+        end
         if empty(config.SellNames)and empty(config.SellRarities)and empty(config.SellKinds)then return nil,"เลือกรายการที่จะขายก่อน"end
         local protected={}
         local protectedNames={}
@@ -185,11 +200,38 @@ return function(config,deps,core)
                 keys[#keys+1]=e.Key;if #keys>=50 then break end
             end
         end
-        if #keys==0 then return nil,"ไม่มีของตรงตัวกรอง หรือเก็บไว้"end
+        api.SellInfo=api.SellInfo or {}
+        api.SellInfo.candidates=#keys
+        if #keys==0 then
+            if saleTrip then saleTrip="Return";return nil,"ไม่มีรายการเหลือ เตรียมกลับบ้าน"end
+            return nil,"ไม่มีของตรงตัวกรอง หรือเก็บไว้"
+        end
+        local function counts()
+            -- Resolve() does not support Pickaxes in the supplied client.
+            local values={}
+            for _,e in ipairs(entries())do values[e.Key]=e.SellCount or e.Count or 0 end
+            local result={}
+            for _,key in ipairs(keys)do result[key]=values[key]or 0 end
+            return result
+        end
+        local before=counts()
+        if deps.SellerStep then
+            local ready,step,status,details=deps.SellerStep()
+            if details then for k,v in pairs(details)do api.SellInfo[k]=v end end
+            if not ready then
+                if step then saleTrip="Selling"end
+                return step,status
+            end
+            saleTrip="Selling"
+        end
+        api.SellInfo.stage="Selling"
+        api.SellInfo.keys=keys
         return action("MineSellItems",{keys},function()
-            local state=mine();local values={}
-            for _,key in ipairs(keys)do local e=state and I.Resolve(state,key);values[key]=e and e.Count or 0 end
-            return sig(values)
+            local after=counts()
+            local decreased=false
+            for _,key in ipairs(keys)do if after[key]<before[key]then decreased=true;break end end
+            if decreased and saleTrip then saleTrip="Return";api.SellInfo.stage="SaleObserved"end
+            return decreased and "decreased"or "waiting"
         end)
     end,1.5)
     local lastAutoSell
@@ -334,6 +376,7 @@ return function(config,deps,core)
         return action("MineFocusMany",{keys,id},function()return tostring(deps.NodeHealth(target))end)
     end,3)
     function api.Travel(zone)
+        if saleTrip then return false,"รอขายของและกลับบ้านให้เสร็จก่อน"end
         local m=mine();if not m then return false,"ข้อมูลยังไม่พร้อม"end
         if zone=="Highest"then
             local best=0
@@ -423,8 +466,61 @@ local function findNode(mode)
     end
     return best
 end
+local sellerState={phase="Idle",at=0}
+local function sellerPosition()
+    local stand=workspace:FindFirstChild("SellStand")
+    if not stand then return nil end
+    local prompt=stand:FindFirstChild("SellPrompt",true)
+    local anchor=prompt and prompt.Parent
+    if anchor and anchor:IsA("Attachment")then return anchor.WorldPosition end
+    if anchor and anchor:IsA("BasePart")then return anchor.Position end
+    for _,model in ipairs(stand:GetChildren())do
+        if model:IsA("Model")and model:FindFirstChildOfClass("Humanoid")then
+            local part=model:FindFirstChild("UpperTorso")or model:FindFirstChild("Torso")
+                or model:FindFirstChild("HumanoidRootPart")or model:FindFirstChild("Head")
+            if part then return part.Position end
+        end
+    end
+    local part=stand:IsA("Model")and stand.PrimaryPart or nil
+    part=part or stand:FindFirstChildWhichIsA("BasePart",true)
+    return part and part.Position
+end
+local function cancelSeller()sellerState={phase="Idle",at=0}end
+local function sellerStep()
+    local now=os.clock()
+    local char=player.Character
+    local root=char and char:FindFirstChild("HumanoidRootPart")
+    local h=char and char:FindFirstChildOfClass("Humanoid")
+    if not root or not h or h.Health<=0 then return false,nil,"รอตัวละครเกิดใหม่",{stage="WaitingCharacter"}end
+    if sellerState.phase=="Idle"then
+        return false,{Event="MineTeleport",Args={"Hub"},Sent=function()
+            sellerState={phase="Hub",at=os.clock()}
+        end},"วาร์ปไป Hub เพื่อขายของ",{stage="ToHub"}
+    end
+    if sellerState.phase=="Hub"then
+        if now-sellerState.at<1 then return false,nil,"รอวาร์ปเข้า Hub",{stage="WaitingHub"}end
+        local pos=sellerPosition()
+        if not pos then return false,nil,"รอจุดขาย SellStand โหลด",{stage="WaitingSeller"}end
+        h.Sit=false
+        root.AssemblyLinearVelocity=Vector3.zero
+        root.AssemblyAngularVelocity=Vector3.zero
+        local dest=pos+Vector3.new(0,0,3)
+        root.CFrame=CFrame.lookAt(dest,Vector3.new(pos.X,dest.Y,pos.Z))
+        sellerState={phase="Settle",at=now,position=pos}
+        return false,nil,"วาร์ปถึงจุดขาย รอตำแหน่งเข้าที่",{stage="Settling"}
+    end
+    local pos=sellerPosition()or sellerState.position
+    local distance=pos and(root.Position-pos).Magnitude or math.huge
+    if distance>8 then
+        sellerState={phase="Hub",at=now-1}
+        return false,nil,"ตำแหน่งถูกดึงออกจากจุดขาย กำลังเข้าใหม่",{stage="Reapproach",sellerDistance=distance}
+    end
+    if now-sellerState.at<.7 then return false,nil,"รอพร้อมขาย",{stage="Settling",sellerDistance=distance}end
+    return true,nil,nil,{stage="AtSeller",sellerDistance=distance}
+end
 core=makeCore(config,{Now=os.clock,Send=send})
-adapter=makeAdapter(config,{Module=module,FindNode=findNode,NodeAlive=nodeAlive,NodeHealth=nodeHealth,Manual=manual},core)
+adapter=makeAdapter(config,{Module=module,FindNode=findNode,NodeAlive=nodeAlive,NodeHealth=nodeHealth,Manual=manual,
+    SellerStep=sellerStep,CancelSeller=cancelSeller},core)
 api.Core=core
 local file="DevilMineAuto79389059854988.json"
 local function textSet(value)
@@ -464,6 +560,7 @@ function api.Report()
     report.data={ready=m~=nil,money=d and d.Money,currentZone=m and m.CurrentZone,holders=m and m.Holders,
         chest=m and m.Chest,unlockedZones=m and m.UnlockedZones}
     report.target=adapter.Target
+    report.sell=adapter.SellInfo
     return report
 end
 function api.CopyReport()
@@ -480,7 +577,7 @@ local function restoreSpeed()
 end
 function api.Destroy()
     if not alive then return end
-    alive=false;core.Destroy();restoreSpeed()
+    alive=false;core.Destroy();adapter.CancelSale();restoreSpeed()
     for _,c in ipairs(connections)do pcall(c.Disconnect,c)end
     if window then window:Destroy();window=nil end
     if env.DevilMineTest==api then env.DevilMineTest=nil end
@@ -508,6 +605,7 @@ end
 local function toggle(group,key,name)
     controls[key]=group:CreateToggle({Name=name or labels[key]or key,CurrentValue=config[key],Callback=function(on)
         if core.Jobs[key]then core.Set(key,on)else config[key]=on==true end
+        if key=="Sell"and not on then adapter.CancelSale()end
     end})
 end
 local function dropdown(group,key,name,options,multiple)
@@ -562,7 +660,7 @@ local function buildUI()
     combat:CreateParagraph({Name="อาวุธ",Content="ใช้ Tool.Activate ตามระบบเกม ต้องถืออาวุธและอยู่ในระยะเอง ดาเมจขึ้นกับเกม"})
     controls.Status=combat:CreateParagraph({Name="สถานะระบบ",Content="พร้อมใช้งาน"})
     combat:CreateButton({Name="หยุดออโต้ทั้งหมด",Callback=function()
-        core.StopAll();config.AutoAttack=false
+        core.StopAll();adapter.CancelSale();config.AutoAttack=false
         for key in pairs(core.Jobs)do if controls[key]then controls[key]:Set(false,true)end end
         if controls.AutoAttack then controls.AutoAttack:Set(false,true)end
     end})
@@ -573,7 +671,7 @@ local function buildUI()
     dropdown(sell,"SellRarities","ระดับที่จะขาย",{"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythical", "Exotic", "Limited", "Exclusive", "Scaled"},true)
     dropdown(sell,"SellNames","ชื่อที่จะขาย",opts.Names,true)
     toggle(sell,"KeepBest","เก็บตัวละครที่ดีที่สุดไว้")
-    sell:CreateParagraph({Name="ตัวกรอง",Content="ตัวกรองแต่ละช่องใช้ร่วมกัน ช่องว่างคือไม่จำกัด ข้ามของใน Hotbar และของที่ขายไม่ได้"})
+    sell:CreateParagraph({Name="ตัวกรอง / เส้นทางขาย",Content="วาร์ปเข้า Hub และจุดขาย ขายตามตัวกรองแล้ววาร์ปกลับบ้านเมื่อจำนวนของลดลง ตัวกรองแต่ละช่องใช้ร่วมกัน ข้ามของใน Hotbar และของที่ขายไม่ได้"})
     local chest=group(bag,"ขายจากหีบ","Right","archive")
     toggle(chest,"ChestSell");dropdown(chest,"ChestSellNames","ชื่อที่ให้เกมขายทันที",opts.Names,true)
     chest:CreateParagraph({Name="การตั้งค่าขายของเกม",Content="เปิดเพื่อเพิ่มชื่อที่เลือกลง Auto Sell ของเกม ปิดออโต้จะไม่ลบการตั้งค่าที่ส่งไปแล้ว ปรับปิดชื่อได้จากเมนู Auto Sell ของเกม"})
@@ -622,7 +720,7 @@ local function buildUI()
     toggle(movement,"InfiniteJump","กระโดดไม่จำกัด")
     local settings=tab("ตั้งค่า / รายงาน","settings")
     local save=group(settings,"บันทึกการตั้งค่า","Left","save")
-    controls.Message=save:CreateParagraph({Name="ข้อความ",Content="พร้อมใช้งาน • mine-auto-test-1"})
+    controls.Message=save:CreateParagraph({Name="ข้อความ",Content="พร้อมใช้งาน • mine-auto-test-2"})
     save:CreateButton({Name="บันทึกตั้งค่า",Callback=function()local _,msg=api.Save();notify(msg)end})
     save:CreateParagraph({Name="เรียกคืนอัตโนมัติ",Content="รันใหม่จะใช้ค่าที่บันทึกไว้ รวมสถานะเปิดออโต้ของแต่ละระบบ"})
     save:CreateButton({Name="รีเฟรชรายการจากเกม",Callback=refresh})
@@ -659,7 +757,7 @@ task.spawn(function()
                 if oldHumanoid~=h then restoreSpeed();oldHumanoid=h;oldSpeed=h.WalkSpeed end
                 h.WalkSpeed=config.RunSpeed
             elseif oldHumanoid then restoreSpeed()end
-            if config.AutoAttack and char and h and h.Health>0 and os.clock()-lastAttack>=config.AttackDelay then
+            if config.AutoAttack and not adapter.SellBusy()and char and h and h.Health>0 and os.clock()-lastAttack>=config.AttackDelay then
                 local tool=char:FindFirstChildOfClass("Tool")
                 if tool then tool:Activate();lastAttack=os.clock()end
             end
