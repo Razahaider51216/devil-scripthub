@@ -5,7 +5,7 @@ if env.DevilTappingTest then env.DevilTappingTest.Destroy() end
 local makeCore=(function()
 return function(config,d,changed)
     local C={Names={"Delete","Islands","Stars","Boxes","Tap","Rebirth","Upgrade","Quests","Gifts","Equip"},
-        Report={release="tapping-auto-test-8",jobs={},errors={},liveVerified=false}}
+        Report={release="tapping-auto-test-9",jobs={},errors={},liveVerified=false}}
     local jobs=C.Report.jobs
     local alive=true
     local intervals={Tap=0,Rebirth=1,Upgrade=2,Quests=1,Gifts=2,Equip=8}
@@ -192,7 +192,7 @@ return function(config,d,changed)
     end
     function C.Stop()
         for _,name in ipairs(C.Names) do C.Set(name,false) end
-        config.InfiniteJump=false;config.SkipHatchAnimation=false;notify()
+        config.InfiniteJump=false;config.SkipHatchAnimation=false;config.RunSpeedEnabled=false;config.Fly=false;notify()
     end
     function C.Destroy() C.Stop();alive=false;table.clear(tapPending) end
     return C
@@ -373,7 +373,7 @@ return function(config,d)
         jumpTrack=nil;jumpCharacter=nil
     end
     function M.Jump()
-        if not alive or not config.InfiniteJump then return end
+        if not alive or not config.InfiniteJump or config.Fly then return end
         local c,h,r=character()
         if not h or jumpBlocked(c)then return end
         local native=jumpController()
@@ -1050,7 +1050,9 @@ return function(config,d)
     function D.Receive(result)
         local pending=shared.pending
         if not alive or not pending or type(result)~="table"then return end
-        if result.Action~="Delete"or result.Batch~=pending.batch then return end
+        if result.Action~="Delete"then return end
+        if result.Batch==nil then pending.unsequencedResult=result;return end
+        if result.Batch~=pending.batch then return end
         if not pending.done then pending.result=result;pending.done=true end
     end
     local function poll(job)
@@ -1063,22 +1065,33 @@ return function(config,d)
             for _,id in ipairs(pending.ids)do if actual.Pets.Owned[id]==nil then removed+=1 end end
         end
         job.observedRemoved=removed
-        if pending.done or removed==#pending.ids then
-            local result=pending.result
-            local accepted=removed==#pending.ids or(type(result)=="table"and result.Success==true)
+        local legacy=pending.unsequencedResult
+        local partial=type(legacy)=="table"and legacy.Success==true and removed>0 and
+            tonumber(legacy.Count)==removed and removed+(tonumber(legacy.Skipped)or 0)==#pending.ids
+        if pending.done or removed==#pending.ids or partial then
+            local result=pending.result or(partial and legacy or nil)
+            local accepted=removed==#pending.ids or partial or(type(result)=="table"and result.Success==true)
             job.result=result;job.reason=result and(result.Error or result.SkipReason)or nil
             if accepted then
                 local count=math.clamp(math.floor(tonumber(result and result.Count)or removed),0,#pending.ids)
                 job.confirmed+=math.max(count,removed)
                 job.skipped=(job.skipped or 0)+(tonumber(result and result.Skipped)or 0)
-                job.confirmationSource=removed==#pending.ids and "Replica"or "Delete result"
+                job.confirmationSource=(removed==#pending.ids or partial)and "Replica"or "Delete result"
             else job.rejected+=1 end
             for _,id in ipairs(pending.ids)do shared.retry[id]=d.Now()+(accepted and 30 or 8)end
-            shared.pending=nil;job.pending=nil;job.nextAt=d.Now()+(accepted and 1 or 8)
+            shared.pending=nil;job.pending=nil;job.nextAt=d.Now()+(accepted and .1 or(result and result.Error=="RateLimited"and 2 or 8))
             job.status=not config.Delete and "Disabled"or accepted and "Selected pets deleted"or "Delete request rejected"
-        elseif d.Now()-pending.started>12 then
-            pending.uncertain=true;job.uncertain=true;config.Delete=false
-            job.status="Unconfirmed deletion; stopped without repeating"
+        elseif d.Now()-pending.started>12 and actual then
+            -- Deleting fixed UUIDs is idempotent. Reconcile ownership, then rebuild the
+            -- remaining selection after a delay instead of permanently stopping on lost replies.
+            job.confirmed+=removed;job.reconciled=(job.reconciled or 0)+1
+            job.unsequencedResult=pending.unsequencedResult
+            job.remaining=#pending.ids-removed
+            for _,id in ipairs(pending.ids)do shared.retry[id]=d.Now()+3 end
+            shared.pending=nil;job.pending=nil;job.nextAt=d.Now()+3
+            job.status=config.Delete and "Inventory reconciled; retrying remaining matches"or "Disabled"
+        elseif not actual then
+            job.status="Waiting for player data"
         else job.status="Waiting for deletion result"end
         return true
     end
@@ -1088,7 +1101,8 @@ return function(config,d)
         if poll(job)then return end
         if not config.Delete then job.status="Disabled";return end
         if d.Now()<(job.nextAt or 0)then return end
-        job.nextAt=d.Now()+1
+        job.nextAt=d.Now()+.15
+        if d.Now()<(shared.nextSend or 0)then return end
         if not d.CanInvoke()or(jobs.Equip and jobs.Equip.pending)then job.status="Waiting for inventory task";return end
         local ids,why=D.Plan()
         job.eligible=#ids
@@ -1103,6 +1117,7 @@ return function(config,d)
         for _,id in ipairs(batch)do if valid[id]then sendIds[#sendIds+1]=id end end
         if #sendIds==0 then job.status="Inventory changed; rescanning";return end
         shared.sequence+=1
+        shared.nextSend=d.Now()+.4
         shared.pending={ids=sendIds,batch=shared.sequence,started=d.Now()}
         job.pending=shared.pending;job.requests+=1;job.requestedPets=(job.requestedPets or 0)+#sendIds
         local ok,err=pcall(d.Fire,"PetService","PetActionRequested",{Action="Delete",PetIds=sendIds,Batch=shared.sequence})
@@ -1202,6 +1217,84 @@ return function(config,d)
 end
 
 end)()
+local makePlayer=(function()
+return function(config,d)
+    local P={Report={}}
+    local alive=true
+    local runHum,runBase,runLast
+    local flight,dock
+    local vertical={}
+    function P.Vertical(key,pressed)vertical[key]=pressed==true end
+    local function restoreRun()
+        if runHum and runHum.WalkSpeed==runLast then runHum.WalkSpeed=runBase end
+        runHum,runBase,runLast=nil,nil,nil
+    end
+    local function stopFly()
+        if not flight then return end
+        for _,node in ipairs({flight.velocity,flight.orientation,flight.attachment})do pcall(node.Destroy,node)end
+        local h,r=flight.hum,flight.root
+        if h.AutoRotate==false then h.AutoRotate=flight.rotate end
+        r.AssemblyLinearVelocity=Vector3.new(0,0,0)
+        if h.Health>0 then h:ChangeState(Enum.HumanoidStateType.GettingUp)end
+        flight=nil
+    end
+    local function buttons(visible)
+        if visible and not dock then dock=d.MakeButtons(P.Vertical)
+        elseif not visible and dock then dock.Destroy();dock=nil;table.clear(vertical)end
+    end
+    function P.Tick()
+        if not alive then return end
+        local c=d.Player.Character
+        local h=c and c:FindFirstChildOfClass("Humanoid")
+        local r=c and c:FindFirstChild("HumanoidRootPart")
+        if not h or not r or h.Health<=0 then restoreRun();stopFly();buttons(false);return end
+        if runHum and runHum~=h then restoreRun()end
+        if config.RunSpeedEnabled then
+            if not runHum then runHum=h;runBase=h.WalkSpeed
+            elseif h.WalkSpeed~=runLast then runBase=h.WalkSpeed end
+            runLast=math.clamp(tonumber(config.RunSpeed)or 32,8,200);h.WalkSpeed=runLast
+            P.Report.walkSpeed=runLast
+        else restoreRun();P.Report.walkSpeed=h.WalkSpeed end
+        local paused=d.Busy()
+        if not config.Fly or paused then
+            stopFly();buttons(false)
+            P.Report.fly=paused and config.Fly and "Paused for automatic movement"or "Disabled"
+            return
+        end
+        if flight and(flight.root~=r or flight.hum~=h)then stopFly()end
+        if not flight then
+            local attachment=d.New("Attachment");attachment.Name="DevilFlyAttachment";attachment.Parent=r
+            local velocity=d.New("LinearVelocity");velocity.Name="DevilFlyVelocity";velocity.Attachment0=attachment
+            velocity.RelativeTo=Enum.ActuatorRelativeTo.World;velocity.VelocityConstraintMode=Enum.VelocityConstraintMode.Vector
+            velocity.MaxForce=math.huge;velocity.VectorVelocity=Vector3.new(0,0,0);velocity.Parent=r
+            local orientation=d.New("AlignOrientation");orientation.Name="DevilFlyOrientation";orientation.Attachment0=attachment
+            orientation.Mode=Enum.OrientationAlignmentMode.OneAttachment;orientation.MaxTorque=math.huge
+            orientation.Responsiveness=25;orientation.Parent=r
+            flight={root=r,hum=h,rotate=h.AutoRotate,attachment=attachment,velocity=velocity,orientation=orientation}
+            h.AutoRotate=false
+        end
+        buttons(true)
+        local direction=h.MoveDirection
+        local up,down=vertical.Up or d.KeyDown("E")or d.KeyDown("Space"),vertical.Down or d.KeyDown("Q")or d.KeyDown("LeftControl")
+        if d.Focused()then direction=Vector3.new(0,0,0);up=false;down=false end
+        direction=Vector3.new(direction.X,(up and 1 or 0)-(down and 1 or 0),direction.Z)
+        if direction.Magnitude>1 then direction=direction.Unit end
+        local speed=math.clamp(tonumber(config.FlySpeed)or 60,10,200)
+        flight.velocity.VectorVelocity=direction*speed
+        local look=d.Look()
+        local flat=Vector3.new(look.X,0,look.Z)
+        if flat.Magnitude>.01 then flight.orientation.CFrame=CFrame.lookAt(Vector3.new(0,0,0),flat)end
+        r.AssemblyAngularVelocity=Vector3.new(0,0,0)
+        h:ChangeState(Enum.HumanoidStateType.Physics)
+        P.Report.fly="Active";P.Report.flySpeed=speed
+    end
+    function P.Destroy()
+        alive=false;buttons(false);stopFly();restoreRun()
+    end
+    return P
+end
+
+end)()
 local surveyRoutes=(function()
 -- User supplied survey points; live attributes take precedence over these anchors.
 -- Missing Spawn3 position is intentionally left to live discovery.
@@ -1287,12 +1380,13 @@ local runService=game:GetService("RunService")
 local inputs=game:GetService("UserInputService")
 local config={Tap=false,Rebirth=false,Upgrade=false,Quests=false,Gifts=false,Equip=false,Delete=false,Islands=false,Stars=false,Boxes=false,BoxesAvoidPlayers=true,BoxesMode="TapChest",
     InfiniteJump=false,CPS=40,Gift="",ReserveCoins=0,ReserveGems=0,RebirthAmount="Auto",
-    DeleteNames={},DeleteRarities={},DeleteTiers={Normal=true},DeleteKeepBest=1,SkipHatchAnimation=false,
+    DeleteNames={},DeleteRarities={},DeleteTiers={Normal=true},DeleteKeepBest=0,SkipHatchAnimation=false,
+    RunSpeedEnabled=false,RunSpeed=32,Fly=false,FlySpeed=60,
     Upgrades={ClickMultiplier=true,CriticalChance=true,AutoClickerSpeed=true},
     Language="TH"}
 local api={Config=config}
 local alive,rebuilding=true,false
-local core,adapter,window,replica,movement,worldFarm,islands,petDelete,fastHatch
+local core,adapter,window,replica,movement,worldFarm,islands,petDelete,fastHatch,playerControls
 local connections,controls={},{}
 local cache={}
 local now=os.clock
@@ -1370,6 +1464,38 @@ petDelete=makeDelete(config,{
     CanInvoke=deps.CanInvoke,Shared=env.DevilTappingDeleteState,
 })
 fastHatch=makeFastHatch(config,{Module=module,Now=now,Defer=task.defer})
+playerControls=makePlayer(config,{
+    Player=player,New=Instance.new,
+    Busy=function()return worldFarm.Busy()or islands.Busy()end,
+    Focused=function()return inputs:GetFocusedTextBox()~=nil end,
+    KeyDown=function(name)return inputs:IsKeyDown(Enum.KeyCode[name])end,
+    Look=function()local camera=workspace.CurrentCamera;return camera and camera.CFrame.LookVector or Vector3.new(0,0,-1)end,
+    MakeButtons=function(setVertical)
+        local screen=Instance.new("ScreenGui");screen.Name="DevilFlightControls";screen.ResetOnSpawn=false
+        local parent=player:WaitForChild("PlayerGui")
+        pcall(function()parent=type(gethui)=="function"and gethui()or game:GetService("CoreGui")end)
+        screen.Parent=parent
+        local links={}
+        for index,entry in ipairs({{"Up","↑"},{"Down","↓"}})do
+            local button=Instance.new("TextButton");button.Name=entry[1];button.Text=entry[2]
+            button.Size=UDim2.fromOffset(54,54);button.AnchorPoint=Vector2.new(1,1)
+            button.Position=UDim2.new(1,-26-(index-1)*64,1,-190);button.TextSize=28
+            button.BackgroundColor3=Color3.fromRGB(50,24,32);button.TextColor3=Color3.new(1,1,1);button.Parent=screen
+            local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,12);corner.Parent=button
+            links[#links+1]=button.InputBegan:Connect(function(input)
+                if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then setVertical(entry[1],true)end
+            end)
+            links[#links+1]=button.InputEnded:Connect(function(input)
+                if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then setVertical(entry[1],false)end
+            end)
+        end
+        links[#links+1]=inputs.WindowFocusReleased:Connect(function()setVertical("Up",false);setVertical("Down",false)end)
+        return {Destroy=function()
+            for _,link in ipairs(links)do link:Disconnect()end
+            screen:Destroy()
+        end}
+    end,
+})
 deps.DeleteTick=petDelete.Tick;deps.DeleteReceive=petDelete.Receive;deps.DeleteBusy=petDelete.Busy
 deps.WorldTick=worldFarm.Tick;deps.WorldBusy=worldFarm.Busy
 deps.WorldCancel=worldFarm.Cancel;deps.BoxTapping=worldFarm.BoxTapping
@@ -1393,6 +1519,7 @@ local function refresh(report,force)
     end
     if controls.InfiniteJump then controls.InfiniteJump:Set(config.InfiniteJump,true) end
     if controls.SkipHatchAnimation then controls.SkipHatchAnimation:Set(config.SkipHatchAnimation,true)end
+    for _,name in ipairs({"RunSpeedEnabled","Fly"})do if controls[name]then controls[name]:Set(config[name],true)end end
 end
 local function clean(value,depth)
     if depth>7 then return "[depth limit]" end
@@ -1414,6 +1541,7 @@ function api.SaveReport()
     core.Report.islandState=env.DevilTappingIslandState
     core.Report.deleteState=env.DevilTappingDeleteState
     core.Report.fastHatch=fastHatch.Report
+    core.Report.playerControls=playerControls.Report
     local ok,plan,reason=pcall(petDelete.Plan)
     core.Report.deletePreview=ok and {count=#plan,ids=plan,reason=reason}or {error=tostring(plan)}
     local bytes=Http:JSONEncode(clean(core.Report,0))
@@ -1429,6 +1557,7 @@ function api.Destroy()
     islands.Destroy()
     petDelete.Destroy()
     fastHatch.Destroy()
+    playerControls.Destroy()
     movement.Destroy()
     for _,link in ipairs(connections) do pcall(link.Disconnect,link) end
     table.clear(connections)
@@ -1480,6 +1609,13 @@ build=function()
     taps:CreateSlider({Name=t("Requested clicks / second","จำนวนคลิกที่ส่งต่อวินาที"),Range={1,100},Increment=1,CurrentValue=config.CPS,Callback=function(value)config.CPS=value end})
     toggle(taps,"Equip")
     local movement=group(farm,"Player","ผู้เล่น","Right","person-standing")
+    controls.RunSpeedEnabled=movement:CreateToggle({Name=t("Custom walk speed","ปรับความเร็ววิ่ง"),CurrentValue=config.RunSpeedEnabled,Callback=function(value)config.RunSpeedEnabled=value==true end})
+    movement:CreateSlider({Name=t("Walk speed","ความเร็ววิ่ง"),Range={8,200},Increment=1,CurrentValue=config.RunSpeed,Callback=function(value)config.RunSpeed=value end})
+    controls.Fly=movement:CreateToggle({Name=t("Fly","บิน"),CurrentValue=config.Fly,Callback=function(value)config.Fly=value==true end})
+    movement:CreateSlider({Name=t("Fly speed","ความเร็วบิน"),Range={10,200},Increment=1,CurrentValue=config.FlySpeed,Callback=function(value)config.FlySpeed=value end})
+    movement:CreateParagraph({Name=t("Flight controls","การควบคุมบิน"),Content=t(
+        "Move with the normal controls. E / Space goes up; Q / Ctrl goes down. Mobile uses the arrow buttons. Flight pauses during automatic star, box and island movement.",
+        "เคลื่อนที่ด้วยปุ่มปกติ E / Space ขึ้น และ Q / Ctrl ลง มือถือใช้ปุ่มลูกศร บินจะพักระหว่างระบบเก็บดาว กล่อง หรือปลดล็อกเกาะเคลื่อนที่")})
     controls.InfiniteJump=movement:CreateToggle({Name=t("Infinite Jump","กระโดดไม่จำกัด"),CurrentValue=config.InfiniteJump,Callback=function(value)config.InfiniteJump=value==true end})
     movement:CreateParagraph({Name=t("Jump control","วิธีกระโดด"),Content=t(
         "Press jump again in midair. Reuses native double jumps; players without an air jump use the map's jump force, direction and animation.",
@@ -1563,7 +1699,7 @@ build=function()
         "ใช้กับการเปิดไข่เองหรือออโต้เปิดไข่ของเกม ข้ามฉากแสดงผลและจบขั้นตอนแสดงผลตามปกติ ส่วนเวลาฟักและสัตว์ที่ได้รับยังขึ้นกับเกม")})
     local settings=tab("Settings / Report","ตั้งค่า / รายงาน","settings")
     local diagnostics=group(settings,"Trial controls","ตัวควบคุมรุ่นทดลอง","Left","file-text")
-    api.Info=diagnostics:CreateParagraph({Name=t("Build","รุ่น"),Content="tapping-auto-test-8"})
+    api.Info=diagnostics:CreateParagraph({Name=t("Build","รุ่น"),Content="tapping-auto-test-9"})
     diagnostics:CreateButton({Name=t("Copy / Save Report","คัดลอก / บันทึกรายงาน"),Callback=api.SaveReport})
     diagnostics:CreateButton({Name=t("Stop All","หยุดทั้งหมด"),Callback=function()core.Stop();task.defer(build)end})
     diagnostics:CreateButton({Name=t("Unload","ปิดสคริปต์"),Callback=api.Destroy})
@@ -1609,6 +1745,8 @@ local ok,problem=xpcall(function()
         local success,err=pcall(movement.Tick)
         if not success then movement.Report.error=tostring(err)end
         fastHatch.Tick()
+        local playerOK,playerError=pcall(playerControls.Tick)
+        if not playerOK then playerControls.Report.error=tostring(playerError)end
         for _,name in ipairs(core.Names)do core.Tick(name)end
         refresh(core.Report)
     end)
