@@ -68,9 +68,9 @@ function mt.__newindex(self,key,value)
     if previous~=value and self.signals[key] then self.signals[key]:Fire()end
 end
 function Instance.new(class)
-    return setmetatable({props={ClassName=class,Name=class,Size=UDim2.fromScale(1,1),Position=UDim2.fromScale(0,0),
+    return setmetatable({props={ClassName=class,Name=class,Size=UDim2.fromScale(1,1),Position=UDim2.fromScale(0,0),AnchorPoint=Vector2.new(0,0),
         Visible=true,DisplayOrder=0,AbsoluteSize=Vector2.new(0,0),Image='',ImageColor3=Color3.new(1,1,1),Scale=1,RichText=false,BackgroundTransparency=0,BackgroundColor3=Color3.new(1,1,1),
-        TextColor3=Color3.new(1,1,1),Color=class=='UIGradient' and ColorSequence.new(Color3.new(1,1,1)) or class=='UIStroke' and Color3.new(1,1,1) or nil,
+        TextColor3=Color3.new(1,1,1),TextStrokeColor3=Color3.new(0,0,0),TextTransparency=0,Color=class=='UIGradient' and ColorSequence.new(Color3.new(1,1,1)) or class=='UIStroke' and Color3.new(1,1,1) or nil,
         Text='',Enabled=true,ApplyStrokeMode=Enum.ApplyStrokeMode.Border,Font=Enum.Font.SourceSans},
         signals={},children={},attributes={}},mt)
 end

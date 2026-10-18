@@ -1,6 +1,6 @@
 -- Shared presentation only. Game callbacks, network APIs and compiler environments stay original.
 local scope=type(getgenv)=="function"and getgenv()or _G
-local VERSION="devil-blue-20261019-3"
+local VERSION="devil-blue-20261019-4"
 if scope.DevilHubBlueGui and scope.DevilHubBlueGui.Version==VERSION and not scope.DevilHubBlueGui.Stopped then return scope.DevilHubBlueGui end
 if scope.DevilHubBlueGui and scope.DevilHubBlueGui.Destroy then scope.DevilHubBlueGui.Destroy()end
 local controller={Version=VERSION,Stopped=false,Report={screens=0,nodes=0,callbacksReplaced=0}}
@@ -11,6 +11,7 @@ local settings=table.clone(defaults)
 local configFile="DevilHub-BlueGUI.json"
 local links,tracked,owned,states,scales={},{},{},{},{}
 local ui,refreshUI,refreshAll,createUI={},nil,nil,nil
+local toggleTracks,toggleThumbs=setmetatable({},{__mode="k"}),setmetatable({},{__mode="k"})
 local http=game:GetService("HttpService")
 local function hex(text)
     if type(text)~="string"then return nil end
@@ -30,6 +31,8 @@ local function updatePalette()
     palette.Accent=hex(settings.Accent);palette.Background=hex(settings.Background)
     palette.Surface=palette.Background:Lerp(palette.Accent,.04)
     palette.Surface2=palette.Background:Lerp(palette.Accent,.2)
+    palette.Off=Color3.fromRGB(32,39,49)
+    palette.Muted=Color3.fromRGB(153,169,185)
 end
 updatePalette()
 local function keep(signal,fn,bag)
@@ -712,6 +715,11 @@ local function launcher(node)
         local name=current.Name:lower()
         if name:find("launcher",1,true)or name:find("floating",1,true)or name:find("leftcenter",1,true)
             or name:find("guitoggle",1,true)or name:find("hubtoggle",1,true)then return true end
+        if current:IsA("GuiButton")and current.Parent and current.Parent:IsA("ScreenGui")then
+            for _,child in ipairs(current:GetChildren())do
+                if(child:IsA("ImageLabel")or child:IsA("ImageButton"))and logo(child)then return true end
+            end
+        end
         if current:IsA("ScreenGui")then break end
         current=current.Parent
     end
@@ -724,10 +732,39 @@ local function brandImage(node)
     return image:find("devil-logo",1,true)~=nil or image:find("DevilHub_Silver",1,true)~=nil
         or scope.DevilHubSilverLogo~=nil and image==scope.DevilHubSilverLogo
 end
+local function chromeImage(node)
+    if logo(node)then return true end
+    local image=tostring(node.Image):lower()
+    local name=node.Name:lower()
+    if image:find("rbxthumb://",1,true)or image:find("headshot",1,true)or name:find("avatar",1,true)
+        or name:find("thumbnail",1,true)or name:find("petimage",1,true)or name:find("itemimage",1,true)
+        or name:find("eggimage",1,true)or name=="backgroundimage"then return false end
+    local current=node.Parent
+    while current and not current:IsA("ScreenGui")do
+        local key=current.Name:lower()
+        if key=="inventory"or key=="petimage"or key=="itemimage"or key=="eggimage"or key=="thumbnail"
+            or key=="itemcard"or key=="petcard"or key=="eggcard"or key=="avatar"or key=="viewport"then return false end
+        current=current.Parent
+    end
+    -- Libraries frequently leave navigation, checkmarks and action glyphs unnamed.
+    return true
+end
+local function toggleOn(track,thumb)
+    local width=track.Size.X.Offset
+    local x=thumb.Position.X.Scale*width+thumb.Position.X.Offset
+    local center=x+(.5-thumb.AnchorPoint.X)*thumb.Size.X.Offset
+    return center>width*.5
+end
+local function glyphFrame(node)
+    if not node:IsA("Frame")or not node.Parent or not node.Parent:IsA("GuiButton")then return false end
+    local size=node.Size
+    return size.X.Scale==0 and size.Y.Scale==0 and size.X.Offset>0 and size.Y.Offset>0
+        and math.max(size.X.Offset,size.Y.Offset)<=24 and math.min(size.X.Offset,size.Y.Offset)<=4
+end
 local function target(node,key,source)
     local name=node.Name:lower()
     if key=="BackgroundTransparency"then
-        if node:IsA("ImageButton")and(launcher(node)or brandImage(node))then return 0 end
+        if node:IsA("GuiButton")and(launcher(node)or brandImage(node))then return 0 end
         if source>=.98 then return source end
         return math.max(source,launcher(node)and 0 or .14)
     elseif key=="PlaceholderText"then return translate(source)
@@ -736,20 +773,33 @@ local function target(node,key,source)
         return (saturation(source)>.1 or brightness(source)<.8)and palette.Accent or white
     elseif key=="Text"then
         return (source:gsub('(<font[^>]-color%s*=%s*["\'])[^"\']+(["\'])',"%1"..settings.Accent.."%2"))
-    elseif key=="ImageColor3"then return logo(node)and white or palette.Accent
+    elseif key=="TextStrokeColor3"then return palette.Background
+    elseif key=="ImageColor3"then
+        if not chromeImage(node)then return source end
+        if logo(node)then return white end
+        if name:find("shadow",1,true)then return palette.Background end
+        if saturation(source)<.04 and brightness(source)>.95 then return white end
+        return palette.Accent
     elseif key=="ScrollBarImageColor3"or key=="Color"and node:IsA("UIStroke")then return palette.Accent
     elseif key=="Color"and node:IsA("UIGradient")then
         local parent=node.Parent
+        if parent and(parent:IsA("ImageLabel")or parent:IsA("ImageButton"))then
+            if not chromeImage(parent)then return source end
+            return logo(parent)and ColorSequence.new(white)or ColorSequence.new(white,palette.Accent)
+        end
         if parent and(parent:IsA("TextLabel")or parent:IsA("TextButton"))then return ColorSequence.new(white,palette.Accent)end
         local value=source.Keypoints[1].Value
         return brightness(value)>.5 and saturation(value)>.15 and ColorSequence.new(palette.Surface2,palette.Accent)
             or ColorSequence.new(palette.Background,palette.Surface)
     elseif key=="BackgroundColor3"then
         if launcher(node)or node:IsA("ImageButton")and brandImage(node)then return Color3.fromRGB(0,0,0)end
+        if toggleTracks[node]then return toggleOn(node,toggleTracks[node])and palette.Accent or palette.Off end
+        if toggleThumbs[node]then return toggleOn(toggleThumbs[node],node)and white or palette.Muted end
+        if glyphFrame(node)then return palette.Accent end
         if node.Parent and node.Parent:IsA("ScreenGui")or name=="root"or name=="mainwindow"then return palette.Background end
         if node:IsA("TextBox")then return palette.Surface end
         if name:find("toggle",1,true)or name:find("switch",1,true)or name:find("slider",1,true)then
-            return brightness(source)>.48 and palette.Accent or palette.Surface2
+            return saturation(source)>.08 and brightness(source)>.35 and palette.Accent or palette.Off
         end
         if name:find("tab",1,true)or name:find("nav",1,true)or name:find("option",1,true)or name:find("group",1,true)or name:find("section",1,true)or name:find("panel",1,true)or node:IsA("TextButton")then return palette.Surface2 end
         return brightness(source)>.45 and saturation(source)>.15 and palette.Surface2 or palette.Background
@@ -771,40 +821,75 @@ local function observe(node,state,key)
         applyProperty(node,state,key)
     end,state.Links)
 end
+local function inspectToggle(track)
+    if not track or toggleTracks[track]or not track:IsA("GuiObject")then return end
+    local size=track.Size
+    local w,h=size.X.Offset,size.Y.Offset
+    if size.X.Scale~=0 or size.Y.Scale~=0 or w<28 or w>68 or h<14 or h>36 or w/h<1.3 or w/h>2.8 then return end
+    local name=track.Name:lower()
+    if not(track.Parent and track.Parent:IsA("GuiButton"))and not name:find("toggle",1,true)and not name:find("switch",1,true)then return end
+    for _,thumb in ipairs(track:GetChildren())do
+        if thumb:IsA("Frame")or thumb:IsA("ImageLabel")or thumb:IsA("ImageButton")then
+            local ts,p,anchor=thumb.Size,thumb.Position,thumb.AnchorPoint
+            if ts.X.Scale==0 and ts.Y.Scale==0 and ts.X.Offset>=8 and ts.X.Offset<=h+4 and ts.Y.Offset>=8
+                and math.abs(ts.X.Offset-ts.Y.Offset)<=6 and anchor.Y==.5 and p.Y.Scale==.5
+                and(p.X.Scale==0 or p.X.Scale==1)then
+                toggleTracks[track]=thumb;toggleThumbs[thumb]=track
+                local function sync()
+                    for _,part in ipairs({track,thumb})do
+                        local state=states[part]
+                        if state and state.Source.BackgroundColor3 then applyProperty(part,state,"BackgroundColor3")end
+                    end
+                end
+                for _,key in ipairs({"Position","Size","AnchorPoint"})do keep(thumb:GetPropertyChangedSignal(key),sync)end
+                keep(thumb.Destroying,function()toggleTracks[track]=nil;toggleThumbs[thumb]=nil end)
+                sync();return
+            end
+        end
+    end
+end
 local function patch(node)
     if node:GetAttribute("DevilLocalizationOverlay")or node:GetAttribute("DevilBlueSettings")then return end
     localize(node)
     if states[node]then return end
     local keys={}
     if node:IsA("GuiObject")then
-        if node:IsA("Frame")or node:IsA("TextButton")or node:IsA("ImageButton")or node:IsA("TextBox")or node:IsA("ScrollingFrame")then table.insert(keys,"BackgroundColor3");table.insert(keys,"BackgroundTransparency")end
+        table.insert(keys,"BackgroundColor3");table.insert(keys,"BackgroundTransparency")
         if node:IsA("TextLabel")or node:IsA("TextButton")or node:IsA("TextBox")then
             table.insert(keys,"TextColor3")
+            table.insert(keys,"TextStrokeColor3")
             if node.RichText then table.insert(keys,"Text")end
         end
         if node:IsA("TextBox")then table.insert(keys,"PlaceholderText")end
         if node:IsA("ScrollingFrame")then table.insert(keys,"ScrollBarImageColor3")end
         if node:IsA("ImageLabel")or node:IsA("ImageButton")then
-            local name=node.Name:lower()
-            local parentName=node.Parent and node.Parent.Name:lower()or ""
-            local navigation=parentName:find("tab",1,true)or parentName:find("nav",1,true)or parentName:find("sidebar",1,true)
-            if logo(node)or name=="tabicon"or name=="navicon"or name=="icon"and navigation then table.insert(keys,"ImageColor3")end
+            if chromeImage(node)then table.insert(keys,"ImageColor3")end
         end
     elseif node:IsA("UIStroke")or node:IsA("UIGradient")then table.insert(keys,"Color")end
     if #keys==0 then return end
     local state={Source={},Applied={},Links={}};states[node]=state
     controller.Report.nodes+=1
     for _,key in ipairs(keys)do observe(node,state,key)end
+    inspectToggle(node);inspectToggle(node.Parent)
+    if toggleThumbs[node]then applyProperty(node,state,"BackgroundColor3")end
     keep(node.Destroying,function()
         for _,link in ipairs(state.Links)do link:Disconnect()end
         states[node]=nil
     end,state.Links)
     if node:IsA("ImageLabel")or node:IsA("ImageButton")then
         keep(node:GetPropertyChangedSignal("Image"),function()
-            if brandImage(node)and state.Source.ImageColor3==nil then observe(node,state,"ImageColor3")
+            if chromeImage(node)and state.Source.ImageColor3==nil then observe(node,state,"ImageColor3")
             elseif state.Source.ImageColor3~=nil then applyProperty(node,state,"ImageColor3")end
             for _,key in ipairs({"BackgroundColor3","BackgroundTransparency"})do
                 if state.Source[key]~=nil then applyProperty(node,state,key)end
+            end
+            local parent=node.Parent
+            while parent and not parent:IsA("ScreenGui")do
+                local parentState=states[parent]
+                if parentState then for _,key in ipairs({"BackgroundColor3","BackgroundTransparency"})do
+                    if parentState.Source[key]~=nil then applyProperty(parent,parentState,key)end
+                end end
+                parent=parent.Parent
             end
         end,state.Links)
     end
@@ -836,42 +921,116 @@ local function scaleScreen(screen)
     state.Applied=state.Base*settings.Scale/100;state.Node.Scale=state.Applied
 end
 createUI=function(screen)
-    if screen.Name=="DevilHubLoading"or ui[screen]then return end
+    if screen.Name=="DevilHubLoading"then return end
     local root,area
     for _,child in ipairs(screen:GetChildren())do if child:IsA("GuiObject")and not child:GetAttribute("DevilBlueSettings")then
         local size=child.AbsoluteSize;local value=size.X*size.Y
         if value>40000 and(not area or value>area)then root,area=child,value end
     end end
     if not root then return end
+    local sidebar,tabs
+    for _,node in ipairs(root:GetDescendants())do
+        if node.Name=="Sidebar"and node:IsA("GuiObject")then
+            local list=node:FindFirstChild("Tabs")or node:FindFirstChild("TabList")
+            if list and list:IsA("GuiObject")then sidebar,tabs=node,list;break end
+        end
+    end
+    local previous=ui[screen]
+    if previous then
+        if previous.Root==root and previous.Dock==sidebar then previous.Reflow();return end
+        previous.Frame:Destroy()
+    end
+    local panelLinks,geometry={},{}
     local function make(class,props,parent)
         local node=Instance.new(class);node:SetAttribute("DevilBlueSettings",true)
         for key,value in pairs(props)do node[key]=value end;node.Parent=parent;return node
     end
-    local host=make("Frame",{Name="DevilLanguageSelector",BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0),
-        Position=UDim2.new(1,-88,0,10),Size=UDim2.fromOffset(96,26),ZIndex=100},root)
-    local button=make("TextButton",{Name="LanguageSelect",Size=UDim2.fromScale(1,1),BorderSizePixel=0,
-        BackgroundColor3=palette.Background,BackgroundTransparency=.12,Font=Enum.Font.GothamSemibold,TextSize=12,ZIndex=101},host)
-    make("UICorner",{CornerRadius=UDim.new(0,6)},button)
+    local function reserve(node,key,transform)
+        geometry[node]=geometry[node]or{}
+        if geometry[node][key]then return end
+        local record={Source=node[key]};geometry[node][key]=record
+        local function apply()
+            record.Applied=transform(record.Source)
+            if node[key]~=record.Applied then node[key]=record.Applied end
+        end
+        keep(node:GetPropertyChangedSignal(key),function()
+            if node[key]==record.Applied then return end
+            record.Source=node[key];apply()
+        end,panelLinks)
+        apply()
+    end
+    local rowHeight=40
+    local host=make("Frame",{Name="DevilLanguageSelector",BackgroundTransparency=1,Size=UDim2.new(1,-16,0,32),
+        Position=UDim2.fromOffset(8,0),ZIndex=100},sidebar or root)
+    local function reflow()
+        if sidebar then
+            reserve(tabs,"Position",function(p)return UDim2.new(p.X.Scale,p.X.Offset,p.Y.Scale,p.Y.Offset+rowHeight)end)
+            reserve(tabs,"Size",function(s)return UDim2.new(s.X.Scale,s.X.Offset,s.Y.Scale,s.Y.Offset-rowHeight)end)
+            local original=geometry[tabs].Position.Source
+            host.Position=UDim2.new(0,8,original.Y.Scale,original.Y.Offset+2)
+        else
+            -- Reserve an actual row for libraries without a Sidebar; no overlay on native controls.
+            host.Position=UDim2.fromOffset(12,4);host.Size=UDim2.new(1,-24,0,32)
+            for _,child in ipairs(root:GetChildren())do
+                if child:IsA("GuiObject")and not child:GetAttribute("DevilBlueSettings")and not launcher(child)then
+                    reserve(child,"Position",function(p)return UDim2.new(p.X.Scale,p.X.Offset,p.Y.Scale,p.Y.Offset+rowHeight*(1-p.Y.Scale))end)
+                    reserve(child,"Size",function(s)return UDim2.new(s.X.Scale,s.X.Offset,s.Y.Scale,s.Y.Offset-rowHeight*s.Y.Scale)end)
+                end
+            end
+        end
+    end
+    local button=make("TextButton",{Name="LanguageSelect",Size=sidebar and UDim2.fromScale(1,1)or UDim2.fromOffset(112,32),
+        AnchorPoint=sidebar and Vector2.new(0,0)or Vector2.new(1,0),Position=sidebar and UDim2.fromOffset(0,0)or UDim2.fromScale(1,0),
+        BorderSizePixel=0,AutoButtonColor=false,BackgroundColor3=palette.Surface2,BackgroundTransparency=.18,
+        Font=Enum.Font.GothamSemibold,TextSize=13,ZIndex=101},host)
+    make("UICorner",{CornerRadius=UDim.new(0,8)},button)
     make("UIStroke",{Color=palette.Accent,Transparency=.65,Thickness=1},button)
-    local menu=make("Frame",{Name="LanguageOptions",Visible=false,Position=UDim2.fromOffset(0,30),Size=UDim2.fromOffset(96,64),
-        BackgroundColor3=palette.Background,BackgroundTransparency=.08,BorderSizePixel=0,ZIndex=102},host)
-    make("UICorner",{CornerRadius=UDim.new(0,6)},menu)
+    local label
+    if not sidebar then label=make("TextLabel",{Name="LanguageLabel",Text="Language",BackgroundTransparency=1,
+        Size=UDim2.new(1,-124,1,0),TextXAlignment=Enum.TextXAlignment.Left,TextColor3=white,
+        Font=Enum.Font.GothamSemibold,TextSize=13,ZIndex=101},host)end
+    local menu=make("Frame",{Name="LanguageOptions",Visible=false,Position=UDim2.new(button.Position.X.Scale,button.Position.X.Offset,0,38),
+        AnchorPoint=button.AnchorPoint,Size=sidebar and UDim2.new(1,0,0,72)or UDim2.fromOffset(112,72),
+        BackgroundColor3=palette.Background,BackgroundTransparency=.04,BorderSizePixel=0,ZIndex=102},host)
+    make("UICorner",{CornerRadius=UDim.new(0,8)},menu)
     make("UIStroke",{Color=palette.Accent,Transparency=.6,Thickness=1},menu)
+    local choices={}
     for index,option in ipairs({{"EN","English"},{"TH","ไทย"}})do
-        local choice=make("TextButton",{Name="Language"..option[1],Text=option[2],Position=UDim2.fromOffset(4,(index-1)*30+2),
-            Size=UDim2.fromOffset(88,28),BackgroundTransparency=1,TextColor3=white,Font=Enum.Font.GothamSemibold,TextSize=13,ZIndex=103},menu)
-        keep(choice.Activated,function()controller.SetLanguage(option[1]);menu.Visible=false end)
+        local choice=make("TextButton",{Name="Language"..option[1],Text=option[2],Position=UDim2.fromOffset(4,(index-1)*32+4),
+            Size=UDim2.new(1,-8,0,28),BackgroundColor3=palette.Surface2,BackgroundTransparency=1,BorderSizePixel=0,
+            AutoButtonColor=false,TextColor3=white,Font=Enum.Font.GothamSemibold,TextSize=13,ZIndex=103},menu)
+        make("UICorner",{CornerRadius=UDim.new(0,6)},choice)
+        choices[option[1]]=choice
+        keep(choice.Activated,function()controller.SetLanguage(option[1]);menu.Visible=false end,panelLinks)
+        keep(choice.MouseEnter,function()choice.BackgroundTransparency=.15 end,panelLinks)
+        keep(choice.MouseLeave,function()choice.BackgroundTransparency=settings.Language==option[1]and 0 or 1 end,panelLinks)
     end
-    keep(button.Activated,function()menu.Visible=not menu.Visible end)
+    keep(button.Activated,function()menu.Visible=not menu.Visible end,panelLinks)
+    keep(root:GetPropertyChangedSignal("Visible"),function()if not root.Visible then menu.Visible=false end end,panelLinks)
     local function sync()
-        button.Text=settings.Language=="TH"and"ไทย  v"or"EN  v"
+        button.Text=settings.Language=="TH"and"ไทย  ▾"or"English  ▾"
         button.TextColor3=palette.Accent
+        if label then label.Text=settings.Language=="TH"and"ภาษา"or"Language"end
+        for code,choice in pairs(choices)do
+            local selected=code==settings.Language
+            choice.TextColor3=selected and palette.Accent or white
+            choice.BackgroundTransparency=selected and 0 or 1
+        end
     end
-    ui[screen]={Frame=host,Update=sync}
-    keep(host.Destroying,function()ui[screen]=nil end)
+    local cleaned=false
+    local function cleanup()
+        if cleaned then return end;cleaned=true
+        for _,link in ipairs(panelLinks)do link:Disconnect()end
+        for node,properties in pairs(geometry)do for key,record in pairs(properties)do
+            pcall(function()if node[key]==record.Applied then node[key]=record.Source end end)
+        end end
+        ui[screen]=nil
+    end
+    ui[screen]={Frame=host,Root=root,Dock=sidebar,Update=sync,Reflow=reflow,Cleanup=cleanup}
+    keep(host.Destroying,cleanup,panelLinks)
     function controller.Open()menu.Visible=true end
     refreshUI=function()for _,panel in pairs(ui)do panel.Update()end end
-    sync()
+    reflow();sync()
 end
 
 local function mark(screen)
@@ -955,7 +1114,7 @@ function controller.Destroy()
         state.Link:Disconnect()
         if state.Created then state.Node:Destroy()else pcall(function()state.Node.Scale=state.Base end)end
     end
-    for _,panel in pairs(table.clone(ui))do panel.Frame:Destroy()end
+    for _,panel in pairs(table.clone(ui))do panel.Cleanup();panel.Frame:Destroy()end
     if scope.DevilHubBlueGui==controller then scope.DevilHubBlueGui=nil end
 end
 local containers={}

@@ -2,7 +2,7 @@ from pathlib import Path
 import hashlib, json, re, subprocess, sys
 
 root = Path(__file__).resolve().parents[2]
-RELEASE = 'devil-blue-20261019-3'
+RELEASE = 'devil-blue-20261019-4'
 FILES = ['mine-auto-test.lua', 'tapping-auto-test.lua', 'climb-for-eggs.lua',
          'lift-rock-for-eggs.lua', 'aqua-auto-egg.lua', 'devil-steal-an-egg.lua',
          'ride-a-pet.lua', 'break-and-steal-an-egg.lua', 'loot-to-forge.lua',
