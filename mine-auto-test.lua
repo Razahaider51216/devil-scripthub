@@ -1,3 +1,22 @@
+-- BEGIN SHARED DEVIL BLUE GUI
+do
+    local shared=type(getgenv)=="function"and getgenv()or _G
+    local current=shared.DevilHubBlueGui
+    if not(current and current.Version=="devil-blue-20261019-1"and not current.Stopped)then
+        local ok,problem=pcall(function()
+            local source=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/4125d27475cd70843a891ddd730dcb6346c7b84d/devil-blue-gui.lua")
+            assert(type(source)=="string"and #source==16184,"DEVIL blue GUI download size mismatch")
+            local sum=0
+            for i=1,#source do sum=(sum*33+source:byte(i))%4294967296;if i%32768==0 and task and task.wait then task.wait()end end
+            assert(sum==3683037117,"DEVIL blue GUI checksum mismatch")
+            local run,err=loadstring(source,"DEVIL HUB / Blue GUI")
+            assert(run,err)
+            return run()
+        end)
+        if not ok then warn("DEVIL HUB: blue GUI could not start: "..tostring(problem))end
+    end
+end
+-- END SHARED DEVIL BLUE GUI
 assert(game.PlaceId==79389059854988 or game.GameId==10740316645,"DEVIL HUB: เปิดแมพจาก Dump23 ก่อน")
 local env=type(getgenv)=="function"and getgenv()or _G
 if env.DevilMineTest then env.DevilMineTest.Destroy()end

@@ -6,16 +6,17 @@ def literal(s):
  while ']'+e+']' in s:e+='='
  return '['+e+'[\n'+s+']'+e+']'
 public=(repo/'devil-steal-an-egg.lua').read_text(encoding='utf-8');entry=(repo/'devil-steal-an-egg-chilli-recovered-ui-test.lua').read_text(encoding='utf-8')
+if entry.startswith('-- BEGIN SHARED DEVIL BLUE GUI'):entry=entry.split('-- END SHARED DEVIL BLUE GUI\n',1)[1]
 test='local public='+literal(public)+'\nlocal reference='+literal(entry)+r'''
 local nativeCompile=loadstring
 local function setup(universe,place,corrupt)
     local downloads,compiled={},0
-    local state={}
+    local state={DevilHubBlueGui={Version="devil-blue-20261019-1",Stopped=false}}
     local env={game={GameId=universe,PlaceId=place},task={wait=function()end},getgenv=function()return state end}
     function env.game:HttpGet(url)
         table.insert(downloads,url)
         if url:find('/loader?',1,true) then return 'main router source' end
-        assert(url=='https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/1ce8a4e91a7cdd90fb048dac13882b049ee1d378/devil-steal-an-egg-chilli-recovered-ui-test.lua','wrong latest entry pin')
+        assert(url=='https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/4125d27475cd70843a891ddd730dcb6346c7b84d/devil-steal-an-egg-chilli-recovered-ui-test.lua','wrong latest entry pin')
         return corrupt and reference:sub(1,-2)..'x' or reference
     end
     env.loadstring=function(source,label)

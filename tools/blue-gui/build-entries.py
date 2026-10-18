@@ -19,7 +19,7 @@ def checksum(data):
 
 def prefix(ref):
     assert re.fullmatch('[0-9a-f]{40}', ref)
-    module = (root / 'devil-blue-gui.lua').read_bytes()
+    module = subprocess.check_output(['git', 'show', ref + ':devil-blue-gui.lua'], cwd=root)
     return f'''-- BEGIN SHARED DEVIL BLUE GUI
 do
     local shared=type(getgenv)=="function"and getgenv()or _G
@@ -45,7 +45,7 @@ def main():
     ref = sys.argv[1]
     prelude = prefix(ref)
     manifest = {'release': RELEASE, 'module_commit': ref,
-                'module_sha256': hashlib.sha256((root / 'devil-blue-gui.lua').read_bytes()).hexdigest(),
+                'module_sha256': hashlib.sha256(subprocess.check_output(['git', 'show', ref + ':devil-blue-gui.lua'], cwd=root)).hexdigest(),
                 'gameplay_bodies_unchanged': True, 'live_verified': False, 'entries': {}}
     for name in FILES:
         path = root / name
