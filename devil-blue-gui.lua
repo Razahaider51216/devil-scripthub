@@ -1,6 +1,6 @@
 -- Shared presentation only. Game callbacks, network APIs and compiler environments stay original.
 local scope=type(getgenv)=="function"and getgenv()or _G
-local VERSION="devil-blue-20261019-4"
+local VERSION="devil-blue-20261019-5"
 if scope.DevilHubBlueGui and scope.DevilHubBlueGui.Version==VERSION and not scope.DevilHubBlueGui.Stopped then return scope.DevilHubBlueGui end
 if scope.DevilHubBlueGui and scope.DevilHubBlueGui.Destroy then scope.DevilHubBlueGui.Destroy()end
 local controller={Version=VERSION,Stopped=false,Report={screens=0,nodes=0,callbacksReplaced=0}}
@@ -29,6 +29,7 @@ if type(readfile)=="function"and type(isfile)=="function"then pcall(function()if
 local palette={}
 local function updatePalette()
     palette.Accent=hex(settings.Accent);palette.Background=hex(settings.Background)
+    palette.Blue=Color3.fromRGB(70,151,255)
     palette.Surface=palette.Background:Lerp(palette.Accent,.04)
     palette.Surface2=palette.Background:Lerp(palette.Accent,.2)
     palette.Off=Color3.fromRGB(32,39,49)
@@ -42,7 +43,7 @@ local function save()
     if type(writefile)=="function"then pcall(function()writefile(configFile,http:JSONEncode({Language=settings.Language}))end)end
 end
 -- BEGIN SHARED LOCALIZATION
--- Render translated labels in non-interactive overlays. The engine's original
+-- Render two-tone/translated labels in non-interactive overlays. The engine's original
 -- Text, identifiers, input values and callbacks remain untouched.
 local phrasePairs={
     {"Accent Color","สีหลัก"},
@@ -661,17 +662,30 @@ local function localize(node)
     function record.Update()
         if controller.Stopped or not node.Parent then return end
         local value=translate(node.Text)
-        if value==node.Text then clearOverlay(node,record);return end
+        if value==""then clearOverlay(node,record);return end
         if not record.Overlay then
             if node:FindFirstChildOfClass("UIListLayout")or node:FindFirstChildOfClass("UIGridLayout")then return end
             local overlay=Instance.new("TextLabel")
             overlay.Name="DevilTranslatedLabel";overlay:SetAttribute("DevilLocalizationOverlay",true)
             overlay.BackgroundTransparency=1;overlay.BorderSizePixel=0;overlay.Active=false;overlay.Selectable=false
             overlay.Position=UDim2.fromOffset(0,0);overlay.Size=UDim2.fromScale(1,1)
-            local function sync(key)pcall(function()overlay[key]=node[key]end)end
+            -- Gradients live only on transparent text, never on a button's background.
+            local function sync(key)pcall(function()overlay[key]=key=="TextColor3"and white or node[key]end)end
             for _,key in ipairs({"Font","FontFace","TextSize","TextScaled","TextWrapped","TextXAlignment","TextYAlignment",
                 "TextColor3","TextStrokeColor3","TextStrokeTransparency","RichText","LineHeight","TextTruncate"})do
                 sync(key);keep(node:GetPropertyChangedSignal(key),function()sync(key)end,record.StyleLinks)
+            end
+            local tone=Instance.new("UIGradient");tone.Name="DevilTextTone"
+            tone:SetAttribute("DevilLocalizationOverlay",true)
+            tone.Color=ColorSequence.new(palette.Blue,white);tone.Rotation=0;tone.Parent=overlay
+            local padding=node:FindFirstChildOfClass("UIPadding")
+            if padding then
+                local clone=Instance.new("UIPadding");clone:SetAttribute("DevilLocalizationOverlay",true)
+                for _,key in ipairs({"PaddingLeft","PaddingRight","PaddingTop","PaddingBottom"})do
+                    clone[key]=padding[key]
+                    keep(padding:GetPropertyChangedSignal(key),function()clone[key]=padding[key]end,record.StyleLinks)
+                end
+                clone.Parent=overlay
             end
             local function layer()overlay.ZIndex=(node.ZIndex or 1)+1 end
             layer();keep(node:GetPropertyChangedSignal("ZIndex"),layer,record.StyleLinks)
@@ -685,9 +699,14 @@ local function localize(node)
             end,record.StyleLinks)
             overlay.Parent=node
         end
-        record.Overlay.Text=value
+        -- Inline font colors must not multiply or cover the shared text gradient.
+        record.Overlay.Text=node.RichText and value:gsub('(<font[^>]-)%s+[cC][oO][lL][oO][rR]%s*=%s*["\'][^"\']+["\']',"%1")or value
     end
     keep(node:GetPropertyChangedSignal("Text"),record.Update,record.Links)
+    keep(node.ChildAdded,function(child)
+        if child:IsA("UIListLayout")or child:IsA("UIGridLayout")then clearOverlay(node,record)
+        elseif child:IsA("UIPadding")then clearOverlay(node,record);record.Update()end
+    end,record.Links)
     keep(node.Destroying,function()
         for _,link in ipairs(record.Links)do link:Disconnect()end
         clearOverlay(node,record);localized[node]=nil
@@ -763,7 +782,8 @@ local function glyphFrame(node)
 end
 local function target(node,key,source)
     local name=node.Name:lower()
-    if key=="BackgroundTransparency"then
+    if key=="Visible"and name=="devillanguagebutton"then return false
+    elseif key=="BackgroundTransparency"then
         if node:IsA("GuiButton")and(launcher(node)or brandImage(node))then return 0 end
         if source>=.98 then return source end
         return math.max(source,launcher(node)and 0 or .14)
@@ -787,10 +807,8 @@ local function target(node,key,source)
             if not chromeImage(parent)then return source end
             return logo(parent)and ColorSequence.new(white)or ColorSequence.new(white,palette.Accent)
         end
-        if parent and(parent:IsA("TextLabel")or parent:IsA("TextButton"))then return ColorSequence.new(white,palette.Accent)end
-        local value=source.Keypoints[1].Value
-        return brightness(value)>.5 and saturation(value)>.15 and ColorSequence.new(palette.Surface2,palette.Accent)
-            or ColorSequence.new(palette.Background,palette.Surface)
+        if parent and parent:IsA("TextLabel")and parent.BackgroundTransparency>=.98 then return ColorSequence.new(palette.Blue,white)end
+        return ColorSequence.new(palette.Background,palette.Surface2)
     elseif key=="BackgroundColor3"then
         if launcher(node)or node:IsA("ImageButton")and brandImage(node)then return Color3.fromRGB(0,0,0)end
         if toggleTracks[node]then return toggleOn(node,toggleTracks[node])and palette.Accent or palette.Off end
@@ -855,6 +873,7 @@ local function patch(node)
     local keys={}
     if node:IsA("GuiObject")then
         table.insert(keys,"BackgroundColor3");table.insert(keys,"BackgroundTransparency")
+        if node.Name=="DevilLanguageButton"then table.insert(keys,"Visible")end
         if node:IsA("TextLabel")or node:IsA("TextButton")or node:IsA("TextBox")then
             table.insert(keys,"TextColor3")
             table.insert(keys,"TextStrokeColor3")
@@ -960,7 +979,7 @@ createUI=function(screen)
         apply()
     end
     local rowHeight=40
-    local host=make("Frame",{Name="DevilLanguageSelector",BackgroundTransparency=1,Size=UDim2.new(1,-16,0,32),
+    local host=make("Frame",{Name="DevilLanguageSelector",BackgroundTransparency=1,BorderSizePixel=0,Size=UDim2.new(1,-16,0,32),
         Position=UDim2.fromOffset(8,0),ZIndex=100},sidebar or root)
     local function reflow()
         if sidebar then
@@ -981,10 +1000,20 @@ createUI=function(screen)
     end
     local button=make("TextButton",{Name="LanguageSelect",Size=sidebar and UDim2.fromScale(1,1)or UDim2.fromOffset(112,32),
         AnchorPoint=sidebar and Vector2.new(0,0)or Vector2.new(1,0),Position=sidebar and UDim2.fromOffset(0,0)or UDim2.fromScale(1,0),
-        BorderSizePixel=0,AutoButtonColor=false,BackgroundColor3=palette.Surface2,BackgroundTransparency=.18,
+        BorderSizePixel=0,AutoButtonColor=false,Text="",BackgroundColor3=palette.Surface,BackgroundTransparency=1,
         Font=Enum.Font.GothamSemibold,TextSize=13,ZIndex=101},host)
     make("UICorner",{CornerRadius=UDim.new(0,8)},button)
-    make("UIStroke",{Color=palette.Accent,Transparency=.65,Thickness=1},button)
+    local caption=make("TextLabel",{Name="LanguageCaption",BackgroundTransparency=1,BorderSizePixel=0,
+        Size=UDim2.new(1,-20,1,0),TextColor3=white,Font=Enum.Font.GothamSemibold,TextSize=13,ZIndex=102},button)
+    make("UIGradient",{Color=ColorSequence.new(palette.Blue,white),Rotation=0},caption)
+    -- Draw the dropdown arrow; a Unicode arrow can display as a missing-glyph square.
+    for index,rotation in ipairs({45,-45})do
+        make("Frame",{Name="LanguageChevron"..index,Size=UDim2.fromOffset(5,2),AnchorPoint=Vector2.new(.5,.5),
+            Position=UDim2.new(1,index==1 and -15 or -12,.5,0),Rotation=rotation,
+            BackgroundColor3=palette.Accent,BorderSizePixel=0,ZIndex=102},button)
+    end
+    keep(button.MouseEnter,function()button.BackgroundTransparency=.3 end,panelLinks)
+    keep(button.MouseLeave,function()button.BackgroundTransparency=1 end,panelLinks)
     local label
     if not sidebar then label=make("TextLabel",{Name="LanguageLabel",Text="Language",BackgroundTransparency=1,
         Size=UDim2.new(1,-124,1,0),TextXAlignment=Enum.TextXAlignment.Left,TextColor3=white,
@@ -1008,8 +1037,7 @@ createUI=function(screen)
     keep(button.Activated,function()menu.Visible=not menu.Visible end,panelLinks)
     keep(root:GetPropertyChangedSignal("Visible"),function()if not root.Visible then menu.Visible=false end end,panelLinks)
     local function sync()
-        button.Text=settings.Language=="TH"and"ไทย  ▾"or"English  ▾"
-        button.TextColor3=palette.Accent
+        caption.Text=settings.Language=="TH"and"ไทย"or"English"
         if label then label.Text=settings.Language=="TH"and"ภาษา"or"Language"end
         for code,choice in pairs(choices)do
             local selected=code==settings.Language

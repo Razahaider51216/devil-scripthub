@@ -38,7 +38,7 @@ createUI=function(screen)
         apply()
     end
     local rowHeight=40
-    local host=make("Frame",{Name="DevilLanguageSelector",BackgroundTransparency=1,Size=UDim2.new(1,-16,0,32),
+    local host=make("Frame",{Name="DevilLanguageSelector",BackgroundTransparency=1,BorderSizePixel=0,Size=UDim2.new(1,-16,0,32),
         Position=UDim2.fromOffset(8,0),ZIndex=100},sidebar or root)
     local function reflow()
         if sidebar then
@@ -59,10 +59,20 @@ createUI=function(screen)
     end
     local button=make("TextButton",{Name="LanguageSelect",Size=sidebar and UDim2.fromScale(1,1)or UDim2.fromOffset(112,32),
         AnchorPoint=sidebar and Vector2.new(0,0)or Vector2.new(1,0),Position=sidebar and UDim2.fromOffset(0,0)or UDim2.fromScale(1,0),
-        BorderSizePixel=0,AutoButtonColor=false,BackgroundColor3=palette.Surface2,BackgroundTransparency=.18,
+        BorderSizePixel=0,AutoButtonColor=false,Text="",BackgroundColor3=palette.Surface,BackgroundTransparency=1,
         Font=Enum.Font.GothamSemibold,TextSize=13,ZIndex=101},host)
     make("UICorner",{CornerRadius=UDim.new(0,8)},button)
-    make("UIStroke",{Color=palette.Accent,Transparency=.65,Thickness=1},button)
+    local caption=make("TextLabel",{Name="LanguageCaption",BackgroundTransparency=1,BorderSizePixel=0,
+        Size=UDim2.new(1,-20,1,0),TextColor3=white,Font=Enum.Font.GothamSemibold,TextSize=13,ZIndex=102},button)
+    make("UIGradient",{Color=ColorSequence.new(palette.Blue,white),Rotation=0},caption)
+    -- Draw the dropdown arrow; a Unicode arrow can display as a missing-glyph square.
+    for index,rotation in ipairs({45,-45})do
+        make("Frame",{Name="LanguageChevron"..index,Size=UDim2.fromOffset(5,2),AnchorPoint=Vector2.new(.5,.5),
+            Position=UDim2.new(1,index==1 and -15 or -12,.5,0),Rotation=rotation,
+            BackgroundColor3=palette.Accent,BorderSizePixel=0,ZIndex=102},button)
+    end
+    keep(button.MouseEnter,function()button.BackgroundTransparency=.3 end,panelLinks)
+    keep(button.MouseLeave,function()button.BackgroundTransparency=1 end,panelLinks)
     local label
     if not sidebar then label=make("TextLabel",{Name="LanguageLabel",Text="Language",BackgroundTransparency=1,
         Size=UDim2.new(1,-124,1,0),TextXAlignment=Enum.TextXAlignment.Left,TextColor3=white,
@@ -86,8 +96,7 @@ createUI=function(screen)
     keep(button.Activated,function()menu.Visible=not menu.Visible end,panelLinks)
     keep(root:GetPropertyChangedSignal("Visible"),function()if not root.Visible then menu.Visible=false end end,panelLinks)
     local function sync()
-        button.Text=settings.Language=="TH"and"ไทย  ▾"or"English  ▾"
-        button.TextColor3=palette.Accent
+        caption.Text=settings.Language=="TH"and"ไทย"or"English"
         if label then label.Text=settings.Language=="TH"and"ภาษา"or"Language"end
         for code,choice in pairs(choices)do
             local selected=code==settings.Language

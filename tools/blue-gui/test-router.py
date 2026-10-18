@@ -12,7 +12,7 @@ fixture = 'local public=[' + eq + '[' + source + ']' + eq + ']\nlocal definition
 local nativeCompile=loadstring
 local function setup(universe,place,failures)
  local env,state,downloads={},{},{}
- state.DevilHubBlueGui={Version='devil-blue-20261019-4',Stopped=false}
+ state.DevilHubBlueGui={Version='devil-blue-20261019-5',Stopped=false}
  local loading={SetLogo=function()end,Update=function()end,Finish=function()end,Fail=function()end}
  state.DevilHubLoadController={Acquire=function()return loading end,IsActive=function()return true end}
  env.game={GameId=universe,PlaceId=place,Loaded={Wait=function()end}}
