@@ -32,3 +32,11 @@ Python and the existing sibling luau-tools executables. It downloads an immutabl
 upstream pin and rejects an unexpected SHA256 before decoding. Temporary decode
 files are generated beside the builder. See devil-chilli-native-ui-recovery.json
 for source hashes, byte counts and transfer checksum.
+
+The release wrapper passed 20 offline checks, including wrong-map rejection,
+duplicate launch, unavailable APIs, compiler/runtime failures, corrupt downloads
+and HTML responses. `python tools/chilli-20261019/test-delegate.py` exercises the
+actual public VM delegate for both map IDs, transfer integrity, native compilation,
+argument forwarding and cross-map redirection. The top-level loader is unchanged.
+The older all-map router fixture does not model the current shared startup
+loader and was not used as evidence for this release.
