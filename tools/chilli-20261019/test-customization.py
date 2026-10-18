@@ -73,7 +73,8 @@ calls=0
 local function transport(options,...)calls+=1;received=options;return 'sent',... end
 local host=setmetatable({request=transport,http_request=transport,httprequest=transport,
  syn={request=transport,untouched=true},http={request=transport},fluxus={request=transport}}, {__index=getfenv(0)})
-local run=install(assert(loadstring('return request(...)')),host)
+local lookup=install()
+local run=lookup('request',host.request)
 local originalBody={username='Chilli Hub',avatar_url='old',content='Venyx update',embeds={{title='Chilli Hub Egg Stolen',
  author={name='Venyx'},footer={text='Sent by Chilli Hub'},fields={{name='Chilli Hub',value='Venyx'}}}}}
 local original={Url='https://discord.com/api/webhooks/123/fake-token',Method='POST',Body=http:JSONEncode(originalBody),
@@ -92,12 +93,15 @@ for _,url in ipairs({'https://example.com/api/webhooks/a/b','https://discord.com
 end
 local malformed={Url=original.Url,Body='broken'};run(malformed);assert(received==malformed)
 for _,alias in ipairs({'http_request','httprequest','syn.request','http.request','fluxus.request'})do
- local fn=install(assert(loadstring('return '..alias..'(...)')),host)
+ local namespace,method=alias:match('^(%w+)%.(%w+)$')
+ local fn=namespace and lookup(namespace,host[namespace])[method]or lookup(alias,host[alias])
  fn(original);assert(http:JSONDecode(received.Body).username=='DEVIL HUB')
 end
-local nested=install(assert(loadstring('return assert(loadstring("return request(...)"))(...)')),host)
-nested(original);assert(http:JSONDecode(received.Body).username=='DEVIL HUB')
-print('PASS webhook: sender/embed branding, unchanged destination, aliases/nested compilation, headers, returns, non-webhook/malformed passthrough, no executor-global mutation')
+assert(lookup('getfenv',getfenv)==getfenv and lookup('setfenv',setfenv)==setfenv)
+assert(lookup('loadstring',loadstring)==loadstring and lookup('_G',getfenv(0))==getfenv(0))
+assert(lookup('request',host.request)==run and lookup('syn',host.syn)==lookup('syn',host.syn))
+assert(debug.info(lookup('getfenv',getfenv),'s')==debug.info(getfenv,'s'))
+print('PASS webhook: sender/embed branding, unchanged destination, aliases/native compiler identity, headers, returns, non-webhook/malformed passthrough, no executor-global mutation')
 '''
 fixture = fixture.replace('APPEARANCE', literal((here / 'appearance.lua').read_text(encoding='utf-8')))
 fixture = fixture.replace('WEBHOOK', literal((here / 'webhook-branding.lua').read_text(encoding='utf-8')))

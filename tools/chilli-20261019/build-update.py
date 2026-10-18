@@ -77,6 +77,19 @@ for before, after, count in reversed(patches):
     restored = restored.replace(after, before)
 assert restored == native, 'Unexpected edits outside declared adaptation'
 
+# Keep the original compiler, getfenv/setfenv, _G and bootstrap environment intact.
+# Only request globals fetched by the game VM receive message-branding adapters.
+vm_start = adapted.index('[4201]=function')
+vm_end = adapted.index('end,[', vm_start) + len('end')
+vm_section = adapted[vm_start:vm_end]
+vm_section, request_lookup_count = re.subn(r'B\[((?:c|P|F)\[Y\])\]',
+    lambda m: 'devilWebhookLookup(' + m[1] + ',B[' + m[1] + '])', vm_section)
+assert request_lookup_count == 8, 'Native global-lookup sites changed'
+adapted = adapted[:vm_start] + vm_section + adapted[vm_end:]
+helper = (WORK / 'webhook-branding.lua').read_text(encoding='utf-8')
+adapted = 'local devilWebhookLookup=(function()\n' + helper + '\nend)()()\n' + adapted
+
+
 filters = [{'id': lzma.FILTER_LZMA1, 'lc': 3, 'lp': 0, 'pb': 0, 'dict_size': 1 << 24}]
 compressed = lzma.compress(adapted.encode(), format=lzma.FORMAT_RAW, filters=filters)
 padded = compressed + b'\0' * (-len(compressed) % 4)
@@ -112,7 +125,7 @@ manifest = {
     'game_bytecode_sha256': sha(game_data), 'game_bytecode_unchanged': True,
     'native_ui_export_count': 1, 'native_patch_groups': len(patches), 'venyx_mode_disabled': True,
     'compression_roundtrip_verified': True, 'complete_vm_devirtualization': False,
-    'live_verified': False,
+    'live_verified': False, 'original_compiler_environment_preserved': True, 'request_lookup_sites': request_lookup_count,
 }
 (ROOT / 'devil-chilli-native-ui-recovery.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
 print(json.dumps(manifest, indent=2))

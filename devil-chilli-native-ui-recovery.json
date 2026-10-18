@@ -4,9 +4,9 @@
   "upstream_url": "https://raw.githubusercontent.com/tienkhanh1/Chilli-Hub-Script/03468a41b2ecf2d983b39993ba603c943c140f4f/StealAnEggg",
   "upstream_sha256": "7a9695a6cf5844852b59da7e527ea66c753de71fd633cb90a4e287313fdf7113",
   "upstream_bytes": 826054,
-  "source_bytes": 826025,
-  "source_sha256": "f1074e7a3aac580cdbc5f6202a5c47be787079a8000eeb9870561d566252dce6",
-  "transfer_checksum": 1916338372,
+  "source_bytes": 827210,
+  "source_sha256": "3c6ec4e142be6603a8cc822fdd6f65e535dab1429b45632a31574368d365da0a",
+  "transfer_checksum": 3204656553,
   "native_bytes": 1285437,
   "game_bytecode_bytes": 368215,
   "game_bytecode_sha256": "5ac70f29adaf06bfc983c4d475857c3ecaec9640ce99c91eea4c9b90972deced",
@@ -16,5 +16,7 @@
   "venyx_mode_disabled": true,
   "compression_roundtrip_verified": true,
   "complete_vm_devirtualization": false,
-  "live_verified": false
+  "live_verified": false,
+  "original_compiler_environment_preserved": true,
+  "request_lookup_sites": 8
 }

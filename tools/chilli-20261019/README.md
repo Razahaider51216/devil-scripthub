@@ -79,3 +79,14 @@ The main public loader now pins the customized delegate at
 c09572d8297fad1528be0e270d218db6d7df95d2 and runtime
 5b4a699be9c93e2865ee5cade61b1cf9e2d38509. Public loader and delegate tests
 passed again after the pin changes. Other game route definitions are unchanged.
+
+70% startup fix: the earlier webhook wrapper replaced getfenv/loadstring and the
+protected bootstrap environment. This can conflict with native runtime probes;
+the hang was reported in-game and cannot be reproduced by the offline UI mocks.
+The environment wrapper is removed. All original compiler, environment functions
+and _G references remain unchanged. Branding now intercepts only the eight native
+VM global-read sites and only adapts request aliases; unrelated globals pass through
+with their original identity. The original game instructions/data are unchanged.
+Offline tests check compiler/environment identity, stable request caches, payloads,
+bootstrap compression round-trip and public download integrity. Live Delta startup
+still requires user validation; this is a compatibility fix, not a claimed live pass.

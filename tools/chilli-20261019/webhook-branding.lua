@@ -1,6 +1,6 @@
 -- Brand only Discord webhook payloads, preserving the configured destination.
--- Request APIs live in this runtime's environment; executor globals are untouched.
-return function(run,host)
+-- Applied at native VM global lookup sites; compiler/environment APIs stay original.
+return function()
     local http=game:GetService("HttpService")
     local logo="https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png"
     local function rebrand(value)
@@ -46,22 +46,18 @@ return function(run,host)
             return request(copy,...)
         end
     end
-    local scope=setmetatable({},{__index=host})
-    for _,name in ipairs({"request","http_request","httprequest"})do scope[name]=wrap(host[name])end
-    for _,name in ipairs({"syn","http","fluxus"})do if type(host[name])=="table"then
-        scope[name]=table.clone(host[name]);scope[name].request=wrap(host[name].request)
-    end end
-    scope._G=scope
-    scope.loadstring=function(source,label)
-        local fn,err=host.loadstring(source,label)
-        if fn then host.setfenv(fn,scope)end
-        return fn,err
+    local cache=setmetatable({},{__mode="k"})
+    return function(name,value)
+        local direct=name=="request"or name=="http_request"or name=="httprequest"
+        local namespace=name=="syn"or name=="http"or name=="fluxus"
+        if not direct and not namespace then return value end
+        if direct and type(value)~="function"then return value end
+        if namespace and type(value)~="table"then return value end
+        if cache[value]then return cache[value]end
+        local result
+        if direct then result=wrap(value)
+        else result=table.clone(value);result.request=wrap(value.request)end
+        cache[value]=result
+        return result
     end
-    scope.getfenv=function(subject)
-        if subject==0 then return scope end
-        if type(subject)=="function"then return host.getfenv(subject)end
-        return host.getfenv((subject or 1)+1)
-    end
-    host.setfenv(run,scope)
-    return run
 end

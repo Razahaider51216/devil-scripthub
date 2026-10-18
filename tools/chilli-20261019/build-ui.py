@@ -13,13 +13,11 @@ end = source.index('\nend)()\nlocal function existingDevilHubLibrary', start)
 source = source[:start] + (here / 'bridge.lua').read_text(encoding='utf-8') + source[end:]
 begin = '-- BEGIN DEVIL WEBHOOK BRANDING\n'
 finish = '-- END DEVIL WEBHOOK BRANDING\n'
-helper = begin + 'local brandWebhookRuntime=(function()\n' + (here / 'webhook-branding.lua').read_text(encoding='utf-8') + '\nend)()\n' + finish
 if begin in source:
     start = source.index(begin)
     end = source.index(finish, start) + len(finish)
-    source = source[:start] + helper + source[end:]
-else:
-    source = source.replace('local attach=(function()', helper + 'local attach=(function()', 1)
+    source = source[:start] + source[end:]
+source = source.replace('    run=brandWebhookRuntime(run,getfenv(1))\n', '')
 source, count = re.subn(r'(originalGameSource=game:HttpGet\(")https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/[0-9a-f]+/devil-chilli-native-ui-runtime.lua',
                       r'\g<1>https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/' + runtime_ref + '/devil-chilli-native-ui-runtime.lua', source)
 assert count == 1
@@ -29,10 +27,6 @@ source, count = re.subn(r'assert\(checksum==\d+,"Pinned runtime', 'assert(checks
 assert count == 1
 source, count = re.subn(r'referenceSHA256="[0-9a-f]+"', 'referenceSHA256="' + manifest['source_sha256'] + '"', source)
 assert count == 1
-needle = '    assert(run,err)\n    report.status="Runtime compiled"'
-if 'run=brandWebhookRuntime(run,getfenv(1))' not in source:
-    assert source.count(needle) == 1
-    source = source.replace(needle, '    assert(run,err)\n    run=brandWebhookRuntime(run,getfenv(1))\n    report.status="Runtime compiled"')
 for name in ['devil-steal-an-egg-chilli-recovered-ui-test.lua', 'devil-steal-an-egg-chilli-main-gui.lua']:
     target = root / name
     target.write_text(source, encoding='utf-8', newline='\n')
