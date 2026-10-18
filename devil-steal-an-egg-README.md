@@ -1,6 +1,6 @@
 # DEVIL HUB / Steal an Egg
 
-The main loader selects `devil-steal-an-egg.lua` for universe `10563114921` or place `107778070777162`. This VM-protected entry delegates to the recovered native UI, pinned to commit `4125d27475cd70843a891ddd730dcb6346c7b84d`. Its downloaded entry length and checksum are checked before native compilation.
+The main loader selects `devil-steal-an-egg.lua` for universe `10563114921` or place `107778070777162`. This VM-protected entry delegates to the recovered native UI, pinned to commit `8199d2d36f34f81e398dd62df2666062eb285f96`. Its downloaded entry length and checksum are checked before native compilation.
 
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?v=vm-1"))()
@@ -30,5 +30,5 @@ The active GUI includes saved appearance settings and DEVIL HUB webhook branding
 Venyx and the extra DEVIL HUB mode tab are removed. Rejoin before updating.
 
 All game entries now share the dark-blue presentation module. The Settings
-appearance shortcut opens the shared GUI / Colors panel. Game callbacks and
+appearance shortcut uses the inline language selector; the color panel is removed. Game callbacks and
 the native startup-environment fix are retained.

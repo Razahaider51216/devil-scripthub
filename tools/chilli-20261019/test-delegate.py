@@ -16,7 +16,7 @@ local function setup(universe,place,corrupt)
     function env.game:HttpGet(url)
         table.insert(downloads,url)
         if url:find('/loader?',1,true) then return 'main router source' end
-        assert(url=='https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/4125d27475cd70843a891ddd730dcb6346c7b84d/devil-steal-an-egg-chilli-recovered-ui-test.lua','wrong latest entry pin')
+        assert(url=='https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/8199d2d36f34f81e398dd62df2666062eb285f96/devil-steal-an-egg-chilli-recovered-ui-test.lua','wrong latest entry pin')
         return corrupt and reference:sub(1,-2)..'x' or reference
     end
     env.loadstring=function(source,label)

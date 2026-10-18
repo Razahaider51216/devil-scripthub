@@ -2,13 +2,13 @@
 do
     local shared=type(getgenv)=="function"and getgenv()or _G
     local current=shared.DevilHubBlueGui
-    if not(current and current.Version=="devil-blue-20261019-2"and not current.Stopped)then
+    if not(current and current.Version=="devil-blue-20261019-3"and not current.Stopped)then
         local ok,problem=pcall(function()
-            local source=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/627bfdb8733ae81a993487324956437c9d6e8e8f/devil-blue-gui.lua")
-            assert(type(source)=="string"and #source==73227,"DEVIL blue GUI download size mismatch")
+            local source=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/8199d2d36f34f81e398dd62df2666062eb285f96/devil-blue-gui.lua")
+            assert(type(source)=="string"and #source==71376,"DEVIL blue GUI download size mismatch")
             local sum=0
             for i=1,#source do sum=(sum*33+source:byte(i))%4294967296;if i%32768==0 and task and task.wait then task.wait()end end
-            assert(sum==4249631131,"DEVIL blue GUI checksum mismatch")
+            assert(sum==2769058708,"DEVIL blue GUI checksum mismatch")
             local run,err=loadstring(source,"DEVIL HUB / Blue GUI")
             assert(run,err)
             return run()
