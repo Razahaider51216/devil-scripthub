@@ -745,7 +745,7 @@ local function target(node,key,source)
         return brightness(value)>.5 and saturation(value)>.15 and ColorSequence.new(palette.Surface2,palette.Accent)
             or ColorSequence.new(palette.Background,palette.Surface)
     elseif key=="BackgroundColor3"then
-        if launcher(node)or node:IsA("ImageButton")and brandImage(node)then return palette.Background end
+        if launcher(node)or node:IsA("ImageButton")and brandImage(node)then return Color3.fromRGB(0,0,0)end
         if node.Parent and node.Parent:IsA("ScreenGui")or name=="root"or name=="mainwindow"then return palette.Background end
         if node:IsA("TextBox")then return palette.Surface end
         if name:find("toggle",1,true)or name:find("switch",1,true)or name:find("slider",1,true)then
@@ -800,7 +800,13 @@ local function patch(node)
         states[node]=nil
     end,state.Links)
     if node:IsA("ImageLabel")or node:IsA("ImageButton")then
-        keep(node:GetPropertyChangedSignal("Image"),function()applyProperty(node,state,"ImageColor3")end,state.Links)
+        keep(node:GetPropertyChangedSignal("Image"),function()
+            if brandImage(node)and state.Source.ImageColor3==nil then observe(node,state,"ImageColor3")
+            elseif state.Source.ImageColor3~=nil then applyProperty(node,state,"ImageColor3")end
+            for _,key in ipairs({"BackgroundColor3","BackgroundTransparency"})do
+                if state.Source[key]~=nil then applyProperty(node,state,key)end
+            end
+        end,state.Links)
     end
 end
 local function scaleScreen(screen)
