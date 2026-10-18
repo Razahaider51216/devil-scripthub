@@ -27,7 +27,135 @@ end)()()
 if DevilReleaseScope.DevilHubLoadController then DevilReleaseScope.DevilHubLoadController.SetLogo(DevilReleaseLogo)end
 -- DEVIL HUB: original Chilli runtime + the SAME OuroFlow GUI as the main script.
 -- Native engine unchanged. Existing OuroFlow sidebar expanded; native rich panels embedded.
+-- BEGIN DEVIL WEBHOOK BRANDING
+local brandWebhookRuntime=(function()
+-- Brand only Discord webhook payloads, preserving the configured destination.
+-- Request APIs live in this runtime's environment; executor globals are untouched.
+return function(run,host)
+    local http=game:GetService("HttpService")
+    local logo="https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png"
+    local function rebrand(value)
+        if type(value)~="string"then return value end
+        return (value:gsub("[Cc][Hh][Ii][Ll][Ll][Ii]%s*[Hh][Uu][Bb]","DEVIL HUB"):gsub("%f[%a][Cc][Hh][Ii][Ll][Ll][Ii]%f[%A]","DEVIL HUB"):gsub("[Vv][Ee][Nn][Yy][Xx]","DEVIL HUB"))
+    end
+    local function discord(url)
+        if type(url)~="string"then return false end
+        local hostname,path=url:match("^https://([^/]+)(/[^?#]*)")
+        if not hostname then return false end
+        hostname=hostname:lower()
+        return (hostname=="discord.com"or hostname=="discordapp.com"or hostname=="canary.discord.com"or hostname=="ptb.discord.com")
+            and (path:match("^/api/webhooks/")~=nil or path:match("^/api/v%d+/webhooks/")~=nil)
+    end
+    local function wrap(request)
+        if type(request)~="function"then return request end
+        return function(options,...)
+            if type(options)~="table"or not discord(options.Url or options.URL or options.url)then return request(options,...)end
+            local bodyKey=options.Body~=nil and "Body"or options.body~=nil and "body"or nil
+            if not bodyKey or type(options[bodyKey])~="string"then return request(options,...)end
+            local ok,body=pcall(http.JSONDecode,http,options[bodyKey])
+            if not ok or type(body)~="table"then return request(options,...)end
+            body.username="DEVIL HUB";body.avatar_url=logo
+            body.content=rebrand(body.content)
+            if type(body.embeds)=="table"then for _,embed in ipairs(body.embeds)do
+                if type(embed)=="table"then
+                    embed.title=rebrand(embed.title);embed.description=rebrand(embed.description)
+                    if type(embed.author)=="table"then embed.author.name="DEVIL HUB";embed.author.icon_url=logo end
+                    if type(embed.footer)=="table"then embed.footer.text=rebrand(embed.footer.text);embed.footer.icon_url=logo end
+                    if type(embed.fields)=="table"then for _,field in ipairs(embed.fields)do
+                        if type(field)=="table"then field.name=rebrand(field.name);field.value=rebrand(field.value)end
+                    end end
+                end
+            end end
+            local encoded,result=pcall(http.JSONEncode,http,body)
+            if not encoded then return request(options,...)end
+            local copy=table.clone(options);copy[bodyKey]=result
+            -- Encoded JSON changes byte length; let the executor recompute it.
+            for _,key in ipairs({"Headers","headers"})do if type(copy[key])=="table"then
+                copy[key]=table.clone(copy[key])
+                for name in pairs(copy[key])do if tostring(name):lower()=="content-length"then copy[key][name]=nil end end
+            end end
+            return request(copy,...)
+        end
+    end
+    local scope=setmetatable({},{__index=host})
+    for _,name in ipairs({"request","http_request","httprequest"})do scope[name]=wrap(host[name])end
+    for _,name in ipairs({"syn","http","fluxus"})do if type(host[name])=="table"then
+        scope[name]=table.clone(host[name]);scope[name].request=wrap(host[name].request)
+    end end
+    scope._G=scope
+    scope.loadstring=function(source,label)
+        local fn,err=host.loadstring(source,label)
+        if fn then host.setfenv(fn,scope)end
+        return fn,err
+    end
+    scope.getfenv=function(subject)
+        if subject==0 then return scope end
+        if type(subject)=="function"then return host.getfenv(subject)end
+        return host.getfenv((subject or 1)+1)
+    end
+    host.setfenv(run,scope)
+    return run
+end
+
+end)()
+-- END DEVIL WEBHOOK BRANDING
 local attach=(function()
+local configureAppearance=(function()
+-- Controls the visible OuroFlow window. Native game callbacks stay untouched.
+return function(library,window,tab,panels,env)
+    local defaults=table.clone(library.Theme)
+    local baseWidth,baseHeight=880,520
+    local settings={Scale=100,Accent=defaults.Accent,Background=defaults.Background}
+    local file="DevilHub-StealAnEgg-appearance.json"
+    local http=game:GetService("HttpService")
+    local function color(value,fallback)
+        if type(value)~="table" then return fallback end
+        for i=1,3 do if type(value[i])~="number" or value[i]~=value[i] then return fallback end end
+        return Color3.fromRGB(math.clamp(value[1],0,255),math.clamp(value[2],0,255),math.clamp(value[3],0,255))
+    end
+    if type(isfile)=="function" and type(readfile)=="function" then
+        pcall(function()
+            if not isfile(file) then return end
+            local saved=http:JSONDecode(readfile(file))
+            if type(saved)~="table" then return end
+            if type(saved.Scale)=="number" and saved.Scale==saved.Scale then settings.Scale=math.clamp(saved.Scale,60,140) end
+            settings.Accent=color(saved.Accent,settings.Accent)
+            settings.Background=color(saved.Background,settings.Background)
+        end)
+    end
+    local function rgb(c)return {math.floor(c.R*255+.5),math.floor(c.G*255+.5),math.floor(c.B*255+.5)}end
+    local function save()
+        env.DevilChilliAppearance={Scale=settings.Scale,Accent=rgb(settings.Accent),Background=rgb(settings.Background)}
+        if type(writefile)=="function" then pcall(function()writefile(file,http:JSONEncode(env.DevilChilliAppearance))end)end
+    end
+    local function apply()
+        library:SetTheme({Accent=settings.Accent,Background=settings.Background},true)
+        window:SetSize(Vector2.new(baseWidth*settings.Scale/100,baseHeight*settings.Scale/100),true)
+        for _,panel in ipairs(panels)do
+            if panel.Native and type(panel.Native.SetStyle)=="function" then
+                pcall(panel.Native.SetStyle,panel.Native,{BackgroundColor=settings.Background,StrokeColor=settings.Accent})
+            end
+        end
+    end
+    local group=tab:CreateGroupbox({Name="DEVIL HUB Appearance",Side="Right"})
+    local scale=group:CreateSlider({Name="GUI Size (%)",Range={60,140},Increment=5,CurrentValue=settings.Scale,
+        Callback=function(value)settings.Scale=math.clamp(tonumber(value)or 100,60,140);apply();save()end})
+    local accent=group:ColorPicker({Name="Accent Color",Default=settings.Accent,
+        Callback=function(value)if typeof(value)=="Color3"then settings.Accent=value;apply();save()end end})
+    local background=group:ColorPicker({Name="Background Color",Default=settings.Background,
+        Callback=function(value)if typeof(value)=="Color3"then settings.Background=value;apply();save()end end})
+    group:CreateButton({Name="Reset Appearance",Callback=function()
+        settings.Scale=100;settings.Accent=defaults.Accent;settings.Background=defaults.Background
+        if scale.Set then scale:Set(100)end
+        if accent.Set then accent:Set(settings.Accent)end
+        if background.Set then background:Set(settings.Background)end
+        apply();save()
+    end})
+    apply()
+    return settings
+end
+
+end)()
 -- Existing DEVIL HUB OuroFlow frontend -> existing Chilli public UI handles.
 -- Read-only discovery. No source patching, remote calls, callback replacement or gameplay rewrites.
 return function(createLibrary,restoreStartup)
@@ -313,6 +441,8 @@ return function(createLibrary,restoreStartup)
     local function populate()
         local added=0
         for _,tab in ipairs(nativeWindow.Tabs) do
+            local tabName=tostring(tab.Name or tab.DisplayName or ""):lower()
+            if tabName=="venyx" or tabName=="devil hub" then continue end
             local target=tabs[tab]
             if not target then
                 local name=tostring(tab.DisplayName or tab.Name)
@@ -330,6 +460,7 @@ return function(createLibrary,restoreStartup)
                     groups[section]=group
                 end
                 for _,option in ipairs(section.Options) do
+                    if tabName=="settings" and tostring(option.Name)=="UI Size" then continue end
                     local fresh=items[option]==nil
                     add(option,section,group)
                     if fresh and not mounted then
@@ -423,11 +554,12 @@ return function(createLibrary,restoreStartup)
         populate();mounted=true;session.Sync()
         invoke(nativeWindow,"Close")
         hideOriginalScreens()
-        local settings=window:CreateTab({Name="DEVIL HUB",Icon="settings"}):CreateGroupbox({Name="Interface",Side="Right"})
-        settings:CreateButton({Name="Copy UI Status",Callback=function()
-            if type(setclipboard)=="function" then setclipboard(game:GetService("HttpService"):JSONEncode(report)) else save() end
-        end})
-        settings:CreateButton({Name="Remove DEVIL HUB UI",Callback=session.Destroy})
+        local settingsTab
+        for native,target in pairs(tabs)do
+            if tostring(native.Name):lower()=="settings"then settingsTab=target;break end
+        end
+        settingsTab=settingsTab or window:CreateTab({Name="Settings",Icon="settings"})
+        configureAppearance(library,window,settingsTab,embedded,env)
         local nativeFrame=nativeRoot:FindFirstChild("Frame")
         if nativeFrame then table.insert(connections,nativeRoot.Destroying:Connect(session.Destroy)) end
         if window.Gui and window.Gui.Destroying then table.insert(connections,window.Gui.Destroying:Connect(session.Destroy)) end
@@ -734,7 +866,7 @@ if env.DevilChilliFullRuntimeTest then
 end
 local report={schema="devil-chilli-full-runtime-test-1",release="chilli-full-test-1",map="Steal an Egg",
     placeId=game.PlaceId,universeId=game.GameId,status="Starting",devirtualized=false,
-    frontend="DEVIL HUB / native constructor export",referenceSHA256="bf6efc9025800415fd1d263b6c628889e4e0fb06dd704a4fbd63ee48ca603097",referenceCommit="03468a41b2ecf2d983b39993ba603c943c140f4f"}
+    frontend="DEVIL HUB / native constructor export",referenceSHA256="f1074e7a3aac580cdbc5f6202a5c47be787079a8000eeb9870561d566252dce6",referenceCommit="03468a41b2ecf2d983b39993ba603c943c140f4f"}
 env.DevilChilliFullRuntimeTest=report
 local function save()
     if type(writefile)=="function"then
@@ -754,15 +886,16 @@ local outcome=table.pack(xpcall(function()
     end
     warn("DEVIL HUB: loading the original systems into the main GUI")
     loading.Update("Downloading systems...",0.15)
-    local originalGameSource=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/24a5d84f4aec5b08556bb680327bc1f46af213d4/devil-chilli-native-ui-runtime.lua")
-    assert(type(originalGameSource)=="string"and #originalGameSource==825987,"Pinned runtime download has an unexpected size")
+    local originalGameSource=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/5b4a699be9c93e2865ee5cade61b1cf9e2d38509/devil-chilli-native-ui-runtime.lua")
+    assert(type(originalGameSource)=="string"and #originalGameSource==826025,"Pinned runtime download has an unexpected size")
     loading.Update("Checking download...",0.4)
     local checksum=0
     for index=1,#originalGameSource do checksum=(checksum*33+string.byte(originalGameSource,index))%4294967296; if index%32768==0 and task and task.wait then task.wait() end end
-    assert(checksum==3757066683,"Pinned runtime download checksum mismatch")
+    assert(checksum==1916338372,"Pinned runtime download checksum mismatch")
     loading.Update("Compiling systems...",0.55)
     local run,err=loadstring(originalGameSource,"Chilli / Steal an Egg / pinned runtime")
     assert(run,err)
+    run=brandWebhookRuntime(run,getfenv(1))
     report.status="Runtime compiled";report.transferChecksumVerified=true;save()
     loading.Update("Starting original systems...",0.7)
     if task and task.wait then task.wait() end

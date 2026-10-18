@@ -48,3 +48,28 @@ Run `python tools/chilli-20261019/test-public-loader.py` to test the actual publ
 VM loader with the existing shared loading-controller API mocked: universe and
 place selection, immutable URL, argument forwarding, retries, failure cleanup,
 busy and already-mounted guards. Other map definitions remain unchanged.
+
+GUI customization follow-up (2026-10-19): the native Venyx promotional initializer
+returns before creating UI/callbacks. The adapter also filters Venyx and the old
+DEVIL HUB utility tab. Settings retains native options except the UI Size slider
+for the hidden native window; its new DEVIL HUB Appearance group controls the
+visible OuroFlow window: accent color, background color, 60?140% size and reset.
+Values are stored locally in DevilHub-StealAnEgg-appearance.json. Rich embedded
+panels receive the selected colors. Malformed saved settings fall back to defaults.
+
+Discord webhook POSTs from the native runtime's request/http_request/httprequest,
+syn.request, http.request and fluxus.request aliases use DEVIL HUB as sender,
+logo and embed author; old Chilli/Venyx branding in embed/content text is replaced.
+Configured webhook URLs and event fields are preserved. Non-webhook destinations
+and malformed bodies pass through. The wrapper changes its own compiler environment
+and does not replace executor globals. This changes webhook message branding;
+it does not rename a separately registered Discord application.
+
+Validation: `test-customization.py` covers appearance persistence/reset, colors,
+window dimensions, webhook aliases, nested compiler environments, headers, return
+values, malformed JSON, unrelated URLs and unchanged executor functions. The actual
+updated bridge passed 43 checks with latest native option methods, including no
+Venyx/DEVIL HUB mode tabs, one Settings tab and original callback/widget restoration.
+GUI entries pass the official Luau compiler. Live Delta rendering and live Discord
+posting remain unverified. `build-ui.py RUNTIME_COMMIT` rebuilds both GUI entries
+from the retained bridge and webhook helper.

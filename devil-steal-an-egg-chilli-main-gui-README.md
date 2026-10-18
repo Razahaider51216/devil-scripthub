@@ -1,4 +1,4 @@
-# DEVIL HUB / Chilli — main GUI, embedded native panels
+# DEVIL HUB / Chilli â€” main GUI, embedded native panels
 
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-steal-an-egg-chilli-main-gui.lua?v=main-gui-5"))()
@@ -29,3 +29,7 @@ Release 5 fixes the ownership exemption: OuroFlow returns ScreenGui on window.Gu
 Updated 2026-10-19: both native GUI entry points now use the same pinned Halloween
 runtime. See [update details and validation](tools/chilli-20261019/README.md).
 Live Roblox/Delta gameplay remains unverified.
+
+Customization: Venyx and the extra DEVIL HUB tab are removed. Use Settings >
+DEVIL HUB Appearance for saved color/size preferences. Webhook sender branding
+uses DEVIL HUB. See the tools/chilli-20261019 release notes for validation limits.
