@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 import hashlib, json, lzma, re, struct, subprocess, urllib.request
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -113,4 +113,3 @@ manifest = {
 }
 (ROOT / 'devil-chilli-native-ui-recovery.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
 print(json.dumps(manifest, indent=2))
-
