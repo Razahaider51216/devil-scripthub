@@ -73,3 +73,9 @@ Venyx/DEVIL HUB mode tabs, one Settings tab and original callback/widget restora
 GUI entries pass the official Luau compiler. Live Delta rendering and live Discord
 posting remain unverified. `build-ui.py RUNTIME_COMMIT` rebuilds both GUI entries
 from the retained bridge and webhook helper.
+
+The main public loader now pins the customized delegate at
+9806d26ecbaa221f6a2bb2a41b369817caaebe1a, which pins GUI entry
+c09572d8297fad1528be0e270d218db6d7df95d2 and runtime
+5b4a699be9c93e2865ee5cade61b1cf9e2d38509. Public loader and delegate tests
+passed again after the pin changes. Other game route definitions are unchanged.
