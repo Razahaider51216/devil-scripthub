@@ -1,11 +1,9 @@
 createUI=function(screen)
     if screen.Name=="DevilHubLoading"then return end
-    local root,area
-    for _,child in ipairs(screen:GetChildren())do if child:IsA("GuiObject")and not child:GetAttribute("DevilBlueSettings")then
-        local size=child.AbsoluteSize;local value=size.X*size.Y
-        if value>40000 and(not area or value>area)then root,area=child,value end
-    end end
+    local root=windowRoot(screen)
     if not root then return end
+    local previous=ui[screen]
+    if previous and previous.Root==root and previous.Dock and previous.Dock.Parent then previous.Reflow();return end
     local sidebar,tabs
     for _,node in ipairs(root:GetDescendants())do
         if node.Name=="Sidebar"and node:IsA("GuiObject")then
@@ -13,12 +11,12 @@ createUI=function(screen)
             if list and list:IsA("GuiObject")then sidebar,tabs=node,list;break end
         end
     end
-    local previous=ui[screen]
     if previous then
         if previous.Root==root and previous.Dock==sidebar then previous.Reflow();return end
         previous.Frame:Destroy()
     end
     local panelLinks,geometry={},{}
+    local reflow
     local function make(class,props,parent)
         local node=Instance.new(class);node:SetAttribute("DevilBlueSettings",true)
         for key,value in pairs(props)do node[key]=value end;node.Parent=parent;return node
@@ -34,13 +32,14 @@ createUI=function(screen)
         keep(node:GetPropertyChangedSignal(key),function()
             if node[key]==record.Applied then return end
             record.Source=node[key];apply()
+            if reflow then reflow()end
         end,panelLinks)
         apply()
     end
     local rowHeight=40
     local host=make("Frame",{Name="DevilLanguageSelector",BackgroundTransparency=1,BorderSizePixel=0,Size=UDim2.new(1,-16,0,32),
         Position=UDim2.fromOffset(8,0),ZIndex=100},sidebar or root)
-    local function reflow()
+    reflow=function()
         if sidebar then
             reserve(tabs,"Position",function(p)return UDim2.new(p.X.Scale,p.X.Offset,p.Y.Scale,p.Y.Offset+rowHeight)end)
             reserve(tabs,"Size",function(s)return UDim2.new(s.X.Scale,s.X.Offset,s.Y.Scale,s.Y.Offset-rowHeight)end)

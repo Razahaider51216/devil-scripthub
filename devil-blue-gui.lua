@@ -1,6 +1,6 @@
 -- Shared presentation only. Game callbacks, network APIs and compiler environments stay original.
 local scope=type(getgenv)=="function"and getgenv()or _G
-local VERSION="devil-blue-20261019-5"
+local VERSION="devil-blue-20261019-6"
 if scope.DevilHubBlueGui and scope.DevilHubBlueGui.Version==VERSION and not scope.DevilHubBlueGui.Stopped then return scope.DevilHubBlueGui end
 if scope.DevilHubBlueGui and scope.DevilHubBlueGui.Destroy then scope.DevilHubBlueGui.Destroy()end
 local controller={Version=VERSION,Stopped=false,Report={screens=0,nodes=0,callbacksReplaced=0}}
@@ -9,7 +9,8 @@ local white=Color3.fromRGB(255,255,255)
 local defaults={Accent="#A4DDFF",Background="#07090D",Scale=100,Language="EN"}
 local settings=table.clone(defaults)
 local configFile="DevilHub-BlueGUI.json"
-local links,tracked,owned,states,scales={},{},{},{},{}
+local links,tracked,owned,states,roots={},{},{},{},{}
+local inputHosts=setmetatable({},{__mode="k"})
 local ui,refreshUI,refreshAll,createUI={},nil,nil,nil
 local toggleTracks,toggleThumbs=setmetatable({},{__mode="k"}),setmetatable({},{__mode="k"})
 local http=game:GetService("HttpService")
@@ -34,6 +35,8 @@ local function updatePalette()
     palette.Surface2=palette.Background:Lerp(palette.Accent,.2)
     palette.Off=Color3.fromRGB(32,39,49)
     palette.Muted=Color3.fromRGB(153,169,185)
+    palette.Input=Color3.fromRGB(24,27,33)
+    palette.Placeholder=Color3.fromRGB(172,184,201)
 end
 updatePalette()
 local function keep(signal,fn,bag)
@@ -784,11 +787,15 @@ local function target(node,key,source)
     local name=node.Name:lower()
     if key=="Visible"and name=="devillanguagebutton"then return false
     elseif key=="BackgroundTransparency"then
+        if inputHosts[node]then return .04 end
+        if node:IsA("TextBox")then return source>=.98 and source or .04 end
         if node:IsA("GuiButton")and(launcher(node)or brandImage(node))then return 0 end
         if source>=.98 then return source end
         return math.max(source,launcher(node)and 0 or .14)
     elseif key=="PlaceholderText"then return translate(source)
+    elseif key=="PlaceholderColor3"then return palette.Placeholder
     elseif key=="TextColor3"then
+        if node:IsA("TextBox")then return white end
         if title(node.Text)then return white end
         return (saturation(source)>.1 or brightness(source)<.8)and palette.Accent or white
     elseif key=="Text"then
@@ -803,6 +810,7 @@ local function target(node,key,source)
     elseif key=="ScrollBarImageColor3"or key=="Color"and node:IsA("UIStroke")then return palette.Accent
     elseif key=="Color"and node:IsA("UIGradient")then
         local parent=node.Parent
+        if parent and(parent:IsA("TextBox")or inputHosts[parent])then return ColorSequence.new(white)end
         if parent and(parent:IsA("ImageLabel")or parent:IsA("ImageButton"))then
             if not chromeImage(parent)then return source end
             return logo(parent)and ColorSequence.new(white)or ColorSequence.new(white,palette.Accent)
@@ -810,6 +818,7 @@ local function target(node,key,source)
         if parent and parent:IsA("TextLabel")and parent.BackgroundTransparency>=.98 then return ColorSequence.new(palette.Blue,white)end
         return ColorSequence.new(palette.Background,palette.Surface2)
     elseif key=="BackgroundColor3"then
+        if node:IsA("TextBox")or inputHosts[node]then return palette.Input end
         if launcher(node)or node:IsA("ImageButton")and brandImage(node)then return Color3.fromRGB(0,0,0)end
         if toggleTracks[node]then return toggleOn(node,toggleTracks[node])and palette.Accent or palette.Off end
         if toggleThumbs[node]then return toggleOn(toggleThumbs[node],node)and white or palette.Muted end
@@ -827,17 +836,32 @@ end
 local function applyProperty(node,state,key)
     if controller.Stopped or not node.Parent then return end
     local value=target(node,key,state.Source[key])
-    state.Applied[key]=value
+    state.Writing[key]=true
     if node[key]~=value then node[key]=value end
+    -- Roblox stores some numeric/color properties at a lower precision.
+    state.Applied[key]=node[key]
+    state.Writing[key]=nil
 end
 local function observe(node,state,key)
     state.Source[key]=node[key]
     applyProperty(node,state,key)
     keep(node:GetPropertyChangedSignal(key),function()
-        if controller.Stopped or node[key]==state.Applied[key]then return end
+        if controller.Stopped or state.Writing[key]or node[key]==state.Applied[key]then return end
         state.Source[key]=node[key]
         applyProperty(node,state,key)
     end,state.Links)
+end
+local function inspectInput(box)
+    if not box:IsA("TextBox")then return end
+    local parent=box.Parent
+    if not parent or not(parent:IsA("Frame")or parent:IsA("ImageLabel"))or parent.Parent==nil or parent.Parent:IsA("ScreenGui")then return end
+    local size=parent.Size
+    if size.Y.Scale~=0 or size.Y.Offset<18 or size.Y.Offset>64 or box.Size.Y.Scale<.7 then return end
+    inputHosts[parent]=true
+    local state=states[parent]
+    if state then for _,key in ipairs({"BackgroundColor3","BackgroundTransparency"})do applyProperty(parent,state,key)end end
+    local gradient=parent:FindFirstChildOfClass("UIGradient")
+    if gradient and states[gradient]then applyProperty(gradient,states[gradient],"Color")end
 end
 local function inspectToggle(track)
     if not track or toggleTracks[track]or not track:IsA("GuiObject")then return end
@@ -879,16 +903,17 @@ local function patch(node)
             table.insert(keys,"TextStrokeColor3")
             if node.RichText then table.insert(keys,"Text")end
         end
-        if node:IsA("TextBox")then table.insert(keys,"PlaceholderText")end
+        if node:IsA("TextBox")then table.insert(keys,"PlaceholderText");table.insert(keys,"PlaceholderColor3")end
         if node:IsA("ScrollingFrame")then table.insert(keys,"ScrollBarImageColor3")end
         if node:IsA("ImageLabel")or node:IsA("ImageButton")then
             if chromeImage(node)then table.insert(keys,"ImageColor3")end
         end
     elseif node:IsA("UIStroke")or node:IsA("UIGradient")then table.insert(keys,"Color")end
     if #keys==0 then return end
-    local state={Source={},Applied={},Links={}};states[node]=state
+    local state={Source={},Applied={},Writing={},Links={}};states[node]=state
     controller.Report.nodes+=1
     for _,key in ipairs(keys)do observe(node,state,key)end
+    inspectInput(node)
     inspectToggle(node);inspectToggle(node.Parent)
     if toggleThumbs[node]then applyProperty(node,state,"BackgroundColor3")end
     keep(node.Destroying,function()
@@ -913,40 +938,27 @@ local function patch(node)
         end,state.Links)
     end
 end
-local function scaleScreen(screen)
+local function windowRoot(screen)
     if screen.Name=="DevilHubLoading"then return end
+    local existing=roots[screen]
+    if existing and existing.Parent==screen then return existing end
     local root,area
-    for _,child in ipairs(screen:GetChildren())do if child:IsA("GuiObject")then
+    for _,child in ipairs(screen:GetChildren())do if child:IsA("GuiObject")and not child:GetAttribute("DevilBlueSettings")and not child:IsA("GuiButton")then
+        local name=child.Name:lower()
         local size=child.AbsoluteSize;local nextArea=size.X*size.Y
-        if nextArea>40000 and(not area or nextArea>area)then root,area=child,nextArea end
+        if nextArea>40000 and(name=="window"or name=="mainwindow"or name=="root")then roots[screen]=child;return child end
+        if nextArea>40000 and name~="island"and name~="notifications"and name~="tooltip"and not name:find("ghost",1,true)
+            and not launcher(child)and(not area or nextArea>area)then root,area=child,nextArea end
     end end
-    if not root then return end
-    local state=scales[screen]
-    if state and state.Root~=root then
-        state.Link:Disconnect()
-        if state.Created then state.Node:Destroy()else state.Node.Scale=state.Base end
-        scales[screen]=nil;state=nil
-    end
-    if not state then
-        local node=root:FindFirstChildOfClass("UIScale")
-        local inserted=node==nil
-        if not node then node=Instance.new("UIScale");node.Name="DevilBlueScale";node.Parent=root end
-        state={Root=root,Node=node,Base=node.Scale,Created=inserted};scales[screen]=state
-        state.Link=keep(node:GetPropertyChangedSignal("Scale"),function()
-            if controller.Stopped or node.Scale==state.Applied then return end
-            state.Base=node.Scale;state.Applied=state.Base*settings.Scale/100;node.Scale=state.Applied
-        end)
-    end
-    state.Applied=state.Base*settings.Scale/100;state.Node.Scale=state.Applied
+    roots[screen]=root
+    return root
 end
 createUI=function(screen)
     if screen.Name=="DevilHubLoading"then return end
-    local root,area
-    for _,child in ipairs(screen:GetChildren())do if child:IsA("GuiObject")and not child:GetAttribute("DevilBlueSettings")then
-        local size=child.AbsoluteSize;local value=size.X*size.Y
-        if value>40000 and(not area or value>area)then root,area=child,value end
-    end end
+    local root=windowRoot(screen)
     if not root then return end
+    local previous=ui[screen]
+    if previous and previous.Root==root and previous.Dock and previous.Dock.Parent then previous.Reflow();return end
     local sidebar,tabs
     for _,node in ipairs(root:GetDescendants())do
         if node.Name=="Sidebar"and node:IsA("GuiObject")then
@@ -954,12 +966,12 @@ createUI=function(screen)
             if list and list:IsA("GuiObject")then sidebar,tabs=node,list;break end
         end
     end
-    local previous=ui[screen]
     if previous then
         if previous.Root==root and previous.Dock==sidebar then previous.Reflow();return end
         previous.Frame:Destroy()
     end
     local panelLinks,geometry={},{}
+    local reflow
     local function make(class,props,parent)
         local node=Instance.new(class);node:SetAttribute("DevilBlueSettings",true)
         for key,value in pairs(props)do node[key]=value end;node.Parent=parent;return node
@@ -975,13 +987,14 @@ createUI=function(screen)
         keep(node:GetPropertyChangedSignal(key),function()
             if node[key]==record.Applied then return end
             record.Source=node[key];apply()
+            if reflow then reflow()end
         end,panelLinks)
         apply()
     end
     local rowHeight=40
     local host=make("Frame",{Name="DevilLanguageSelector",BackgroundTransparency=1,BorderSizePixel=0,Size=UDim2.new(1,-16,0,32),
         Position=UDim2.fromOffset(8,0),ZIndex=100},sidebar or root)
-    local function reflow()
+    reflow=function()
         if sidebar then
             reserve(tabs,"Position",function(p)return UDim2.new(p.X.Scale,p.X.Offset,p.Y.Scale,p.Y.Offset+rowHeight)end)
             reserve(tabs,"Size",function(s)return UDim2.new(s.X.Scale,s.X.Offset,s.Y.Scale,s.Y.Offset-rowHeight)end)
@@ -1065,24 +1078,28 @@ local function mark(screen)
     if owned[screen]or screen:GetAttribute("DevilBlueSettings")then return end
     owned[screen]=true;controller.Report.screens+=1
     for _,node in ipairs(screen:GetDescendants())do patch(node)end
-    scaleScreen(screen)
+    windowRoot(screen)
     if screen.Name~="DevilHubLoading"then createUI(screen)end
 end
 local function track(screen)
     if not screen:IsA("ScreenGui")or tracked[screen]or screen:GetAttribute("DevilBlueSettings")then return end
     local state={Links={},Probes=0,Roots=setmetatable({},{__mode="k"})};tracked[screen]=state
-    local function queueScale()
-        if state.ScaleQueued then return end
-        state.ScaleQueued=true
-        task.defer(function()state.ScaleQueued=false;if not controller.Stopped and owned[screen]then scaleScreen(screen);createUI(screen)end end)
+    local function queueLayout()
+        if state.LayoutQueued then return end
+        state.LayoutQueued=true
+        task.defer(function()state.LayoutQueued=false;if not controller.Stopped and owned[screen]then createUI(screen)end end)
     end
     local function inspect(node)
-        if node:IsA("GuiObject")and node.Parent==screen and not state.Roots[node]then
-            state.Roots[node]=true;keep(node:GetPropertyChangedSignal("AbsoluteSize"),queueScale,state.Links)
+        if node:GetAttribute("DevilBlueSettings")or node:GetAttribute("DevilLocalizationOverlay")then return end
+        if node:IsA("GuiObject")and node.Parent==screen and not state.Roots[node]
+            and(not roots[screen]or roots[screen].Parent~=screen or roots[screen]==node)then
+            state.Roots[node]=true
+            keep(node:GetPropertyChangedSignal("AbsoluteSize"),function()if not roots[screen]then queueLayout()end end,state.Links)
+            keep(node:GetPropertyChangedSignal("Size"),function()if roots[screen]==node then queueLayout()end end,state.Links)
         end
         if owned[screen]then
             patch(node)
-            queueScale()
+            if node.Parent==screen or not ui[screen]or node.Name=="Sidebar"or node.Name=="Tabs"or node.Name=="TabList"then queueLayout()end
             return
         end
         if brandImage(node)then mark(screen);return end
@@ -1107,15 +1124,14 @@ local function track(screen)
     keep(screen:GetAttributeChangedSignal("DevilHubPresentation"),function()if screen:GetAttribute("DevilHubPresentation")then mark(screen)end end,state.Links)
     keep(screen.Destroying,function()
         for _,link in ipairs(state.Links)do link:Disconnect()end
-        local scale=scales[screen];if scale then scale.Link:Disconnect()end
-        tracked[screen]=nil;owned[screen]=nil;scales[screen]=nil
+        tracked[screen]=nil;owned[screen]=nil;roots[screen]=nil
     end,state.Links)
     if screen:GetAttribute("DevilHubPresentation")or screen.Name:lower():match("^devilhub")then mark(screen)end
     for _,node in ipairs(screen:GetDescendants())do inspect(node)end
 end
 refreshAll=function()
     for node,state in pairs(states)do for key in pairs(state.Source)do applyProperty(node,state,key)end end
-    for screen in pairs(owned)do scaleScreen(screen)end
+    for screen in pairs(owned)do windowRoot(screen)end
     for _,record in pairs(localized)do record.Update()end
     if refreshUI then refreshUI()end
 end
@@ -1138,10 +1154,7 @@ function controller.Destroy()
         for _,link in ipairs(state.Links)do link:Disconnect()end
         for key,value in pairs(state.Source)do pcall(function()if node[key]==state.Applied[key]then node[key]=value end end)end
     end
-    for _,state in pairs(scales)do
-        state.Link:Disconnect()
-        if state.Created then state.Node:Destroy()else pcall(function()state.Node.Scale=state.Base end)end
-    end
+    table.clear(roots)
     for _,panel in pairs(table.clone(ui))do panel.Cleanup();panel.Frame:Destroy()end
     if scope.DevilHubBlueGui==controller then scope.DevilHubBlueGui=nil end
 end

@@ -31,7 +31,13 @@ local dimMeta={__eq=function(a,b)return a.X.Scale==b.X.Scale and a.X.Offset==b.X
 function UDim2.new(x,xo,y,yo)return setmetatable({X=UDim.new(x,xo),Y=UDim.new(y,yo)},dimMeta)end
 function UDim2.fromScale(x,y)return UDim2.new(x,0,y,0)end
 function UDim2.fromOffset(x,y)return UDim2.new(0,x,0,y)end
-local Vector2={new=function(x,y)return {X=x,Y=y}end}
+local Vector2={}
+local vectorMeta={}
+function Vector2.new(x,y)return setmetatable({X=x,Y=y},vectorMeta)end
+function vectorMeta.__add(a,b)return Vector2.new(a.X+b.X,a.Y+b.Y)end
+function vectorMeta.__sub(a,b)return Vector2.new(a.X-b.X,a.Y-b.Y)end
+function vectorMeta.__div(a,b)return Vector2.new(a.X/b,a.Y/b)end
+function vectorMeta.__mul(a,b)if type(a)=='number'then return Vector2.new(a*b.X,a*b.Y)end;return Vector2.new(a.X*b,a.Y*b)end
 local Rect={new=function(...)return {...}end}
 local ColorSequenceKeypoint={new=function(t,v)return {Time=t,Value=v}end}
 local ColorSequence={new=function(a,b)
@@ -42,18 +48,21 @@ local NumberSequenceKeypoint={new=function(...)return {...}end}
 local NumberSequence={new=function(...)return {...}end}
 local TweenInfo={new=function(...)return {...}end}
 local methods={}
-local guiClasses={Frame=true,ScrollingFrame=true,TextLabel=true,TextButton=true,TextBox=true,ImageLabel=true,ImageButton=true,ViewportFrame=true}
+local guiClasses={Frame=true,CanvasGroup=true,ScrollingFrame=true,TextLabel=true,TextButton=true,TextBox=true,ImageLabel=true,ImageButton=true,ViewportFrame=true}
 local Instance={}
 local mt={}
 function mt.__index(self,key)
     if methods[key] then return methods[key]end
     if self.props[key]~=nil then return self.props[key]end
     for _,child in ipairs(self.children)do if child.Name==key then return child end end
-    if key=='ChildAdded' or key=='Activated' or key=='InputBegan' or key=='MouseEnter' or key=='MouseLeave' or key=='MouseButton1Down' or key=='MouseButton1Up' or key=='DescendantAdded' or key=='Destroying' then
+    if key=='ChildAdded' or key=='Activated' or key=='Focused' or key=='FocusLost' or key=='InputBegan' or key=='MouseEnter' or key=='MouseLeave' or key=='MouseButton1Down' or key=='MouseButton1Up' or key=='DescendantAdded' or key=='Destroying' then
         self.signals[key]=self.signals[key] or signal();return self.signals[key]
     end
 end
 function mt.__newindex(self,key,value)
+    if self.props.MockQuantize and key=='BackgroundTransparency'and type(value)=='number'then
+        local storage=buffer.create(4);buffer.writef32(storage,0,value);value=buffer.readf32(storage,0)
+    end
     local previous=self.props[key]
     if key=='Parent' and previous~=value then
         if previous then local i=table.find(previous.children,self);if i then table.remove(previous.children,i)end end
@@ -69,8 +78,8 @@ function mt.__newindex(self,key,value)
 end
 function Instance.new(class)
     return setmetatable({props={ClassName=class,Name=class,Size=UDim2.fromScale(1,1),Position=UDim2.fromScale(0,0),AnchorPoint=Vector2.new(0,0),
-        Visible=true,DisplayOrder=0,AbsoluteSize=Vector2.new(0,0),Image='',ImageColor3=Color3.new(1,1,1),Scale=1,RichText=false,BackgroundTransparency=0,BackgroundColor3=Color3.new(1,1,1),
-        TextColor3=Color3.new(1,1,1),TextStrokeColor3=Color3.new(0,0,0),TextTransparency=0,Color=class=='UIGradient' and ColorSequence.new(Color3.new(1,1,1)) or class=='UIStroke' and Color3.new(1,1,1) or nil,
+        Visible=true,DisplayOrder=0,AbsolutePosition=Vector2.new(0,0),AbsoluteSize=Vector2.new(0,0),Image='',ImageColor3=Color3.new(1,1,1),Scale=1,RichText=false,BackgroundTransparency=0,BackgroundColor3=Color3.new(1,1,1),
+        TextColor3=Color3.new(1,1,1),PlaceholderColor3=Color3.fromRGB(178,178,178),TextStrokeColor3=Color3.new(0,0,0),TextTransparency=0,Color=class=='UIGradient' and ColorSequence.new(Color3.new(1,1,1)) or class=='UIStroke' and Color3.new(1,1,1) or nil,
         Text='',Enabled=true,ApplyStrokeMode=Enum.ApplyStrokeMode.Border,Font=Enum.Font.SourceSans},
         signals={},children={},attributes={}},mt)
 end

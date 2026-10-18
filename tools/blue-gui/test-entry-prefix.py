@@ -29,6 +29,7 @@ def literal(text):
 
 mocks = (root / 'tests/blue-gui-mocks.luau').read_text(encoding='utf-8')
 checks = (root / 'tests/blue-gui-checks.luau').read_text(encoding='utf-8').replace('-- MODULE INSERTED HERE', module)
+checks = checks.replace('-- NATIVE TRANSITIONS INSERTED HERE', (root / 'tests/blue-gui-native-minimize.luau').read_text(encoding='utf-8'))
 test = r'''
 local requests,compiled,warnings=0,0,0
 local response=moduleSource
@@ -52,7 +53,7 @@ setfenv(run,host)
 local result,arg=run('original engine',42)
 flush()
 check(result=='original engine'and arg==42 and requests==1 and compiled==1,'initial presentation load broke original return/args')
-check(env.DevilHubBlueGui.Version=='devil-blue-20261019-5','shared theme not installed')
+check(env.DevilHubBlueGui.Version=='devil-blue-20261019-6','shared theme not installed')
 run('again');check(requests==1 and compiled==1,'duplicate entry downloaded/restarted theme')
 env.DevilHubBlueGui.Destroy();response=moduleSource:sub(1,-2)..'x'
 check(run('original still runs')=='original still runs'and compiled==1 and warnings==1,'corrupt presentation reached compiler or stopped game entry')

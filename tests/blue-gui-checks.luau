@@ -53,7 +53,7 @@ local gameLogoColor=gameLogo.ImageColor3
 local compositeLaunch=node('TextButton','TextButton',gui,{Size=UDim2.fromOffset(50,50),BackgroundColor3=Color3.fromRGB(255,0,0)})
 local compositeLogo=node('ImageLabel','ImageLabel',compositeLaunch,{Image='',ImageColor3=Color3.fromRGB(255,0,0)})
 local sidebarGui=node('ScreenGui','DevilHubSidebarTest',core)
-local sidebarRoot=node('Frame','Window',sidebarGui,{AbsoluteSize=Vector2.new(880,520)})
+local sidebarRoot=node('Frame','Window',sidebarGui,{AbsoluteSize=Vector2.new(880,520),Size=UDim2.fromOffset(880,520)})
 local body=node('Frame','Body',sidebarRoot)
 local sidebar=node('Frame','Sidebar',body,{Position=UDim2.fromOffset(8,8),Size=UDim2.new(0,170,1,-16)})
 local header=node('Frame','Header',sidebar,{Size=UDim2.new(1,0,0,72)})
@@ -69,6 +69,14 @@ local iconGradient=node('UIGradient','UIGradient',anonymousIcon,{Color=ColorSequ
 local iconBackground=node('ImageLabel','ActionIcon',body,{Image='rbxassetid://glyph2',BackgroundColor3=Color3.fromRGB(240,0,0),ImageColor3=Color3.fromRGB(240,0,0)})
 local minimize=node('Frame','Frame',action,{Size=UDim2.fromOffset(12,2),BackgroundColor3=Color3.fromRGB(240,0,0)})
 local nativeIconColor=anonymousIcon.ImageColor3
+local searchHost=node('Frame','Frame',body,{Size=UDim2.fromOffset(220,34),BackgroundColor3=Color3.fromRGB(40,15,20)})
+local searchGradient=node('UIGradient','UIGradient',searchHost,{Color=ColorSequence.new(Color3.fromRGB(20,20,20))})
+local search=node('TextBox','TextBox',searchHost,{BackgroundTransparency=1,Text='',PlaceholderText='Search',TextColor3=Color3.fromRGB(20,20,20),PlaceholderColor3=Color3.fromRGB(30,30,30)})
+local quantizedHost=node('Frame','Input',body,{Size=UDim2.fromOffset(180,34),MockQuantize=true})
+node('TextBox','TextBox',quantizedHost,{BackgroundTransparency=1,PlaceholderText='Search'})
+local nativeScale=node('UIScale','NativeScale',sidebarRoot,{Scale=.83})
+local scaleWrites=0;nativeScale:GetPropertyChangedSignal('Scale'):Connect(function()scaleWrites+=1 end)
+local focusCalls=0;search.Focused:Connect(function()focusCalls+=1;searchHost.BackgroundColor3=Color3.fromRGB(255,0,0)end)
 local legacyLanguage=node('TextButton','DevilLanguageButton',body,{Text='Thai / EN',BackgroundColor3=Color3.fromRGB(45,23,30)})
 local legacyChanges=0
 local legacyCallback=legacyLanguage.Activated:Connect(function()legacyChanges+=1 end)
@@ -83,6 +91,16 @@ check(root.BackgroundColor3==Color3.fromRGB(7,9,13),'main background not black')
 check(root.BackgroundTransparency==.14,'main background not slightly transparent')
 check(button.TextColor3==Color3.fromRGB(164,221,255),'mode text not soft light blue')
 check(heading.TextColor3==Color3.fromRGB(255,255,255),'title not white')
+check(searchHost.BackgroundColor3==Color3.fromRGB(24,27,33)and searchHost.BackgroundTransparency==.04,'anonymous search wrapper not soft black')
+check(search.BackgroundTransparency==1 and search.BackgroundColor3==Color3.fromRGB(24,27,33),'transparent search lost native wrapper geometry')
+check(search.TextColor3==Color3.fromRGB(255,255,255)and search.PlaceholderColor3==Color3.fromRGB(172,184,201),'search text or hint unreadable')
+check(searchGradient.Color.Keypoints[1].Value==Color3.fromRGB(255,255,255),'input gradient darkens text or background')
+search.Text='rare egg';search.Focused:Fire()
+check(search.Text=='rare egg'and focusCalls==1 and searchHost.BackgroundColor3==Color3.fromRGB(24,27,33),'focus restyle changes filtering or reintroduces old color')
+check(url.BackgroundColor3==Color3.fromRGB(24,27,33)and url.BackgroundTransparency==.04,'direct text input not soft black')
+quantizedHost.BackgroundTransparency=.25
+check(math.abs(quantizedHost.BackgroundTransparency-.04)<1e-6,'rounded numeric properties cause theme write feedback')
+check(root:FindFirstChildOfClass('UIScale')==nil and nativeScale.Scale==.83 and scaleWrites==0,'theme changes native animation scale')
 local headingText=heading:FindFirstChild('DevilTranslatedLabel')
 local headingTone=headingText and headingText:FindFirstChild('DevilTextTone')
 check(headingTone and headingTone.Color.Keypoints[1].Value==Color3.fromRGB(70,151,255)and headingTone.Color.Keypoints[2].Value==Color3.fromRGB(255,255,255),'title lacks blue/white text gradient')
@@ -189,6 +207,71 @@ local same=(function()
 -- MODULE INSERTED HERE
 end)()
 check(same==controller,'duplicate theme controller')
+-- Exercise the library's actual transition functions with the shared theme active.
+local z={Background=Color3.fromRGB(20,16,20),Stroke=Color3.fromRGB(80,30,30)}
+local function ai(class,props)
+ local parent=props.Parent;local options=table.clone(props);options.Parent=nil
+ if options.Size then options.AbsoluteSize=Vector2.new(options.Size.X.Offset,options.Size.Y.Offset)end
+ return node(class,props.Name or class,parent,options)
+end
+local function aj(parent,radius)return node('UICorner','UICorner',parent,{CornerRadius=radius})end
+local function ak(parent,color,alpha)return node('UIStroke','UIStroke',parent,{Color=color,Transparency=alpha or 0})end
+local function ah(target,props)
+ for key,value in pairs(props)do target[key]=value end
+ if props.Size then target.AbsoluteSize=Vector2.new(props.Size.X.Offset,props.Size.Y.Offset)end
+end
+local nativeTransitions=(function()
+-- NATIVE TRANSITIONS INSERTED HERE
+end)()
+local savedDelay,savedSpawn=task.delay,task.spawn
+local now,timers=0,{}
+task.delay=function(seconds,fn)table.insert(timers,{At=now+seconds,Run=fn})end
+task.spawn=function()end -- The library's separate half-second status loop is not an animation callback.
+local function advance(seconds)
+ now+=seconds
+ for _=1,40 do
+  local index
+  for i,timer in ipairs(timers)do if timer.At<=now then index=i;break end end
+  if not index then flush();return end
+  table.remove(timers,index).Run();flush()
+ end
+ error('transition callbacks did not settle')
+end
+local app={Gui=sidebarGui,Root=sidebarRoot,Scale=nativeScale,_fitScale=.83,_introDone=true,Open=true,
+ Shadow=node('ImageLabel','Shadow',sidebarRoot,{ImageTransparency=.4}),BodyStroke={Transparency=0},_shadowRest=.4}
+function app:_closePopups()end
+function app:_refreshToggleButton()end
+function app:_refreshBackdrop()end
+function app:_refreshMini()end
+function app:_buildMiniBar()
+ if not self.MiniBar then
+  self.MiniBar=node('CanvasGroup','Island',sidebarGui,{Size=UDim2.fromOffset(180,40),AbsoluteSize=Vector2.new(180,40),Visible=false})
+  self._miniOrb=self.MiniBar
+  self._miniScale=node('UIScale','MiniScale',self.MiniBar)
+ end
+ return self.MiniBar
+end
+function app:_miniLand()return Vector2.new(300,20),Vector2.new(180,40)end
+for cycle=1,8 do
+ nativeTransitions.Minimize(app)
+ sidebarRoot.AbsoluteSize=Vector2.new(866,512)
+ flush()
+ local ghost=app._ghost
+ check(ghost and not ghost:FindFirstChild('DevilLanguageSelector')and not ghost:FindFirstChildOfClass('UIScale'),'theme adopted a minimize animation frame')
+ check(docked.Parent==sidebar and sidebar:FindFirstChild('DevilLanguageSelector')==docked,'minimize rebuilt or moved the language menu')
+ for frame=1,20 do
+  ghost.Size=UDim2.fromOffset(880-frame*30,520-frame*20)
+  ghost.AbsoluteSize=Vector2.new(880-frame*30,520-frame*20)
+  flush()
+ end
+ advance(.11);advance(.31);advance(.25)
+ check(not sidebarRoot.Visible and app.MiniBar.Visible,'native minimize did not finish')
+ nativeTransitions.Restore(app);advance(.31);advance(.11);advance(.25)
+ sidebarRoot.AbsoluteSize=Vector2.new(880,520);flush()
+ check(sidebarRoot.Visible and not app.MiniBar.Visible and app._ghost==nil,'native restore did not finish')
+end
+task.delay,task.spawn=savedDelay,savedSpawn
+check(nativeScale.Scale==.83 and scaleWrites==16,'theme rewrote the native transition scale')
 local lateSidebar=node('Frame','Sidebar',root,{Size=UDim2.new(0,170,1,-16)})
 local lateTabs=node('ScrollingFrame','Tabs',lateSidebar,{Position=UDim2.fromOffset(0,72),Size=UDim2.new(1,0,1,-136)})
 flush()
@@ -201,6 +284,9 @@ check(root:FindFirstChildOfClass('UIScale')==nil,'theme scale leaked')
 check(button.Text=='Auto Farm'and button.TextTransparency==0,'translation leaked on unload')
 check(sidebar:FindFirstChild('DevilLanguageSelector')==nil and tabs.Position.Y.Offset==80 and tabs.Size.Y.Offset==-144,'reserved row geometry leaked on unload')
 check(anonymousIcon.ImageColor3==Color3.fromRGB(255,0,0),'native icon color not restored on unload')
+check(search.PlaceholderColor3==Color3.fromRGB(30,30,30)and search.Text=='rare egg','input color restoration lost text or native hint')
+check(quantizedHost.BackgroundTransparency==.25,'theme recorded its own rounded opacity as native state')
+check(nativeScale.Parent==sidebarRoot and scaleWrites==16,'theme removed or rewrote native UIScale')
 check(callback.Connected and originalOpen.Connected,'callbacks disconnected on unload')
 check(legacyLanguage.Visible and legacyCallback.Connected and legacyChanges==0,'legacy language state not restored on unload')
 local reloaded=(function()
