@@ -40,5 +40,20 @@ background. Native backgrounds keep dark gradients. Text padding, fonts,
 alignment, raw values and callbacks remain native. The borderless language button
 uses a drawn chevron instead of a Unicode arrow that can appear as a square.
 
-78 offline UI checks plus integrity, callback-preservation and routing checks pass. Live
+Search and text input surfaces use soft black #181B21, white typed text and
+#ACB8C9 placeholder text. Transparent native inputs retain their geometry while
+their compact enclosing fields receive the background. Native input gradients
+remain neutral so they cannot darken the text. Text and search callbacks stay native.
+
+The original main window is cached across minimize/restore transitions; temporary
+ghost frames and the Island mini bar never become its replacement. The theme no
+longer creates or writes UIScale objects. Scale-only animation changes and
+presentation-owned descendants do not schedule layout reconstruction. Native
+window size and sidebar changes still update the language row. Property writes
+use a reentrancy guard and retain Roblox's stored values to avoid rounding feedback.
+
+122 offline UI checks include eight cycles of the library's original Minimize /
+Restore functions with simulated animation timing, plus integrity, callback and
+routing checks. A regression replay confirms that the previous release adopts
+the temporary animation frame. Live
 Roblox/Delta rendering across every game still requires validation.

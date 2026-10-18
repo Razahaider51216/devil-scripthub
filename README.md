@@ -63,6 +63,9 @@ All ten games use a slightly transparent black background, subtly blue framed
 controls and white/light-blue text. Open/minimize icons have black backgrounds
 and white logos. English / Thai selection is embedded inside the main GUI.
 There is no separate GUI / Colors button or color settings window.
+Search fields use soft black backgrounds, white input text and readable gray
+hints. The theme keeps the main window during minimize/restore and leaves native
+animation scales untouched.
 See [GUI details and validation](devil-blue-gui-README.md).
 
 ```lua
