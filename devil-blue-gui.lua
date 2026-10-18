@@ -1,16 +1,16 @@
 -- Shared presentation only. Game callbacks, network APIs and compiler environments stay original.
 local scope=type(getgenv)=="function"and getgenv()or _G
-local VERSION="devil-blue-20261019-2"
+local VERSION="devil-blue-20261019-3"
 if scope.DevilHubBlueGui and scope.DevilHubBlueGui.Version==VERSION and not scope.DevilHubBlueGui.Stopped then return scope.DevilHubBlueGui end
 if scope.DevilHubBlueGui and scope.DevilHubBlueGui.Destroy then scope.DevilHubBlueGui.Destroy()end
 local controller={Version=VERSION,Stopped=false,Report={screens=0,nodes=0,callbacksReplaced=0}}
 scope.DevilHubBlueGui=controller
-local white=Color3.fromRGB(247,252,255)
-local defaults={Accent="#75CEFF",Background="#071B34",Scale=100,Language="EN"}
+local white=Color3.fromRGB(255,255,255)
+local defaults={Accent="#A4DDFF",Background="#07090D",Scale=100,Language="EN"}
 local settings=table.clone(defaults)
 local configFile="DevilHub-BlueGUI.json"
 local links,tracked,owned,states,scales={},{},{},{},{}
-local ui,refreshUI,refreshAll
+local ui,refreshUI,refreshAll,createUI={},nil,nil,nil
 local http=game:GetService("HttpService")
 local function hex(text)
     if type(text)~="string"then return nil end
@@ -20,23 +20,23 @@ local function hex(text)
 end
 local function valid(input)
     if type(input)~="table"then return end
-    for _,key in ipairs({"Accent","Background"})do if hex(input[key])then settings[key]="#"..input[key]:gsub("#",""):upper()end end
+    -- The fixed palette replaces old saved custom colors.
     if input.Language=="EN"or input.Language=="TH"then settings.Language=input.Language end
-    if type(input.Scale)=="number"and input.Scale==input.Scale then settings.Scale=math.clamp(input.Scale,60,140)end
+    -- Native GUI sizing is preserved without a shared size override.
 end
 if type(readfile)=="function"and type(isfile)=="function"then pcall(function()if isfile(configFile)then valid(http:JSONDecode(readfile(configFile)))end end)end
 local palette={}
 local function updatePalette()
     palette.Accent=hex(settings.Accent);palette.Background=hex(settings.Background)
-    palette.Surface=palette.Background:Lerp(palette.Accent,.12)
-    palette.Surface2=palette.Background:Lerp(palette.Accent,.23)
+    palette.Surface=palette.Background:Lerp(palette.Accent,.04)
+    palette.Surface2=palette.Background:Lerp(palette.Accent,.2)
 end
 updatePalette()
 local function keep(signal,fn,bag)
     local link=signal:Connect(fn);table.insert(bag or links,link);return link
 end
 local function save()
-    if type(writefile)=="function"then pcall(function()writefile(configFile,http:JSONEncode(settings))end)end
+    if type(writefile)=="function"then pcall(function()writefile(configFile,http:JSONEncode({Language=settings.Language}))end)end
 end
 -- BEGIN SHARED LOCALIZATION
 -- Render translated labels in non-interactive overlays. The engine's original
@@ -706,9 +706,31 @@ local function logo(node)
         (type(image)=="string"and(image:find("devil-logo",1,true)or image:find("DevilHub_Silver",1,true)or
         (scope.DevilHubSilverLogo and image==scope.DevilHubSilverLogo)))
 end
+local function launcher(node)
+    local current=node
+    while current do
+        local name=current.Name:lower()
+        if name:find("launcher",1,true)or name:find("floating",1,true)or name:find("leftcenter",1,true)
+            or name:find("guitoggle",1,true)or name:find("hubtoggle",1,true)then return true end
+        if current:IsA("ScreenGui")then break end
+        current=current.Parent
+    end
+    return false
+end
+local function brandImage(node)
+    if not node:IsA("ImageLabel")and not node:IsA("ImageButton")then return false end
+    local image=node.Image
+    if type(image)~="string"or image==""then return false end
+    return image:find("devil-logo",1,true)~=nil or image:find("DevilHub_Silver",1,true)~=nil
+        or scope.DevilHubSilverLogo~=nil and image==scope.DevilHubSilverLogo
+end
 local function target(node,key,source)
     local name=node.Name:lower()
-    if key=="PlaceholderText"then return translate(source)
+    if key=="BackgroundTransparency"then
+        if node:IsA("ImageButton")and(launcher(node)or brandImage(node))then return 0 end
+        if source>=.98 then return source end
+        return math.max(source,launcher(node)and 0 or .14)
+    elseif key=="PlaceholderText"then return translate(source)
     elseif key=="TextColor3"then
         if title(node.Text)then return white end
         return (saturation(source)>.1 or brightness(source)<.8)and palette.Accent or white
@@ -723,11 +745,13 @@ local function target(node,key,source)
         return brightness(value)>.5 and saturation(value)>.15 and ColorSequence.new(palette.Surface2,palette.Accent)
             or ColorSequence.new(palette.Background,palette.Surface)
     elseif key=="BackgroundColor3"then
+        if launcher(node)or node:IsA("ImageButton")and brandImage(node)then return palette.Background end
+        if node.Parent and node.Parent:IsA("ScreenGui")or name=="root"or name=="mainwindow"then return palette.Background end
         if node:IsA("TextBox")then return palette.Surface end
         if name:find("toggle",1,true)or name:find("switch",1,true)or name:find("slider",1,true)then
             return brightness(source)>.48 and palette.Accent or palette.Surface2
         end
-        if name:find("tab",1,true)or name:find("nav",1,true)or name:find("option",1,true)or node:IsA("TextButton")then return palette.Surface2 end
+        if name:find("tab",1,true)or name:find("nav",1,true)or name:find("option",1,true)or name:find("group",1,true)or name:find("section",1,true)or name:find("panel",1,true)or node:IsA("TextButton")then return palette.Surface2 end
         return brightness(source)>.45 and saturation(source)>.15 and palette.Surface2 or palette.Background
     end
     return source
@@ -748,12 +772,12 @@ local function observe(node,state,key)
     end,state.Links)
 end
 local function patch(node)
-    if node:GetAttribute("DevilLocalizationOverlay")then return end
+    if node:GetAttribute("DevilLocalizationOverlay")or node:GetAttribute("DevilBlueSettings")then return end
     localize(node)
     if states[node]then return end
     local keys={}
     if node:IsA("GuiObject")then
-        if node:IsA("Frame")or node:IsA("TextButton")or node:IsA("TextBox")or node:IsA("ScrollingFrame")then table.insert(keys,"BackgroundColor3")end
+        if node:IsA("Frame")or node:IsA("TextButton")or node:IsA("ImageButton")or node:IsA("TextBox")or node:IsA("ScrollingFrame")then table.insert(keys,"BackgroundColor3");table.insert(keys,"BackgroundTransparency")end
         if node:IsA("TextLabel")or node:IsA("TextButton")or node:IsA("TextBox")then
             table.insert(keys,"TextColor3")
             if node.RichText then table.insert(keys,"Text")end
@@ -805,85 +829,43 @@ local function scaleScreen(screen)
     end
     state.Applied=state.Base*settings.Scale/100;state.Node.Scale=state.Applied
 end
-local function createUI(parent)
-    if ui then return end
-    ui=Instance.new("ScreenGui");ui.Name="DevilBlueAppearance";ui.ResetOnSpawn=false;ui.DisplayOrder=10020
-    ui:SetAttribute("DevilBlueSettings",true);ui.Parent=parent
-    local function make(class,props,host)
-        local node=Instance.new(class);for key,value in pairs(props)do node[key]=value end;node.Parent=host;return node
+createUI=function(screen)
+    if screen.Name=="DevilHubLoading"or ui[screen]then return end
+    local root,area
+    for _,child in ipairs(screen:GetChildren())do if child:IsA("GuiObject")and not child:GetAttribute("DevilBlueSettings")then
+        local size=child.AbsoluteSize;local value=size.X*size.Y
+        if value>40000 and(not area or value>area)then root,area=child,value end
+    end end
+    if not root then return end
+    local function make(class,props,parent)
+        local node=Instance.new(class);node:SetAttribute("DevilBlueSettings",true)
+        for key,value in pairs(props)do node[key]=value end;node.Parent=parent;return node
     end
-    local function round(node,radius)make("UICorner",{CornerRadius=UDim.new(0,radius)},node)end
-    local button=make("TextButton",{Name="AppearanceButton",AnchorPoint=Vector2.new(1,1),Position=UDim2.new(1,-16,1,-16),
-        Size=UDim2.fromOffset(116,34),Text="GUI / Colors",Font=Enum.Font.GothamSemibold,TextSize=13,BorderSizePixel=0},ui);round(button,9)
-    local card=make("Frame",{Name="AppearancePanel",Visible=false,AnchorPoint=Vector2.new(1,1),Position=UDim2.new(1,-16,1,-58),
-        Size=UDim2.fromOffset(294,288),BorderSizePixel=0},ui);round(card,12)
-    local heading=make("TextLabel",{BackgroundTransparency=1,Position=UDim2.fromOffset(16,12),Size=UDim2.fromOffset(260,24),
-        Text="DEVIL HUB / GUI",Font=Enum.Font.GothamBold,TextSize=16,TextXAlignment=Enum.TextXAlignment.Left},card)
-    local panelScale=make("UIScale",{Name="PanelViewportScale",Scale=1},card)
-    pcall(function()
-        local camera=workspace.CurrentCamera
-        local function fit()
-            local viewport=camera.ViewportSize
-            panelScale.Scale=math.clamp(math.min((viewport.X-28)/294,(viewport.Y-84)/288),.5,1)
-        end
-        fit();keep(camera:GetPropertyChangedSignal("ViewportSize"),fit)
-    end)
-    make("TextLabel",{Name="LanguageLabel",BackgroundTransparency=1,Position=UDim2.fromOffset(16,50),Size=UDim2.fromOffset(124,28),
-        Text="Language / ภาษา",Font=Enum.Font.Gotham,TextSize=12,TextXAlignment=Enum.TextXAlignment.Left},card)
-    local language=make("TextButton",{Name="LanguageSelect",Position=UDim2.fromOffset(144,50),Size=UDim2.fromOffset(134,28),
-        Font=Enum.Font.GothamSemibold,TextSize=13,BorderSizePixel=0},card);round(language,6)
-    local menu=make("Frame",{Name="LanguageOptions",Visible=false,Position=UDim2.fromOffset(144,80),Size=UDim2.fromOffset(134,64),
-        BackgroundColor3=palette.Surface2,BorderSizePixel=0,ZIndex=20},card);round(menu,6)
+    local host=make("Frame",{Name="DevilLanguageSelector",BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0),
+        Position=UDim2.new(1,-88,0,10),Size=UDim2.fromOffset(96,26),ZIndex=100},root)
+    local button=make("TextButton",{Name="LanguageSelect",Size=UDim2.fromScale(1,1),BorderSizePixel=0,
+        BackgroundColor3=palette.Background,BackgroundTransparency=.12,Font=Enum.Font.GothamSemibold,TextSize=12,ZIndex=101},host)
+    make("UICorner",{CornerRadius=UDim.new(0,6)},button)
+    make("UIStroke",{Color=palette.Accent,Transparency=.65,Thickness=1},button)
+    local menu=make("Frame",{Name="LanguageOptions",Visible=false,Position=UDim2.fromOffset(0,30),Size=UDim2.fromOffset(96,64),
+        BackgroundColor3=palette.Background,BackgroundTransparency=.08,BorderSizePixel=0,ZIndex=102},host)
+    make("UICorner",{CornerRadius=UDim.new(0,6)},menu)
+    make("UIStroke",{Color=palette.Accent,Transparency=.6,Thickness=1},menu)
     for index,option in ipairs({{"EN","English"},{"TH","ไทย"}})do
         local choice=make("TextButton",{Name="Language"..option[1],Text=option[2],Position=UDim2.fromOffset(4,(index-1)*30+2),
-            Size=UDim2.fromOffset(126,28),BackgroundTransparency=1,Font=Enum.Font.GothamSemibold,TextSize=13,ZIndex=21},menu)
-        keep(choice.Activated,function()controller.Set({Language=option[1]});menu.Visible=false end)
+            Size=UDim2.fromOffset(88,28),BackgroundTransparency=1,TextColor3=white,Font=Enum.Font.GothamSemibold,TextSize=13,ZIndex=103},menu)
+        keep(choice.Activated,function()controller.SetLanguage(option[1]);menu.Visible=false end)
     end
-    keep(language.Activated,function()menu.Visible=not menu.Visible end)
-    local function input(label,name,y,value)
-        local caption=make("TextLabel",{BackgroundTransparency=1,Position=UDim2.fromOffset(16,y),Size=UDim2.fromOffset(120,28),Text=label,
-            Font=Enum.Font.Gotham,TextSize=12,TextXAlignment=Enum.TextXAlignment.Left},card)
-        caption:SetAttribute("DevilUiEnglish",label)
-        local box=make("TextBox",{Name=name,Position=UDim2.fromOffset(144,y),Size=UDim2.fromOffset(134,28),Text=value,
-            ClearTextOnFocus=false,Font=Enum.Font.Code,TextSize=14,BorderSizePixel=0},card);round(box,6);return box
+    keep(button.Activated,function()menu.Visible=not menu.Visible end)
+    local function sync()
+        button.Text=settings.Language=="TH"and"ไทย  v"or"EN  v"
+        button.TextColor3=palette.Accent
     end
-    local accent=input("Light blue / Accent","AccentInput",90,settings.Accent)
-    local background=input("Dark background","BackgroundInput",128,settings.Background)
-    local scaleLabel=make("TextLabel",{BackgroundTransparency=1,Position=UDim2.fromOffset(61,170),Size=UDim2.fromOffset(172,30),
-        Font=Enum.Font.GothamSemibold,TextSize=14},card)
-    local function action(text,x,y,width,fn)
-        local node=make("TextButton",{Name=text,Text=text,Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(width,30),
-            Font=Enum.Font.GothamSemibold,TextSize=13,BorderSizePixel=0},card)
-        node:SetAttribute("DevilUiEnglish",text);round(node,6);keep(node.Activated,fn);return node
-    end
-    action("-",16,170,36,function()controller.Set({Scale=settings.Scale-10})end)
-    action("+",242,170,36,function()controller.Set({Scale=settings.Scale+10})end)
-    local feedback=make("TextLabel",{BackgroundTransparency=1,Position=UDim2.fromOffset(16,208),Size=UDim2.fromOffset(262,18),
-        Text="Saved for all supported games",Font=Enum.Font.Gotham,TextSize=11},card)
-    action("Apply",16,238,126,function()
-        if not hex(accent.Text)or not hex(background.Text)then feedback.Text=translate("Use 6 hex digits, e.g. #75CEFF");return end
-        controller.Set({Accent=accent.Text,Background=background.Text});feedback.Text=translate("Saved for all supported games")
-    end)
-    action("Reset",152,238,126,function()
-        controller.Set({Accent=defaults.Accent,Background=defaults.Background,Scale=100})
-        feedback.Text=translate("Default blue theme restored")
-    end)
-    function controller.Open()card.Visible=true end
-    keep(button.Activated,function()card.Visible=not card.Visible end)
-    refreshUI=function()
-        button.BackgroundColor3=palette.Surface2;button.TextColor3=palette.Accent;button.Text=translate("GUI / Colors")
-        card.BackgroundColor3=palette.Background;menu.BackgroundColor3=palette.Surface2
-        heading.TextColor3=white;scaleLabel.Text=translate("GUI size: ")..math.floor(settings.Scale).."%"
-        accent.Text=settings.Accent;background.Text=settings.Background
-        language.Text=settings.Language=="TH"and"ไทย  ▾"or"English  ▾"
-        feedback.Text=translate("Saved for all supported games")
-        for _,node in ipairs(card:GetDescendants())do
-            if node:IsA("TextBox")or node:IsA("TextButton")then node.BackgroundColor3=palette.Surface2;node.TextColor3=white
-            elseif node:IsA("TextLabel")then node.TextColor3=node==heading and white or palette.Accent end
-            local source=node:GetAttribute("DevilUiEnglish");if source then node.Text=translate(source)end
-        end
-    end
-    refreshUI()
+    ui[screen]={Frame=host,Update=sync}
+    keep(host.Destroying,function()ui[screen]=nil end)
+    function controller.Open()menu.Visible=true end
+    refreshUI=function()for _,panel in pairs(ui)do panel.Update()end end
+    sync()
 end
 
 local function mark(screen)
@@ -891,7 +873,7 @@ local function mark(screen)
     owned[screen]=true;controller.Report.screens+=1
     for _,node in ipairs(screen:GetDescendants())do patch(node)end
     scaleScreen(screen)
-    if screen.Name~="DevilHubLoading"then createUI(screen.Parent)end
+    if screen.Name~="DevilHubLoading"then createUI(screen)end
 end
 local function track(screen)
     if not screen:IsA("ScreenGui")or tracked[screen]or screen:GetAttribute("DevilBlueSettings")then return end
@@ -899,7 +881,7 @@ local function track(screen)
     local function queueScale()
         if state.ScaleQueued then return end
         state.ScaleQueued=true
-        task.defer(function()state.ScaleQueued=false;if not controller.Stopped and owned[screen]then scaleScreen(screen)end end)
+        task.defer(function()state.ScaleQueued=false;if not controller.Stopped and owned[screen]then scaleScreen(screen);createUI(screen)end end)
     end
     local function inspect(node)
         if node:IsA("GuiObject")and node.Parent==screen and not state.Roots[node]then
@@ -909,6 +891,11 @@ local function track(screen)
             patch(node)
             queueScale()
             return
+        end
+        if brandImage(node)then mark(screen);return end
+        if (node:IsA("ImageLabel")or node:IsA("ImageButton"))and state.Probes<24 then
+            state.Probes+=1
+            keep(node:GetPropertyChangedSignal("Image"),function()if brandImage(node)then mark(screen)end end,state.Links)
         end
         if node:IsA("TextLabel")or node:IsA("TextButton")then
             if title(node.Text)then mark(screen)
@@ -962,7 +949,7 @@ function controller.Destroy()
         state.Link:Disconnect()
         if state.Created then state.Node:Destroy()else pcall(function()state.Node.Scale=state.Base end)end
     end
-    if ui then ui:Destroy()end
+    for _,panel in pairs(table.clone(ui))do panel.Frame:Destroy()end
     if scope.DevilHubBlueGui==controller then scope.DevilHubBlueGui=nil end
 end
 local containers={}

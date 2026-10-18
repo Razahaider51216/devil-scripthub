@@ -14,7 +14,7 @@ finish = '-- END SHARED LOCALIZATION\n'
 start = source.index(begin) + len(begin)
 end = source.index(finish, start)
 source = source[:start] + helper + '\n' + source[end:]
-start = source.index('local function createUI(')
+start = source.index('createUI=function(screen)')
 end = source.index('local function mark(screen)', start)
 source = source[:start] + (here / 'appearance-panel.lua').read_text(encoding='utf-8') + '\n' + source[end:]
 path.write_text(source, encoding='utf-8', newline='\n')

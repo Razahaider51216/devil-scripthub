@@ -11,7 +11,7 @@ test='local public='+literal(public)+'\nlocal reference='+literal(entry)+r'''
 local nativeCompile=loadstring
 local function setup(universe,place,corrupt)
     local downloads,compiled={},0
-    local state={DevilHubBlueGui={Version="devil-blue-20261019-2",Stopped=false}}
+    local state={DevilHubBlueGui={Version="devil-blue-20261019-3",Stopped=false}}
     local env={game={GameId=universe,PlaceId=place},task={wait=function()end},getgenv=function()return state end}
     function env.game:HttpGet(url)
         table.insert(downloads,url)
