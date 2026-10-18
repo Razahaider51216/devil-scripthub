@@ -12,8 +12,19 @@ tint. Pet/item images and thumbnails keep their original images and colors.
 
 Use the **GUI / Colors** button in the bottom-right corner to set accent and
 background hex colors, adjust GUI scale from 60–140%, or restore defaults.
+The **Language / ภาษา** select menu offers English and ไทย. Selection updates
+translated labels immediately and is remembered across games and sessions.
 Preferences are stored locally in `DevilHub-BlueGUI.json` and shared by all games.
 The Steal an Egg Settings shortcut opens this same panel.
+
+The current English/Thai dictionary has 583 UI entries, including common menus
+and features for all ten games. Dynamic labels are updated when the game changes
+them. Unknown wording remains as supplied by the game. Translation uses inert
+rendering overlays: original Text values, option identifiers and callbacks remain
+unchanged. User input in TextBoxes and webhook addresses are never translated.
+Search placeholders are translated; native feature search continues to use the
+engine's original text/identifiers. Native layouts containing an internal list/grid
+are left alone rather than inserting translation overlays into their layout.
 
 Only DEVIL HUB-owned ScreenGuis are styled. Ownership is established by the
 explicit presentation attribute, a DevilHub screen name, or the exact product

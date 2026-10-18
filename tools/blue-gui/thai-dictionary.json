@@ -1,0 +1,2334 @@
+[
+  [
+    "Accent Color",
+    "สีหลัก"
+  ],
+  [
+    "Add/Remove Hits On Quick Bar 2",
+    "เพิ่ม/ลบปุ่มตีใน Quick Bar 2"
+  ],
+  [
+    "After Each Boss, Hops To A Less Crowded Server To Fight Again",
+    "ตีบอสเสร็จแล้วย้ายไปเซิร์ฟคนน้อยเพื่อตีต่อ"
+  ],
+  [
+    "Allowed Materials",
+    "สัตว์ที่อนุญาตให้ใช้"
+  ],
+  [
+    "Also Show The Eggs Placed In Your Own Base",
+    "แสดงป้ายชื่อไข่ที่วางไว้ในฐานของคุณด้วย"
+  ],
+  [
+    "Also Steal Eggs Missing From Your Index, Highest Area First",
+    "ขโมยไข่ที่คุณยังไม่มีในสมุดสะสม (เล็งพื้นที่สูงสุดก่อน)"
+  ],
+  [
+    "Always Favorite Species",
+    "ล็อกหัวใจสัตว์ชนิดนี้เสมอ"
+  ],
+  [
+    "Always Favorite These Species",
+    "สัตว์ชนิดนี้จะถูกล็อกหัวใจเสมอ"
+  ],
+  [
+    "Amethyst Butterfly",
+    "ผีเสื้ออเมทิสต์ (Amethyst)"
+  ],
+  [
+    "Animal Filter",
+    "เลือกสัตว์"
+  ],
+  [
+    "Anti AFK",
+    "ป้องกันหลุดเมื่อไม่ขยับ"
+  ],
+  [
+    "Anti Guard Panel",
+    "ซ่อนพาเนล Anti Guard"
+  ],
+  [
+    "Anti Ragdoll",
+    "กันล้ม (Anti Ragdoll)"
+  ],
+  [
+    "Anti Trap",
+    "กันกับดัก (Anti Trap)"
+  ],
+  [
+    "Anti-AFK",
+    "ป้องกันหลุดเมื่อไม่ขยับ"
+  ],
+  [
+    "Ants",
+    "มด"
+  ],
+  [
+    "Apply",
+    "นำไปใช้"
+  ],
+  [
+    "Attack",
+    "โจมตี"
+  ],
+  [
+    "Attack Speed",
+    "ความเร็วในการโจมตี"
+  ],
+  [
+    "Attacking boss with Bat",
+    "กำลังตีบอสด้วย Bat"
+  ],
+  [
+    "Attacking Essence eggs",
+    "กำลังตีไข่เก็บ Essence"
+  ],
+  [
+    "Auto Attack",
+    "โจมตีอัตโนมัติ"
+  ],
+  [
+    "Auto Banjo Cricket",
+    "ออโต้ Banjo Cricket"
+  ],
+  [
+    "Auto Break",
+    "ทุบอัตโนมัติ"
+  ],
+  [
+    "Auto Build",
+    "สร้างอัตโนมัติ"
+  ],
+  [
+    "Auto Butterfly Bloom",
+    "ออโต้งอกผีเสื้อเบ่งบาน"
+  ],
+  [
+    "Auto Buy",
+    "ซื้ออัตโนมัติ"
+  ],
+  [
+    "Auto Buy Demon Eggs",
+    "ซื้อไข่ Demon ด้วย Fallen Tokens อัตโนมัติ"
+  ],
+  [
+    "Auto Buy Food",
+    "ออโต้ซื้ออาหาร"
+  ],
+  [
+    "Auto Buy Halloween Dimension Egg",
+    "ซื้อไข่มิติฮาโลวีนอัตโนมัติ"
+  ],
+  [
+    "Auto Buy Pickaxes",
+    "ซื้อพลั่วอัตโนมัติ"
+  ],
+  [
+    "Auto Buy Radars",
+    "ออโต้ซื้อเรดาร์"
+  ],
+  [
+    "Auto Buy Scramble Shop",
+    "ออโต้ซื้อของร้าน Scramble"
+  ],
+  [
+    "Auto Buy Scrambled",
+    "ออโต้ซื้อ Scrambled"
+  ],
+  [
+    "Auto Buy Trail",
+    "ออโต้ซื้อเส้นทางวิ่ง (Trail)"
+  ],
+  [
+    "Auto Buy Trails",
+    "ซื้อ Trails อัตโนมัติ"
+  ],
+  [
+    "Auto Catch Shooting Star",
+    "เก็บดาวตกอัตโนมัติ"
+  ],
+  [
+    "Auto Claim",
+    "รับรางวัลอัตโนมัติ"
+  ],
+  [
+    "Auto Claim Index",
+    "ออโต้รับรางวัลสมุดสะสม"
+  ],
+  [
+    "Auto Claim Index Reward",
+    "ออโต้รับรางวัลสมุดสะสม"
+  ],
+  [
+    "Auto Claim Mastery",
+    "ออโต้รับรางวัล Mastery"
+  ],
+  [
+    "Auto Click",
+    "คลิกอัตโนมัติ"
+  ],
+  [
+    "Auto Climb",
+    "ปีนอัตโนมัติ"
+  ],
+  [
+    "Auto Collect",
+    "เก็บอัตโนมัติ"
+  ],
+  [
+    "Auto Collect Eggs",
+    "เก็บไข่อัตโนมัติ"
+  ],
+  [
+    "Auto Craft Essence",
+    "ออโต้คราฟต์ Essence"
+  ],
+  [
+    "Auto Delete",
+    "ลบอัตโนมัติ"
+  ],
+  [
+    "Auto Equip",
+    "สวมใส่อัตโนมัติ"
+  ],
+  [
+    "Auto Equip Best",
+    "สวมใส่ตัวที่ดีที่สุดอัตโนมัติ"
+  ],
+  [
+    "Auto Farm",
+    "ฟาร์มอัตโนมัติ"
+  ],
+  [
+    "Auto Farm Monsters",
+    "ฟาร์มมอนสเตอร์อัตโนมัติ"
+  ],
+  [
+    "Auto Favorite",
+    "เพิ่มรายการโปรดอัตโนมัติ"
+  ],
+  [
+    "Auto Favorite Equipped",
+    "ออโต้ล็อกหัวใจตัวที่ใส่"
+  ],
+  [
+    "Auto Favorite Pet",
+    "ออโต้ล็อกหัวใจสัตว์เลี้ยง"
+  ],
+  [
+    "Auto Feed",
+    "ให้อาหารอัตโนมัติ"
+  ],
+  [
+    "Auto Feed Pets",
+    "ออโต้ให้อาหารสัตว์"
+  ],
+  [
+    "Auto Fishing",
+    "ตกปลาอัตโนมัติ"
+  ],
+  [
+    "Auto Forge",
+    "ตีของอัตโนมัติ"
+  ],
+  [
+    "Auto Fuse",
+    "รวมร่างอัตโนมัติ"
+  ],
+  [
+    "Auto Fuse Machine",
+    "ออโต้ผสมสัตว์ (Fuse Machine)"
+  ],
+  [
+    "Auto Ghost Dog Quest",
+    "ทำเควสต์ Ghost Dog อัตโนมัติ"
+  ],
+  [
+    "Auto Go on Treadmill",
+    "เข้าลู่วิ่งอัตโนมัติ"
+  ],
+  [
+    "Auto Hatch",
+    "ฟักอัตโนมัติ"
+  ],
+  [
+    "Auto Hatch & Equip",
+    "ออโต้ฟักและสวมใส่"
+  ],
+  [
+    "Auto Hatch Eggs",
+    "ฟักไข่อัตโนมัติ"
+  ],
+  [
+    "Auto Hit",
+    "โจมตีอัตโนมัติ"
+  ],
+  [
+    "Auto Hit Egg Holders",
+    "ออโต้ตีคนถือไข่"
+  ],
+  [
+    "Auto Hit Nearest Player",
+    "ออโต้ตีคนใกล้สุด"
+  ],
+  [
+    "Auto Hit Specific Player",
+    "ออโต้ตีระบุตัวคน"
+  ],
+  [
+    "Auto Hop",
+    "ออโต้ย้ายเซิร์ฟเวอร์"
+  ],
+  [
+    "Auto Join + Essence + Boss",
+    "เข้าอีเวนต์ + ตี Essence + ตีบอสอัตโนมัติ"
+  ],
+  [
+    "Auto Lab Trade-In",
+    "ออโต้แลกของในแล็บ"
+  ],
+  [
+    "Auto Lift",
+    "ยกอัตโนมัติ"
+  ],
+  [
+    "Auto Load Config",
+    "ออโต้โหลดคอนฟิก"
+  ],
+  [
+    "Auto Load Script",
+    "ออโต้โหลดสคริปต์"
+  ],
+  [
+    "Auto Loot",
+    "เก็บของอัตโนมัติ"
+  ],
+  [
+    "Auto Mech Boss",
+    "ออโต้ตีบอสหุ่นรบ"
+  ],
+  [
+    "Auto Mine",
+    "ขุดอัตโนมัติ"
+  ],
+  [
+    "Auto Mining",
+    "ขุดอัตโนมัติ"
+  ],
+  [
+    "Auto Mutate",
+    "ออโต้กลายพันธุ์"
+  ],
+  [
+    "Auto Mutation",
+    "ออโต้กลายพันธุ์"
+  ],
+  [
+    "Auto Phantom Express",
+    "เล่น Phantom Express อัตโนมัติ"
+  ],
+  [
+    "Auto Pick Up",
+    "เก็บสัตว์อัตโนมัติ"
+  ],
+  [
+    "Auto Pick Up & Bank",
+    "เก็บสัตว์และส่งเข้าเซฟโซน"
+  ],
+  [
+    "Auto Pick Up + Bank",
+    "เก็บสัตว์และส่งเข้าเซฟโซน"
+  ],
+  [
+    "Auto Pickup",
+    "เก็บสัตว์อัตโนมัติ"
+  ],
+  [
+    "Auto Place Best Pets",
+    "ออโต้วางตัวที่เก่งสุด"
+  ],
+  [
+    "Auto Place Egg",
+    "วางไข่อัตโนมัติ"
+  ],
+  [
+    "Auto Place Lab Reward Eggs",
+    "ออโต้วางไข่รางวัลจากแล็บ"
+  ],
+  [
+    "Auto Plant Eggs",
+    "ออโต้วางไข่"
+  ],
+  [
+    "Auto Play Cursed Island Wars",
+    "เล่น Cursed Island Wars อัตโนมัติ"
+  ],
+  [
+    "Auto Progress",
+    "ออโต้ความคืบหน้า"
+  ],
+  [
+    "Auto Progression",
+    "ออโต้ความคืบหน้า"
+  ],
+  [
+    "Auto Pumpkin Moon",
+    "เล่น Pumpkin Moon อัตโนมัติ"
+  ],
+  [
+    "Auto Rebirth",
+    "เกิดใหม่อัตโนมัติ"
+  ],
+  [
+    "Auto Rejoin When Disconnect",
+    "เข้าเซิร์ฟใหม่อัตโนมัติเมื่อหลุด"
+  ],
+  [
+    "Auto Reroll",
+    "สุ่มใหม่อัตโนมัติ"
+  ],
+  [
+    "Auto Reroll Lab Recipe",
+    "ออโต้สุ่มสูตรแล็บใหม่"
+  ],
+  [
+    "Auto Ride",
+    "ขี่อัตโนมัติ"
+  ],
+  [
+    "Auto Roll",
+    "สุ่มอัตโนมัติ"
+  ],
+  [
+    "Auto Save Config",
+    "ออโต้เซฟคอนฟิก"
+  ],
+  [
+    "Auto Sell",
+    "ขายอัตโนมัติ"
+  ],
+  [
+    "Auto Sell Egg",
+    "ออโต้ขายไข่"
+  ],
+  [
+    "Auto Sell Eggs",
+    "ขายไข่อัตโนมัติ"
+  ],
+  [
+    "Auto Sell Lab Egg",
+    "ออโต้ขายไข่แล็บ"
+  ],
+  [
+    "Auto Sell Pet",
+    "ออโต้ขายสัตว์เลี้ยง"
+  ],
+  [
+    "Auto Sell Pets",
+    "ขายสัตว์เลี้ยงอัตโนมัติ"
+  ],
+  [
+    "Auto Shop",
+    "ออโต้ร้านค้า"
+  ],
+  [
+    "Auto Spawn",
+    "เรียกอัตโนมัติ"
+  ],
+  [
+    "Auto Steal",
+    "ขโมยอัตโนมัติ"
+  ],
+  [
+    "Auto Steal Halloween Eggs",
+    "ขโมยไข่ฮาโลวีนอัตโนมัติ"
+  ],
+  [
+    "Auto Swing",
+    "ตีอัตโนมัติ"
+  ],
+  [
+    "Auto Tap",
+    "คลิกอัตโนมัติ"
+  ],
+  [
+    "Auto Trade Souls",
+    "แลกวิญญาณอัตโนมัติ"
+  ],
+  [
+    "Auto Trade Up",
+    "ออโต้เทรดอัป"
+  ],
+  [
+    "Auto Treadmill",
+    "วิ่งลู่อัตโนมัติ"
+  ],
+  [
+    "Auto Unfavorite Equipped",
+    "ออโต้ปลดล็อกตัวที่ใส่ (ถ้าไม่ตรงกฎ)"
+  ],
+  [
+    "Auto Upgrade",
+    "อัปเกรดอัตโนมัติ"
+  ],
+  [
+    "Auto Upgrade Base",
+    "ออโต้อัปเกรดฐาน"
+  ],
+  [
+    "Auto Upgrade Luck",
+    "ออโต้อัปเกรดโชค"
+  ],
+  [
+    "Auto Upgrade Pen",
+    "อัปเกรดคอกอัตโนมัติ"
+  ],
+  [
+    "Auto Upgrade Treadmill",
+    "อัปเกรดลู่วิ่งอัตโนมัติ"
+  ],
+  [
+    "Auto Use Enchanted Essence",
+    "ออโต้ใช้ Enchanted Essence"
+  ],
+  [
+    "Auto Use Scrambled",
+    "ออโต้ใช้ Scrambled"
+  ],
+  [
+    "Auto Vacuum Ghouler Boss",
+    "ทำบอส Vacuum Ghouler อัตโนมัติ"
+  ],
+  [
+    "Auto Volcano Dip",
+    "ออโต้ชุบภูเขาไฟ"
+  ],
+  [
+    "Auto Wisp",
+    "ออโต้ Wisp"
+  ],
+  [
+    "Automatically Buy Trails When Affordable",
+    "ซื้อเส้นทางวิ่งอัตโนมัติเมื่อเงินพอ"
+  ],
+  [
+    "Automatically Upgrade Base When Money Is Available",
+    "อัปเกรดฐานอัตโนมัติเมื่อมีเงินพอ"
+  ],
+  [
+    "Automatically Upgrade Treadmill When Money Is Available",
+    "อัปเกรดลู่วิ่งอัตโนมัติเมื่อมีเงินพอ"
+  ],
+  [
+    "Automation",
+    "ระบบอัตโนมัติ"
+  ],
+  [
+    "Background Color",
+    "สีพื้นหลัง"
+  ],
+  [
+    "Blacklist Sell Eggs",
+    "ไข่ที่ห้ามขาย (Blacklist)"
+  ],
+  [
+    "Blacklist Sell Pets",
+    "สัตว์ที่ห้ามขาย (Blacklist)"
+  ],
+  [
+    "Boss Server Hop",
+    "ย้ายเซิร์ฟเวอร์ตีบอส"
+  ],
+  [
+    "Break",
+    "ทุบไข่"
+  ],
+  [
+    "Build",
+    "สร้าง"
+  ],
+  [
+    "Butterfly Bloom",
+    "ผีเสื้อเบ่งบาน (Butterfly Bloom)"
+  ],
+  [
+    "Buy Another Scrambled From The Event Shop When You Run Out",
+    "ซื้อเพิ่มจากร้านกิจกรรมเมื่อของหมด"
+  ],
+  [
+    "Buy Scrambled From The Dr Scramble Shop As Soon As You Run Out",
+    "ซื้อ Scrambled จากร้าน ดร.สแครมเบิล ทันทีเมื่อของหมด"
+  ],
+  [
+    "Buy The Picked Items With Samples",
+    "ซื้อไอเทมที่เลือกด้วย Samples"
+  ],
+  [
+    "Cancel",
+    "ยกเลิก"
+  ],
+  [
+    "Carry Speed",
+    "ความเร็วตอนถือไข่"
+  ],
+  [
+    "Catch Butterflies",
+    "จับผีเสื้อ"
+  ],
+  [
+    "Catch Mode",
+    "โหมดการจับ"
+  ],
+  [
+    "Catch Priority",
+    "ลำดับความสำคัญการจับ"
+  ],
+  [
+    "changing a filter here also changes it in Auto Steal, and back",
+    "เปลี่ยนตัวกรองที่นี่ จะไปเปลี่ยนในออโต้ขโมยด้วยอัตโนมัติ"
+  ],
+  [
+    "Character",
+    "ตัวละคร (Character)"
+  ],
+  [
+    "Chase",
+    "ไล่ล่า (Chase)"
+  ],
+  [
+    "Chase Settings",
+    "ตั้งค่าโหมดไล่ล่า"
+  ],
+  [
+    "Cherry Blossom",
+    "ซากุระ (Cherry Blossom)"
+  ],
+  [
+    "Circle",
+    "เดินวนรอบ (Circle)"
+  ],
+  [
+    "Claim",
+    "รับรางวัล"
+  ],
+  [
+    "Claim All",
+    "รับรางวัลทั้งหมด"
+  ],
+  [
+    "Claim Index Rewards As Soon As They Unlock",
+    "รับรางวัลสมุดสะสมทันทีที่ปลดล็อก"
+  ],
+  [
+    "Claim Offline Money & Index Rewards",
+    "รับเงินตอนออฟไลน์และรางวัลสมุดสะสม"
+  ],
+  [
+    "Claims Boss Mastery Rewards As Soon As They Unlock",
+    "รับรางวัล Boss Mastery ทันทีที่ปลดล็อก"
+  ],
+  [
+    "Climb",
+    "ปีน"
+  ],
+  [
+    "Climb Speed",
+    "ความเร็วในการปีน"
+  ],
+  [
+    "Close",
+    "ปิด"
+  ],
+  [
+    "Collect",
+    "เก็บ"
+  ],
+  [
+    "Collect Eggs",
+    "เก็บไข่"
+  ],
+  [
+    "Combat",
+    "การต่อสู้ (Combat)"
+  ],
+  [
+    "Common",
+    "ทั่วไป (Common)"
+  ],
+  [
+    "Config",
+    "คอนฟิก"
+  ],
+  [
+    "Confirm",
+    "ยืนยัน"
+  ],
+  [
+    "Copy",
+    "คัดลอก"
+  ],
+  [
+    "Copy / Save Event Report",
+    "คัดลอก / บันทึกรายงานอีเวนต์"
+  ],
+  [
+    "Copy / Save Movement Report",
+    "คัดลอก / บันทึกรายงานการเคลื่อนที่"
+  ],
+  [
+    "Copy Current Job Id",
+    "คัดลอก Job ID ปัจจุบัน"
+  ],
+  [
+    "Copy Discord",
+    "คัดลอก Discord"
+  ],
+  [
+    "Copy Discord Invite",
+    "คัดลอกลิงก์ Discord"
+  ],
+  [
+    "Copy Job ID",
+    "คัดลอก Job ID"
+  ],
+  [
+    "Copy Link",
+    "คัดลอกลิงก์"
+  ],
+  [
+    "Cosmic",
+    "จักรวาล (Cosmic)"
+  ],
+  [
+    "Create New Config",
+    "สร้างคอนฟิกใหม่"
+  ],
+  [
+    "Daily",
+    "รายวัน"
+  ],
+  [
+    "Dark background",
+    "พื้นหลังฟ้าเข้ม"
+  ],
+  [
+    "Default blue theme restored",
+    "คืนค่าธีมสีฟ้าแล้ว"
+  ],
+  [
+    "Delay",
+    "เวลาหน่วง"
+  ],
+  [
+    "Delete",
+    "ลบ"
+  ],
+  [
+    "Delete Config",
+    "ลบคอนฟิก"
+  ],
+  [
+    "Delivers The Egg To The Safe Zone In A Few Seconds, Needs Enough Speed",
+    "ส่งไข่กลับเซฟโซนในไม่กี่วินาที (ต้องตั้ง Speed ให้พอ)"
+  ],
+  [
+    "Delivers The Same Way As Instant Steal V2 Instead Of Using Steps",
+    "ส่งไข่กลับแบบเดียวกับ Instant Steal V2 โดยไม่ใช้สเต็ป"
+  ],
+  [
+    "Disable 3D Render",
+    "ปิดการแสดงผลภาพ 3D"
+  ],
+  [
+    "Disable 3D Rendering",
+    "ปิดภาพ 3D (จอดำ)"
+  ],
+  [
+    "Disabled",
+    "ปิดใช้งาน"
+  ],
+  [
+    "Discord",
+    "ดิสคอร์ด"
+  ],
+  [
+    "Discord Webhook",
+    "ดิสคอร์ดเว็บฮุก"
+  ],
+  [
+    "Dismount",
+    "ลงจากสัตว์เลี้ยง"
+  ],
+  [
+    "Distance",
+    "ระยะห่าง"
+  ],
+  [
+    "Divine",
+    "เทพเจ้า (Divine)"
+  ],
+  [
+    "Dr Scramble Lab & Mech",
+    "ห้องแล็บ Dr Scramble & หุ่นรบ"
+  ],
+  [
+    "Drag Any Panel To Place It Where You Like",
+    "ลากหน้าต่างใดก็ได้ไปวางในตำแหน่งที่คุณต้องการ"
+  ],
+  [
+    "Egg Finder",
+    "ค้นหาไข่ (Egg Finder)"
+  ],
+  [
+    "Egg Max Rarity",
+    "ระดับหายากสูงสุดของไข่"
+  ],
+  [
+    "Egg Predictor",
+    "พยากรณ์ไข่ (Egg Predictor)"
+  ],
+  [
+    "Egg Sell Value",
+    "มูลค่าการขายไข่"
+  ],
+  [
+    "Eggs",
+    "ไข่"
+  ],
+  [
+    "Eject Incomplete Slots",
+    "นำตัวที่ไม่ครบเซ็ตออก"
+  ],
+  [
+    "Emerald Butterfly",
+    "ผีเสื้อมรกต (Emerald)"
+  ],
+  [
+    "Enabled",
+    "เปิดใช้งาน"
+  ],
+  [
+    "Enchanted Forest",
+    "ป่าต้องมนตร์ (Enchanted Forest)"
+  ],
+  [
+    "Enter 1000000 or 1M to Steal animals earning at least 1M/s. Combines with selected rarity/name. Use 0 to disable income filtering.",
+    "ใส่ 1000000 หรือ 1M เพื่อ Steal รายได้ 1M/s ขึ้นไป ใช้ร่วมกับระดับและชื่อที่เลือก ใส่ 0 เพื่อปิดเงื่อนไขเงิน"
+  ],
+  [
+    "Epic",
+    "มหากาพย์ (Epic)"
+  ],
+  [
+    "Equip",
+    "สวมใส่"
+  ],
+  [
+    "Equip Best",
+    "สวมใส่ตัวที่ดีที่สุด"
+  ],
+  [
+    "Equip Best When A Better Pet Appears",
+    "ใส่สัตว์เลี้ยงที่ดีกว่าอัตโนมัติเมื่อหาได้"
+  ],
+  [
+    "Error; check report",
+    "เกิดข้อผิดพลาด ดูรายงาน"
+  ],
+  [
+    "Esp",
+    "มองทะลุ (ESP)"
+  ],
+  [
+    "Esp Egg Size",
+    "ขนาด ESP ไข่"
+  ],
+  [
+    "Esp Eggs",
+    "มองทะลุไข่"
+  ],
+  [
+    "Esp Fixed Size",
+    "ขนาดคงที่ (Fixed Size)"
+  ],
+  [
+    "Esp Guard Size",
+    "ขนาด ESP ยาม"
+  ],
+  [
+    "Esp Guards",
+    "มองทะลุยาม (ESP Guards)"
+  ],
+  [
+    "Esp Lost Parts",
+    "มองทะลุชิ้นส่วนเควส"
+  ],
+  [
+    "Esp Min Rarity",
+    "ระดับความหายากขั้นต่ำที่จะมองทะลุ"
+  ],
+  [
+    "Esp Own Base Eggs",
+    "มองทะลุไข่ในฐานตัวเอง"
+  ],
+  [
+    "Esp Player Info",
+    "ข้อมูลผู้เล่น"
+  ],
+  [
+    "Esp Player Size",
+    "ขนาดข้อความผู้เล่น"
+  ],
+  [
+    "Esp Players",
+    "มองทะลุผู้เล่น (ESP Players)"
+  ],
+  [
+    "Esp Show Info",
+    "ข้อมูลที่จะแสดง"
+  ],
+  [
+    "Essence Min Rarity",
+    "ระดับต่ำสุดที่จะใช้ Essence"
+  ],
+  [
+    "Essence Min Value",
+    "มูลค่าต่ำสุดที่จะใช้ Essence"
+  ],
+  [
+    "Essence Priority",
+    "ลำดับความสำคัญ Essence"
+  ],
+  [
+    "Essence Skip Enchanted Eggs",
+    "ข้ามไข่ที่ติด Enchanted"
+  ],
+  [
+    "Essence Target Eggs",
+    "เป้าหมายไข่ใช้ Essence"
+  ],
+  [
+    "Eternal",
+    "นิรันดร์ (Eternal)"
+  ],
+  [
+    "Event",
+    "กิจกรรม"
+  ],
+  [
+    "Event Movement",
+    "รูปแบบการเล่น"
+  ],
+  [
+    "Event Status",
+    "สถานะอีเวนต์"
+  ],
+  [
+    "Events",
+    "กิจกรรม"
+  ],
+  [
+    "Export Config",
+    "ส่งออกคอนฟิก"
+  ],
+  [
+    "Farm",
+    "เก็บสัตว์"
+  ],
+  [
+    "Farm Hud",
+    "แสดงหน้าต่างฟาร์ม (Farm HUD)"
+  ],
+  [
+    "Farm Status",
+    "สถานะการฟาร์ม"
+  ],
+  [
+    "Fast Delivery",
+    "ส่งไข่ด่วนพิเศษ (Fast Delivery)"
+  ],
+  [
+    "Favorite All Equipped Pets Once",
+    "ล็อกหัวใจสัตว์ทุกตัวที่กำลังใส่ 1 ครั้ง"
+  ],
+  [
+    "Favorite Equipped Now",
+    "ล็อกหัวใจตัวที่ใส่เดี๋ยวนี้"
+  ],
+  [
+    "Favorite Matching Pets Once",
+    "กดล็อกหัวใจสัตว์ที่ตรงเงื่อนไข 1 ครั้ง"
+  ],
+  [
+    "Favorite Min Rarity",
+    "ระดับหายากขั้นต่ำที่จะล็อก"
+  ],
+  [
+    "Favorite Mutations",
+    "สายพันธุ์ที่จะล็อกหัวใจ"
+  ],
+  [
+    "Favorite Pets Matching The Rules Below",
+    "ล็อกหัวใจสัตว์ที่ตรงตามกฎด้านล่าง"
+  ],
+  [
+    "Favorite Pets Now",
+    "ล็อกหัวใจสัตว์เลี้ยงเดี๋ยวนี้"
+  ],
+  [
+    "Favorite Pets Of The Chosen Rarity And Every Rarity Above It (Off = Skip)",
+    "ล็อกหัวใจสัตว์ระดับนี้ขึ้นไป (Off = ข้าม)"
+  ],
+  [
+    "Favorite Rule",
+    "กฎการล็อกหัวใจ"
+  ],
+  [
+    "Features",
+    "ฟังก์ชัน"
+  ],
+  [
+    "Filter",
+    "ตัวกรอง"
+  ],
+  [
+    "Filter by animal income",
+    "เลือกตามรายได้สัตว์"
+  ],
+  [
+    "Filter Features...",
+    "ค้นหาเมนู..."
+  ],
+  [
+    "Filters",
+    "ตัวกรอง"
+  ],
+  [
+    "Fishing",
+    "ตกปลา"
+  ],
+  [
+    "Flight speed (studs/s)",
+    "ความเร็วลอย (studs/s)"
+  ],
+  [
+    "Fly",
+    "บิน"
+  ],
+  [
+    "Fly Speed",
+    "ความเร็วในการบิน"
+  ],
+  [
+    "Flying toward target",
+    "กำลังลอยเข้าหาเป้าหมาย"
+  ],
+  [
+    "For After A Rare Spawns: This Rarity Or Higher",
+    "หลังจากไข่หายากเกิด: จะรอระดับนี้หรือสูงกว่า"
+  ],
+  [
+    "Forge",
+    "ตีของ"
+  ],
+  [
+    "Fps And Ping",
+    "แสดง FPS และ Ping"
+  ],
+  [
+    "Fps And Ping Size",
+    "ขนาด FPS และ Ping"
+  ],
+  [
+    "FPS Boost",
+    "เพิ่ม FPS"
+  ],
+  [
+    "Fps Cap",
+    "จำกัด FPS"
+  ],
+  [
+    "Fuse Predictor",
+    "พยากรณ์การผสม (Fuse Predictor)"
+  ],
+  [
+    "Fuse Priority Mode",
+    "ลำดับความสำคัญการผสม"
+  ],
+  [
+    "Fuse Recipe",
+    "สูตร Fuse"
+  ],
+  [
+    "Fuse: deposit recipe + claim Celestial egg",
+    "Fuse: ฝากตามสูตร + รับไข่ Celestial"
+  ],
+  [
+    "Fusion Machines",
+    "เครื่องผสม"
+  ],
+  [
+    "Growing",
+    "กำลังฟัก"
+  ],
+  [
+    "GUI / Colors",
+    "GUI / สี"
+  ],
+  [
+    "GUI / Colors / Language",
+    "GUI / สี / ภาษา"
+  ],
+  [
+    "Halloween",
+    "ฮาโลวีน"
+  ],
+  [
+    "Hatch",
+    "ฟัก"
+  ],
+  [
+    "Hatch Eggs Of The Chosen Rarity And Every Rarity Above It",
+    "ฟักไข่ระดับนี้และระดับที่สูงกว่าทั้งหมด"
+  ],
+  [
+    "Hatch Min Rarity",
+    "ระดับขั้นต่ำที่จะฟัก"
+  ],
+  [
+    "Hatch Now",
+    "ฟักไข่ทันที"
+  ],
+  [
+    "Hatch Specific Eggs",
+    "ฟักเฉพาะไข่ที่กำหนด"
+  ],
+  [
+    "Hatching",
+    "การฟัก"
+  ],
+  [
+    "Hell / Demon Event",
+    "อีเวนต์ Hell / Demon"
+  ],
+  [
+    "Hide Other Players' Pets",
+    "ซ่อนสัตว์ผู้เล่นอื่น"
+  ],
+  [
+    "Higher Is Safer But Takes Longer",
+    "ยิ่งเยอะยิ่งปลอดภัย แต่จะใช้เวลาส่งนานขึ้น"
+  ],
+  [
+    "Highest Rarity First",
+    "ระดับสูงสุดก่อน"
+  ],
+  [
+    "Hit Aura",
+    "ตีออร่า (Hit Aura)"
+  ],
+  [
+    "Hit Lead",
+    "กะระยะล่วงหน้า (Hit Lead)"
+  ],
+  [
+    "Hit Max Speed",
+    "ความเร็วสูงสุดตอนตี"
+  ],
+  [
+    "Hit Player",
+    "ระบุชื่อผู้เล่นที่จะตี"
+  ],
+  [
+    "Hit Sweep",
+    "ระยะกวาดตี (Hit Sweep)"
+  ],
+  [
+    "Hit Tween Speed",
+    "ความเร็วพุ่งตี (Tween)"
+  ],
+  [
+    "Home",
+    "หน้าแรก"
+  ],
+  [
+    "Hop",
+    "ย้ายเซิร์ฟ"
+  ],
+  [
+    "Hop Mode",
+    "โหมดย้ายเซิร์ฟเวอร์"
+  ],
+  [
+    "How Far You Move Back And Forth In Front Of The Target",
+    "ระยะการเคลื่อนที่เดินหน้าถอยหลังหน้าเป้าหมาย"
+  ],
+  [
+    "Idle",
+    "ว่าง"
+  ],
+  [
+    "Import / Export",
+    "นำเข้า / ส่งออก"
+  ],
+  [
+    "Import Config Text",
+    "วางข้อความคอนฟิก"
+  ],
+  [
+    "In Bag",
+    "ในกระเป๋า"
+  ],
+  [
+    "Infinite Jump",
+    "กระโดดไม่จำกัด"
+  ],
+  [
+    "Info",
+    "ข้อมูล"
+  ],
+  [
+    "Instant Pickup",
+    "เก็บของทันที"
+  ],
+  [
+    "Instant Prompts",
+    "กดปุ่มโต้ตอบทันที"
+  ],
+  [
+    "Instant Steal",
+    "ขโมยทันที"
+  ],
+  [
+    "Instant Steal Steps",
+    "จำนวนสเต็ปขโมยทันที"
+  ],
+  [
+    "Instant Steal V2",
+    "ขโมยไข่ทันที V2"
+  ],
+  [
+    "Instant Steal V2 May Not Work Well Below 40 Fps Or Above 200 Ms Ping.",
+    "Instant Steal V2 อาจทำงานผิดปกติหาก FPS ต่ำกว่า 40 หรือ Ping สูงกว่า 200 ms"
+  ],
+  [
+    "Instant Steal Zones",
+    "โซนที่ใช้ขโมยทันที (Instant Steal Zones)"
+  ],
+  [
+    "Invisibility",
+    "ล่องหน (Invisibility)"
+  ],
+  [
+    "Islands",
+    "เกาะ"
+  ],
+  [
+    "Job Id",
+    "รหัสห้อง (Job ID)"
+  ],
+  [
+    "Join",
+    "เข้าเล่น"
+  ],
+  [
+    "Join Job Id",
+    "เข้ารหัสห้อง (Join Job ID)"
+  ],
+  [
+    "Join when Hell opens",
+    "เข้าประตูเมื่อ Hell เปิด"
+  ],
+  [
+    "Joins New Servers To Find Eggs That Match The Filters Below",
+    "สุ่มเข้าเซิร์ฟเวอร์ใหม่เพื่อหาไข่ที่ตรงตามตัวกรองด้านล่าง"
+  ],
+  [
+    "Jump Power",
+    "แรงกระโดด"
+  ],
+  [
+    "Keep Equipped Pets Favorited",
+    "ล็อกหัวใจสัตว์ที่กำลังใส่อยู่เสมอ"
+  ],
+  [
+    "Keep Hopping For",
+    "ระยะเวลาย้ายเซิร์ฟต่อเนื่อง"
+  ],
+  [
+    "Keep Lab Pets",
+    "เก็บสัตว์ห้องแล็บไว้"
+  ],
+  [
+    "Keep Mutated Eggs",
+    "เก็บไข่กลายพันธุ์ไว้"
+  ],
+  [
+    "Keep Mutated Lab Eggs",
+    "เก็บไข่แล็บกลายพันธุ์ไว้"
+  ],
+  [
+    "Keep Mutated Pets",
+    "เก็บสัตว์กลายพันธุ์ไว้"
+  ],
+  [
+    "Keep Samples",
+    "สำรอง Samples ไว้"
+  ],
+  [
+    "Keep the heaviest animal",
+    "เก็บสัตว์ตัวหนักที่สุดไว้"
+  ],
+  [
+    "Keeps Fighting Every Boss It Finds And Hopping For This Long",
+    "สู้บอสทุกตัวที่เจอและย้ายเซิร์ฟต่อเนื่องตามเวลานี้"
+  ],
+  [
+    "Lab Banners",
+    "ป้ายแบนเนอร์แล็บ"
+  ],
+  [
+    "Lab Egg Max Rarity",
+    "ระดับหายากสูงสุดของไข่แล็บ"
+  ],
+  [
+    "Lab Egg Sell Value",
+    "มูลค่าการขายไข่แล็บ"
+  ],
+  [
+    "Lab Eggs Of These Pets Are Never Sold",
+    "ไข่แล็บของสัตว์เหล่านี้จะไม่ถูกขาย"
+  ],
+  [
+    "Lab Predictor",
+    "พยากรณ์ห้องแล็บ (Lab Predictor)"
+  ],
+  [
+    "Language",
+    "ภาษา"
+  ],
+  [
+    "Least Players",
+    "คนน้อยสุด"
+  ],
+  [
+    "Legendary",
+    "ตำนาน (Legendary)"
+  ],
+  [
+    "Lift",
+    "ยก"
+  ],
+  [
+    "Lift Rock",
+    "ยกหิน"
+  ],
+  [
+    "Lift Speed",
+    "ความเร็วในการยก"
+  ],
+  [
+    "Light blue / Accent",
+    "ฟ้าอ่อน / สีหลัก"
+  ],
+  [
+    "Light Dark",
+    "แสง & ความมืด (Light Dark)"
+  ],
+  [
+    "Load",
+    "โหลด"
+  ],
+  [
+    "Load Config",
+    "โหลดคอนฟิก"
+  ],
+  [
+    "Load Saved Settings",
+    "โหลดค่าที่บันทึก"
+  ],
+  [
+    "Loading unavailable: executor readfile API missing",
+    "โหลดไม่ได้ ตัวรันไม่รองรับ readfile"
+  ],
+  [
+    "Loot",
+    "ของที่ได้รับ"
+  ],
+  [
+    "Low Graphics",
+    "กราฟิกต่ำ"
+  ],
+  [
+    "Lowest Rarity First",
+    "ระดับต่ำสุดก่อน"
+  ],
+  [
+    "Lowest To Highest",
+    "จากต่ำไปสูง"
+  ],
+  [
+    "Main",
+    "หลัก"
+  ],
+  [
+    "Main Weapon Hold",
+    "หน่วงเวลาอาวุธหลัก"
+  ],
+  [
+    "Match All",
+    "ตรงทุกเงื่อนไข"
+  ],
+  [
+    "Material Rarities",
+    "ระดับสัตว์ที่ใช้เป็นวัตถุดิบ"
+  ],
+  [
+    "Material Rules",
+    "ขอบเขตวัตถุดิบ"
+  ],
+  [
+    "Max material weight (0 = unlimited)",
+    "น้ำหนักวัตถุดิบสูงสุด (0 = ไม่จำกัด)"
+  ],
+  [
+    "Max Rarity To Fuse",
+    "ระดับหายากสูงสุดที่จะผสม"
+  ],
+  [
+    "Mech Tween Speed",
+    "ความเร็วบินไปตีหุ่นรบ"
+  ],
+  [
+    "Merge: 3 identical animals into an egg",
+    "Merge: ผสมสัตว์ชื่อเดียวกัน 3 ตัวเป็นไข่"
+  ],
+  [
+    "Min Esp Value",
+    "มูลค่าขั้นต่ำที่จะมองทะลุ"
+  ],
+  [
+    "Min Favorite Value",
+    "มูลค่าขั้นต่ำที่จะล็อก"
+  ],
+  [
+    "Min Hatch Value",
+    "มูลค่าขั้นต่ำที่จะฟัก"
+  ],
+  [
+    "Min Mutation Value",
+    "มูลค่าขั้นต่ำการกลายพันธุ์"
+  ],
+  [
+    "Min Place Value",
+    "มูลค่าขั้นต่ำที่จะวาง"
+  ],
+  [
+    "Min Rarity",
+    "ระดับขั้นต่ำ"
+  ],
+  [
+    "Min Steal Value",
+    "มูลค่าขั้นต่ำที่จะขโมย"
+  ],
+  [
+    "Mine",
+    "เหมือง"
+  ],
+  [
+    "Minimum Pickup income ($/s)",
+    "เงินขั้นต่ำ Auto Pickup ($/s)"
+  ],
+  [
+    "Mining",
+    "การขุด"
+  ],
+  [
+    "Mining Speed",
+    "ความเร็วในการขุด"
+  ],
+  [
+    "Misc",
+    "อื่นๆ (Misc)"
+  ],
+  [
+    "Most Players",
+    "คนเยอะสุด"
+  ],
+  [
+    "Mount",
+    "ขึ้นขี่"
+  ],
+  [
+    "Movement",
+    "การเคลื่อนที่"
+  ],
+  [
+    "Mutate Min Rarity",
+    "ระดับความหายากขั้นต่ำที่จะกลายพันธุ์"
+  ],
+  [
+    "Mutate Min Value",
+    "มูลค่าขั้นต่ำการกลายพันธุ์"
+  ],
+  [
+    "Mutate Priority",
+    "ลำดับความสำคัญการกลายพันธุ์"
+  ],
+  [
+    "Mutate Target Eggs",
+    "ไข่เป้าหมายการกลายพันธุ์"
+  ],
+  [
+    "Mutation Check (Empty = Skip)",
+    "ตรวจสอบสายพันธุ์ (เว้นว่าง = ข้าม)"
+  ],
+  [
+    "Mutation Min Rarity",
+    "ระดับไข่กลายพันธุ์ขั้นต่ำ"
+  ],
+  [
+    "Mutation Priority",
+    "ลำดับความสำคัญกลายพันธุ์"
+  ],
+  [
+    "Mutation Target Eggs",
+    "เป้าหมายไข่กลายพันธุ์"
+  ],
+  [
+    "Mutations To Use",
+    "การกลายพันธุ์ที่จะใช้"
+  ],
+  [
+    "Mythic",
+    "มายากล (Mythic)"
+  ],
+  [
+    "Nearest",
+    "ใกล้ที่สุดก่อน (Nearest)"
+  ],
+  [
+    "Never Sell Mutated Eggs",
+    "ห้ามขายไข่กลายพันธุ์เด็ดขาด"
+  ],
+  [
+    "Never Sell Mutated Lab Eggs",
+    "ห้ามขายไข่แล็บที่กลายพันธุ์เด็ดขาด"
+  ],
+  [
+    "Never Sell Mutated Pets",
+    "ห้ามขายสัตว์กลายพันธุ์เด็ดขาด"
+  ],
+  [
+    "Never Spend Below This Many Samples",
+    "ห้ามใช้ Samples จนต่ำกว่าที่ตั้งไว้"
+  ],
+  [
+    "No saved settings; current values kept",
+    "ยังไม่มีค่าที่บันทึก ใช้ค่าปัจจุบัน"
+  ],
+  [
+    "No settings loaded",
+    "ยังไม่ได้โหลดตั้งค่า"
+  ],
+  [
+    "Noclip",
+    "ทะลุสิ่งกีดขวาง"
+  ],
+  [
+    "Notification",
+    "การแจ้งเตือน"
+  ],
+  [
+    "Notifications",
+    "การแจ้งเตือน"
+  ],
+  [
+    "Off",
+    "ปิดอยู่"
+  ],
+  [
+    "Only Eggs Of This Rarity And Above Are Used",
+    "ใช้เฉพาะไข่ระดับนี้ขึ้นไป"
+  ],
+  [
+    "Only Eggs Of This Rarity And Above Get Mutated",
+    "เฉพาะไข่ระดับนี้ขึ้นไปเท่านั้นที่จะถูกกลายพันธุ์"
+  ],
+  [
+    "Only Eggs Of This Rarity And Above Get The Essence",
+    "ใช้กับไข่ระดับนี้ขึ้นไปเท่านั้น"
+  ],
+  [
+    "Only For Chase Mode",
+    "ใช้เฉพาะในโหมดไล่จับ"
+  ],
+  [
+    "Only Fuse These Species (Empty = All)",
+    "ผสมเฉพาะสายพันธุ์เหล่านี้ (เว้นว่าง = ทั้งหมด)"
+  ],
+  [
+    "Only Hatch These Eggs (Empty = All)",
+    "ฟักเฉพาะไข่เหล่านี้ (เว้นว่าง = ทั้งหมด)"
+  ],
+  [
+    "Only Mutate These Eggs (Empty = All)",
+    "กลายพันธุ์เฉพาะไข่เหล่านี้ (เว้นว่าง = ทั้งหมด)"
+  ],
+  [
+    "Only Place Eggs Of The Picked Rarities (Empty = All)",
+    "วางเฉพาะไข่ระดับที่เลือก (เว้นว่าง = ทั้งหมด)"
+  ],
+  [
+    "Only Place These Eggs (Empty = All)",
+    "วางเฉพาะไข่เหล่านี้ (เว้นว่าง = ทั้งหมด)"
+  ],
+  [
+    "Only Steal These Eggs (Empty = All)",
+    "ขโมยเฉพาะไข่เหล่านี้ (เว้นว่าง = ทั้งหมด)"
+  ],
+  [
+    "Only Trade And Steal For These Banners (Empty = All)",
+    "แลก/ขโมยเฉพาะแบนเนอร์ที่เลือก"
+  ],
+  [
+    "Only Use The Consumable On These Eggs (Empty = All)",
+    "ใช้ไอเทมกับไข่พวกนี้ (เว้นว่าง = ทั้งหมด)"
+  ],
+  [
+    "Only Use The Essence On These Eggs (Empty = All)",
+    "ใช้ Essence กับไข่ที่กำหนด (เว้นว่าง = ทั้งหมด)"
+  ],
+  [
+    "Open GUI / Colors",
+    "เปิดเมนู GUI / สี"
+  ],
+  [
+    "Optimizer",
+    "ปรับประสิทธิภาพ"
+  ],
+  [
+    "Over 100% May Glitch",
+    "ตั้งเกิน 100% อาจจะมีบั๊ก"
+  ],
+  [
+    "Pass Any Check Or All Checks",
+    "ผ่านเงื่อนไขใดเงื่อนไขหนึ่ง หรือทั้งหมด"
+  ],
+  [
+    "Paste A Server Job Id...",
+    "วาง Server Job ID..."
+  ],
+  [
+    "Patrol",
+    "ลาดตระเวน (Patrol)"
+  ],
+  [
+    "Pause",
+    "พัก"
+  ],
+  [
+    "Paused during Event",
+    "พักผสมระหว่างเล่นอีเวนต์"
+  ],
+  [
+    "Performance",
+    "ประสิทธิภาพ"
+  ],
+  [
+    "Pet Fusion",
+    "ผสมสัตว์เป็นไข่"
+  ],
+  [
+    "Pet Max Rarity",
+    "ระดับหายากสูงสุดของสัตว์เลี้ยง"
+  ],
+  [
+    "Pet Sell Value",
+    "มูลค่าการขายสัตว์เลี้ยง"
+  ],
+  [
+    "Pets",
+    "สัตว์เลี้ยง"
+  ],
+  [
+    "Pets To Use",
+    "สัตว์ที่จะนำมาผสม"
+  ],
+  [
+    "Pickaxe",
+    "อีเต้อ"
+  ],
+  [
+    "Pin Or Unpin The Hit Toggles On Quick Bar 2",
+    "ปักหมุดหรือเอาออกสำหรับปุ่มตีบน Quick Bar 2"
+  ],
+  [
+    "Place Egg Order",
+    "ลำดับการวางไข่"
+  ],
+  [
+    "Place Egg Rule",
+    "กฎการวางไข่"
+  ],
+  [
+    "Place Rarities",
+    "ระดับที่จะวางไข่"
+  ],
+  [
+    "Place Specific Eggs",
+    "วางเฉพาะไข่ที่กำหนด"
+  ],
+  [
+    "Places The Reward Eggs From Lab Trades",
+    "วางไข่ที่ได้จากการแลกของในแล็บอัตโนมัติ"
+  ],
+  [
+    "Play Event",
+    "เล่นอีเวนต์"
+  ],
+  [
+    "Player",
+    "ผู้เล่น"
+  ],
+  [
+    "Plot",
+    "ฐาน"
+  ],
+  [
+    "Predictor",
+    "พยากรณ์"
+  ],
+  [
+    "Prehistoric",
+    "ยุคก่อนประวัติศาสตร์ (Prehistoric)"
+  ],
+  [
+    "Press Save Settings after changing options. The next run restores filters and values first, then the saved automation toggles. Settings are stored locally for this account and map.",
+    "ตั้งค่าตามต้องการแล้วกดบันทึก รันครั้งถัดไปจะคืนค่าฟิลเตอร์และค่าต่าง ๆ ก่อนเปิดระบบออโต้ตามที่บันทึก เก็บไฟล์ไว้ในเครื่องแยกตามบัญชีและแมพ"
+  ],
+  [
+    "Preview 3 Merge materials",
+    "ดูสัตว์ 3 ตัวที่จะใช้ Merge"
+  ],
+  [
+    "Preview Card",
+    "แสดงการ์ดพรีวิว"
+  ],
+  [
+    "Priority",
+    "ลำดับการทำงาน (Priority)"
+  ],
+  [
+    "Progress",
+    "คืบหน้า"
+  ],
+  [
+    "Quests",
+    "เควสต์"
+  ],
+  [
+    "Quick & Keys",
+    "คีย์ลัด"
+  ],
+  [
+    "Radiant Butterfly",
+    "ผีเสื้อเรเดียนต์ (Radiant)"
+  ],
+  [
+    "Random",
+    "สุ่ม"
+  ],
+  [
+    "Rare",
+    "หายาก (Rare)"
+  ],
+  [
+    "Rarest",
+    "หายากที่สุดก่อน (Rarest)"
+  ],
+  [
+    "Rarity",
+    "ระดับความหายาก"
+  ],
+  [
+    "Rarity Filter",
+    "เลือกระดับ"
+  ],
+  [
+    "Rarity To Wait For",
+    "ระดับไข่ที่จะรอ"
+  ],
+  [
+    "Ready",
+    "พร้อม"
+  ],
+  [
+    "Rebirth",
+    "เกิดใหม่"
+  ],
+  [
+    "Rebirths",
+    "จำนวนการเกิดใหม่"
+  ],
+  [
+    "Refresh",
+    "รีเฟรช"
+  ],
+  [
+    "Rejoin",
+    "เข้าเซิร์ฟเวอร์ใหม่"
+  ],
+  [
+    "Rejoin Server",
+    "เข้าเซิร์ฟเดิมซ้ำ"
+  ],
+  [
+    "Reroll",
+    "สุ่มใหม่"
+  ],
+  [
+    "Reset",
+    "คืนค่าเริ่มต้น"
+  ],
+  [
+    "Restore on next run",
+    "คืนค่าเมื่อรันครั้งถัดไป"
+  ],
+  [
+    "Resume",
+    "ทำงานต่อ"
+  ],
+  [
+    "Return Home",
+    "กลับบ้าน"
+  ],
+  [
+    "Rewards",
+    "รางวัล"
+  ],
+  [
+    "Ride",
+    "ขี่"
+  ],
+  [
+    "Ride Speed",
+    "ความเร็วในการขี่"
+  ],
+  [
+    "Roll",
+    "สุ่ม"
+  ],
+  [
+    "Running",
+    "กำลังทำงาน"
+  ],
+  [
+    "Safe Zone",
+    "พื้นที่ปลอดภัย"
+  ],
+  [
+    "Sapphire Butterfly",
+    "ผีเสื้อแซฟไฟร์ (Sapphire)"
+  ],
+  [
+    "Save",
+    "บันทึก"
+  ],
+  [
+    "Save Config",
+    "บันทึกคอนฟิก"
+  ],
+  [
+    "Save Settings",
+    "บันทึกค่าปัจจุบัน"
+  ],
+  [
+    "Saved for all supported games",
+    "บันทึกใช้กับทุกเกมแล้ว"
+  ],
+  [
+    "Saved Settings",
+    "บันทึกตั้งค่า"
+  ],
+  [
+    "Saved settings could not be read; current values kept",
+    "อ่านไฟล์ตั้งค่าไม่ได้ ใช้ค่าปัจจุบัน"
+  ],
+  [
+    "Saved settings loaded",
+    "โหลดค่าที่บันทึกแล้ว"
+  ],
+  [
+    "Saved settings restored automatically",
+    "คืนค่าที่บันทึกอัตโนมัติแล้ว"
+  ],
+  [
+    "Saving unavailable: executor writefile API missing",
+    "บันทึกไม่ได้ ตัวรันไม่รองรับ writefile"
+  ],
+  [
+    "Scramble Shop Items",
+    "ไอเทมที่จะซื้อในร้าน"
+  ],
+  [
+    "Scrambler Hold",
+    "หน่วงเวลา Scrambler"
+  ],
+  [
+    "Search",
+    "ค้นหา"
+  ],
+  [
+    "Search Eggs...",
+    "ค้นหาไข่..."
+  ],
+  [
+    "Search...",
+    "ค้นหา..."
+  ],
+  [
+    "Secret",
+    "ซีเคร็ท (Secret)"
+  ],
+  [
+    "Sell",
+    "ขาย"
+  ],
+  [
+    "Sell All",
+    "ขายทั้งหมด"
+  ],
+  [
+    "Sell Egg Rule",
+    "กฎการขายไข่"
+  ],
+  [
+    "Sell Eggs At Or Below This Rarity",
+    "ขายไข่ที่ระดับเท่านี้หรือต่ำกว่า"
+  ],
+  [
+    "Sell Eggs Now",
+    "ขายไข่ในกระเป๋าเดี๋ยวนี้"
+  ],
+  [
+    "Sell Eggs Worth Less Than This (0 = Off)",
+    "ขายไข่ที่มูลค่าน้อยกว่านี้ (0 = ปิด)"
+  ],
+  [
+    "Sell Lab Egg Rule",
+    "กฎการขายไข่แล็บ"
+  ],
+  [
+    "Sell Lab Eggs At Or Below This Rarity (Off = None By Rarity)",
+    "ขายไข่แล็บที่ระดับเท่านี้หรือต่ำกว่า (Off = ไม่กรอง)"
+  ],
+  [
+    "Sell Lab Eggs Now",
+    "ขายไข่แล็บเดี๋ยวนี้"
+  ],
+  [
+    "Sell Lab Eggs Worth Less Than This (0 = Off)",
+    "ขายไข่แล็บที่มูลค่าน้อยกว่านี้ (0 = ปิด)"
+  ],
+  [
+    "Sell Matching Eggs Once",
+    "กดขายไข่ที่ตรงเงื่อนไข 1 ครั้ง"
+  ],
+  [
+    "Sell Matching Lab Eggs Once",
+    "กดขายไข่แล็บที่ตรงเงื่อนไข 1 ครั้ง"
+  ],
+  [
+    "Sell Pet Rule",
+    "กฎการขายสัตว์เลี้ยง"
+  ],
+  [
+    "Sell Pets At Or Below This Rarity",
+    "ขายสัตว์ที่ระดับเท่านี้หรือต่ำกว่า"
+  ],
+  [
+    "Sell Pets Now",
+    "ขายสัตว์เลี้ยงเดี๋ยวนี้"
+  ],
+  [
+    "Sell Pets Worth Less Than This (0 = Off)",
+    "ขายสัตว์ที่มูลค่าน้อยกว่านี้ (0 = ปิด)"
+  ],
+  [
+    "Server",
+    "เซิร์ฟเวอร์"
+  ],
+  [
+    "Server Hop",
+    "ย้ายเซิร์ฟเวอร์"
+  ],
+  [
+    "Server Hop Mode",
+    "โหมดย้ายเซิร์ฟเวอร์"
+  ],
+  [
+    "Settings",
+    "ตั้งค่า"
+  ],
+  [
+    "Settings saved; will load on next run",
+    "บันทึกแล้ว จะโหลดอัตโนมัติเมื่อรันใหม่"
+  ],
+  [
+    "Show Eggs Of The Chosen Rarity And Every Rarity Above It",
+    "แสดงไข่ระดับนี้และระดับที่สูงกว่าทั้งหมด"
+  ],
+  [
+    "Skip Eggs That Already Got Enchanted, Other Mutations Still Get The Essence",
+    "ข้ามไข่ที่ติด Enchanted (สายพันธุ์อื่นยังใช้ได้)"
+  ],
+  [
+    "Skip Eggs Worth Less Than This (0 = Off)",
+    "ข้ามไข่ที่มูลค่าน้อยกว่านี้ (0 = ปิด)"
+  ],
+  [
+    "Skip Eggs Worth Less Than This. Drag Or Type 250K, 50M, 1.5B",
+    "ข้ามไข่ที่มูลค่าน้อยกว่านี้ พิมพ์ค่าได้เช่น 250k, 50m"
+  ],
+  [
+    "Skip Mutated Pets",
+    "ข้ามสัตว์กลายพันธุ์"
+  ],
+  [
+    "Skip Mutation / Variant",
+    "ไม่ใช้สัตว์ติด Mutation / Variant"
+  ],
+  [
+    "Smart Trade For Essence",
+    "เทรดหา Essence แบบฉลาด"
+  ],
+  [
+    "Some saved controls could not be restored; check report",
+    "คืนค่าบางรายการไม่สำเร็จ ดูรายงาน"
+  ],
+  [
+    "Sort By",
+    "จัดเรียงตาม"
+  ],
+  [
+    "Spawner",
+    "ตัวเรียก"
+  ],
+  [
+    "Specific Species To Fuse",
+    "สายพันธุ์เฉพาะที่จะผสม"
+  ],
+  [
+    "Speed",
+    "ความเร็ว"
+  ],
+  [
+    "Speed Boost",
+    "เพิ่มความเร็ววิ่ง"
+  ],
+  [
+    "Stand",
+    "ยืนอยู่กับที่ (Stand)"
+  ],
+  [
+    "Stand Further Ahead Of The Target (+) Or Closer To Them (-)",
+    "ยืนดักหน้าเป้าหมาย (+) หรือยืนใกล้เป้าหมาย (-)"
+  ],
+  [
+    "Start",
+    "เริ่ม"
+  ],
+  [
+    "Status",
+    "สถานะ"
+  ],
+  [
+    "Stay On Treadmill",
+    "อยู่บนลู่วิ่งตลอดเวลา"
+  ],
+  [
+    "Steal Eggs Of The Chosen Rarity And Every Rarity Above It",
+    "ขโมยไข่ระดับนี้และระดับที่สูงกว่าทั้งหมด"
+  ],
+  [
+    "Steal Filter Eggs",
+    "ขโมยไข่ตามเงื่อนไข"
+  ],
+  [
+    "Steal Missing Index Eggs",
+    "ขโมยไข่สมุดสะสมที่ยังไม่มี"
+  ],
+  [
+    "Steal Missing Lab Eggs",
+    "ขโมยไข่แล็บที่ยังไม่มี"
+  ],
+  [
+    "Steal Priority",
+    "ลำดับความสำคัญขโมย"
+  ],
+  [
+    "Steal Then Hop",
+    "ขโมยก่อนแล้วค่อยย้าย"
+  ],
+  [
+    "Stop",
+    "หยุด"
+  ],
+  [
+    "Stop Event / Fusion",
+    "หยุดอีเวนต์ / ผสมสัตว์"
+  ],
+  [
+    "Stopped",
+    "หยุดแล้ว"
+  ],
+  [
+    "Strip Shadows, Textures And Effects For The Highest Fps",
+    "ลบเงา พื้นผิว และเอฟเฟกต์เพื่อให้ได้ FPS สูงสุด"
+  ],
+  [
+    "Swap Two Weapons",
+    "สลับอาวุธสองชิ้น"
+  ],
+  [
+    "Swap Weaker Pets",
+    "สลับตัวอ่อนออก"
+  ],
+  [
+    "Sync With Auto Steal Filters",
+    "ซิงค์ตัวกรองกับออโต้ขโมยไข่"
+  ],
+  [
+    "Take Out Pets That Can'T Make A Set",
+    "ดึงสัตว์ที่ใส่ไปแล้วออก หากหามาผสมได้ไม่ครบชุด"
+  ],
+  [
+    "Tap Speed",
+    "ความเร็วในการคลิก"
+  ],
+  [
+    "Tapping",
+    "การคลิก"
+  ],
+  [
+    "Target Areas",
+    "พื้นที่เป้าหมาย"
+  ],
+  [
+    "Target Specific Eggs",
+    "เป้าหมายเฉพาะไข่"
+  ],
+  [
+    "Task Priority",
+    "ลำดับการทำงาน (Task Priority)"
+  ],
+  [
+    "Teleport",
+    "วาร์ป"
+  ],
+  [
+    "Teleport Home",
+    "วาร์ปกลับบ้าน"
+  ],
+  [
+    "Teleport To Egg",
+    "วาร์ปไปหาไข่ (Teleport To Egg)"
+  ],
+  [
+    "Theme",
+    "ธีม"
+  ],
+  [
+    "These Eggs Are Never Sold",
+    "ไข่ในรายชื่อนี้จะไม่ถูกขายเด็ดขาด"
+  ],
+  [
+    "These Pets Are Never Sold",
+    "สัตว์ในรายชื่อนี้จะไม่ถูกขายเด็ดขาด"
+  ],
+  [
+    "Titan Temple",
+    "วิหารไททัน (Titan Temple)"
+  ],
+  [
+    "Toggle UI",
+    "แสดง / ซ่อนหน้าต่าง"
+  ],
+  [
+    "Token reserve",
+    "Tokens สำรอง"
+  ],
+  [
+    "Top Goes First. A Carried Egg Is Always Delivered First.",
+    "บนสุดทำก่อน (ถ้าถือไข่อยู่ จะเอาไปส่งก่อนเสมอ)"
+  ],
+  [
+    "Total / S",
+    "ยอดรวม / วิ"
+  ],
+  [
+    "Trade Up Tiers",
+    "ระดับการเทรดอัป"
+  ],
+  [
+    "Turn It On To Start Applying Scrambled",
+    "เปิดเพื่อเริ่มใช้ Scrambled ทันที"
+  ],
+  [
+    "Turn On",
+    "เปิดใช้งาน (Turn On)"
+  ],
+  [
+    "Turn On Auto Hop To Start Hunting",
+    "เปิดออโต้ย้ายเซิร์ฟเพื่อเริ่มตามล่า"
+  ],
+  [
+    "Tween Speed",
+    "ความเร็วการบิน (Tween)"
+  ],
+  [
+    "Unable to save settings; check report",
+    "บันทึกตั้งค่าไม่สำเร็จ ดูรายงาน"
+  ],
+  [
+    "Uncommon",
+    "ไม่ธรรมดา (Uncommon)"
+  ],
+  [
+    "Unequip",
+    "ถอดออก"
+  ],
+  [
+    "Unfavorite All Equipped Pets Once",
+    "ปลดล็อกหัวใจสัตว์ทุกตัวที่กำลังใส่ 1 ครั้ง"
+  ],
+  [
+    "Unfavorite Equipped Now",
+    "ปลดล็อกตัวที่ใส่เดี๋ยวนี้"
+  ],
+  [
+    "Unfavorite Equipped Pets Not In The Rules",
+    "ปลดล็อกหัวใจสัตว์ที่ใส่อยู่ ถ้าไม่ตรงตามกฎที่ตั้งไว้"
+  ],
+  [
+    "Unload",
+    "ปิดสคริปต์"
+  ],
+  [
+    "Unload Script",
+    "ปิดสคริปต์"
+  ],
+  [
+    "Upgrade",
+    "อัปเกรด"
+  ],
+  [
+    "Upgrades",
+    "อัปเกรด"
+  ],
+  [
+    "Use 6 hex digits, e.g. #75CEFF",
+    "ใส่รหัสสี 6 หลัก เช่น #75CEFF"
+  ],
+  [
+    "Use animals on owned plot",
+    "รวมสัตว์ที่วางบนฐานตัวเอง"
+  ],
+  [
+    "Using It With Invisibility May Cause Some Bugs.",
+    "การเปิดใช้ร่วมกับระบบล่องหน (Invisibility) อาจทำให้เกิดบั๊กบางอย่างได้"
+  ],
+  [
+    "Utility",
+    "อรรถประโยชน์"
+  ],
+  [
+    "Value Check (0 = Skip)",
+    "ตรวจสอบมูลค่า (0 = ข้าม)"
+  ],
+  [
+    "Visuals",
+    "การแสดงผล"
+  ],
+  [
+    "Waiting for attackable boss phase",
+    "รอช่วงที่ตีบอสได้"
+  ],
+  [
+    "Waiting for Auto Pickup to finish delivery",
+    "รอ Auto Pickup ส่งสัตว์เข้าเซฟโซน"
+  ],
+  [
+    "Waiting for boss to spawn or load",
+    "รอบอสเกิดหรือโหลด"
+  ],
+  [
+    "Waiting for game to confirm Hell entry",
+    "ถึงประตูแล้ว รอเกมยืนยันเข้า Hell"
+  ],
+  [
+    "Waiting for Hell doorway to load",
+    "รอประตู Hell โหลด"
+  ],
+  [
+    "Waiting for Hell event",
+    "รออีเวนต์ Hell เปิด"
+  ],
+  [
+    "Walk Speed",
+    "ความเร็วในการเดิน"
+  ],
+  [
+    "Walkspeed",
+    "ความเร็วในการเดิน"
+  ],
+  [
+    "Warning",
+    "คำเตือน (Warning)"
+  ],
+  [
+    "Webhook",
+    "Webhook"
+  ],
+  [
+    "Webhook URL",
+    "URL ของ Webhook"
+  ],
+  [
+    "Which Checks Must Pass To Sell",
+    "เลือกเงื่อนไขที่จะให้ขาย"
+  ],
+  [
+    "Which Egg Gets Mutated First",
+    "ไข่ใบไหนจะได้รับการกลายพันธุ์ก่อน"
+  ],
+  [
+    "Which Egg Gets The Consumable First",
+    "ไข่ใบไหนจะได้ไอเทมก่อน"
+  ],
+  [
+    "Which Egg Gets The Essence First",
+    "ไข่ใบไหนจะได้ Essence ก่อน"
+  ],
+  [
+    "Wisp Companion",
+    "สัตว์เลี้ยงวิญญาณ (Wisp)"
+  ],
+  [
+    "Worlds",
+    "โลก"
+  ],
+  [
+    "Zone Filter",
+    "เลือกด่าน"
+  ],
+  [
+    "Zones",
+    "โซน"
+  ],
+  [
+    "Zones Where Instant Steal V2 Is Used",
+    "โซนที่เปิดใช้งานระบบขโมยไข่ทันที V2"
+  ]
+]
