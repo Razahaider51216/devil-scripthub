@@ -1,0 +1,81 @@
+{
+  "release": "devil-blue-20261019-2",
+  "module_commit": "627bfdb8733ae81a993487324956437c9d6e8e8f",
+  "game_entries_commit": "2bcbe623e3384b6029405eeed8dd9fe79e8bb6fe",
+  "map_ids_unchanged": true,
+  "native_logic_unchanged_except_presentation_bootstrap_and_entry_pins": true,
+  "routes": [
+    {
+      "Name": "Mine / Dump23",
+      "Universe": 10740316645,
+      "Place": 79389059854988,
+      "File": "mine-auto-test.lua"
+    },
+    {
+      "Name": "Tap Simulator 2",
+      "Universe": 10629695169,
+      "Place": 72858262610964,
+      "File": "tapping-auto-test.lua"
+    },
+    {
+      "Name": "Climb for Eggs",
+      "Universe": 10765490774,
+      "Place": 85738654635245,
+      "File": "climb-for-eggs.lua"
+    },
+    {
+      "Name": "Lift Rock for Eggs",
+      "Universe": 10768316438,
+      "Place": 76731343328034,
+      "File": "lift-rock-for-eggs.lua"
+    },
+    {
+      "Name": "Ride A Fish",
+      "Universe": 10766691148,
+      "Place": 104050046639813,
+      "File": "aqua-auto-egg.lua"
+    },
+    {
+      "Name": "Steal an Egg",
+      "Universe": 10563114921,
+      "Place": 107778070777162,
+      "File": "devil-steal-an-egg.lua"
+    },
+    {
+      "Name": "Ride a Pet",
+      "Universe": 10035204815,
+      "Place": 124216119978534,
+      "File": "ride-a-pet.lua"
+    },
+    {
+      "Name": "Break and Steal an Egg",
+      "Universe": 10765288803,
+      "Place": 114326934417838,
+      "File": "break-and-steal-an-egg.lua"
+    },
+    {
+      "Name": "Loot to Forge",
+      "Universe": 10684750879,
+      "Place": 118805555015549,
+      "File": "loot-to-forge.lua"
+    },
+    {
+      "Name": "Build An Ant Empire",
+      "Universe": 10436530264,
+      "Place": 78490532994307,
+      "File": "build-an-ant-empire.lua"
+    }
+  ],
+  "before_native_sha256": "9f5437d72cc5c2e2bbf84abddf7b653675c3bbebc43b578e5981ceb38fc0de9e",
+  "after_native_sha256": "1453fe1459cf63b91476cf5622dc937904e7970094277ccb6a5dca9726aa6497",
+  "live_rendering_verified": false,
+  "public_loader_sha256": "29101a99b78aa65b028efd63c7d9af10807eeca6f35e7f2e9b9715997213137a",
+  "public_loader_bytes": 126472,
+  "ui_offline_checks": 47,
+  "public_router_universe_place_cases": 30,
+  "language_choices": [
+    "EN",
+    "TH"
+  ],
+  "thai_dictionary_entries": 583
+}

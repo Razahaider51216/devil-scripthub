@@ -56,3 +56,13 @@ protected runtimes and server/network latency can still cause stalls.
 
 See [protection details](vm-protection-README.md) and
 [performance review](performance-review-README.md).
+
+## Shared blue GUI and language selection
+
+All ten supported games now use a shared dark-blue / light-blue / white theme.
+Open **GUI / Colors** (or **GUI / ??**) for color, scale, and **English / ???**
+selection. Preferences are saved across games. See [GUI details and validation](devil-blue-gui-README.md).
+
+```lua
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?v=blue-lang-1"))()
+```
