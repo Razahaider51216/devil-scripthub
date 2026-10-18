@@ -64,6 +64,9 @@ replace('"rbxassetid://128961717706452","180K+"',
         '((type(getgenv)=="function"and getgenv()or _G).DevilChilliBrandLogo or "https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png"),"180K+"')
 replace('loadstring(game:HttpGet("https://raw.githubusercontent.com/tienkhanh1/spicy/refs/heads/main/DiscordLink"))()',
         'local copy=setclipboard or toclipboard;if type(copy)=="function"then copy("https://discord.gg/fDwPCmpkkh");end')
+# Disable the upstream promotional mode before it creates controls or callbacks.
+replace('return function()local N;local N=Q;local U,t,r,k,h,P,c,X,x=N:CreateTab({Name="Venyx"',
+        'return function()do return end;local N;local N=Q;local U,t,r,k,h,P,c,X,x=N:CreateTab({Name="Venyx"')
 # Preserve the existing blue Steal Panel header without modifying game actions.
 replace('IW.Color=A({{0,T(200,18,24)},{0.53,T(255,88,90)},{1,T(214,28,34)}});',
         'IW.Color=A({{0,T(8,18,35)},{0.53,T(0,140,255)},{1,T(16,42,70)}});')
@@ -107,7 +110,7 @@ manifest = {
     'source_sha256': sha(target.read_bytes()), 'transfer_checksum': checksum(target.read_bytes()),
     'native_bytes': len(native.encode()), 'game_bytecode_bytes': len(game_data),
     'game_bytecode_sha256': sha(game_data), 'game_bytecode_unchanged': True,
-    'native_ui_export_count': 1, 'presentation_patch_groups': len(patches),
+    'native_ui_export_count': 1, 'native_patch_groups': len(patches), 'venyx_mode_disabled': True,
     'compression_roundtrip_verified': True, 'complete_vm_devirtualization': False,
     'live_verified': False,
 }
