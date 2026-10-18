@@ -1,5 +1,11 @@
 -- Controls the visible OuroFlow window. Native game callbacks stay untouched.
 return function(library,window,tab,panels,env)
+    if env.DevilHubBlueGui and not env.DevilHubBlueGui.Stopped then
+        local shared=env.DevilHubBlueGui
+        local group=tab:CreateGroupbox({Name="GUI / Colors",Side="Right"})
+        group:CreateButton({Name="Open GUI / Colors",Callback=function()if shared.Open then shared.Open()end end})
+        return shared.Get()
+    end
     local defaults=table.clone(library.Theme)
     local baseWidth,baseHeight=880,520
     local settings={Scale=100,Accent=defaults.Accent,Background=defaults.Background}
