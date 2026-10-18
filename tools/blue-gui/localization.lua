@@ -40,7 +40,11 @@ local function localize(node)
             overlay.BackgroundTransparency=1;overlay.BorderSizePixel=0;overlay.Active=false;overlay.Selectable=false
             overlay.Position=UDim2.fromOffset(0,0);overlay.Size=UDim2.fromScale(1,1)
             -- Gradients live only on transparent text, never on a button's background.
-            local function sync(key)pcall(function()overlay[key]=key=="TextColor3"and white or node[key]end)end
+            local function sync(key)pcall(function()
+                if key=="TextColor3"then overlay[key]=white
+                elseif key=="TextStrokeTransparency"then overlay[key]=1
+                else overlay[key]=node[key]end
+            end)end
             for _,key in ipairs({"Font","FontFace","TextSize","TextScaled","TextWrapped","TextXAlignment","TextYAlignment",
                 "TextColor3","TextStrokeColor3","TextStrokeTransparency","RichText","LineHeight","TextTruncate"})do
                 sync(key);keep(node:GetPropertyChangedSignal(key),function()sync(key)end,record.StyleLinks)
@@ -60,12 +64,12 @@ local function localize(node)
             local function layer()overlay.ZIndex=(node.ZIndex or 1)+1 end
             layer();keep(node:GetPropertyChangedSignal("ZIndex"),layer,record.StyleLinks)
             record.Transparency=tonumber(node.TextTransparency)or 0
-            overlay.TextTransparency=record.Transparency
+            overlay.TextTransparency=math.clamp(record.Transparency,0,1)^2
             record.Overlay=overlay
             node.TextTransparency=1
             keep(node:GetPropertyChangedSignal("TextTransparency"),function()
                 if node.TextTransparency==1 then return end
-                record.Transparency=node.TextTransparency;overlay.TextTransparency=record.Transparency;node.TextTransparency=1
+                record.Transparency=node.TextTransparency;overlay.TextTransparency=math.clamp(record.Transparency,0,1)^2;node.TextTransparency=1
             end,record.StyleLinks)
             overlay.Parent=node
         end

@@ -1,6 +1,6 @@
 -- Shared presentation only. Game callbacks, network APIs and compiler environments stay original.
 local scope=type(getgenv)=="function"and getgenv()or _G
-local VERSION="devil-blue-20261019-6"
+local VERSION="devil-blue-20261019-7"
 if scope.DevilHubBlueGui and scope.DevilHubBlueGui.Version==VERSION and not scope.DevilHubBlueGui.Stopped then return scope.DevilHubBlueGui end
 if scope.DevilHubBlueGui and scope.DevilHubBlueGui.Destroy then scope.DevilHubBlueGui.Destroy()end
 local controller={Version=VERSION,Stopped=false,Report={screens=0,nodes=0,callbacksReplaced=0}}
@@ -30,9 +30,9 @@ if type(readfile)=="function"and type(isfile)=="function"then pcall(function()if
 local palette={}
 local function updatePalette()
     palette.Accent=hex(settings.Accent);palette.Background=hex(settings.Background)
-    palette.Blue=Color3.fromRGB(70,151,255)
-    palette.Surface=palette.Background:Lerp(palette.Accent,.04)
-    palette.Surface2=palette.Background:Lerp(palette.Accent,.2)
+    palette.Blue=Color3.fromRGB(104,177,255)
+    palette.Surface=Color3.fromRGB(11,13,18)
+    palette.Surface2=Color3.fromRGB(16,19,25)
     palette.Off=Color3.fromRGB(32,39,49)
     palette.Muted=Color3.fromRGB(153,169,185)
     palette.Input=Color3.fromRGB(24,27,33)
@@ -673,7 +673,11 @@ local function localize(node)
             overlay.BackgroundTransparency=1;overlay.BorderSizePixel=0;overlay.Active=false;overlay.Selectable=false
             overlay.Position=UDim2.fromOffset(0,0);overlay.Size=UDim2.fromScale(1,1)
             -- Gradients live only on transparent text, never on a button's background.
-            local function sync(key)pcall(function()overlay[key]=key=="TextColor3"and white or node[key]end)end
+            local function sync(key)pcall(function()
+                if key=="TextColor3"then overlay[key]=white
+                elseif key=="TextStrokeTransparency"then overlay[key]=1
+                else overlay[key]=node[key]end
+            end)end
             for _,key in ipairs({"Font","FontFace","TextSize","TextScaled","TextWrapped","TextXAlignment","TextYAlignment",
                 "TextColor3","TextStrokeColor3","TextStrokeTransparency","RichText","LineHeight","TextTruncate"})do
                 sync(key);keep(node:GetPropertyChangedSignal(key),function()sync(key)end,record.StyleLinks)
@@ -693,12 +697,12 @@ local function localize(node)
             local function layer()overlay.ZIndex=(node.ZIndex or 1)+1 end
             layer();keep(node:GetPropertyChangedSignal("ZIndex"),layer,record.StyleLinks)
             record.Transparency=tonumber(node.TextTransparency)or 0
-            overlay.TextTransparency=record.Transparency
+            overlay.TextTransparency=math.clamp(record.Transparency,0,1)^2
             record.Overlay=overlay
             node.TextTransparency=1
             keep(node:GetPropertyChangedSignal("TextTransparency"),function()
                 if node.TextTransparency==1 then return end
-                record.Transparency=node.TextTransparency;overlay.TextTransparency=record.Transparency;node.TextTransparency=1
+                record.Transparency=node.TextTransparency;overlay.TextTransparency=math.clamp(record.Transparency,0,1)^2;node.TextTransparency=1
             end,record.StyleLinks)
             overlay.Parent=node
         end
@@ -778,19 +782,39 @@ local function toggleOn(track,thumb)
     return center>width*.5
 end
 local function glyphFrame(node)
-    if not node:IsA("Frame")or not node.Parent or not node.Parent:IsA("GuiButton")then return false end
+    if not node:IsA("Frame")or not node.Parent then return false end
+    if node.Name=="Arm"and node.Parent.Name=="Caret"then return true end
+    if not node.Parent:IsA("GuiButton")then return false end
     local size=node.Size
     return size.X.Scale==0 and size.Y.Scale==0 and size.X.Offset>0 and size.Y.Offset>0
         and math.max(size.X.Offset,size.Y.Offset)<=24 and math.min(size.X.Offset,size.Y.Offset)<=4
+end
+local function menuSurface(node)
+    if not node:IsA("GuiObject")then return false end
+    local name=node.Name:lower()
+    return node:IsA("GuiButton")or name:find("dropdown",1,true)or name:find("option",1,true)
+        or name:find("menu",1,true)or name:find("select",1,true)or name:find("combobox",1,true)or name:find("surface",1,true)
+end
+local function imageSurface(node)
+    if not node:IsA("ImageLabel")and not node:IsA("ImageButton")then return false end
+    if logo(node)or not chromeImage(node)and node.Name:lower()~="backgroundimage"then return false end
+    local name=node.Name:lower()
+    if name:find("background",1,true)or name:find("surface",1,true)or name:find("backdrop",1,true)then return true end
+    local parent=node.Parent
+    if not parent then return false end
+    if node:IsA("ImageButton")and(node:FindFirstChildWhichIsA("TextLabel")or node:FindFirstChild("Caret"))then return true end
+    local size=node.Size
+    return size.X.Scale>=.7 and size.Y.Scale>=.7 and(menuSurface(parent)or node.ScaleType==Enum.ScaleType.Slice)
 end
 local function target(node,key,source)
     local name=node.Name:lower()
     if key=="Visible"and name=="devillanguagebutton"then return false
     elseif key=="BackgroundTransparency"then
-        if inputHosts[node]then return .04 end
-        if node:IsA("TextBox")then return source>=.98 and source or .04 end
+        if inputHosts[node]then return .14 end
+        if node:IsA("TextBox")then return source>=.98 and source or .14 end
         if node:IsA("GuiButton")and(launcher(node)or brandImage(node))then return 0 end
         if source>=.98 then return source end
+        if menuSurface(node)or imageSurface(node)then return .14 end
         return math.max(source,launcher(node)and 0 or .14)
     elseif key=="PlaceholderText"then return translate(source)
     elseif key=="PlaceholderColor3"then return palette.Placeholder
@@ -802,16 +826,22 @@ local function target(node,key,source)
         return (source:gsub('(<font[^>]-color%s*=%s*["\'])[^"\']+(["\'])',"%1"..settings.Accent.."%2"))
     elseif key=="TextStrokeColor3"then return palette.Background
     elseif key=="ImageColor3"then
+        if imageSurface(node)then return palette.Background end
         if not chromeImage(node)then return source end
         if logo(node)then return white end
         if name:find("shadow",1,true)then return palette.Background end
         if saturation(source)<.04 and brightness(source)>.95 then return white end
         return palette.Accent
-    elseif key=="ScrollBarImageColor3"or key=="Color"and node:IsA("UIStroke")then return palette.Accent
+    elseif key=="ScrollBarImageColor3"then return palette.Accent
+    elseif key=="Color"and node:IsA("UIStroke")then
+        local parent=node.Parent
+        if parent and(parent:IsA("TextLabel")or parent:IsA("TextButton"))and node.ApplyStrokeMode==Enum.ApplyStrokeMode.Contextual then return palette.Background end
+        return palette.Accent
     elseif key=="Color"and node:IsA("UIGradient")then
         local parent=node.Parent
         if parent and(parent:IsA("TextBox")or inputHosts[parent])then return ColorSequence.new(white)end
         if parent and(parent:IsA("ImageLabel")or parent:IsA("ImageButton"))then
+            if imageSurface(parent)then return ColorSequence.new(white)end
             if not chromeImage(parent)then return source end
             return logo(parent)and ColorSequence.new(white)or ColorSequence.new(white,palette.Accent)
         end
@@ -824,8 +854,8 @@ local function target(node,key,source)
         if toggleThumbs[node]then return toggleOn(toggleThumbs[node],node)and white or palette.Muted end
         if glyphFrame(node)then return palette.Accent end
         if node.Parent and node.Parent:IsA("ScreenGui")or name=="root"or name=="mainwindow"then return palette.Background end
-        if node:IsA("TextBox")then return palette.Surface end
-        if name:find("toggle",1,true)or name:find("switch",1,true)or name:find("slider",1,true)then
+        -- A dropdown named DropdownToggle is a menu surface, not a switch track.
+        if node:IsA("Frame")and(name=="switch"or name=="toggletrack"or name=="switchtrack")then
             return saturation(source)>.08 and brightness(source)>.35 and palette.Accent or palette.Off
         end
         if name:find("tab",1,true)or name:find("nav",1,true)or name:find("option",1,true)or name:find("group",1,true)or name:find("section",1,true)or name:find("panel",1,true)or node:IsA("TextButton")then return palette.Surface2 end
@@ -867,13 +897,17 @@ local function inspectToggle(track)
     if not track or toggleTracks[track]or not track:IsA("GuiObject")then return end
     local size=track.Size
     local w,h=size.X.Offset,size.Y.Offset
-    if size.X.Scale~=0 or size.Y.Scale~=0 or w<28 or w>68 or h<14 or h>36 or w/h<1.3 or w/h>2.8 then return end
+    if size.X.Scale~=0 or size.Y.Scale~=0 or w<28 or w>56 or h<14 or h>28 or w/h<1.3 or w/h>2.8 then return end
     local name=track.Name:lower()
     if not(track.Parent and track.Parent:IsA("GuiButton"))and not name:find("toggle",1,true)and not name:find("switch",1,true)then return end
     for _,thumb in ipairs(track:GetChildren())do
         if thumb:IsA("Frame")or thumb:IsA("ImageLabel")or thumb:IsA("ImageButton")then
             local ts,p,anchor=thumb.Size,thumb.Position,thumb.AnchorPoint
-            if ts.X.Scale==0 and ts.Y.Scale==0 and ts.X.Offset>=8 and ts.X.Offset<=h+4 and ts.Y.Offset>=8
+            local corner=thumb:FindFirstChildOfClass("UICorner")
+            local thumbName=thumb.Name:lower()
+            local rounded=corner and(corner.CornerRadius.Scale>=.5 or corner.CornerRadius.Offset>=math.min(ts.X.Offset,ts.Y.Offset)/2)
+            local handle=rounded or thumbName=="thumb"or thumbName=="knob"
+            if handle and ts.X.Scale==0 and ts.Y.Scale==0 and ts.X.Offset>=8 and ts.X.Offset<=h+4 and ts.Y.Offset>=8
                 and math.abs(ts.X.Offset-ts.Y.Offset)<=6 and anchor.Y==.5 and p.Y.Scale==.5
                 and(p.X.Scale==0 or p.X.Scale==1)then
                 toggleTracks[track]=thumb;toggleThumbs[thumb]=track
@@ -906,10 +940,16 @@ local function patch(node)
         if node:IsA("TextBox")then table.insert(keys,"PlaceholderText");table.insert(keys,"PlaceholderColor3")end
         if node:IsA("ScrollingFrame")then table.insert(keys,"ScrollBarImageColor3")end
         if node:IsA("ImageLabel")or node:IsA("ImageButton")then
-            if chromeImage(node)then table.insert(keys,"ImageColor3")end
+            if chromeImage(node)or imageSurface(node)then table.insert(keys,"ImageColor3")end
         end
     elseif node:IsA("UIStroke")or node:IsA("UIGradient")then table.insert(keys,"Color")end
-    if #keys==0 then return end
+    if #keys==0 then
+        if node:IsA("UICorner")then
+            local function checkCorner()if node.Parent then inspectToggle(node.Parent.Parent)end end
+            checkCorner();keep(node:GetPropertyChangedSignal("CornerRadius"),checkCorner)
+        end
+        return
+    end
     local state={Source={},Applied={},Writing={},Links={}};states[node]=state
     controller.Report.nodes+=1
     for _,key in ipairs(keys)do observe(node,state,key)end
@@ -921,8 +961,13 @@ local function patch(node)
         states[node]=nil
     end,state.Links)
     if node:IsA("ImageLabel")or node:IsA("ImageButton")then
+        keep(node:GetPropertyChangedSignal("Size"),function()
+            for _,key in ipairs({"ImageColor3","BackgroundTransparency"})do
+                if state.Source[key]~=nil then applyProperty(node,state,key)end
+            end
+        end,state.Links)
         keep(node:GetPropertyChangedSignal("Image"),function()
-            if chromeImage(node)and state.Source.ImageColor3==nil then observe(node,state,"ImageColor3")
+            if(chromeImage(node)or imageSurface(node))and state.Source.ImageColor3==nil then observe(node,state,"ImageColor3")
             elseif state.Source.ImageColor3~=nil then applyProperty(node,state,"ImageColor3")end
             for _,key in ipairs({"BackgroundColor3","BackgroundTransparency"})do
                 if state.Source[key]~=nil then applyProperty(node,state,key)end
