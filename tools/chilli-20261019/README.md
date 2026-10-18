@@ -40,3 +40,11 @@ actual public VM delegate for both map IDs, transfer integrity, native compilati
 argument forwarding and cross-map redirection. The top-level loader is unchanged.
 The older all-map router fixture does not model the current shared startup
 loader and was not used as evidence for this release.
+
+Main loader follow-up: its previous immutable Steal an Egg pin also needed to
+change. The public loader now pins the Halloween delegate at 8a4857ead8e18257e43d434ebb53a9083ec08bd5.
+Only that map pin and version changed in the recovered native router.
+Run `python tools/chilli-20261019/test-public-loader.py` to test the actual public
+VM loader with the existing shared loading-controller API mocked: universe and
+place selection, immutable URL, argument forwarding, retries, failure cleanup,
+busy and already-mounted guards. Other map definitions remain unchanged.
