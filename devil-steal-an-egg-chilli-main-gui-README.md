@@ -25,3 +25,7 @@ Release 3 installs a presentation guard before launching the unchanged runtime. 
 Release 4 also covers supplemental native GUIs with randomized names: the verified Chilli fire image asset, exact Chilli Hub title, native performance screen footprint, and every ChilliLibraryOwned screen (including Quick Bars). Screens populated after parenting are watched. DEVIL HUB marks its own GUI exempt before embedding rich native rows. The original game HUD is preserved. No native widgets are destroyed and no feature toggle is changed.
 
 Release 5 fixes the ownership exemption: OuroFlow returns ScreenGui on window.Gui, not library.Gui. The window is marked exempt and enabled before native rich panels are embedded, and its exact DEVIL HUB screen name is exempt during construction. The adapter fixture now mirrors the actual Window/Library API instead of giving the library a fictional Gui property. Window destruction cleanup uses window.Gui as well. Native Chilli gameplay remains unchanged.
+
+Updated 2026-10-19: both native GUI entry points now use the same pinned Halloween
+runtime. See [update details and validation](tools/chilli-20261019/README.md).
+Live Roblox/Delta gameplay remains unverified.

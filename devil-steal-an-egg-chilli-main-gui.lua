@@ -1,3 +1,30 @@
+local DevilReleaseScope=type(getgenv)=="function"and getgenv()or _G
+local DevilReleaseLogo=(function()
+-- One versioned, shared cached image for every supported map.
+return function()
+    local scope=type(getgenv)=="function" and getgenv() or _G
+    if scope.DevilHubSilverLogo then return scope.DevilHubSilverLogo end
+    local url="https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png?logo=silver-20261011"
+    local asset=getcustomasset or getsynasset
+    local image=url
+    if type(asset)=="function" and type(writefile)=="function"then
+        local ok,value=pcall(function()
+            local file="DevilHub_Silver_20261011.png"
+            if not(type(isfile)=="function"and isfile(file))then
+                local data=game:HttpGet(url)
+                assert(data:sub(1,8)=="\137PNG\r\n\26\n","Invalid DEVIL HUB logo response")
+                writefile(file,data)
+            end
+            return asset(file)
+        end)
+        if ok and type(value)=="string"and value~=""then image=value end
+    end
+    scope.DevilHubSilverLogo=image
+    return image
+end
+
+end)()()
+if DevilReleaseScope.DevilHubLoadController then DevilReleaseScope.DevilHubLoadController.SetLogo(DevilReleaseLogo)end
 -- DEVIL HUB: original Chilli runtime + the SAME OuroFlow GUI as the main script.
 -- Native engine unchanged. Existing OuroFlow sidebar expanded; native rich panels embedded.
 local attach=(function()
@@ -79,11 +106,18 @@ return function(createLibrary,restoreStartup)
         end
     end
     local function discover()
+        local exported=env.DevilChilliNativeWindow
+        local readable,root=pcall(rootFor,exported)
+        if readable and root and method(exported,"SelectTab") and method(exported,"Open") and method(exported,"Close") then
+            report.discovery="Recovered native UI constructor export (no getgc required)"
+            return exported,root
+        end
         if type(getgc)~="function" then return nil,"Delta does not expose getgc; native UI left available" end
         local ok,objects=pcall(getgc,true)
         if not ok or type(objects)~="table" then return nil,"Executor could not enumerate native UI tables" end
         report.gcObjects=#objects;report.tableObjects=0
-        for _,candidate in ipairs(objects) do
+        for index,candidate in ipairs(objects) do
+            if index%2048==0 and task and task.wait then task.wait() end
             if type(candidate)~="table" then continue end
             report.tableObjects+=1
             local readable,root=pcall(rootFor,candidate)
@@ -147,6 +181,21 @@ return function(createLibrary,restoreStartup)
         group._order=host.LayoutOrder
         host.Parent=group.List
         row.Parent=host;row.AnchorPoint=Vector2.new(.5,0);row.Position=UDim2.fromScale(.5,0)
+        -- Brand the actual embedded Discord image, including canvases from an older engine.
+        if option.Name=="Discord" then
+            local logo=env.DevilChilliBrandLogo or (library.Assets and library.Assets.Logo)
+            local function brandImage(node)
+                if not logo or not(node:IsA("ImageLabel") or node:IsA("ImageButton")) then return end
+                if node.Image~="rbxassetid://128961717706452" and node.Name~="Logo" then return end
+                local function update()
+                    if not stopped and node.Parent and node.Image~=logo then node.Image=logo end
+                end
+                table.insert(connections,node:GetPropertyChangedSignal("Image"):Connect(update))
+                update()
+            end
+            for _,node in ipairs(row:GetDescendants()) do brandImage(node) end
+            table.insert(connections,row.DescendantAdded:Connect(brandImage))
+        end
         local updating=false
         local function measure()
             if stopped or updating or not row.Parent then return end
@@ -262,6 +311,7 @@ return function(createLibrary,restoreStartup)
         end
     end
     local function populate()
+        local added=0
         for _,tab in ipairs(nativeWindow.Tabs) do
             local target=tabs[tab]
             if not target then
@@ -279,7 +329,14 @@ return function(createLibrary,restoreStartup)
                     group=target:CreateGroupbox({Name=tostring(section.DisplayName or section.Name),Side=index%2==1 and "Left" or "Right"})
                     groups[section]=group
                 end
-                for _,option in ipairs(section.Options) do add(option,section,group) end
+                for _,option in ipairs(section.Options) do
+                    local fresh=items[option]==nil
+                    add(option,section,group)
+                    if fresh and not mounted then
+                        added+=1
+                        if added%20==0 and task and task.wait then task.wait() end
+                    end
+                end
             end
         end
     end
@@ -339,11 +396,11 @@ return function(createLibrary,restoreStartup)
         end
         nativeWindow,nativeRoot=found,rootOrReason;session.NativeWindow=nativeWindow
         library=createLibrary()
-        local logo="https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png"
+        local logo=DevilReleaseScope.DevilHubSilverLogo or "https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png?logo=silver-20261011"
         local asset=getcustomasset or getsynasset
-        if type(asset)=="function" and type(writefile)=="function" then
+        if not DevilReleaseScope.DevilHubSilverLogo and type(asset)=="function" and type(writefile)=="function" then
             local assetOK,image=pcall(function()
-                local file="DevilHub_StealEgg_Logo.png"
+                local file="DevilHub_Silver_20261011.png"
                 if not(type(isfile)=="function" and isfile(file)) then
                     local data=game:HttpGet(logo);assert(data:sub(1,8)=="\137PNG\r\n\26\n","Invalid DEVIL HUB logo");writefile(file,data)
                 end
@@ -356,7 +413,7 @@ return function(createLibrary,restoreStartup)
         window=library:CreateWindow({Name="DEVIL HUB",Icon=logo,Theme="Abyss",Size=UDim2.fromOffset(880,520),Density="Compact",
             Profile=true,Search=true,Loading=false,Backdrop=false,Disclaimer=false,UnsupportedExecutor=false,
             KeepOnScreen=true,ConfigurationSaving={Enabled=false},
-            Home={Title="DEVIL HUB / Steal an Egg",Discord="https://discord.gg/ZY7PRcVJe2"},
+            Home={Title="DEVIL HUB / Steal an Egg",Discord="https://discord.gg/fDwPCmpkkh"},
             ToggleButton={Title="DEVIL HUB",Icon=logo,Platform="Both",Keybind=Enum.KeyCode.K}})
         -- OuroFlow owns its ScreenGui on the returned WINDOW, not the library.
         if typeof(window.Gui)=="Instance" then
@@ -396,20 +453,14 @@ local startNativeUiGuard=(function()
 return function()
     local hidden,connections,containers={},{},{}
     local stopped=false
+    local markers={}
     local function nativeScreen(screen)
         if screen.Name=="DEVIL HUB" or screen:GetAttribute("DevilHubPresentation")==true then return false end
         if screen.Name=="ChilliHubLoading" or screen:GetAttribute("ChilliLibraryOwned")==true then return true end
-        local fps,ms=false,false
-        for _,child in ipairs(screen:GetDescendants()) do
-            if child:IsA("TextLabel") or child:IsA("TextButton") then
-                if child.Text=="Chilli Hub" then return true end
-                fps=fps or child.Text=="FPS";ms=ms or child.Text=="ms"
-            elseif child:IsA("ImageLabel") or child:IsA("ImageButton") then
-                if child.Image=="rbxassetid://128961717706452" then return true end
-            end
-        end
+        local mark=markers[screen] or {}
+        if mark.brand then return true end
         -- Exact footprint of the native random-name performance screen.
-        return fps and ms and screen.DisplayOrder==58 and screen.Archivable==false and screen.ResetOnSpawn==false
+        return mark.fps and mark.ms and screen.DisplayOrder==58 and screen.Archivable==false and screen.ResetOnSpawn==false
     end
     local function hide(screen)
         if stopped or not screen:IsA("ScreenGui") then return end
@@ -425,18 +476,31 @@ return function()
     local function track(child)
         if not child:IsA("ScreenGui") or tracked[child] then return end
         tracked[child]=true
+        markers[child]={}
         hide(child)
         if hidden[child]~=nil or child:GetAttribute("DevilHubPresentation")==true then return end
         table.insert(connections,child:GetPropertyChangedSignal("Name"):Connect(function()hide(child)end))
         table.insert(connections,child:GetAttributeChangedSignal("ChilliLibraryOwned"):Connect(function()hide(child)end))
-        local function inspect(node,initial)
-            if not initial then hide(child) end
+        local function inspect(node)
+            if stopped or hidden[child]~=nil or child.Name=="DEVIL HUB" or child:GetAttribute("DevilHubPresentation")==true then return end
             local property=(node:IsA("TextLabel") or node:IsA("TextButton")) and "Text"
                 or (node:IsA("ImageLabel") or node:IsA("ImageButton")) and "Image"
-            if property and node[property]=="" then table.insert(connections,node:GetPropertyChangedSignal(property):Connect(function()hide(child)end)) end
+            if not property then return end
+            local function checkNode()
+                local mark=markers[child];local value=node[property]
+                if property=="Text" then
+                    mark.brand=mark.brand or value=="Chilli Hub"
+                    mark.fps=mark.fps or value=="FPS";mark.ms=mark.ms or value=="ms"
+                else mark.brand=mark.brand or value=="rbxassetid://128961717706452" end
+                if mark.brand or (mark.fps and mark.ms) then hide(child) end
+            end
+            checkNode()
+            if node[property]=="" and hidden[child]==nil then
+                table.insert(connections,node:GetPropertyChangedSignal(property):Connect(checkNode))
+            end
         end
         table.insert(connections,child.DescendantAdded:Connect(inspect))
-        for _,node in ipairs(child:GetDescendants()) do inspect(node,true) end
+        for _,node in ipairs(child:GetDescendants()) do inspect(node) end
     end
     local function watch(container)
         if typeof(container)~="Instance" or containers[container] then return end
@@ -452,17 +516,208 @@ return function()
         stopped=true
         for _,connection in ipairs(connections) do connection:Disconnect() end
         for screen,enabled in pairs(hidden) do pcall(function()screen.Enabled=enabled end) end
-        table.clear(connections);table.clear(hidden);table.clear(containers);table.clear(tracked)
+        table.clear(connections);table.clear(hidden);table.clear(containers);table.clear(tracked);table.clear(markers)
     end
 end
 
 end)()
 local env=type(getgenv)=="function" and getgenv() or _G
 local correctMap=game.GameId==10563114921 or game.PlaceId==107778070777162
+if not correctMap then warn("DEVIL HUB: open Steal an Egg first");return end
+if env.DevilChilliUiStarting then warn("DEVIL HUB: startup already in progress");return end
+env.DevilChilliUiStarting=true
+local loading=(function()
+-- Compact presentation only: finite tweens and one viewport resize listener.
+return function(map)
+    local scope=type(getgenv)=="function"and getgenv()or _G
+    local shared=scope.DevilHubLoadController
+    if shared and shared.Acquire and shared.IsActive()then return shared.Acquire()end
+    if scope.DevilHubLoadScreen then pcall(scope.DevilHubLoadScreen.Destroy,scope.DevilHubLoadScreen)end
+    local screen=Instance.new("ScreenGui")
+    screen.Name="DevilHubLoading";screen.ResetOnSpawn=false;screen.IgnoreGuiInset=true;screen.DisplayOrder=10000
+    screen:SetAttribute("DevilHubPresentation",true)
+    local playerGui=game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+    local parent=playerGui
+    pcall(function()parent=type(gethui)=="function"and gethui()or game:GetService("CoreGui")end)
+    if not pcall(function()screen.Parent=parent end)then screen.Parent=playerGui end
+    scope.DevilHubLoadScreen=screen
+    local blue=Color3.fromRGB(0,140,255)
+    local cyan=Color3.fromRGB(56,207,255)
+    local card=Instance.new("Frame");card.Name="DevilLoadCard"
+    card.AnchorPoint=Vector2.new(.5,.5);card.Position=UDim2.fromScale(.5,.5)
+    card.Size=UDim2.fromOffset(320,112);card.BackgroundColor3=Color3.fromRGB(8,13,24)
+    card.BorderSizePixel=0;card.ZIndex=3;card.Parent=screen
+    local function round(node,radius)
+        local corner=Instance.new("UICorner");corner.CornerRadius=UDim.new(0,radius);corner.Parent=node
+    end
+    round(card,14)
+    local border=Instance.new("UIStroke");border.Color=blue;border.Thickness=1;border.Transparency=.25;border.Parent=card
+    local glow=Instance.new("Frame");glow.Name="DevilLoadGlow";glow.Position=UDim2.fromOffset(-3,-3)
+    glow.Size=UDim2.new(1,6,1,6);glow.BackgroundColor3=blue;glow.BackgroundTransparency=.92
+    glow.BorderSizePixel=0;glow.ZIndex=1;glow.Parent=card;round(glow,17)
+    local background=Instance.new("Frame");background.Name="DevilLoadSurface"
+    background.Size=UDim2.fromScale(1,1);background.BackgroundColor3=Color3.fromRGB(255,255,255)
+    background.BorderSizePixel=0;background.ZIndex=3;background.Parent=card;round(background,14)
+    local gradient=Instance.new("UIGradient");gradient.Rotation=20
+    gradient.Color=ColorSequence.new(Color3.fromRGB(8,13,24),Color3.fromRGB(12,28,48));gradient.Parent=background
+    local scale=Instance.new("UIScale");scale.Name="DevilLoadScale";scale.Parent=card
+    local camera=workspace.CurrentCamera
+    local tweens,links={},{}
+    local stopped=false
+    local tweenService=game:GetService("TweenService")
+    local function animate(node,key,properties,duration)
+        if tweens[key]then pcall(tweens[key].Cancel,tweens[key]);tweens[key]=nil end
+        local ok,value=pcall(function()
+            return tweenService:Create(node,TweenInfo.new(duration,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),properties)
+        end)
+        if ok then tweens[key]=value;value:Play()
+        else for name,value in pairs(properties)do node[name]=value end end
+    end
+    local function fit()
+        local size=camera and camera.ViewportSize
+        local factor=size and math.min(1,math.max(1,size.X-32)/326,math.max(1,size.Y-32)/118)or 1
+        return math.max(.1,factor)
+    end
+    local target=fit();scale.Scale=target*.96
+    animate(scale,"open",{Scale=target},.2)
+    if camera then
+        local ok,link=pcall(function()return camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+            if stopped then return end
+            if tweens.open then pcall(tweens.open.Cancel,tweens.open);tweens.open=nil end
+            scale.Scale=fit()
+        end)end)
+        if ok then links[#links+1]=link end
+    end
+    local logo=Instance.new("ImageLabel");logo.Name="DevilLogo";logo.BackgroundTransparency=1
+    logo.Size=UDim2.fromOffset(42,42);logo.Position=UDim2.fromOffset(16,16)
+    logo.ScaleType=Enum.ScaleType.Fit;logo.ZIndex=4;logo.Parent=card
+    logo.Image=scope.DevilHubSilverLogo or ""
+    local function label(name,text,x,y,width,height,size,color)
+        local node=Instance.new("TextLabel");node.Name=name;node.BackgroundTransparency=1
+        node.Font=Enum.Font.GothamSemibold;node.TextColor3=color or Color3.fromRGB(230,244,255)
+        node.TextSize=size;node.TextXAlignment=Enum.TextXAlignment.Left;node.TextTruncate=Enum.TextTruncate.AtEnd
+        node.Position=UDim2.fromOffset(x,y);node.Size=UDim2.fromOffset(width,height)
+        node.Text=text;node.ZIndex=4;node.Parent=card;return node
+    end
+    label("DevilLoadTitle","DEVIL HUB",70,15,158,23,18)
+    label("DevilLoadMap",tostring(map),70,40,214,17,11,Color3.fromRGB(144,168,195))
+    local badge=Instance.new("Frame");badge.Name="DevilLoadBadge"
+    badge.Position=UDim2.fromOffset(242,18);badge.Size=UDim2.fromOffset(62,19)
+    badge.BackgroundColor3=Color3.fromRGB(14,43,69);badge.BorderSizePixel=0;badge.ZIndex=4;badge.Parent=card;round(badge,6)
+    local badgeText=label("DevilLoadBadgeText","LOADING",249,18,52,19,8,cyan)
+    local status=label("DevilLoadStatus","Preparing...",16,72,247,16,11)
+    local percentage=label("DevilLoadPercent","8%",270,72,34,16,10,cyan)
+    percentage.TextXAlignment=Enum.TextXAlignment.Right
+    local track=Instance.new("Frame");track.Position=UDim2.fromOffset(16,97);track.Size=UDim2.fromOffset(288,3)
+    track.BackgroundColor3=Color3.fromRGB(25,41,63);track.BorderSizePixel=0;track.ZIndex=4;track.Parent=card;round(track,3)
+    local fill=Instance.new("Frame");fill.Size=UDim2.fromScale(.08,1);fill.BackgroundColor3=blue
+    fill.BorderSizePixel=0;fill.ZIndex=5;fill.Parent=track;round(fill,3)
+    local shine=Instance.new("UIGradient");shine.Color=ColorSequence.new(blue,cyan);shine.Parent=fill
+    local function cleanup()
+        if stopped then return end;stopped=true
+        for _,link in ipairs(links)do pcall(link.Disconnect,link)end
+        for _,value in pairs(tweens)do pcall(value.Cancel,value)end
+        table.clear(links);table.clear(tweens)
+        if scope.DevilHubLoadScreen==screen then scope.DevilHubLoadScreen=nil end
+        if scope.DevilHubLoadController==shared then scope.DevilHubLoadController=nil end
+    end
+    if screen.Destroying then links[#links+1]=screen.Destroying:Connect(cleanup)end
+    local controller={}
+    shared=controller
+    local owners=1
+    local finished=false
+    local failed=false
+    local shownProgress=0
+    local function close()
+        if stopped then return end
+        cleanup();if screen.Parent then screen:Destroy()end
+    end
+    local function release()
+        owners-=1
+        if owners==0 and not failed then close()end
+    end
+    function controller.IsActive()return not stopped and not failed and screen.Parent~=nil end
+    function controller.Update(text,progress)
+        if stopped or not screen.Parent then return end
+        if failed then return end
+        local value=math.max(shownProgress,math.clamp(progress or .1,0,1))
+        shownProgress=value
+        status.Text=tostring(text);percentage.Text=string.format("%d%%",math.floor(value*100+.5))
+        animate(fill,"progress",{Size=UDim2.fromScale(value,1)},.18)
+    end
+    function controller.SetLogo(image)if not stopped and screen.Parent then logo.Image=image end end
+    function controller.Finish()
+        if stopped or finished then return end
+        finished=true;release()
+    end
+    controller.Destroy=controller.Finish
+    function controller.Fail(message)
+        if stopped or failed then return end
+        local detail=tostring(message)
+        warn("[DEVIL HUB / startup] "..detail)
+        if type(writefile)=="function"then pcall(function()
+            writefile("DevilHub_LoadError.json",game:GetService("HttpService"):JSONEncode({map=map,error=detail,release="shared-loading-3"}))
+        end)end
+        controller.Update("Start failed - check Console",1)
+        failed=true;controller.LastError=detail
+        badgeText.Text="FAILED";percentage.Text="ERR"
+        shine.Enabled=false;fill.BackgroundColor3=Color3.fromRGB(255,85,85)
+        task.delay(8,close)
+    end
+    function controller.Acquire()
+        owners+=1
+        local released=false
+        local lease={Update=controller.Update,SetLogo=controller.SetLogo,Fail=controller.Fail,IsActive=controller.IsActive,Acquire=controller.Acquire}
+        function lease.Finish()if not released then released=true;release()end end
+        lease.Destroy=lease.Finish
+        return lease
+    end
+    scope.DevilHubLoadController=controller
+    return controller
+end
+
+end)()("Steal an Egg")
+
+local restoreStartup
+local function mount()
+    loading.Update("Building DEVIL HUB interface...",0.85)
+    local session=attach(existingDevilHubLibrary,restoreStartup)
+    if session and session.Report and session.Report.status=="Mounted DEVIL HUB main GUI on original Chilli handles" then
+        loading.Finish()
+    else loading.Fail(session and session.Report and (session.Report.error or session.Report.reason) or "UI did not mount") end
+    return session
+end
+local completed=table.pack(pcall(function()
+if task and task.wait then task.wait() end
+loading.Update("Preparing DEVIL HUB logo...",0.05)
+env.DevilChilliBrandLogo=(function()
+-- Use the same logo file as the main DEVIL HUB frontend.
+return function()
+    if DevilReleaseScope.DevilHubSilverLogo then return DevilReleaseScope.DevilHubSilverLogo end
+    local url="https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png?logo=silver-20261011"
+    local asset=getcustomasset or getsynasset
+    if type(asset)~="function" or type(writefile)~="function" then return url end
+    local ok,image=pcall(function()
+        local file="DevilHub_Silver_20261011.png"
+        if not(type(isfile)=="function" and isfile(file)) then
+            local data=game:HttpGet(url)
+            assert(data:sub(1,8)=="\137PNG\r\n\26\n","Invalid DEVIL HUB logo")
+            writefile(file,data)
+        end
+        return asset(file)
+    end)
+    return ok and image or url
+end
+
+end)()()
 if correctMap and env.DevilChilliMainUI then env.DevilChilliMainUI.Destroy() end
-local restoreStartup=correctMap and startNativeUiGuard() or nil
+restoreStartup=correctMap and startNativeUiGuard() or nil
 if correctMap and env.DevilChilliFullRuntimeTest then
-    return attach(existingDevilHubLibrary,restoreStartup)
+    if not env.DevilChilliNativeWindow then
+        if restoreStartup then restoreStartup() end
+        error("DEVIL HUB: rejoin once before running the recovered native UI build; an older engine is already running",0)
+    end
+    return mount()
 end
 local result=table.pack(pcall(function()
 -- BEGIN FULL-RUNTIME WRAPPER (LOADING NOTICE REMOVED)
@@ -479,7 +734,7 @@ if env.DevilChilliFullRuntimeTest then
 end
 local report={schema="devil-chilli-full-runtime-test-1",release="chilli-full-test-1",map="Steal an Egg",
     placeId=game.PlaceId,universeId=game.GameId,status="Starting",devirtualized=false,
-    frontend="Original Chilli",referenceSHA256="6c0a0cd11368cff8b1b2d18cb1d17f4e57afbed8d3c917f66062324d2332162c",referenceCommit="5718ad8818f412ccca12d67dc18dbc2964b7a829"}
+    frontend="DEVIL HUB / native constructor export",referenceSHA256="bf6efc9025800415fd1d263b6c628889e4e0fb06dd704a4fbd63ee48ca603097",referenceCommit="03468a41b2ecf2d983b39993ba603c943c140f4f"}
 env.DevilChilliFullRuntimeTest=report
 local function save()
     if type(writefile)=="function"then
@@ -498,14 +753,19 @@ local outcome=table.pack(xpcall(function()
         env.DevilStealEggSession.Destroy()
     end
     warn("DEVIL HUB: loading the original systems into the main GUI")
-    local originalGameSource=game:HttpGet("https://raw.githubusercontent.com/tienkhanh1/Chilli-Hub-Script/5718ad8818f412ccca12d67dc18dbc2964b7a829/StealAnEgg")
-    assert(type(originalGameSource)=="string"and #originalGameSource==848305,"Pinned runtime download has an unexpected size")
+    loading.Update("Downloading systems...",0.15)
+    local originalGameSource=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/24a5d84f4aec5b08556bb680327bc1f46af213d4/devil-chilli-native-ui-runtime.lua")
+    assert(type(originalGameSource)=="string"and #originalGameSource==825987,"Pinned runtime download has an unexpected size")
+    loading.Update("Checking download...",0.4)
     local checksum=0
-    for index=1,#originalGameSource do checksum=(checksum*33+string.byte(originalGameSource,index))%4294967296 end
-    assert(checksum==3854847166,"Pinned runtime download checksum mismatch")
+    for index=1,#originalGameSource do checksum=(checksum*33+string.byte(originalGameSource,index))%4294967296; if index%32768==0 and task and task.wait then task.wait() end end
+    assert(checksum==3757066683,"Pinned runtime download checksum mismatch")
+    loading.Update("Compiling systems...",0.55)
     local run,err=loadstring(originalGameSource,"Chilli / Steal an Egg / pinned runtime")
     assert(run,err)
     report.status="Runtime compiled";report.transferChecksumVerified=true;save()
+    loading.Update("Starting original systems...",0.7)
+    if task and task.wait then task.wait() end
     return run()
 end,function(err)return debug and type(debug.traceback)=="function"and debug.traceback(tostring(err),2)or tostring(err)end))
 report.ok=outcome[1]
@@ -520,5 +780,12 @@ if not result[1] then
     if restoreStartup then restoreStartup() end
     error(result[2],0)
 end
-if correctMap then attach(existingDevilHubLibrary,restoreStartup) end
+if correctMap then mount() end
 return table.unpack(result,2,result.n)
+end))
+env.DevilChilliUiStarting=nil
+if not completed[1] then
+    if restoreStartup then restoreStartup() end
+    loading.Fail(completed[2]);error(completed[2],0)
+end
+return table.unpack(completed,2,completed.n)

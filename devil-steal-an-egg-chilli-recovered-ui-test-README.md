@@ -45,3 +45,7 @@ Release 6 updates the DEVIL home invite, native Discord community display and na
 Release 7 uses the same DEVIL HUB logo asset as the main GUI in the Discord community panel. The image is resolved through getcustomasset/getsynasset before native UI construction and cached using the existing DEVIL logo filename. Gameplay and Discord copy behavior remain unchanged.
 
 Release 8 replaces the actual embedded Discord canvas image and watches that image for native redraws. This also brands an existing older native Window whose community canvas was created with the fire icon. Replacement is restricted to the Discord canvas; pet and egg images retain their original values. The existing adapter harness verifies replacement and redraw protection while original item images and callbacks survive.
+
+Updated 2026-10-19: both native GUI entry points now use the same pinned Halloween
+runtime. See [update details and validation](tools/chilli-20261019/README.md).
+Live Roblox/Delta gameplay remains unverified.
