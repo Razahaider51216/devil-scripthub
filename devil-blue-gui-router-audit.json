@@ -1,7 +1,7 @@
 {
-  "release": "devil-blue-20261019-2",
-  "module_commit": "627bfdb8733ae81a993487324956437c9d6e8e8f",
-  "game_entries_commit": "2bcbe623e3384b6029405eeed8dd9fe79e8bb6fe",
+  "release": "devil-blue-20261019-3",
+  "module_commit": "abb8b8ddd1041fe1900336cc2d2b09a8fcb20c16",
+  "game_entries_commit": "ac74d0e816d3c875b04dd5edae6e7a07878607f0",
   "map_ids_unchanged": true,
   "native_logic_unchanged_except_presentation_bootstrap_and_entry_pins": true,
   "routes": [
@@ -69,13 +69,19 @@
   "before_native_sha256": "9f5437d72cc5c2e2bbf84abddf7b653675c3bbebc43b578e5981ceb38fc0de9e",
   "after_native_sha256": "1453fe1459cf63b91476cf5622dc937904e7970094277ccb6a5dca9726aa6497",
   "live_rendering_verified": false,
-  "public_loader_sha256": "29101a99b78aa65b028efd63c7d9af10807eeca6f35e7f2e9b9715997213137a",
-  "public_loader_bytes": 126472,
-  "ui_offline_checks": 47,
+  "public_loader_sha256": "51900df410e44e3a3dc748fad12d2c07138774fd2f4215c130b13cea13b86e5f",
+  "public_loader_bytes": 126486,
+  "ui_offline_checks": 37,
   "public_router_universe_place_cases": 30,
   "language_choices": [
     "EN",
     "TH"
   ],
-  "thai_dictionary_entries": 583
+  "thai_dictionary_entries": 583,
+  "appearance_controls_removed": true,
+  "language_selector_in_original_window": true,
+  "launcher_background": "#000000",
+  "logo_color": "#FFFFFF",
+  "window_background": "#07090D",
+  "window_background_transparency": 0.14
 }
