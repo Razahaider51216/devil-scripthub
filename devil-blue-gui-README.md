@@ -7,7 +7,9 @@ DEVIL logo. Pet/item images, input values and game callbacks remain original.
 
 There is no GUI / Colors button, floating settings window, color picker or shared
 size panel. Language selection has its own 32px row above the sidebar navigation,
-with 8px spacing. The navigation viewport reserves that space and keeps its lower
+with 8px spacing. The old DevilLanguageButton beside minimize is hidden, leaving
+one shared language menu in each window. Its callbacks and original visibility
+are restored on unload. The navigation viewport reserves space and keeps its lower
 edge above the original profile footer. Libraries without a sidebar reserve a
 header row. Native resizing is preserved; unload restores the original geometry.
 Click EN or Thai to select English / Thai. Language is saved locally in
@@ -32,5 +34,11 @@ compiler, getfenv/setfenv or game automation function is replaced.
 
 The main loader and all ten game entries install the same immutable, checksummed
 presentation module. Download failure leaves the original game entry usable.
-63 offline UI checks plus integrity, callback-preservation and routing checks pass. Live
+All menu labels use a blue #4697FF to white text gradient in both languages.
+The effect sits on transparent text overlays so it never colors the button's
+background. Native backgrounds keep dark gradients. Text padding, fonts,
+alignment, raw values and callbacks remain native. The borderless language button
+uses a drawn chevron instead of a Unicode arrow that can appear as a square.
+
+78 offline UI checks plus integrity, callback-preservation and routing checks pass. Live
 Roblox/Delta rendering across every game still requires validation.

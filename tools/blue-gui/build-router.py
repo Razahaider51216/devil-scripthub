@@ -31,9 +31,11 @@ audit.update(release=manifest['release'], module_commit=manifest['module_commit'
              before_native_sha256=hashlib.sha256(before.encode()).hexdigest(),
              after_native_sha256=hashlib.sha256(after.encode()).hexdigest(),
              public_loader_sha256=hashlib.sha256(public).hexdigest(),
-             public_loader_bytes=len(public), ui_offline_checks=63,
+             public_loader_bytes=len(public), ui_offline_checks=78,
              language_selector_reserved_row=True, toggle_on_color='#A4DDFF',
-             toggle_off_color='#202731', unnamed_control_icons_styled=True)
+             toggle_off_color='#202731', unnamed_control_icons_styled=True,
+             legacy_language_button_hidden=True, text_gradient_colors=['#4697FF','#FFFFFF'],
+             text_gradient_background_transparent=True, unicode_dropdown_arrow_removed=True)
 audit_path.write_text(json.dumps(audit, indent=2) + '\n', encoding='utf-8', newline='\n')
 legacy_test = root / 'tools/chilli-20261019/test-public-loader.py'
 source = legacy_test.read_text(encoding='utf-8')

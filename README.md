@@ -66,5 +66,5 @@ There is no separate GUI / Colors button or color settings window.
 See [GUI details and validation](devil-blue-gui-README.md).
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/refs/heads/main/loader?v=polished-ui-20261019-4"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?v=vm-1"))()
 ```
