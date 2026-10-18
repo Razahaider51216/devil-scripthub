@@ -34,7 +34,7 @@ compiler, getfenv/setfenv or game automation function is replaced.
 
 The main loader and all ten game entries install the same immutable, checksummed
 presentation module. Download failure leaves the original game entry usable.
-All menu labels use a blue #4697FF to white text gradient in both languages.
+All menu labels use a brighter blue #68B1FF to white text gradient in both languages.
 The effect sits on transparent text overlays so it never colors the button's
 background. Native backgrounds keep dark gradients. Text padding, fonts,
 alignment, raw values and callbacks remain native. The borderless language button
@@ -45,6 +45,16 @@ Search and text input surfaces use soft black #181B21, white typed text and
 their compact enclosing fields receive the background. Native input gradients
 remain neutral so they cannot darken the text. Text and search callbacks stay native.
 
+Dropdown chips, option buttons and popup menus use near-black surfaces (#101319
+or darker) with 0.14 background transparency. Background images are tinted dark;
+small icons keep white/blue. Dropdowns whose names contain Toggle are not treated
+as switches. Switch detection requires a round or named thumb, so a narrow
+dropdown's chevron cannot become a switch before the field grows to fit its value.
+Native switch tracks still show blue when enabled. Text overlays
+reduce native dimming continuously without changing hidden text or raw values;
+text outlines are neutral dark rather than blue. Input backgrounds also use 0.14
+transparency. Native transparent layout wrappers remain transparent.
+
 The original main window is cached across minimize/restore transitions; temporary
 ghost frames and the Island mini bar never become its replacement. The theme no
 longer creates or writes UIScale objects. Scale-only animation changes and
@@ -52,7 +62,7 @@ presentation-owned descendants do not schedule layout reconstruction. Native
 window size and sidebar changes still update the language row. Property writes
 use a reentrancy guard and retain Roblox's stored values to avoid rounding feedback.
 
-122 offline UI checks include eight cycles of the library's original Minimize /
+137 offline UI checks include eight cycles of the library's original Minimize /
 Restore functions with simulated animation timing, plus integrity, callback and
 routing checks. A regression replay confirms that the previous release adopts
 the temporary animation frame. Live
