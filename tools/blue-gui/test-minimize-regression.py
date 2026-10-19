@@ -12,6 +12,11 @@ assert 'then assert(v,message)' in mocks
 checks = (root / 'tests/blue-gui-checks.luau').read_text(encoding='utf-8')
 checks = checks.replace('-- NATIVE TRANSITIONS INSERTED HERE',
     (root / 'tests/blue-gui-native-minimize.luau').read_text(encoding='utf-8'))
+# New fullscreen-layer cases are a separate regression. Keep them from changing
+# the older fixture's root selection before it reaches the minimize transition.
+checks = checks.replace('AbsoluteSize=Vector2.new(1920,1080)', 'AbsoluteSize=Vector2.new(0,0)')
+checks = checks.replace('local layers=controller.InspectLayers()',
+                        'local layers=controller.InspectLayers and controller.InspectLayers()or{}')
 baseline = subprocess.check_output(['git', 'show',
     '742ae9720de5e5a9f486eb0ed430b846f628e14e:devil-blue-gui.lua'], cwd=root).decode('utf-8')
 path = Path(__file__).with_suffix('.generated.luau')

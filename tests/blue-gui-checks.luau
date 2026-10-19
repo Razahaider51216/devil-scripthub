@@ -53,6 +53,7 @@ local gameLogoColor=gameLogo.ImageColor3
 local compositeLaunch=node('TextButton','TextButton',gui,{Size=UDim2.fromOffset(50,50),BackgroundColor3=Color3.fromRGB(255,0,0)})
 local compositeLogo=node('ImageLabel','ImageLabel',compositeLaunch,{Image='',ImageColor3=Color3.fromRGB(255,0,0)})
 local sidebarGui=node('ScreenGui','DevilHubSidebarTest',core)
+sidebarGui:SetAttribute('DevilBreakFrontend',true)
 local sidebarRoot=node('Frame','Window',sidebarGui,{AbsoluteSize=Vector2.new(880,520),Size=UDim2.fromOffset(880,520)})
 local body=node('Frame','Body',sidebarRoot)
 local sidebar=node('Frame','Sidebar',body,{Position=UDim2.fromOffset(8,8),Size=UDim2.new(0,170,1,-16)})
@@ -94,6 +95,16 @@ local option=node('TextButton','Option1',popup,{Text='Closest',BackgroundColor3=
 local bitmap=node('ImageLabel','Surface',dropdown,{Image='rounded-rectangle',ImageColor3=Color3.fromRGB(180,210,255)})
 local growingBitmap=node('ImageLabel','ImageLabel',dropdown,{Size=UDim2.fromOffset(16,16),Image='rounded-rectangle',ImageColor3=Color3.fromRGB(255,255,255)})
 local dropdownClicks=0;local dropdownAction=dropdown.Activated:Connect(function()dropdownClicks+=1 end)
+-- Break's bridge reparents Obsidian AddDialog's ZIndex=9000 overlay to ui.Gui.
+local dialog=node('TextButton','TextButton',sidebarGui,{Size=UDim2.fromScale(1,1),AbsoluteSize=Vector2.new(1920,1080),
+ BackgroundColor3=Color3.fromRGB(0,0,0),BackgroundTransparency=.5,Text='',ZIndex=9000})
+local dialogPanel=node('Frame','DialogPanel',dialog,{Size=UDim2.fromOffset(300,180),BackgroundColor3=Color3.fromRGB(200,0,0)})
+local hitPlane=node('TextButton','InputCatcher',sidebarGui,{Size=UDim2.fromScale(1,1),BackgroundTransparency=.95})
+local backdrop=node('Frame','Backdrop',sidebarGui,{Size=UDim2.fromScale(1,1),BackgroundTransparency=1,Visible=false})
+local tint=node('Frame','Frame',backdrop,{Size=UDim2.fromScale(1,1),BackgroundColor3=Color3.fromRGB(0,0,0),BackgroundTransparency=.55})
+local tintColor=ColorSequence.new(Color3.fromRGB(200,0,0),Color3.fromRGB(0,200,0))
+local tintGradient=node('UIGradient','UIGradient',tint,{Color=tintColor})
+local otherDialog=node('TextButton','TextButton',gui,{Size=UDim2.fromScale(1,1),BackgroundTransparency=.5,ZIndex=9000})
 local nativeChip=node('Frame','Frame',dropdown,{Size=UDim2.fromOffset(60,30),BackgroundColor3=Color3.fromRGB(25,20,25)})
 local nativeChevron=node('Frame','Frame',nativeChip,{Size=UDim2.fromOffset(18,18),AnchorPoint=Vector2.new(1,.5),Position=UDim2.new(1,-6,.5,0),BackgroundTransparency=1})
 node('ImageLabel','ImageLabel',nativeChevron,{Size=UDim2.fromOffset(16,16),Image='chevron-down',BackgroundTransparency=1})
@@ -104,6 +115,11 @@ end)()
 flush()
 check(root.BackgroundColor3==Color3.fromRGB(7,9,13),'main background not black')
 check(root.BackgroundTransparency==.14,'main background not slightly transparent')
+check(dialog.BackgroundTransparency==.5 and dialog.BackgroundColor3==Color3.fromRGB(0,0,0),'native dialog dimmer painted as an opaque menu card')
+check(hitPlane.BackgroundTransparency==.95,'fullscreen hit plane became an opaque black layer')
+check(tint.BackgroundTransparency==.55 and tintGradient.Color==tintColor and not backdrop.Visible,'native backdrop/fade settings were overwritten')
+check(dialogPanel.BackgroundColor3==Color3.fromRGB(16,19,25),'dialog content panel lost its dark menu styling')
+check(dialog:FindFirstChild('DevilLanguageSelector')==nil and not backdrop:FindFirstChild('DevilLanguageSelector'),'fullscreen layer adopted as main GUI')
 check(button.TextColor3==Color3.fromRGB(164,221,255),'mode text not soft light blue')
 check(heading.TextColor3==Color3.fromRGB(255,255,255),'title not white')
 check(searchHost.BackgroundColor3==Color3.fromRGB(24,27,33)and searchHost.BackgroundTransparency==.14,'anonymous search wrapper not soft black')
@@ -205,6 +221,23 @@ local dockMenu=docked:FindFirstChild('LanguageOptions')
 docked:FindFirstChild('LanguageSelect').Activated:Fire();sidebarRoot.Visible=false
 check(not dockMenu.Visible,'language menu remains open after minimize')
 sidebarRoot.Visible=true
+check(dialog.Visible,'open native dialog did not return with the main window')
+local lateDialog=node('TextButton','TextButton',sidebarGui,{Size=UDim2.fromOffset(100,100),ZIndex=1,BackgroundTransparency=.5})
+lateDialog.Size=UDim2.fromScale(1,1);lateDialog.ZIndex=9000
+sidebarRoot.Visible=false
+check(not dialog.Visible and not lateDialog.Visible,'Break dialog overlay remains visible while main GUI is minimized')
+lateDialog:Destroy();sidebarRoot.Visible=true
+check(dialog.Visible and lateDialog.destroyed,'closed native dialog came back after restore')
+local layers=controller.InspectLayers()
+local foundDialog=false
+for _,layer in ipairs(layers)do if layer.BreakDialog then foundDialog=true;check(layer.SourceTransparency==.5,'layer report lost native dimmer transparency')end end
+check(foundDialog,'layer diagnostics missed the Break dialog overlay')
+root.Visible=false
+check(otherDialog.Visible and otherDialog.BackgroundTransparency==.5,'Break dialog visibility policy changed another frontend')
+root.Visible=true
+dialog.Visible=false;sidebarRoot.Visible=false;sidebarRoot.Visible=true
+check(not dialog.Visible,'restoring GUI reopened a dialog closed by its native controller')
+dialog.Visible=true
 anonymousIcon.ImageColor3=Color3.fromRGB(255,0,0)
 check(anonymousIcon.ImageColor3==Color3.fromRGB(164,221,255),'icon hover/redraw restored red')
 local mobileTrack=node('Frame','Frame',action,{Size=UDim2.fromOffset(44,24)})
@@ -308,9 +341,11 @@ for cycle=1,8 do
  end
  advance(.11);advance(.31);advance(.25)
  check(not sidebarRoot.Visible and app.MiniBar.Visible,'native minimize did not finish')
+ check(not dialog.Visible,'native Break dialog still covers the game after minimize')
  nativeTransitions.Restore(app);advance(.31);advance(.11);advance(.25)
  sidebarRoot.AbsoluteSize=Vector2.new(880,520);flush()
  check(sidebarRoot.Visible and not app.MiniBar.Visible and app._ghost==nil,'native restore did not finish')
+ check(dialog.Visible,'native Break dialog did not follow restore')
 end
 task.delay,task.spawn=savedDelay,savedSpawn
 check(nativeScale.Scale==.83 and scaleWrites==16,'theme rewrote the native transition scale')

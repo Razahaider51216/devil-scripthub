@@ -1,6 +1,6 @@
 -- Shared presentation only. Game callbacks, network APIs and compiler environments stay original.
 local scope=type(getgenv)=="function"and getgenv()or _G
-local VERSION="devil-blue-20261019-7"
+local VERSION="devil-blue-20261019-8"
 if scope.DevilHubBlueGui and scope.DevilHubBlueGui.Version==VERSION and not scope.DevilHubBlueGui.Stopped then return scope.DevilHubBlueGui end
 if scope.DevilHubBlueGui and scope.DevilHubBlueGui.Destroy then scope.DevilHubBlueGui.Destroy()end
 local controller={Version=VERSION,Stopped=false,Report={screens=0,nodes=0,callbacksReplaced=0}}
@@ -11,7 +11,8 @@ local settings=table.clone(defaults)
 local configFile="DevilHub-BlueGUI.json"
 local links,tracked,owned,states,roots={},{},{},{},{}
 local inputHosts=setmetatable({},{__mode="k"})
-local ui,refreshUI,refreshAll,createUI={},nil,nil,nil
+local dialogs=setmetatable({},{__mode="k"})
+local ui,refreshUI,refreshAll,createUI,windowRoot,refreshLayers={},nil,nil,nil,nil,nil
 local toggleTracks,toggleThumbs=setmetatable({},{__mode="k"}),setmetatable({},{__mode="k"})
 local http=game:GetService("HttpService")
 local function hex(text)
@@ -789,6 +790,29 @@ local function glyphFrame(node)
     return size.X.Scale==0 and size.Y.Scale==0 and size.X.Offset>0 and size.Y.Offset>0
         and math.max(size.X.Offset,size.Y.Offset)<=24 and math.min(size.X.Offset,size.Y.Offset)<=4
 end
+local function screenLayer(node)
+    if not node or not node:IsA("GuiObject")then return end
+    local current=node
+    while current and current:IsA("GuiObject")do
+        local parent=current.Parent
+        if not parent then return end
+        local name=current.Name:lower()
+        if name=="window"or name=="mainwindow"or name=="root"then return end
+        local size=current.Size
+        if size.X.Scale<.85 or size.Y.Scale<.85 then return end
+        if parent:IsA("ScreenGui")then
+            if launcher(current)or brandImage(current)then return end
+            if roots[parent]~=current then return parent end
+            return
+        end
+        current=parent
+    end
+end
+local function breakDialog(node)
+    local screen=screenLayer(node)
+    if screen and node.Parent==screen and node:IsA("TextButton")and node.ZIndex>=8000
+        and screen:GetAttribute("DevilBreakFrontend")==true then return screen end
+end
 local function menuSurface(node)
     if not node:IsA("GuiObject")then return false end
     local name=node.Name:lower()
@@ -809,6 +833,12 @@ end
 local function target(node,key,source)
     local name=node.Name:lower()
     if key=="Visible"and name=="devillanguagebutton"then return false
+    elseif key=="Visible"and dialogs[node]then
+        local root=windowRoot(dialogs[node])
+        return source and(not root or root.Visible)
+    elseif(key=="BackgroundTransparency"or key=="BackgroundColor3"or key=="ImageColor3")and screenLayer(node)then
+        -- Screen dimmers and input-catching planes are not menu cards.
+        return source
     elseif key=="BackgroundTransparency"then
         if inputHosts[node]then return .14 end
         if node:IsA("TextBox")then return source>=.98 and source or .14 end
@@ -839,6 +869,7 @@ local function target(node,key,source)
         return palette.Accent
     elseif key=="Color"and node:IsA("UIGradient")then
         local parent=node.Parent
+        if screenLayer(parent)then return source end
         if parent and(parent:IsA("TextBox")or inputHosts[parent])then return ColorSequence.new(white)end
         if parent and(parent:IsA("ImageLabel")or parent:IsA("ImageButton"))then
             if imageSurface(parent)then return ColorSequence.new(white)end
@@ -880,6 +911,24 @@ local function observe(node,state,key)
         state.Source[key]=node[key]
         applyProperty(node,state,key)
     end,state.Links)
+end
+refreshLayers=function(screen)
+    for node,parent in pairs(dialogs)do
+        if parent==screen and states[node]then applyProperty(node,states[node],"Visible")end
+    end
+end
+local function inspectLayer(node,state)
+    local screen=breakDialog(node)
+    if screen then
+        dialogs[node]=screen
+        if state.Source.Visible==nil then observe(node,state,"Visible")else applyProperty(node,state,"Visible")end
+    elseif dialogs[node]then
+        dialogs[node]=nil
+        if state.Source.Visible~=nil then applyProperty(node,state,"Visible")end
+    end
+    for _,key in ipairs({"BackgroundTransparency","BackgroundColor3","ImageColor3"})do
+        if state.Source[key]~=nil then applyProperty(node,state,key)end
+    end
 end
 local function inspectInput(box)
     if not box:IsA("TextBox")then return end
@@ -927,7 +976,7 @@ end
 local function patch(node)
     if node:GetAttribute("DevilLocalizationOverlay")or node:GetAttribute("DevilBlueSettings")then return end
     localize(node)
-    if states[node]then return end
+    if states[node]then inspectLayer(node,states[node]);return end
     local keys={}
     if node:IsA("GuiObject")then
         table.insert(keys,"BackgroundColor3");table.insert(keys,"BackgroundTransparency")
@@ -953,12 +1002,18 @@ local function patch(node)
     local state={Source={},Applied={},Writing={},Links={}};states[node]=state
     controller.Report.nodes+=1
     for _,key in ipairs(keys)do observe(node,state,key)end
+    if node:IsA("GuiButton")then
+        inspectLayer(node,state)
+        for _,key in ipairs({"Size","ZIndex","Parent"})do
+            keep(node:GetPropertyChangedSignal(key),function()inspectLayer(node,state)end,state.Links)
+        end
+    end
     inspectInput(node)
     inspectToggle(node);inspectToggle(node.Parent)
     if toggleThumbs[node]then applyProperty(node,state,"BackgroundColor3")end
     keep(node.Destroying,function()
         for _,link in ipairs(state.Links)do link:Disconnect()end
-        states[node]=nil
+        dialogs[node]=nil;states[node]=nil
     end,state.Links)
     if node:IsA("ImageLabel")or node:IsA("ImageButton")then
         keep(node:GetPropertyChangedSignal("Size"),function()
@@ -983,7 +1038,7 @@ local function patch(node)
         end,state.Links)
     end
 end
-local function windowRoot(screen)
+windowRoot=function(screen)
     if screen.Name=="DevilHubLoading"then return end
     local existing=roots[screen]
     if existing and existing.Parent==screen then return existing end
@@ -992,7 +1047,7 @@ local function windowRoot(screen)
         local name=child.Name:lower()
         local size=child.AbsoluteSize;local nextArea=size.X*size.Y
         if nextArea>40000 and(name=="window"or name=="mainwindow"or name=="root")then roots[screen]=child;return child end
-        if nextArea>40000 and name~="island"and name~="notifications"and name~="tooltip"and not name:find("ghost",1,true)
+        if nextArea>40000 and not screenLayer(child)and name~="island"and name~="notifications"and name~="tooltip"and not name:find("ghost",1,true)
             and not launcher(child)and(not area or nextArea>area)then root,area=child,nextArea end
     end end
     roots[screen]=root
@@ -1093,7 +1148,10 @@ createUI=function(screen)
         keep(choice.MouseLeave,function()choice.BackgroundTransparency=settings.Language==option[1]and 0 or 1 end,panelLinks)
     end
     keep(button.Activated,function()menu.Visible=not menu.Visible end,panelLinks)
-    keep(root:GetPropertyChangedSignal("Visible"),function()if not root.Visible then menu.Visible=false end end,panelLinks)
+    keep(root:GetPropertyChangedSignal("Visible"),function()
+        if not root.Visible then menu.Visible=false end
+        refreshLayers(screen)
+    end,panelLinks)
     local function sync()
         caption.Text=settings.Language=="TH"and"ไทย"or"English"
         if label then label.Text=settings.Language=="TH"and"ภาษา"or"Language"end
@@ -1116,7 +1174,7 @@ createUI=function(screen)
     keep(host.Destroying,cleanup,panelLinks)
     function controller.Open()menu.Visible=true end
     refreshUI=function()for _,panel in pairs(ui)do panel.Update()end end
-    reflow();sync()
+    reflow();sync();refreshLayers(screen)
 end
 
 local function mark(screen)
@@ -1185,6 +1243,22 @@ function controller.Set(values)
 end
 function controller.Get()return table.clone(settings)end
 function controller.Translate(text)return translate(text)end
+function controller.InspectLayers()
+    local report={}
+    for screen in pairs(owned)do
+        local root=windowRoot(screen)
+        if root then table.insert(report,{Screen=screen.Name,ScreenEnabled=screen.Enabled,Name=root.Name,Class=root.ClassName,Role="MainWindow",
+            Visible=root.Visible,BackgroundTransparency=root.BackgroundTransparency,Width=root.AbsoluteSize.X,Height=root.AbsoluteSize.Y})end
+        for _,node in ipairs(screen:GetDescendants())do if screenLayer(node)then
+            local state=states[node]
+            table.insert(report,{Screen=screen.Name,ScreenEnabled=screen.Enabled,Name=node.Name,Parent=node.Parent and node.Parent.Name,Class=node.ClassName,Visible=node.Visible,
+                Role=dialogs[node]==screen and"BreakDialog"or"ScreenLayer",Width=node.AbsoluteSize.X,Height=node.AbsoluteSize.Y,
+                BackgroundTransparency=node.BackgroundTransparency,SourceTransparency=state and state.Source.BackgroundTransparency,NativeVisible=state and state.Source.Visible,
+                BreakDialog=dialogs[node]==screen,Window=root and root.Name,WindowVisible=root and root.Visible})
+        end end
+    end
+    return report
+end
 function controller.SetLanguage(value)return controller.Set({Language=value})end
 function controller.Destroy()
     if controller.Stopped then return end

@@ -93,7 +93,10 @@ createUI=function(screen)
         keep(choice.MouseLeave,function()choice.BackgroundTransparency=settings.Language==option[1]and 0 or 1 end,panelLinks)
     end
     keep(button.Activated,function()menu.Visible=not menu.Visible end,panelLinks)
-    keep(root:GetPropertyChangedSignal("Visible"),function()if not root.Visible then menu.Visible=false end end,panelLinks)
+    keep(root:GetPropertyChangedSignal("Visible"),function()
+        if not root.Visible then menu.Visible=false end
+        refreshLayers(screen)
+    end,panelLinks)
     local function sync()
         caption.Text=settings.Language=="TH"and"ไทย"or"English"
         if label then label.Text=settings.Language=="TH"and"ภาษา"or"Language"end
@@ -116,5 +119,5 @@ createUI=function(screen)
     keep(host.Destroying,cleanup,panelLinks)
     function controller.Open()menu.Visible=true end
     refreshUI=function()for _,panel in pairs(ui)do panel.Update()end end
-    reflow();sync()
+    reflow();sync();refreshLayers(screen)
 end
