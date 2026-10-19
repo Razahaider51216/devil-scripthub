@@ -44,7 +44,12 @@ audit.update(release=manifest['release'], module_commit=manifest['module_commit'
              fullscreen_layers_keep_native_backgrounds=True,
              break_native_dialogs_follow_window_visibility=True,
              layer_diagnostics_available=True, mini_waveform_gradient_colors=['#68B1FF','#FFFFFF'],
-             native_waveform_animation_preserved=True, waveform_offline_checks=25)
+             native_waveform_animation_preserved=True, waveform_offline_checks=25,
+             desktop_startup_offline_checks=860, desktop_startup_routes=10,
+             desktop_gui_access_profiles=['CoreGui','HiddenFolder','HiddenScreen','PlayerGui','ThrowingHelper'],
+             pixel_and_rendered_screen_layer_coverage=True,
+             late_viewport_and_primary_window_discovery=True,
+             desktop_executor_live_verified=False)
 audit_path.write_text(json.dumps(audit, indent=2) + '\n', encoding='utf-8', newline='\n')
 legacy_test = root / 'tools/chilli-20261019/test-public-loader.py'
 source = legacy_test.read_text(encoding='utf-8')

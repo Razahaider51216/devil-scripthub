@@ -82,7 +82,7 @@ function mt.__newindex(self,key,value)
 end
 function Instance.new(class)
     return setmetatable({props={ClassName=class,Name=class,Size=UDim2.fromScale(1,1),Position=UDim2.fromScale(0,0),AnchorPoint=Vector2.new(0,0),
-        Visible=true,DisplayOrder=0,AbsolutePosition=Vector2.new(0,0),AbsoluteSize=Vector2.new(0,0),Image='',ImageColor3=Color3.new(1,1,1),Scale=1,RichText=false,BackgroundTransparency=0,BackgroundColor3=Color3.new(1,1,1),
+        Visible=true,ZIndex=1,DisplayOrder=0,AbsolutePosition=Vector2.new(0,0),AbsoluteSize=Vector2.new(0,0),Image='',ImageColor3=Color3.new(1,1,1),Scale=1,RichText=false,BackgroundTransparency=0,BackgroundColor3=Color3.new(1,1,1),
         TextColor3=Color3.new(1,1,1),PlaceholderColor3=Color3.fromRGB(178,178,178),TextStrokeColor3=Color3.new(0,0,0),TextTransparency=0,Color=class=='UIGradient' and ColorSequence.new(Color3.new(1,1,1)) or class=='UIStroke' and Color3.new(1,1,1) or nil,
         Text='',Enabled=true,ApplyStrokeMode=Enum.ApplyStrokeMode.Border,Font=Enum.Font.SourceSans},
         signals={},children={},attributes={}},mt)

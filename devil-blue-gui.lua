@@ -1,6 +1,6 @@
 -- Shared presentation only. Game callbacks, network APIs and compiler environments stay original.
 local scope=type(getgenv)=="function"and getgenv()or _G
-local VERSION="devil-blue-20261019-9"
+local VERSION="devil-blue-20261019-10"
 if scope.DevilHubBlueGui and scope.DevilHubBlueGui.Version==VERSION and not scope.DevilHubBlueGui.Stopped then return scope.DevilHubBlueGui end
 if scope.DevilHubBlueGui and scope.DevilHubBlueGui.Destroy then scope.DevilHubBlueGui.Destroy()end
 local controller={Version=VERSION,Stopped=false,Report={screens=0,nodes=0,callbacksReplaced=0}}
@@ -821,17 +821,23 @@ local function screenLayer(node)
         local name=current.Name:lower()
         if name=="window"or name=="mainwindow"or name=="root"then return end
         local size=current.Size
-        if size.X.Scale<.85 or size.Y.Scale<.85 then return end
+        -- Desktop libraries also size input planes/dimmers in viewport pixels.
+        -- Include offsets and wait for the screen's real dimensions when needed.
+        local parentSize=parent.AbsoluteSize
+        local actual=current.AbsoluteSize
+        local width=parentSize.X>0 and math.max(size.X.Scale+size.X.Offset/parentSize.X,actual.X/parentSize.X)or size.X.Scale
+        local height=parentSize.Y>0 and math.max(size.Y.Scale+size.Y.Offset/parentSize.Y,actual.Y/parentSize.Y)or size.Y.Scale
+        if width<.85 or height<.85 then return end
         if parent:IsA("ScreenGui")then
             if launcher(current)or brandImage(current)then return end
-            if roots[parent]~=current then return parent end
-            return
+            return parent
         end
         current=parent
     end
 end
 local function breakDialog(node)
-    local screen=screenLayer(node)
+    -- Keep a recognized bridge dialog bound during viewport/size transitions.
+    local screen=screenLayer(node)or dialogs[node]
     if screen and node.Parent==screen and node:IsA("TextButton")and node.ZIndex>=8000
         and screen:GetAttribute("DevilBreakFrontend")==true then return screen end
 end
@@ -963,6 +969,22 @@ local function inspectLayer(node,state)
         if state.Source[key]~=nil then applyProperty(node,state,key)end
     end
 end
+local function refreshPlane(node,state,layoutChanged)
+    local plane=screenLayer(node)
+    local changed=state.Plane~=plane;state.Plane=plane
+    inspectLayer(node,state)
+    if changed or plane and layoutChanged then
+        -- A parent-first factory or viewport resize can change classification
+        -- after children were styled. Restore those children's native surfaces too.
+        for _,child in ipairs(node:GetDescendants())do
+            local childState=states[child]
+            if childState then
+                if child:IsA("GuiObject")then inspectLayer(child,childState)
+                elseif child:IsA("UIGradient")then applyProperty(child,childState,"Color")end
+            end
+        end
+    end
+end
 local function inspectInput(box)
     if not box:IsA("TextBox")then return end
     local parent=box.Parent
@@ -1043,10 +1065,12 @@ local function patch(node)
             task.defer(function()if not controller.Stopped and node.Parent and states[node]==state then inspectWave(node,state)end end)
         end
     end
-    if node:IsA("GuiButton")then
-        inspectLayer(node,state)
-        for _,key in ipairs({"Size","ZIndex","Parent"})do
-            keep(node:GetPropertyChangedSignal(key),function()inspectLayer(node,state)end,state.Links)
+    if node:IsA("GuiObject")then
+        state.Plane=screenLayer(node);inspectLayer(node,state)
+    end
+    if node:IsA("GuiButton")or node:IsA("GuiObject")and node.Parent and node.Parent:IsA("ScreenGui")then
+        for _,key in ipairs({"Size","AbsoluteSize","ZIndex","Parent","Name"})do
+            keep(node:GetPropertyChangedSignal(key),function()refreshPlane(node,state,key=="AbsoluteSize")end,state.Links)
         end
     end
     inspectInput(node)
@@ -1082,7 +1106,8 @@ end
 windowRoot=function(screen)
     if screen.Name=="DevilHubLoading"then return end
     local existing=roots[screen]
-    if existing and existing.Parent==screen then return existing end
+    local existingName=existing and existing.Name:lower()
+    if existing and existing.Parent==screen and(existingName=="window"or existingName=="mainwindow"or existingName=="root")then return existing end
     local root,area
     for _,child in ipairs(screen:GetChildren())do if child:IsA("GuiObject")and not child:GetAttribute("DevilBlueSettings")and not child:IsA("GuiButton")then
         local name=child.Name:lower()
@@ -1091,6 +1116,7 @@ windowRoot=function(screen)
         if nextArea>40000 and not screenLayer(child)and name~="island"and name~="notifications"and name~="tooltip"and not name:find("ghost",1,true)
             and not launcher(child)and(not area or nextArea>area)then root,area=child,nextArea end
     end end
+    if existing and existing.Parent==screen and not screenLayer(existing)then root=existing end
     roots[screen]=root
     return root
 end
@@ -1235,10 +1261,14 @@ local function track(screen)
     end
     local function inspect(node)
         if node:GetAttribute("DevilBlueSettings")or node:GetAttribute("DevilLocalizationOverlay")then return end
-        if node:IsA("GuiObject")and node.Parent==screen and not state.Roots[node]
-            and(not roots[screen]or roots[screen].Parent~=screen or roots[screen]==node)then
+        if node:IsA("GuiObject")and node.Parent==screen and not state.Roots[node]then
             state.Roots[node]=true
-            keep(node:GetPropertyChangedSignal("AbsoluteSize"),function()if not roots[screen]then queueLayout()end end,state.Links)
+            local function discoverWindow()
+                local name=node.Name:lower()
+                if not roots[screen]or roots[screen]~=node and(name=="window"or name=="mainwindow"or name=="root")then queueLayout()end
+            end
+            keep(node:GetPropertyChangedSignal("AbsoluteSize"),discoverWindow,state.Links)
+            keep(node:GetPropertyChangedSignal("Name"),discoverWindow,state.Links)
             keep(node:GetPropertyChangedSignal("Size"),function()if roots[screen]==node then queueLayout()end end,state.Links)
         end
         if owned[screen]then
@@ -1264,6 +1294,14 @@ local function track(screen)
         end
     end
     keep(screen.DescendantAdded,inspect,state.Links)
+    keep(screen:GetPropertyChangedSignal("AbsoluteSize"),function()
+        if controller.Stopped or not owned[screen]then return end
+        for _,child in ipairs(screen:GetChildren())do
+            local childState=states[child]
+            if childState and child:IsA("GuiObject")then refreshPlane(child,childState,true)end
+        end
+        queueLayout()
+    end,state.Links)
     keep(screen:GetPropertyChangedSignal("Name"),function()if screen.Name:lower():match("^devilhub")then mark(screen)end end,state.Links)
     keep(screen:GetAttributeChangedSignal("DevilHubPresentation"),function()if screen:GetAttribute("DevilHubPresentation")then mark(screen)end end,state.Links)
     keep(screen.Destroying,function()
@@ -1290,10 +1328,12 @@ function controller.InspectLayers()
         local root=windowRoot(screen)
         if root then table.insert(report,{Screen=screen.Name,ScreenEnabled=screen.Enabled,Name=root.Name,Class=root.ClassName,Role="MainWindow",
             Visible=root.Visible,BackgroundTransparency=root.BackgroundTransparency,Width=root.AbsoluteSize.X,Height=root.AbsoluteSize.Y})end
-        for _,node in ipairs(screen:GetDescendants())do if screenLayer(node)then
+        for _,node in ipairs(screen:GetDescendants())do if screenLayer(node)or dialogs[node]==screen then
             local state=states[node]
             table.insert(report,{Screen=screen.Name,ScreenEnabled=screen.Enabled,Name=node.Name,Parent=node.Parent and node.Parent.Name,Class=node.ClassName,Visible=node.Visible,
                 Role=dialogs[node]==screen and"BreakDialog"or"ScreenLayer",Width=node.AbsoluteSize.X,Height=node.AbsoluteSize.Y,
+                ScreenWidth=screen.AbsoluteSize.X,ScreenHeight=screen.AbsoluteSize.Y,
+                SizeXScale=node.Size.X.Scale,SizeXOffset=node.Size.X.Offset,SizeYScale=node.Size.Y.Scale,SizeYOffset=node.Size.Y.Offset,
                 BackgroundTransparency=node.BackgroundTransparency,SourceTransparency=state and state.Source.BackgroundTransparency,NativeVisible=state and state.Source.Visible,
                 BreakDialog=dialogs[node]==screen,Window=root and root.Name,WindowVisible=root and root.Visible})
         end end

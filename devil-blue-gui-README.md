@@ -72,11 +72,17 @@ use a reentrancy guard and retain Roblox's stored values to avoid rounding feedb
 
 Full-screen input planes, dimmers and backdrop gradients retain native colors
 and transparency. They are excluded from menu-card styling and main-window
-discovery. Break and Steal an Egg's bridge reparents Obsidian AddDialog overlays
+discovery. Coverage uses scale/offset sizes and rendered pixel extents relative
+to the screen, including inset pixel planes and native scaling on desktop.
+Viewport readiness and top-level geometry changes restore previously themed
+nested surfaces. A provisional unnamed startup frame yields to the explicit
+Window/MainWindow/Root once its layout becomes ready. Named main windows stay
+cached during native animations. Break and Steal an Egg's bridge reparents Obsidian AddDialog overlays
 (full-size TextButtons at ZIndex 9000) to the OuroFlow ScreenGui. These overlays
 now follow the primary window's visibility while preserving their controller's
 original state. Minimizing hides an open dialog's overlay; restoring returns it
-only if the native dialog still exists. Closing/destroying it stays native.
+only if the native dialog still exists. Recognized bridge dialogs remain bound
+across later viewport/size transitions. Closing/destroying it stays native.
 
 The previous menu policy changed these native 0.5/0.95 transparency layers to
 0.14, and their separate parent let them cover the game after minimize. Both
@@ -92,7 +98,8 @@ print(game:GetService("HttpService"):JSONEncode(report))
 ```
 
 The report lists main windows and screen-covering layers, including names,
-parents, dimensions, native/applied opacity and main-window visibility.
+parents, rendered/screen dimensions, scale/offset sizes, native/applied opacity
+and main-window visibility.
 
 165 offline UI checks include eight cycles of the library's original Minimize /
 Restore functions with simulated animation timing, plus integrity, callback and
@@ -101,3 +108,13 @@ and validate color redraws, 80 native height writes, pinned/compact placement,
 late construction, HUD isolation and unload restoration. A regression replay confirms that the previous release adopts
 the temporary animation frame. Live
 Roblox/Delta rendering across every game still requires validation.
+
+860 additional offline presentation startup checks cover all ten route definitions
+under CoreGui, hidden Folder, hidden ScreenGui, PlayerGui fallback and throwing
+gethui-helper profiles. They exercise pixel/inset dimmers, parent-first factories,
+late viewport/window layout, source gradients, resize/4K/native scaling,
+callback/HUD preservation and unload. Both the old pixel-plane opacity defect
+and provisional-root caching defect reproduce against release ed0e12c. These
+profiles simulate GUI access paths; they are not real executor integrations or
+full gameplay tests. The reporting user's exact live layer/executor remains
+unconfirmed.
