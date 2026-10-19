@@ -15,6 +15,29 @@ function P.Chance(value,default)
     end
     return P.Number(value,default)
 end
+function P.Rarity(config,attributes)
+    if type(config.getRarity)=="function"then
+        local ok,value=pcall(config.getRarity,attributes)
+        return ok and type(value)=="string"and value or nil
+    end
+    return type(config.rarity)=="string"and config.rarity or nil
+end
+function P.RarityOptions(catalog,units,selected)
+    local names={};local order={};local result={}
+    for _,name in pairs(catalog and catalog.Refs or{})do if type(name)=="string"then
+        names[name]=true
+        local ok,spec=pcall(function()return catalog.Get(name)end)
+        if ok and type(spec)=="table"then order[name]=P.Number(spec.sortOrder,math.huge)end
+    end end
+    for _,unit in ipairs(units)do if unit.rarity then names[unit.rarity]=true end end
+    for name,value in pairs(selected or{})do if value==true then names[name]=true end end
+    for name in pairs(names)do result[#result+1]=name end
+    table.sort(result,function(a,b)
+        local x,y=order[a]or math.huge,order[b]or math.huge
+        return x==y and a<b or x<y
+    end)
+    return result
+end
 function P.Units(data,registry)
     local result={}
     for id,item in pairs(data.Inventory or{})do
@@ -22,7 +45,7 @@ function P.Units(data,registry)
         if ok and config and config.kind=="Unit"and P.Number(item.amount)>0 then
             local a=item.attributes or{}
             result[#result+1]={id=id,name=item.name,attributes=a,amount=item.amount,config=config,
-                chance=P.Value(config.chance,a),income=P.Value(config.income,a),damage=P.Value(config.damage,a)}
+                rarity=P.Rarity(config,a),chance=P.Value(config.chance,a),income=P.Value(config.income,a),damage=P.Value(config.damage,a)}
         end
     end
     table.sort(result,function(a,b)if a.chance==b.chance then return a.id<b.id end;return a.chance>b.chance end)
@@ -49,9 +72,11 @@ function P.Materials(data,registry,cfg,limit,fusing)
     local units=P.Units(data,registry);local protected=P.Protected(data,units,cfg,allUnused)
     local result={}
     if data.PendingTrade or allUnused and data.EquippedUnitKnown==false or fusing and limit<=0 then return result end
+    local rarities=cfg.SellRarities or{};local filtered=allUnused and next(rarities)~=nil
     for i=#units,1,-1 do
         local u=units[i]
-        if not protected[u.id]and(allUnused or u.chance>0 and u.chance<=limit and u.amount==1 and not u.config.limited)then
+        if not protected[u.id]and(not filtered or u.rarity and rarities[u.rarity]==true)
+            and(allUnused or u.chance>0 and u.chance<=limit and u.amount==1 and not u.config.limited)then
             result[#result+1]=u
         end
     end

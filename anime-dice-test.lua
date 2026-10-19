@@ -1,7 +1,7 @@
 -- Standalone TEST entry. The production router is intentionally unchanged.
 assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
 local scope=type(getgenv)=="function"and getgenv()or _G
-local release="anime-dice-test-20261020-3"
+local release="anime-dice-test-20261020-4"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end
@@ -28,6 +28,29 @@ function P.Chance(value,default)
     end
     return P.Number(value,default)
 end
+function P.Rarity(config,attributes)
+    if type(config.getRarity)=="function"then
+        local ok,value=pcall(config.getRarity,attributes)
+        return ok and type(value)=="string"and value or nil
+    end
+    return type(config.rarity)=="string"and config.rarity or nil
+end
+function P.RarityOptions(catalog,units,selected)
+    local names={};local order={};local result={}
+    for _,name in pairs(catalog and catalog.Refs or{})do if type(name)=="string"then
+        names[name]=true
+        local ok,spec=pcall(function()return catalog.Get(name)end)
+        if ok and type(spec)=="table"then order[name]=P.Number(spec.sortOrder,math.huge)end
+    end end
+    for _,unit in ipairs(units)do if unit.rarity then names[unit.rarity]=true end end
+    for name,value in pairs(selected or{})do if value==true then names[name]=true end end
+    for name in pairs(names)do result[#result+1]=name end
+    table.sort(result,function(a,b)
+        local x,y=order[a]or math.huge,order[b]or math.huge
+        return x==y and a<b or x<y
+    end)
+    return result
+end
 function P.Units(data,registry)
     local result={}
     for id,item in pairs(data.Inventory or{})do
@@ -35,7 +58,7 @@ function P.Units(data,registry)
         if ok and config and config.kind=="Unit"and P.Number(item.amount)>0 then
             local a=item.attributes or{}
             result[#result+1]={id=id,name=item.name,attributes=a,amount=item.amount,config=config,
-                chance=P.Value(config.chance,a),income=P.Value(config.income,a),damage=P.Value(config.damage,a)}
+                rarity=P.Rarity(config,a),chance=P.Value(config.chance,a),income=P.Value(config.income,a),damage=P.Value(config.damage,a)}
         end
     end
     table.sort(result,function(a,b)if a.chance==b.chance then return a.id<b.id end;return a.chance>b.chance end)
@@ -62,9 +85,11 @@ function P.Materials(data,registry,cfg,limit,fusing)
     local units=P.Units(data,registry);local protected=P.Protected(data,units,cfg,allUnused)
     local result={}
     if data.PendingTrade or allUnused and data.EquippedUnitKnown==false or fusing and limit<=0 then return result end
+    local rarities=cfg.SellRarities or{};local filtered=allUnused and next(rarities)~=nil
     for i=#units,1,-1 do
         local u=units[i]
-        if not protected[u.id]and(allUnused or u.chance>0 and u.chance<=limit and u.amount==1 and not u.config.limited)then
+        if not protected[u.id]and(not filtered or u.rarity and rarities[u.rarity]==true)
+            and(allUnused or u.chance>0 and u.chance<=limit and u.amount==1 and not u.config.limited)then
             result[#result+1]=u
         end
     end
@@ -127,7 +152,7 @@ return function(scope)
     local flights=scope.DevilAnimeDiceFlights or{};scope.DevilAnimeDiceFlights=flights
     local requireModule=require
     local paths={
-        Data="Data.DataController",Registry="Inventory.EntryRegistry",Buffs="Buffs.BuffController",UnitController="Inventory.Kinds.Unit.UnitController",
+        Data="Data.DataController",Registry="Inventory.EntryRegistry",Buffs="Buffs.BuffController",UnitController="Inventory.Kinds.Unit.UnitController",Rarities="Rarities",
         Dice="Rolling.Dice",PlotConfig="Plot.PlotConfig",UnitUtil="Inventory.Kinds.Unit.UnitUtil",
         Upgrades="Upgrades.Upgrades",TreeStructure="Upgrades.TreeStructure",Towers="Towers.Towers",TowerRefs="Towers.TowerRefs",
         Rebirths="Rebirth.Rebirths",RebirthStats="Rebirth.RebirthStatsConfig",Traits="Traits.Traits",Grades="Grades.Grades",
@@ -148,7 +173,7 @@ return function(scope)
         assert(valid(),"Startup cancelled")
         for key,name in pairs(paths)do
             if not valid()then return end
-            local module=path(rs,"Framework.Features."..name)
+            local module=path(rs,(key=="Rarities"and"Framework.Other."or"Framework.Features.")..name)
             -- Locate alternate feature folder names from the actual live tree.
             if not module then
                 local leaf=name:match("([^.]+)$")
@@ -241,7 +266,7 @@ return function(scope)
                 local home,front=part:GetAttribute("TrickOrTreatHome"),part:GetAttribute("TrickOrTreatFront")
                 local model=part:FindFirstAncestorWhichIsA("Model")
                 if typeof(home)=="CFrame"and typeof(front)=="Vector3"then
-                    result[#result+1]={key=part,position=home.Position,front=front,range=math.max(2,tonumber(model and model:GetAttribute("Range"))or 14)}
+                    result[#result+1]={key=part,position=home.Position,groundY=home.Position.Y-part.Size.Y/2,front=front,range=math.max(2,tonumber(model and model:GetAttribute("Range"))or 14)}
                 end
             end
         end
@@ -256,49 +281,30 @@ return function(scope)
         local root=char and char:FindFirstChild("HumanoidRootPart")
         if hum then if root then hum:MoveTo(root.Position)end;hum:Move(Vector3.zero)end
     end
-    function ctx.MoveDoor(goal,valid,mode)
-        if mode=="Walk"then return ctx.Walk(goal,valid)end
+    function ctx.MoveDoor(goal,valid,door)
         if not valid()then return false,"Cancelled"end
         local char=player.Character
         local hum=char and char:FindFirstChildOfClass("Humanoid")
         local root=char and char:FindFirstChild("HumanoidRootPart")
         if not hum or not root or hum.Health<=0 then return false,"Character unavailable"end
         pcall(player.RequestStreamAroundAsync,player,goal,2)
-        if not valid()or player.Character~=char or hum.Health<=0 then return false,"Cancelled"end
+        if not valid()or player.Character~=char or not root.Parent or hum.Health<=0 then return false,"Cancelled"end
         local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Exclude
         params.FilterDescendantsInstances={char};params.RespectCanCollide=true
-        local floor=workspace:Raycast(goal+Vector3.new(0,12,0),Vector3.new(0,-60,0),params)
+        -- Start just above the door sill, below porch/house roofs. A ray from
+        -- above the building hits its roof and puts the character upstairs.
+        local originY=math.min(door.groundY+2,door.position.Y+.5)
+        local floor=workspace:Raycast(Vector3.new(goal.X,originY,goal.Z),Vector3.new(0,-40,0),params)
         if not floor then return false,"Door ground not loaded; retrying"end
+        if floor.Normal.Y<.55 then return false,"No level ground at door; retrying"end
         local position=Vector3.new(goal.X,floor.Position.Y+hum.HipHeight+root.Size.Y/2,goal.Z)
+        if math.abs(position.Y-door.position.Y)>=19 then return false,"Ground outside door height; retrying"end
         char:PivotTo(CFrame.new(position)*root.CFrame.Rotation)
         root.AssemblyLinearVelocity=Vector3.zero;root.AssemblyAngularVelocity=Vector3.zero
         ctx.Wait(.35)
         if not valid()or player.Character~=char or not root.Parent or hum.Health<=0 then return false,"Cancelled"end
-        if(root.Position-position).Magnitude>8 then return false,"Door teleport corrected; retry or use Walk"end
+        if(root.Position-position).Magnitude>8 or math.abs(root.Position.Y-door.position.Y)>=20 then return false,"Door teleport corrected; retrying"end
         return true,"Arrived"
-    end
-    function ctx.Walk(goal,valid)
-        local char=player.Character
-        local hum=char and char:FindFirstChildOfClass("Humanoid")
-        local root=char and char:FindFirstChild("HumanoidRootPart")
-        if not hum or not root or hum.Health<=0 then return false,"Character unavailable"end
-        goal=Vector3.new(goal.X,root.Position.Y,goal.Z)
-        local route=game:GetService("PathfindingService"):CreatePath({AgentCanJump=true,WaypointSpacing=5})
-        local ok=pcall(route.ComputeAsync,route,root.Position,goal)
-        if not valid()then return false,"Cancelled"end
-        if not ok or route.Status~=Enum.PathStatus.Success then return false,"No walkable path"end
-        for _,waypoint in ipairs(route:GetWaypoints())do
-            if not valid()or player.Character~=char then return false,"Cancelled"end
-            if waypoint.Action==Enum.PathWaypointAction.Jump then hum.Jump=true end
-            hum:MoveTo(waypoint.Position)
-            local untilAt=os.clock()+8
-            while valid()and player.Character==char and root.Parent and hum.Health>0 and(root.Position-waypoint.Position).Magnitude>4 do
-                if os.clock()>untilAt then ctx.CancelMovement();return false,"Path blocked"end
-                task.wait(.1)
-            end
-            if not valid()or player.Character~=char or not root.Parent or hum.Health<=0 then return false,"Character unavailable / cancelled"end
-        end
-        return valid(),valid()and"Arrived"or"Cancelled"
     end
     function ctx.Destroy()
         ctx.CancelMovement()
@@ -313,13 +319,13 @@ local makeCore=(function()
 return function(ctx,P)
     local jobs={"Roll","Collect","EquipBase","Level","Upgrade","Dice","Sell","Lock","Tower","Haunted","Rebirth","Stats",
         "Trait","Grade","Quirk","Fuse","Boost","Spin","Gear","Rewards","Quests","Codes","Pumpkin","Pass","EventQuests","CandyShop","Doors","QuestShop"}
-    local cfg={MoneyReserve=0,CandyReserve=0,PumpkinReserve=0,KeepBest=1,KeepCopies=1,KeepIds={},KeepNames={},SkipMutations=true,
+    local cfg={MoneyReserve=0,CandyReserve=0,PumpkinReserve=0,KeepBest=1,KeepCopies=1,KeepIds={},KeepNames={},SellRarities={},SkipMutations=true,
         FuseChanceMax=0,LockChanceMin=0,UpgradeBranch="All",DiceChoice="Best affordable",LevelCap=100,
         TowerChoice="",WingChoice="Front Yard",RebirthLimit=1,StatChoice="Luck",SelectedUnit="",RerollLimit=50,
         TraitTargets={},GradeTargets={},QuirkTargets={},BoostNames={},SpinNames={},GearPriority="Luck",PumpkinCount=1,
-        PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true,DoorMovement="Teleport"}
+        PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true}
     local clock=ctx.Clock or os.clock
-    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-3",Jobs={},Log={},LiveVerified=false},Stopped=false,Generation={}}
+    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-4",Jobs={},Log={},LiveVerified=false},Stopped=false,Generation={}}
     local states,handlers,pending,spend={}, {}, {}, {}
     local towerOwned=false;local towerEpoch=0;local originalRoll,rollOwned=nil,false
     local doorReady=setmetatable({},{__mode="k"});local lastKnock;local nextIslandTravel=0;local stopEpoch=0
@@ -406,7 +412,9 @@ return function(ctx,P)
         local d=data();local units=P.Units(d,catalog("Registry"));local items=P.Materials(d,catalog("Registry"),cfg,0,false)
         if d.PendingTrade then return "Sale paused: trade in progress."end
         if d.EquippedUnitKnown==false then return "Sale paused: waiting for carried unit data."end
-        return string.format("Sell All Unused: %d eligible / %d units | Used, locked and kept units excluded",#items,#units)
+        local selected={};for rarity,value in pairs(cfg.SellRarities)do if value==true then selected[#selected+1]=rarity end end;table.sort(selected)
+        local mode=#selected>0 and"Sell ["..table.concat(selected,", ").."]"or"Sell All Unused"
+        return string.format("%s: %d eligible / %d units | Used, locked and kept units excluded",mode,#items,#units)
     end
     handlers.Roll=function(name,token,d)
         if cfg.UseNativeRoll then
@@ -720,9 +728,9 @@ return function(ctx,P)
         end
         if not best then status(name,"Door cooldown: "..math.max(0,math.ceil(nextReady-now)).."s | Loaded: "..#doors);return 1 end
         -- Exit the door volume first so the server can arm a previous visit.
-        status(name,cfg.DoorMovement.." to door")
+        status(name,"Teleporting to door")
         local outside=best.position+best.front*(best.range+10)
-        local ok,why=ctx.MoveDoor(outside,active,cfg.DoorMovement)
+        local ok,why=ctx.MoveDoor(outside,active,best)
         if not ok then status(name,why);doorReady[best.key]=now+5;return 2 end
         ctx.Wait(.4) -- Allow the server's door check to observe the outside position.
         local latest=lastKnock
@@ -731,7 +739,7 @@ return function(ctx,P)
             while active()and ctx.Now()<earliest do ctx.Wait(.1)end
         end
         if not active()then return end
-        ok,why=ctx.MoveDoor(best.position+best.front*math.min(best.range*.6,6),active,cfg.DoorMovement)
+        ok,why=ctx.MoveDoor(best.position+best.front*math.min(best.range*.6,6),active,best)
         if not ok then status(name,why);doorReady[best.key]=ctx.Now()+5;return 2 end
         status(name,"Waiting for server knock")
         local deadline=clock()+8
@@ -928,6 +936,8 @@ end
     local inventory=tab("Inventory","backpack")
     local sell=group(inventory,"Sell and protect")
     toggle(sell,"Sell","Auto Sell All Unused Units")
+    dropdown(sell,"SellRarities","Rarities to sell (empty = all)",{},nil,true)
+    sell:CreateLabel({Text="Select rarities to sell only those tiers. Clear every selection to Sell All Unused."})
     sell:CreateParagraph({Name="Sell All Unused",Content="Sells all unused units, including rare and mutated units. Keeps plotted, Tower team, carried, locked, favorite and explicitly kept units."})
     dropdown(sell,"KeepNames","Keep character names",{},nil,true)
     local keepIdLabels={}
@@ -941,7 +951,7 @@ end
     local preview=sell:CreateLabel({Text="Preview matching units before selling or fusing."})
     button(sell,"Preview sale",function()
         local items=core.Preview("Sell");local names={}
-        for i=1,math.min(8,#items)do names[#names+1]=items[i].name.." | 1 / "..string.format("%.3g",items[i].chance)end
+        for i=1,math.min(8,#items)do names[#names+1]=items[i].name.." | "..(items[i].rarity or"Unknown").." | 1 / "..string.format("%.3g",items[i].chance)end
         preview:Set(tostring(#items).." matching units\n"..table.concat(names,"\n"))
     end)
     local materials=group(inventory,"Lock and fusion","Right")
@@ -1031,14 +1041,13 @@ end
     button(eventTower,"Return to Hub",function()core.Teleport("Hub")end)
     local candy=group(halloween,"Trick or Treat")
     toggle(candy,"Doors","Auto Trick or Treat")
-    dropdown(candy,"DoorMovement","Event movement",{"Teleport","Walk"},"Teleport")
     button(candy,"Start Event Collection",function()
         for _,key in ipairs({"Doors","Pass","EventQuests"})do core.Set(key,true);widgets[key]:Set(true,true)end
     end)
     button(candy,"Stop Event Collection",function()
         for _,key in ipairs({"Doors","Pass","EventQuests"})do core.Set(key,false);widgets[key]:Set(false,true)end
     end)
-    candy:CreateParagraph({Name="Door route",Content="Visits event doors automatically. Teleport or Walk; waits for server travel limits, door cooldown and confirmed rewards."})
+    candy:CreateParagraph({Name="Door route",Content="Teleports to ground at each event door and waits for server travel limits, cooldown and confirmed rewards."})
     local pass=group(halloween,"Pass and event quests","Right")
     toggle(pass,"Pass","Auto Claim Pumpkin Pass")
     toggle(pass,"EventQuests","Auto Claim Halloween Quests")
@@ -1097,8 +1106,10 @@ end
             optionWidgets.PumpkinSellNames:Set(chosen,true)
         end
         local labels,names,boosts,spins={}, {}, {}, {}
+        local liveUnits=planner.Units(d,c.Registry)
+        options("SellRarities",planner.RarityOptions(c.Rarities,liveUnits,cfg.SellRarities))
         unitLabels={};keepIdLabels={}
-        for _,u in ipairs(planner.Units(d,c.Registry))do
+        for _,u in ipairs(liveUnits)do
             local label=u.name.." | "..tostring(u.attributes.level or 1).." | "..u.id:sub(1,8)
             if unitLabels[label]then label=label.." / "..u.id end
             labels[#labels+1]=label;unitLabels[label]=u.id;keepIdLabels[label]=u.id;names[u.name]=true
@@ -1115,16 +1126,19 @@ end
     button(actions,"Refresh inventory and choices",refreshOptions)
     -- Reuse the single language menu provided by the shared DEVIL HUB presentation.
 local translations={
+    ["Rarities to sell (empty = all)"]="ระดับที่ต้องการขาย (ไม่เลือก = ขายทั้งหมด)",
+    ["Select rarities to sell only those tiers. Clear every selection to Sell All Unused."]="เลือกขายได้หลายระดับ หากไม่เลือกเลยจะขายตัวที่ไม่ได้ใช้ทั้งหมด",
+    ["Teleports to ground at each event door and waits for server travel limits, cooldown and confirmed rewards."]="วาร์ปลงพื้นหน้าประตูอีเวนต์ รอเวลาระหว่างประตู คูลดาวน์ และยืนยันรางวัลจากเกม",
     ["Auto Sell All Unused Units"]="ขายตัวที่ไม่ได้ใช้ทั้งหมดอัตโนมัติ",["Sell All Unused"]="ขายตัวที่ไม่ได้ใช้ทั้งหมด",
     ["Sell All Unused: waiting for live inventory."]="ขายตัวที่ไม่ได้ใช้ทั้งหมด: กำลังโหลดกระเป๋า",
     ["Sells all unused units, including rare and mutated units. Keeps plotted, Tower team, carried, locked, favorite and explicitly kept units."]="ขายตัวที่ไม่ได้ใช้ทั้งหมด รวมตัวหายากและ Mutation เว้นตัวในฐาน ทีม Tower ตัวที่ถือ ตัวล็อก รายการโปรด และตัวที่เลือกเก็บไว้",
     ["Keep best units for fusion"]="เก็บตัวดีที่สุดไว้จากการผสม",["Keep copies per character for fusion"]="จำนวนต่อชื่อที่เก็บจากการผสม",
     ["Keep mutated / variant units for fusion"]="ไม่ใช้ตัว Mutation / Variant ผสม",
-    ["Auto Trick or Treat"]="เก็บ Trick or Treat อัตโนมัติ",["Event movement"]="วิธีเดินทางเก็บอีเวนต์",
+    ["Auto Trick or Treat"]="เก็บ Trick or Treat อัตโนมัติ",
     ["Start Event Collection"]="เริ่มเก็บอีเวนต์",["Stop Event Collection"]="หยุดเก็บอีเวนต์",
 
 
-    ["Visits event doors automatically. Teleport or Walk; waits for server travel limits, door cooldown and confirmed rewards."]="เก็บประตูอีเวนต์ต่อเนื่อง เลือกวาร์ปหรือเดิน รอคูลดาวน์และยืนยันรางวัลจากเกม",
+
     ["Farm"]="ฟาร์ม",["Farm controls"]="ระบบฟาร์ม",["Auto Roll"]="สุ่มลูกเต๋าอัตโนมัติ",
     ["Auto Collect Money"]="เก็บเงินฐานอัตโนมัติ",["Auto Equip Best Base"]="จัดตัวหาเงินดีที่สุด",
     ["Auto Level Units"]="อัปเลเวลตัวในฐาน",["Maximum unit level"]="เลเวลตัวสูงสุด",
@@ -1164,8 +1178,8 @@ local translations={
     ["Auto Redeem Entered Codes"]="แลกโค้ดในรายการอัตโนมัติ",["Halloween"]="ฮาโลวีน",["Auto Pumpkin Dice"]="สุ่ม Pumpkin Dice อัตโนมัติ",
     ["Roll count"]="จำนวนต่อครั้ง",["Pumpkins reserve"]="Pumpkins สำรอง",["Pumpkin units to auto sell"]="ตัว Pumpkin ที่ขายอัตโนมัติ",
     ["Apply Pumpkin sell filter"]="บันทึกตัวกรองขาย Pumpkin",["Haunted wing"]="เลือกโซนบ้านผีสิง",["Auto Haunted House"]="ลงบ้านผีสิงอัตโนมัติ",
-    ["Travel to Halloween Island"]="ไปเกาะฮาโลวีน",["Return to Hub"]="กลับเกาะหลัก",["Auto Walk Trick or Treat"]="เดินฟาร์ม Trick or Treat",
-    ["Door route"]="เส้นทางประตู",["Walks to currently loaded doors, exits before revisiting and waits for server cooldown. No knock or reward is forged."]="เดินไปประตูที่โหลดอยู่ ออกจากเขตก่อนกลับเข้า และรอคูลดาวน์กับผลจากเกม",
+    ["Travel to Halloween Island"]="ไปเกาะฮาโลวีน",["Return to Hub"]="กลับเกาะหลัก",
+    ["Door route"]="เส้นทางประตู",
     ["Pass and event quests"]="Pass และเควสต์อีเวนต์",["Auto Claim Pumpkin Pass"]="รับรางวัล Pumpkin Pass อัตโนมัติ",
     ["Auto Claim Halloween Quests"]="รับเควสต์ฮาโลวีนที่ครบ",["Candy shop"]="ร้าน Candy",["Candy shop item"]="สินค้าที่ซื้อด้วย Candy",
     ["Purchase limit"]="จำนวนซื้อสูงสุด",["Candy reserve"]="Candy สำรอง",["Auto Buy Candy Shop Item"]="ซื้อสินค้าด้วย Candy อัตโนมัติ",

@@ -44,7 +44,7 @@ fixture += (root / 'tests/anime-dice-entry.luau').read_text(encoding='utf-8')
 path = here / 'entry-test.generated.luau'
 path.write_text(fixture, encoding='utf-8', newline='\n')
 execute(path)
-validation = {'release':'anime-dice-test-20261020-3','live_game_verified':False,
+validation = {'release':'anime-dice-test-20261020-4','live_game_verified':False,
     'entry_sha256':hashlib.sha256((root / 'anime-dice-test.lua').read_bytes()).hexdigest(),
     'checks':sum(int(n) for result in results for n in re.findall(r'(\d+) checks', result)),
     'literal_remote_contract_checks':count,'results':results,

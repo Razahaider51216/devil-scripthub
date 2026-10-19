@@ -17,8 +17,10 @@ local function setup(place,corrupt)
  local proxy=setmetatable({},{__index=function(_,key)return function()return data[key]end end})
  module('Data','DataController',proxy)
  module('Unit','UnitController',{EquippedUnit=function()return data.CarriedId end})
+ local rarityModule=node('ModuleScript','Rarities',node('Folder','Other',features.Parent))
+ rarityModule.Export={Refs={Common='Common',Rare='Rare',Secret1='Secret I'},Get=function(name)return {sortOrder=({Common=1,Rare=3,['Secret I']=10})[name]}end}
  module('Inventory','EntryRegistry',{getEntryConfig=function(name)
-  if name=='Weak'then return {kind='Unit',chance=function()return 10 end,income=function()return 1 end}end
+  if name=='Weak'then return {kind='Unit',chance=function()return 10 end,income=function()return 1 end,getRarity=function(a)return a.mutation=='Gold'and'Rare'or'Common'end}end
  end})
  local network=node('Folder','Network',rs)
  local roll=node('Folder','RollService',network)
@@ -132,9 +134,19 @@ do
  f.data.Inventory={held={name='Weak',amount=1,attributes={}},unused={name='Weak',amount=1,attributes={}}}
  local snapshot=app.Core.Preview('Sell')
  check(#snapshot==1 and snapshot[1].id=='unused'and not app.Report.LastTickError,'live carried unit controller lookup failed to protect held unit')
+ local rarities=f.objects['Rarities to sell (empty = all)']
+ check(rarities and #rarities.Options==3 and rarities.Options[1]=='Common'and rarities.Options[3]=='Secret I','native rarities were not loaded into selection menu')
+ rarities.Callback({'Rare'})
+ check(#app.Core.Preview('Sell')==0,'rarity GUI did not restrict actual sale preview')
+ f.data.Inventory.unused.attributes.mutation='Gold'
+ check(#app.Core.Preview('Sell')==1,'rarity GUI ignored current mutation-aware rarity')
+ check(coroutine.resume(loop)and app.Config.SellRarities.Rare==true,'silent refresh reset the selected sell tiers')
+ rarities.Callback({})
+ check(next(app.Config.SellRarities)==nil and #app.Core.Preview('Sell')==1,'clearing rarity GUI did not restore Sell All')
+ check(f.objects['Event movement']==nil and app.Config.DoorMovement==nil,'movement mode selector was not removed')
  f.objects['Start Event Collection'].Callback()
  table.remove(f.work,#f.work)()
- check(app.Config.Doors and app.Config.Pass and app.Config.EventQuests and app.Config.DoorMovement=='Teleport','event start did not enable collection / claims with teleport')
+ check(app.Config.Doors and app.Config.Pass and app.Config.EventQuests,'event start did not enable collection / claims')
  check(not app.Config.CandyShop and not app.Config.Pumpkin,'event collection unexpectedly enabled purchases')
  f.objects['Stop Event Collection'].Callback()
  table.remove(f.work,#f.work)()
@@ -153,7 +165,7 @@ do
  local f=setup(113290951185459,false);local destroyed=0
  f.scope.DevilAnimeDiceTest={Version='anime-dice-test-20261020-1',Stopped=false,Destroy=function()destroyed+=1 end}
  local app=f.Run()
- check(destroyed==1 and app.Version=='anime-dice-test-20261020-3','rerun retained previous broken release')
+ check(destroyed==1 and app.Version=='anime-dice-test-20261020-4','rerun retained previous broken release')
  app.Destroy()
 end
 print('PASS complete public test entry: GUI callbacks, Halloween, language, integrity, singleton and unload: '..checks..' checks')

@@ -1,7 +1,7 @@
 -- Standalone TEST entry. The production router is intentionally unchanged.
 assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
 local scope=type(getgenv)=="function"and getgenv()or _G
-local release="anime-dice-test-20261020-3"
+local release="anime-dice-test-20261020-4"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end
@@ -112,6 +112,8 @@ local ok,problem=xpcall(function()
     local inventory=tab("Inventory","backpack")
     local sell=group(inventory,"Sell and protect")
     toggle(sell,"Sell","Auto Sell All Unused Units")
+    dropdown(sell,"SellRarities","Rarities to sell (empty = all)",{},nil,true)
+    sell:CreateLabel({Text="Select rarities to sell only those tiers. Clear every selection to Sell All Unused."})
     sell:CreateParagraph({Name="Sell All Unused",Content="Sells all unused units, including rare and mutated units. Keeps plotted, Tower team, carried, locked, favorite and explicitly kept units."})
     dropdown(sell,"KeepNames","Keep character names",{},nil,true)
     local keepIdLabels={}
@@ -125,7 +127,7 @@ local ok,problem=xpcall(function()
     local preview=sell:CreateLabel({Text="Preview matching units before selling or fusing."})
     button(sell,"Preview sale",function()
         local items=core.Preview("Sell");local names={}
-        for i=1,math.min(8,#items)do names[#names+1]=items[i].name.." | 1 / "..string.format("%.3g",items[i].chance)end
+        for i=1,math.min(8,#items)do names[#names+1]=items[i].name.." | "..(items[i].rarity or"Unknown").." | 1 / "..string.format("%.3g",items[i].chance)end
         preview:Set(tostring(#items).." matching units\n"..table.concat(names,"\n"))
     end)
     local materials=group(inventory,"Lock and fusion","Right")
@@ -215,14 +217,13 @@ local ok,problem=xpcall(function()
     button(eventTower,"Return to Hub",function()core.Teleport("Hub")end)
     local candy=group(halloween,"Trick or Treat")
     toggle(candy,"Doors","Auto Trick or Treat")
-    dropdown(candy,"DoorMovement","Event movement",{"Teleport","Walk"},"Teleport")
     button(candy,"Start Event Collection",function()
         for _,key in ipairs({"Doors","Pass","EventQuests"})do core.Set(key,true);widgets[key]:Set(true,true)end
     end)
     button(candy,"Stop Event Collection",function()
         for _,key in ipairs({"Doors","Pass","EventQuests"})do core.Set(key,false);widgets[key]:Set(false,true)end
     end)
-    candy:CreateParagraph({Name="Door route",Content="Visits event doors automatically. Teleport or Walk; waits for server travel limits, door cooldown and confirmed rewards."})
+    candy:CreateParagraph({Name="Door route",Content="Teleports to ground at each event door and waits for server travel limits, cooldown and confirmed rewards."})
     local pass=group(halloween,"Pass and event quests","Right")
     toggle(pass,"Pass","Auto Claim Pumpkin Pass")
     toggle(pass,"EventQuests","Auto Claim Halloween Quests")
@@ -281,8 +282,10 @@ local ok,problem=xpcall(function()
             optionWidgets.PumpkinSellNames:Set(chosen,true)
         end
         local labels,names,boosts,spins={}, {}, {}, {}
+        local liveUnits=planner.Units(d,c.Registry)
+        options("SellRarities",planner.RarityOptions(c.Rarities,liveUnits,cfg.SellRarities))
         unitLabels={};keepIdLabels={}
-        for _,u in ipairs(planner.Units(d,c.Registry))do
+        for _,u in ipairs(liveUnits)do
             local label=u.name.." | "..tostring(u.attributes.level or 1).." | "..u.id:sub(1,8)
             if unitLabels[label]then label=label.." / "..u.id end
             labels[#labels+1]=label;unitLabels[label]=u.id;keepIdLabels[label]=u.id;names[u.name]=true

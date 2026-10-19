@@ -1,13 +1,13 @@
 return function(ctx,P)
     local jobs={"Roll","Collect","EquipBase","Level","Upgrade","Dice","Sell","Lock","Tower","Haunted","Rebirth","Stats",
         "Trait","Grade","Quirk","Fuse","Boost","Spin","Gear","Rewards","Quests","Codes","Pumpkin","Pass","EventQuests","CandyShop","Doors","QuestShop"}
-    local cfg={MoneyReserve=0,CandyReserve=0,PumpkinReserve=0,KeepBest=1,KeepCopies=1,KeepIds={},KeepNames={},SkipMutations=true,
+    local cfg={MoneyReserve=0,CandyReserve=0,PumpkinReserve=0,KeepBest=1,KeepCopies=1,KeepIds={},KeepNames={},SellRarities={},SkipMutations=true,
         FuseChanceMax=0,LockChanceMin=0,UpgradeBranch="All",DiceChoice="Best affordable",LevelCap=100,
         TowerChoice="",WingChoice="Front Yard",RebirthLimit=1,StatChoice="Luck",SelectedUnit="",RerollLimit=50,
         TraitTargets={},GradeTargets={},QuirkTargets={},BoostNames={},SpinNames={},GearPriority="Luck",PumpkinCount=1,
-        PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true,DoorMovement="Teleport"}
+        PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true}
     local clock=ctx.Clock or os.clock
-    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-3",Jobs={},Log={},LiveVerified=false},Stopped=false,Generation={}}
+    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-4",Jobs={},Log={},LiveVerified=false},Stopped=false,Generation={}}
     local states,handlers,pending,spend={}, {}, {}, {}
     local towerOwned=false;local towerEpoch=0;local originalRoll,rollOwned=nil,false
     local doorReady=setmetatable({},{__mode="k"});local lastKnock;local nextIslandTravel=0;local stopEpoch=0
@@ -94,7 +94,9 @@ return function(ctx,P)
         local d=data();local units=P.Units(d,catalog("Registry"));local items=P.Materials(d,catalog("Registry"),cfg,0,false)
         if d.PendingTrade then return "Sale paused: trade in progress."end
         if d.EquippedUnitKnown==false then return "Sale paused: waiting for carried unit data."end
-        return string.format("Sell All Unused: %d eligible / %d units | Used, locked and kept units excluded",#items,#units)
+        local selected={};for rarity,value in pairs(cfg.SellRarities)do if value==true then selected[#selected+1]=rarity end end;table.sort(selected)
+        local mode=#selected>0 and"Sell ["..table.concat(selected,", ").."]"or"Sell All Unused"
+        return string.format("%s: %d eligible / %d units | Used, locked and kept units excluded",mode,#items,#units)
     end
     handlers.Roll=function(name,token,d)
         if cfg.UseNativeRoll then
@@ -408,9 +410,9 @@ return function(ctx,P)
         end
         if not best then status(name,"Door cooldown: "..math.max(0,math.ceil(nextReady-now)).."s | Loaded: "..#doors);return 1 end
         -- Exit the door volume first so the server can arm a previous visit.
-        status(name,cfg.DoorMovement.." to door")
+        status(name,"Teleporting to door")
         local outside=best.position+best.front*(best.range+10)
-        local ok,why=ctx.MoveDoor(outside,active,cfg.DoorMovement)
+        local ok,why=ctx.MoveDoor(outside,active,best)
         if not ok then status(name,why);doorReady[best.key]=now+5;return 2 end
         ctx.Wait(.4) -- Allow the server's door check to observe the outside position.
         local latest=lastKnock
@@ -419,7 +421,7 @@ return function(ctx,P)
             while active()and ctx.Now()<earliest do ctx.Wait(.1)end
         end
         if not active()then return end
-        ok,why=ctx.MoveDoor(best.position+best.front*math.min(best.range*.6,6),active,cfg.DoorMovement)
+        ok,why=ctx.MoveDoor(best.position+best.front*math.min(best.range*.6,6),active,best)
         if not ok then status(name,why);doorReady[best.key]=ctx.Now()+5;return 2 end
         status(name,"Waiting for server knock")
         local deadline=clock()+8

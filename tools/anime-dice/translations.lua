@@ -1,15 +1,18 @@
 -- Reuse the single language menu provided by the shared DEVIL HUB presentation.
 local translations={
+    ["Rarities to sell (empty = all)"]="ระดับที่ต้องการขาย (ไม่เลือก = ขายทั้งหมด)",
+    ["Select rarities to sell only those tiers. Clear every selection to Sell All Unused."]="เลือกขายได้หลายระดับ หากไม่เลือกเลยจะขายตัวที่ไม่ได้ใช้ทั้งหมด",
+    ["Teleports to ground at each event door and waits for server travel limits, cooldown and confirmed rewards."]="วาร์ปลงพื้นหน้าประตูอีเวนต์ รอเวลาระหว่างประตู คูลดาวน์ และยืนยันรางวัลจากเกม",
     ["Auto Sell All Unused Units"]="ขายตัวที่ไม่ได้ใช้ทั้งหมดอัตโนมัติ",["Sell All Unused"]="ขายตัวที่ไม่ได้ใช้ทั้งหมด",
     ["Sell All Unused: waiting for live inventory."]="ขายตัวที่ไม่ได้ใช้ทั้งหมด: กำลังโหลดกระเป๋า",
     ["Sells all unused units, including rare and mutated units. Keeps plotted, Tower team, carried, locked, favorite and explicitly kept units."]="ขายตัวที่ไม่ได้ใช้ทั้งหมด รวมตัวหายากและ Mutation เว้นตัวในฐาน ทีม Tower ตัวที่ถือ ตัวล็อก รายการโปรด และตัวที่เลือกเก็บไว้",
     ["Keep best units for fusion"]="เก็บตัวดีที่สุดไว้จากการผสม",["Keep copies per character for fusion"]="จำนวนต่อชื่อที่เก็บจากการผสม",
     ["Keep mutated / variant units for fusion"]="ไม่ใช้ตัว Mutation / Variant ผสม",
-    ["Auto Trick or Treat"]="เก็บ Trick or Treat อัตโนมัติ",["Event movement"]="วิธีเดินทางเก็บอีเวนต์",
+    ["Auto Trick or Treat"]="เก็บ Trick or Treat อัตโนมัติ",
     ["Start Event Collection"]="เริ่มเก็บอีเวนต์",["Stop Event Collection"]="หยุดเก็บอีเวนต์",
 
 
-    ["Visits event doors automatically. Teleport or Walk; waits for server travel limits, door cooldown and confirmed rewards."]="เก็บประตูอีเวนต์ต่อเนื่อง เลือกวาร์ปหรือเดิน รอคูลดาวน์และยืนยันรางวัลจากเกม",
+
     ["Farm"]="ฟาร์ม",["Farm controls"]="ระบบฟาร์ม",["Auto Roll"]="สุ่มลูกเต๋าอัตโนมัติ",
     ["Auto Collect Money"]="เก็บเงินฐานอัตโนมัติ",["Auto Equip Best Base"]="จัดตัวหาเงินดีที่สุด",
     ["Auto Level Units"]="อัปเลเวลตัวในฐาน",["Maximum unit level"]="เลเวลตัวสูงสุด",
@@ -49,8 +52,8 @@ local translations={
     ["Auto Redeem Entered Codes"]="แลกโค้ดในรายการอัตโนมัติ",["Halloween"]="ฮาโลวีน",["Auto Pumpkin Dice"]="สุ่ม Pumpkin Dice อัตโนมัติ",
     ["Roll count"]="จำนวนต่อครั้ง",["Pumpkins reserve"]="Pumpkins สำรอง",["Pumpkin units to auto sell"]="ตัว Pumpkin ที่ขายอัตโนมัติ",
     ["Apply Pumpkin sell filter"]="บันทึกตัวกรองขาย Pumpkin",["Haunted wing"]="เลือกโซนบ้านผีสิง",["Auto Haunted House"]="ลงบ้านผีสิงอัตโนมัติ",
-    ["Travel to Halloween Island"]="ไปเกาะฮาโลวีน",["Return to Hub"]="กลับเกาะหลัก",["Auto Walk Trick or Treat"]="เดินฟาร์ม Trick or Treat",
-    ["Door route"]="เส้นทางประตู",["Walks to currently loaded doors, exits before revisiting and waits for server cooldown. No knock or reward is forged."]="เดินไปประตูที่โหลดอยู่ ออกจากเขตก่อนกลับเข้า และรอคูลดาวน์กับผลจากเกม",
+    ["Travel to Halloween Island"]="ไปเกาะฮาโลวีน",["Return to Hub"]="กลับเกาะหลัก",
+    ["Door route"]="เส้นทางประตู",
     ["Pass and event quests"]="Pass และเควสต์อีเวนต์",["Auto Claim Pumpkin Pass"]="รับรางวัล Pumpkin Pass อัตโนมัติ",
     ["Auto Claim Halloween Quests"]="รับเควสต์ฮาโลวีนที่ครบ",["Candy shop"]="ร้าน Candy",["Candy shop item"]="สินค้าที่ซื้อด้วย Candy",
     ["Purchase limit"]="จำนวนซื้อสูงสุด",["Candy reserve"]="Candy สำรอง",["Auto Buy Candy Shop Item"]="ซื้อสินค้าด้วย Candy อัตโนมัติ",

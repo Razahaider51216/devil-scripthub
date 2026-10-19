@@ -3,7 +3,7 @@
 Open Anime Dice (place `113290951185459`, universe `10708913337`) and run:
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/anime-dice-test.lua?v=test-3"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/anime-dice-test.lua?v=test-4"))()
 ```
 
 This test adds a DEVIL HUB interface for the actions identified in the supplied
@@ -19,7 +19,7 @@ All 28 automation switches start OFF and are not restored from saved configs.
 | Tab | Included systems |
 |---|---|
 | Farm | Roll, Collect Money, Equip Best Base, Level Units, Buy/Equip Dice, Upgrade Tree |
-| Inventory | Sell All Unused, Auto Lock, surplus Fuse, preview lists and explicit keep selections |
+| Inventory | Sell unused units by selected rarities (empty = Sell All), Auto Lock, surplus Fuse, previews and explicit keep selections |
 | Towers | Tower runs, Equip Best Tower Team, Rebirth, Rebirth points and manual reset token |
 | Rerolls | Trait, Grade, Quirk targets, request limits, selected unit and game protection |
 | Items and rewards | Selected Boost/Spin use, Gear priority, Daily/Group/Offline rewards, completed quests, Quest shop and user-entered codes |
@@ -46,6 +46,13 @@ All 28 automation switches start OFF and are not restored from saved configs.
   Locked, favorite, plotted, Tower team, carried, selected reroll and explicitly
   kept units are preserved. Keep character names / Keep specific units apply.
   Preview sale shows the same selection used by Auto Sell; selling starts OFF.
+- **Rarities to sell (empty = all)** supports multiple selected tiers. Selecting
+  Common sells only unused Common units; Common + Rare sells those two tiers.
+  Clearing all selections restores Sell All Unused. Tiers come from the live
+  game's rarity catalog and each unit's `getRarity(attributes)` result, including
+  mutation effects. Unknown/failed rarity lookups are excluded while filtering.
+  Preview and live counts use the same filter; fusion ignores sale tier choices.
+  Refreshing options preserves selections even if no current unit has that tier.
 - Each sale reads current inventory and usage again before submitting its next
   batch. Pending trades or unavailable carried-unit state pause sales. The live
   inventory label shows the eligible count or the reason for a pause. Native
@@ -75,12 +82,16 @@ status tab; this test does not reproduce the native battle animation. Existing
 native Auto Tower must be off to avoid two controllers competing. Stopping cancels
 only a Tower session that this test successfully started.
 
-Trick or Treat defaults to **Teleport**, with optional Walk movement. Use
+Trick or Treat uses **Teleport only**, with no movement mode selector. Use
 Halloween > Start Event Collection to enable doors, completed event quests and
 Pass claims together; purchases and Pumpkin rolls remain separate switches.
 The collector travels to the Island when no nearby doors are loaded, requests
 map streaming, exits each door region to rearm, and visits the nearest ready door.
-Teleport checks loaded ground, living character and cancellation before moving.
+Teleport derives each entrance's sill height from the original door position and
+size. It probes downward near the sill, below roofs, rather than from above the
+house. Missing/steep ground or landings outside the server's door-height range are
+rejected. Teleport checks living character and cancellation before moving and
+detects server position corrections afterward.
 It waits for the actual nested `HalloweenConfig.TrickOrTreat` travel-speed/minimum
 gap limits and server knock/candy events; it never sends `Knocked` or `Landed`.
 If the initial cooldown attribute is missing, its fallback deadline stays fixed.
@@ -101,6 +112,7 @@ pinned OuroFlow GUI dependency. No compiler/environment/HTTP hooks are installed
 
 Offline checks exercise inventory/material protection, budgets/prerequisites,
 real-game remote paths and argument shapes, state confirmation, server event
-direction, request cooldowns, late responses after stop, movement failure/death,
+direction, request cooldowns, late responses after stop, roof/ground selection,
+teleport failure/death, rarity selection/clearing and native mutation-aware tiers,
 GUI callbacks, silent selection refresh, language changes, duplicate startup,
 corrupt downloads and unload. These mocks do not replace live validation.

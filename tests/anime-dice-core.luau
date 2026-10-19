@@ -261,8 +261,8 @@ do
   {key=second,position=second.Position,front=V.new(1,0,0),range=14}}
  local pos=V.new(30,0,0);local moves={};local armed={};local blocked={};local last
  f.ctx.Doors=function()return doors end;f.ctx.Position=function()return pos end;f.ctx.DoorInitialReady=function()return 0 end
- f.ctx.MoveDoor=function(goal,active,mode)
-  check(active()and mode=='Teleport','route ignored movement selection / cancellation')
+ f.ctx.MoveDoor=function(goal,active,door)
+  check(active()and door and(door.key==first or door.key==second),'route omitted door geometry / cancellation')
   pos=goal;moves[#moves+1]={at=f.time(),position=pos}
   for _,door in ipairs(doors)do
    local distance=(pos-door.position).Magnitude
@@ -329,5 +329,45 @@ do
  check(#f.packets==3 and f.ctl.Report.Jobs.Sell.Units==53,'sell all did not drain multiple batches from live snapshots')
  local remaining=0;for _ in pairs(f.d.Inventory)do remaining+=1 end
  check(remaining==7 and f.d.Inventory.u10,'batch selling failed to preserve a newly assigned base unit')
+end
+do
+ local f=fixture()
+ f.configs.Weak.getRarity=function(a)return a.mutation=='Gold'and'Rare'or'Common'end
+ f.configs.Weak.rarity='WrongStaticTier';f.configs.Rare.rarity='Rare'
+ f.configs.Limited={kind='Unit',limited=true,rarity='Exclusive'}
+ f.configs.Unknown={kind='Unit'}
+ f.configs.Broken={kind='Unit',getRarity=function()error('unavailable')end,rarity='Common'}
+ f.d.Inventory={c=f.entry('Weak'),r=f.entry('Rare'),m=f.entry('Weak',1,{mutation='Gold'}),ex=f.entry('Limited'),u=f.entry('Unknown'),bad=f.entry('Broken'),
+  p=f.entry('Weak'),t=f.entry('Rare'),h=f.entry('Weak'),l=f.entry('Weak',1,{locked=true}),fav=f.entry('Rare',1,{favorite=true}),k=f.entry('Rare')}
+ f.d.Slots={{unitId='p'}};f.d.TowerTeam={'t'};f.d.EquippedUnit='h';f.cfg.KeepIds.k=true
+ check(#f.ctl.Preview('Sell')==6,'empty rarity selection did not preserve Sell All and usage protections')
+ f.cfg.SellRarities={Common=true};local items=f.ctl.Preview('Sell')
+ check(#items==1 and items[1].id=='c','Common selection included another tier, unknown rarity, or protected units')
+ check(f.ctl.SellSummary():find('Sell [Common]',1,true),'selected tier absent from live sale summary')
+ f.cfg.SellRarities={Rare=true};items=f.ctl.Preview('Sell')
+ check(#items==2 and items[1].rarity=='Rare'and items[2].rarity=='Rare','native mutation-aware rarity did not match filtering')
+ f.cfg.SellRarities={Common=true,Rare=true};check(#f.ctl.Preview('Sell')==3,'multiple selected tiers not combined')
+ f.cfg.SellRarities={Exclusive=true};items=f.ctl.Preview('Sell');check(#items==1 and items[1].id=='ex','explicit limited rarity not selectable')
+ f.cfg.KeepBest=0;f.cfg.KeepCopies=0;f.cfg.SkipMutations=false;f.cfg.FuseChanceMax=1000
+ check(#f.ctl.Preview('Fuse')==3,'sell rarity selection affected fusion')
+ f.cfg.SellRarities={Common=true};f.d.Inventory.m.attributes.mutation=nil
+ check(#f.ctl.Preview('Sell')==2,'rarity changes were not read from live unit attributes')
+ f.cfg.SellRarities={};check(#f.ctl.Preview('Sell')==6,'clearing selections did not restore Sell All')
+ local choices=P.RarityOptions({Refs={Common='Common',Rare='Rare',Secret1='Secret I'},Get=function(name)
+  return {sortOrder=({Common=1,Rare=3,['Secret I']=10})[name]}
+ end},P.Units(f.d,f.c.Registry),{Haunted=true})
+ check(choices[1]=='Common'and choices[2]=='Rare'and choices[3]=='Secret I','rarity choices did not use native tier values / order')
+ check(table.find(choices,'Exclusive')and table.find(choices,'Haunted'),'missing catalog / selected tiers were dropped from choices')
+end
+do
+ local f=fixture();f.configs.Weak.rarity='Common';f.configs.Rare.rarity='Rare'
+ f.d.Inventory={c=f.entry('Weak'),r=f.entry('Rare')};f.cfg.SellRarities={Common=true}
+ f.server(function(_,key,args)if key=='SellInventory'then
+  check(#args[1]==1,'rarity filter submitted more than selected tier')
+  local id=args[1][1];f.d.Inventory[id]=nil;return 100,1
+ end end)
+ f.ctl.Set('Sell',true);f.step();check(f.packets[1].args[1][1]=='c','Auto Sell did not use Common selection')
+ f.cfg.SellRarities={Rare=true};f.step(2)
+ check(f.packets[2].args[1][1]=='r'and f.ctl.Report.Jobs.Sell.Units==2,'running seller did not apply changed tiers to the next batch')
 end
 print('PASS Anime Dice planning, network contracts, confirmation, stop and event behavior: '..checks..' checks')

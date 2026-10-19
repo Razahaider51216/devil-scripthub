@@ -5,7 +5,7 @@ return function(scope)
     local flights=scope.DevilAnimeDiceFlights or{};scope.DevilAnimeDiceFlights=flights
     local requireModule=require
     local paths={
-        Data="Data.DataController",Registry="Inventory.EntryRegistry",Buffs="Buffs.BuffController",UnitController="Inventory.Kinds.Unit.UnitController",
+        Data="Data.DataController",Registry="Inventory.EntryRegistry",Buffs="Buffs.BuffController",UnitController="Inventory.Kinds.Unit.UnitController",Rarities="Rarities",
         Dice="Rolling.Dice",PlotConfig="Plot.PlotConfig",UnitUtil="Inventory.Kinds.Unit.UnitUtil",
         Upgrades="Upgrades.Upgrades",TreeStructure="Upgrades.TreeStructure",Towers="Towers.Towers",TowerRefs="Towers.TowerRefs",
         Rebirths="Rebirth.Rebirths",RebirthStats="Rebirth.RebirthStatsConfig",Traits="Traits.Traits",Grades="Grades.Grades",
@@ -26,7 +26,7 @@ return function(scope)
         assert(valid(),"Startup cancelled")
         for key,name in pairs(paths)do
             if not valid()then return end
-            local module=path(rs,"Framework.Features."..name)
+            local module=path(rs,(key=="Rarities"and"Framework.Other."or"Framework.Features.")..name)
             -- Locate alternate feature folder names from the actual live tree.
             if not module then
                 local leaf=name:match("([^.]+)$")
@@ -119,7 +119,7 @@ return function(scope)
                 local home,front=part:GetAttribute("TrickOrTreatHome"),part:GetAttribute("TrickOrTreatFront")
                 local model=part:FindFirstAncestorWhichIsA("Model")
                 if typeof(home)=="CFrame"and typeof(front)=="Vector3"then
-                    result[#result+1]={key=part,position=home.Position,front=front,range=math.max(2,tonumber(model and model:GetAttribute("Range"))or 14)}
+                    result[#result+1]={key=part,position=home.Position,groundY=home.Position.Y-part.Size.Y/2,front=front,range=math.max(2,tonumber(model and model:GetAttribute("Range"))or 14)}
                 end
             end
         end
@@ -134,49 +134,30 @@ return function(scope)
         local root=char and char:FindFirstChild("HumanoidRootPart")
         if hum then if root then hum:MoveTo(root.Position)end;hum:Move(Vector3.zero)end
     end
-    function ctx.MoveDoor(goal,valid,mode)
-        if mode=="Walk"then return ctx.Walk(goal,valid)end
+    function ctx.MoveDoor(goal,valid,door)
         if not valid()then return false,"Cancelled"end
         local char=player.Character
         local hum=char and char:FindFirstChildOfClass("Humanoid")
         local root=char and char:FindFirstChild("HumanoidRootPart")
         if not hum or not root or hum.Health<=0 then return false,"Character unavailable"end
         pcall(player.RequestStreamAroundAsync,player,goal,2)
-        if not valid()or player.Character~=char or hum.Health<=0 then return false,"Cancelled"end
+        if not valid()or player.Character~=char or not root.Parent or hum.Health<=0 then return false,"Cancelled"end
         local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Exclude
         params.FilterDescendantsInstances={char};params.RespectCanCollide=true
-        local floor=workspace:Raycast(goal+Vector3.new(0,12,0),Vector3.new(0,-60,0),params)
+        -- Start just above the door sill, below porch/house roofs. A ray from
+        -- above the building hits its roof and puts the character upstairs.
+        local originY=math.min(door.groundY+2,door.position.Y+.5)
+        local floor=workspace:Raycast(Vector3.new(goal.X,originY,goal.Z),Vector3.new(0,-40,0),params)
         if not floor then return false,"Door ground not loaded; retrying"end
+        if floor.Normal.Y<.55 then return false,"No level ground at door; retrying"end
         local position=Vector3.new(goal.X,floor.Position.Y+hum.HipHeight+root.Size.Y/2,goal.Z)
+        if math.abs(position.Y-door.position.Y)>=19 then return false,"Ground outside door height; retrying"end
         char:PivotTo(CFrame.new(position)*root.CFrame.Rotation)
         root.AssemblyLinearVelocity=Vector3.zero;root.AssemblyAngularVelocity=Vector3.zero
         ctx.Wait(.35)
         if not valid()or player.Character~=char or not root.Parent or hum.Health<=0 then return false,"Cancelled"end
-        if(root.Position-position).Magnitude>8 then return false,"Door teleport corrected; retry or use Walk"end
+        if(root.Position-position).Magnitude>8 or math.abs(root.Position.Y-door.position.Y)>=20 then return false,"Door teleport corrected; retrying"end
         return true,"Arrived"
-    end
-    function ctx.Walk(goal,valid)
-        local char=player.Character
-        local hum=char and char:FindFirstChildOfClass("Humanoid")
-        local root=char and char:FindFirstChild("HumanoidRootPart")
-        if not hum or not root or hum.Health<=0 then return false,"Character unavailable"end
-        goal=Vector3.new(goal.X,root.Position.Y,goal.Z)
-        local route=game:GetService("PathfindingService"):CreatePath({AgentCanJump=true,WaypointSpacing=5})
-        local ok=pcall(route.ComputeAsync,route,root.Position,goal)
-        if not valid()then return false,"Cancelled"end
-        if not ok or route.Status~=Enum.PathStatus.Success then return false,"No walkable path"end
-        for _,waypoint in ipairs(route:GetWaypoints())do
-            if not valid()or player.Character~=char then return false,"Cancelled"end
-            if waypoint.Action==Enum.PathWaypointAction.Jump then hum.Jump=true end
-            hum:MoveTo(waypoint.Position)
-            local untilAt=os.clock()+8
-            while valid()and player.Character==char and root.Parent and hum.Health>0 and(root.Position-waypoint.Position).Magnitude>4 do
-                if os.clock()>untilAt then ctx.CancelMovement();return false,"Path blocked"end
-                task.wait(.1)
-            end
-            if not valid()or player.Character~=char or not root.Parent or hum.Health<=0 then return false,"Character unavailable / cancelled"end
-        end
-        return valid(),valid()and"Arrived"or"Cancelled"
     end
     function ctx.Destroy()
         ctx.CancelMovement()
