@@ -1,0 +1,19 @@
+{
+  "release": "anime-dice-test-20261020-1",
+  "place_id": 113290951185459,
+  "universe_id": 10708913337,
+  "production_router_changed": false,
+  "live_game_verified": false,
+  "all_automation_defaults_off": true,
+  "theme_module_commit": "9a9812469df7b5dad2848abb33c5206f7d57e685",
+  "ouroflow_commit": "c8251f76f74d9942114ebccb0564aa0ac196320a",
+  "ouroflow_sha256": "0c30762d3c9c3aa7c25ca3aeceab960a771c96b5af290a3b67aed627161385f5",
+  "entry_sha256": "ab73c558b560d7d3c12a773cbe214ca087e161c380f0cf09d8501fdb6e20a8b3",
+  "sources": {
+    "adapter.lua": "c4a08542020675526b5d4d262e632a24571f46b58f809a5a48818548042ca3ce",
+    "core.lua": "9840342ddec50b79409c65ede81b4d5a20b7468ae112d15470d6da047964dbdf",
+    "planner.lua": "04fab5553b8c8755b8627d7b84fb16fe2637d272f120b779e814045e9dc849fa",
+    "translations.lua": "1ac4da407bd36a344ac80eeb1aeb2f6925d32fafc29a8f9dcd2c041102586ff4",
+    "ui.lua": "e22bfc12136a8c667c1e07a83c69e6fe204057543224aae952b9075e7fcb4381"
+  }
+}

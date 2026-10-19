@@ -1,0 +1,307 @@
+{
+  "place_id": 113290951185459,
+  "source": "Workspace (3), RemoteDump_113290951185459.txt",
+  "live_verified": false,
+  "remotes": [
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.BoostService.RE.Use"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.BuffService.RP.Cache"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.CodesService.RE.RedeemCode"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.DailyRewardService.RE.Claim"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.DiceShopService.RE.BuyDice"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.DiceShopService.RE.EquipDice"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.FusingService.RE.Fuse"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.FusingService.RE.Result"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.GamepassService.RE.Use"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.GearService.RE.Equip"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.GradeService.RE.Roll"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.GradeService.RE.SetGradeProtected"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.GroupRewardService.RE.Claim"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.HalloweenQuestService.RE.Claim"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.HalloweenService.RE.BuyOffer"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.HalloweenService.RE.ClaimAllPath"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.HalloweenService.RE.ClaimPath"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.HalloweenService.RE.SeenIntro"
+    },
+    {
+      "class": "RemoteFunction",
+      "path": "ReplicatedStorage.Network.HalloweenService.RF.Teleport"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.LimitedUnitService.RP.Stock"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.NotificationService.RE.DropNotification"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.NotificationService.RE.TextNotification"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.OfflineEarningsService.RE.Claim"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.OnboardingService.RE.Advance"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.PlotService.RE.CollectBalance"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.PlotService.RE.EquipBest"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.PlotService.RE.InteractSlot"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.PlotService.RE.LevelUpSlot"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.PlotService.RE.LevelUpSuccess"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.PlotService.RP.PlotId"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.PumpkinDiceService.RE.SetAutoSell"
+    },
+    {
+      "class": "RemoteFunction",
+      "path": "ReplicatedStorage.Network.PumpkinDiceService.RF.Roll"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.QuestService.RE.Buy"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.QuestService.RE.Claim"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.QuirkService.RE.Roll"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.QuirkService.RE.SetQuirkProtected"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.RE.BuyUpgrade"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.RE.Data"
+    },
+    {
+      "class": "RemoteFunction",
+      "path": "ReplicatedStorage.Network.RF.__LOADED"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.RebirthService.RE.AddStat"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.RebirthService.RE.Rebirth"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.RebirthService.RE.UseResetToken"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.RollService.RE.RollMessage"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.RollService.RE.SetAutoRoll"
+    },
+    {
+      "class": "RemoteFunction",
+      "path": "ReplicatedStorage.Network.RollService.RF.RollDice"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.SellService.RE.UpdateAutoSell"
+    },
+    {
+      "class": "RemoteFunction",
+      "path": "ReplicatedStorage.Network.SellService.RF.SellEquipped"
+    },
+    {
+      "class": "RemoteFunction",
+      "path": "ReplicatedStorage.Network.SellService.RF.SellInventory"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.SettingsService.RE.SetSetting"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.SpinService.RE.Use"
+    },
+    {
+      "class": "RemoteFunction",
+      "path": "ReplicatedStorage.Network.StaffService.RF.Run"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.Towers.RE.EquipBestTowerTeam"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.Towers.RE.SetAutoTower"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.Towers.RE.UpdateTowerTeam"
+    },
+    {
+      "class": "RemoteFunction",
+      "path": "ReplicatedStorage.Network.Towers.RF.CancelTower"
+    },
+    {
+      "class": "RemoteFunction",
+      "path": "ReplicatedStorage.Network.Towers.RF.CompleteTowerFloor"
+    },
+    {
+      "class": "RemoteFunction",
+      "path": "ReplicatedStorage.Network.Towers.RF.PlayTower"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.TradeService.RE.AdvanceTrade"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.TradeService.RE.CancelTrade"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.TradeService.RE.ChangeOffer"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.TradeService.RE.RequestTrade"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.TradeService.RE.RespondToRequest"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.TradeService.RE.SetTradeRequestsEnabled"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.TradeService.RE.TradeEvent"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.TradeService.RP.TradingEnabled"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.TraitService.RE.Roll"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.TraitService.RE.SetTraitProtected"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.TrickOrTreatService.RE.Knocked"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.TrickOrTreatService.RE.Landed"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.UnitService.RE.SetLocked"
+    },
+    {
+      "class": "RemoteFunction",
+      "path": "ReplicatedStorage.Network.UnitService.RF.Equip"
+    },
+    {
+      "class": "RemoteFunction",
+      "path": "ReplicatedStorage.Network.UnitService.RF.Unequip"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.UnitService.RP.EquippedUnit"
+    },
+    {
+      "class": "RemoteEvent",
+      "path": "ReplicatedStorage.Network.WeatherService.RP.ActiveWeather"
+    },
+    {
+      "class": "RemoteFunction",
+      "path": "ReplicatedStorage.Network.__LOADED"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "release": "anime-dice-test-20261020-1",
+  "live_game_verified": false,
+  "entry_sha256": "ab73c558b560d7d3c12a773cbe214ca087e161c380f0cf09d8501fdb6e20a8b3",
+  "checks": 157,
+  "literal_remote_contract_checks": 23,
+  "results": [
+    "PASS Anime Dice planning, network contracts, confirmation, stop and event behavior: 89 checks",
+    "PASS Halloween movement: valid paths, elevation, blocked paths, death and cancellation: 9 checks",
+    "PASS complete public test entry: GUI callbacks, Halloween, language, integrity, singleton and unload: 59 checks"
+  ],
+  "pinned_gui_sha256": "0c30762d3c9c3aa7c25ca3aeceab960a771c96b5af290a3b67aed627161385f5",
+  "fixtures": {
+    "anime-dice-core.luau": "b0fc8fee98d9c2af6a3f0a0b426c9926a975729c186c78df4fb3fe0f18711043",
+    "anime-dice-entry.luau": "bac8475dbf8568b99544c7e47609132e6685d155ef4dd0cb1c747ac76884d8a7",
+    "anime-dice-movement.luau": "e755e46e105942ba19afe94822101a66598d8a65092ae22f02f25ecd9e5db5f0"
+  }
+}

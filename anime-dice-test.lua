@@ -1,0 +1,1148 @@
+-- Standalone TEST entry. The production router is intentionally unchanged.
+assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
+local scope=type(getgenv)=="function"and getgenv()or _G
+if scope.DevilAnimeDiceTest and not scope.DevilAnimeDiceTest.Stopped then return scope.DevilAnimeDiceTest end
+if scope.DevilAnimeDiceStarting and os.clock()-scope.DevilAnimeDiceStarting.At<30 then warn("DEVIL HUB: Anime Dice test is already starting");return end
+local startup={At=os.clock()};scope.DevilAnimeDiceStarting=startup
+local planner=(function()
+-- Pure inventory/budget planning. No game actions or captured player IDs.
+local P={}
+function P.Number(value,default)
+    local n=tonumber(value)
+    return n and n==n and n>=0 and n<math.huge and n or(default or 0)
+end
+function P.Value(fn,...)
+    if type(fn)~="function"then return P.Number(fn)end
+    local ok,value=pcall(fn,...)
+    return ok and P.Number(value)or 0
+end
+function P.Units(data,registry)
+    local result={}
+    for id,item in pairs(data.Inventory or{})do
+        local ok,config=pcall(registry.getEntryConfig,item.name)
+        if ok and config and config.kind=="Unit"and P.Number(item.amount)>0 then
+            local a=item.attributes or{}
+            result[#result+1]={id=id,name=item.name,attributes=a,amount=item.amount,config=config,
+                chance=P.Value(config.chance,a),income=P.Value(config.income,a),damage=P.Value(config.damage,a)}
+        end
+    end
+    table.sort(result,function(a,b)if a.chance==b.chance then return a.id<b.id end;return a.chance>b.chance end)
+    return result
+end
+function P.Protected(data,units,cfg)
+    local protected={}
+    if cfg.SelectedUnit and cfg.SelectedUnit~=""then protected[cfg.SelectedUnit]=true end
+    for _,slot in pairs(data.Slots or{})do if slot.unitId then protected[slot.unitId]=true end end
+    for _,id in pairs(data.TowerTeam or{})do protected[id]=true end
+    local copies={}
+    for i,u in ipairs(units)do
+        copies[u.name]=(copies[u.name]or 0)+1
+        local a=u.attributes
+        if a.locked or a.favorite or cfg.KeepIds[u.id]or cfg.KeepNames[u.name]
+            or i<=cfg.KeepBest or copies[u.name]<=cfg.KeepCopies
+            or cfg.SkipMutations and(a.mutation and a.mutation~=""or a.variant and a.variant~="")then protected[u.id]=true end
+    end
+    return protected
+end
+function P.Materials(data,registry,cfg,limit,fusing)
+    local units=P.Units(data,registry);local protected=P.Protected(data,units,cfg)
+    local result={}
+    if limit<=0 or data.PendingTrade then return result end
+    for i=#units,1,-1 do
+        local u=units[i]
+        if not protected[u.id]and u.chance>0 and u.chance<=limit and(not fusing or u.amount==1 and not u.config.limited)then
+            result[#result+1]=u
+        end
+    end
+    return result
+end
+function P.Amount(data,name)
+    local item=(data.Inventory or{})[name]
+    if item and item.name==name then return P.Number(item.amount)end
+    local count=0
+    for _,entry in pairs(data.Inventory or{})do if entry.name==name then count+=P.Number(entry.amount)end end
+    return count
+end
+function P.Upgrade(data,catalog,cfg)
+    local choices={}
+    for id,upgrade in pairs(catalog.Upgrades or{})do
+        local selected=cfg.UpgradeBranch=="All"or id:sub(1,#cfg.UpgradeBranch)==cfg.UpgradeBranch
+        if selected and not(data.Upgrades or{})[id]and P.Number(upgrade.price)<=data.Money-cfg.MoneyReserve then
+            local parent=catalog.TreeStructure.GetParent(id)
+            if not parent or parent=="Start"or(data.Upgrades or{})[parent]then choices[#choices+1]={id=id,price=upgrade.price or 0}end
+        end
+    end
+    table.sort(choices,function(a,b)if a.price==b.price then return a.id<b.id end;return a.price<b.price end)
+    return choices[1]
+end
+function P.Dice(data,catalog,cfg)
+    local all=catalog.Dice.GetAll();local current=all[data.Dice]or{}
+    local best
+    for name,dice in pairs(all)do
+        local wanted=cfg.DiceChoice=="Best affordable"or cfg.DiceChoice==name
+        local owned=(data.OwnedDice or{})[name]==true or data.Dice==name
+        if wanted and P.Number(dice.luck)>P.Number(current.luck)and(owned or type(dice.price)=="number"and dice.price<=data.Money-cfg.MoneyReserve)then
+            if not best or dice.luck>best.luck then best={name=name,luck=dice.luck,owned=owned,price=dice.price or 0}end
+        end
+    end
+    return best
+end
+function P.Quest(data,config,halloween)
+    local periods=halloween and config.PERIODS or{"Daily","Weekly"}
+    for _,period in ipairs(periods or{})do
+        local spec=halloween and config[period]or(config.Periods or{})[period]
+        local state=halloween and(data.Halloween or{})[spec and spec.dataKey or""]or(data.Quests or{})[period]
+        if spec and state then
+            for _,quest in pairs(spec.pool or spec.quests or{})do
+                local active=not halloween or table.find(state.ids or{},quest.id)
+                if active and not(state.claimed or{})[quest.id]and P.Number((state.progress or{})[quest.id])>=P.Number(quest.target,math.huge)then
+                    return period,quest.id,state.expiresAt
+                end
+            end
+        end
+    end
+end
+return P
+
+end)()
+local makeAdapter=(function()
+return function(scope)
+    local rs=game:GetService("ReplicatedStorage")
+    local player=game:GetService("Players").LocalPlayer
+    local ctx={Catalog={},Ready=false,Warnings={},Links={},Spawn=task.spawn,Wait=task.wait,WallTime=os.time}
+    local flights=scope.DevilAnimeDiceFlights or{};scope.DevilAnimeDiceFlights=flights
+    local requireModule=require
+    local paths={
+        Data="Data.DataController",Registry="Inventory.EntryRegistry",Buffs="Buffs.BuffController",
+        Dice="Rolling.Dice",PlotConfig="Plot.PlotConfig",UnitUtil="Inventory.Kinds.Unit.UnitUtil",
+        Upgrades="Upgrades.Upgrades",TreeStructure="Upgrades.TreeStructure",Towers="Towers.Towers",TowerRefs="Towers.TowerRefs",
+        Rebirths="Rebirth.Rebirths",RebirthStats="Rebirth.RebirthStatsConfig",Traits="Traits.Traits",Grades="Grades.Grades",
+        Quirks="Quirks.Quirks",QuirkUtil="Quirks.QuirkUtil",FusingUtil="Fusing.FusingUtil",FusingConfig="Fusing.FusingConfig",
+        Daily="DailyRewards.DailyRewardConfig",Group="GroupReward.GroupRewardConfig",Quest="Quests.QuestConfig",Halloween="Halloween.HalloweenConfig",
+        HauntedHouse="Halloween.HauntedHouse",HalloweenShop="Halloween.HalloweenShop",PumpkinPass="Halloween.PumpkinPass",
+        HalloweenQuests="Halloween.HalloweenQuests",PumpkinDice="Halloween.PumpkinDice",Gear="Inventory.Kinds.Gear.GearConfig"}
+    local function path(root,text)
+        for part in text:gmatch("[^.]+")do root=root and root:FindFirstChild(part);if not root then return end end
+        return root
+    end
+    function ctx.Initialize(valid)
+        local deadline=os.clock()+20
+        while valid()and os.clock()<deadline do
+            if path(rs,"Framework.Features.Data.DataController")and rs:FindFirstChild("Network")then break end
+            task.wait(.2)
+        end
+        assert(valid(),"Startup cancelled")
+        for key,name in pairs(paths)do
+            if not valid()then return end
+            local module=path(rs,"Framework.Features."..name)
+            -- Locate alternate feature folder names from the actual live tree.
+            if not module then
+                local leaf=name:match("([^.]+)$")
+                local features=path(rs,"Framework.Features")
+                if features then for _,candidate in ipairs(features:GetDescendants())do
+                    if candidate:IsA("ModuleScript")and candidate.Name==leaf then module=candidate;break end
+                end end
+            end
+            local ok,result=false,nil
+            if module then ok,result=pcall(requireModule,module)end
+            if ok then ctx.Catalog[key]=result else ctx.Warnings[key]=module and tostring(result)or"Module unavailable"end
+        end
+        assert(ctx.Catalog.Data and ctx.Catalog.Registry,"Game data/registry unavailable; see initialization report")
+        ctx.Ready=true
+    end
+    local fields={"Inventory","Money","Slots","TowerTeam","Dice","OwnedDice","Upgrades","Rebirth","RebirthStats","AutoRoll","AutoTower",
+        "PendingTrade","ProtectedTraits","ProtectedGrades","ProtectedQuirks","ActiveEntries","EquippedGear","Rolls","Halloween",
+        "Quests","LastDailyRewardClaim","ClaimedGroupReward","PendingOfflineEarnings","RedeemedCodes","AutoSell","OwnedGamepasses"}
+    local function copy(value,depth)
+        if type(value)~="table"or depth==0 then return value end
+        local out={};for key,item in pairs(value)do out[key]=copy(item,depth-1)end;return out
+    end
+    function ctx.Snapshot()
+        if not ctx.Ready then return end
+        local data={}
+        for _,key in ipairs(fields)do
+            local value=ctx.Catalog.Data[key]
+            local ok,result=pcall(function()return value()end)
+            if ok then data[key]=copy(result,5)elseif type(value)~="function"then data[key]=copy(value,5)end
+        end
+        if type(data.Inventory)~="table"or type(data.Money)~="number"then return end
+        data.Storage=ctx.Buff("Unit Storage")
+        return data
+    end
+    function ctx.Buff(name)
+        local module=ctx.Catalog.Buffs
+        if not module or not module.GetBuff then return 0 end
+        return module.GetBuff(name)
+    end
+    local function remote(ns,kind,name)
+        local root=rs:FindFirstChild("Network")
+        local folder=root and(ns==""and root or root:FindFirstChild(ns))
+        local group=folder and folder:FindFirstChild(kind)
+        local obj=group and group:FindFirstChild(name)
+        assert(obj and obj:IsA(kind=="RF"and"RemoteFunction"or"RemoteEvent"),"Missing remote: "..ns.."/"..kind.."/"..name)
+        return obj
+    end
+    function ctx.Fire(ns,name,...)remote(ns,"RE",name):FireServer(...)end
+    function ctx.Invoke(ns,name,...)
+        local key=ns.."/"..name
+        assert(not flights[key],"Previous request still pending: "..key)
+        flights[key]=true
+        local result=table.pack(pcall(function(...)return remote(ns,"RF",name):InvokeServer(...)end,...))
+        flights[key]=nil
+        assert(result[1],result[2])
+        return table.unpack(result,2,result.n)
+    end
+    function ctx.Listen(ns,name,fn)
+        local ok,obj=pcall(remote,ns,"RE",name)
+        if not ok then return end
+        local link=obj.OnClientEvent:Connect(fn);ctx.Links[#ctx.Links+1]=link;return link
+    end
+    function ctx.Now()return workspace:GetServerTimeNow()end
+    function ctx.DoorInitialReady()return player:GetAttribute("TrickOrTreatReadyAt")or ctx.Now()+30 end
+    function ctx.InGroup()
+        local group=ctx.Catalog.Group
+        if not group then return false end
+        local ok,value=pcall(player.IsInGroupAsync,player,group.GroupId)
+        return ok and value==true
+    end
+    function ctx.Doors()
+        local result={}
+        for _,part in ipairs(game:GetService("CollectionService"):GetTagged("TrickOrTreatDoor"))do
+            if part:IsA("BasePart")and part:IsDescendantOf(workspace)then
+                local home,front=part:GetAttribute("TrickOrTreatHome"),part:GetAttribute("TrickOrTreatFront")
+                local model=part:FindFirstAncestorWhichIsA("Model")
+                if typeof(home)=="CFrame"and typeof(front)=="Vector3"then
+                    result[#result+1]={key=part,position=home.Position,front=front,range=math.max(2,tonumber(model and model:GetAttribute("Range"))or 14)}
+                end
+            end
+        end
+        return result
+    end
+    function ctx.Position()
+        local root=player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        return root and root.Position
+    end
+    function ctx.CancelMovement()
+        local char=player.Character;local hum=char and char:FindFirstChildOfClass("Humanoid")
+        local root=char and char:FindFirstChild("HumanoidRootPart")
+        if hum then if root then hum:MoveTo(root.Position)end;hum:Move(Vector3.zero)end
+    end
+    function ctx.Walk(goal,valid)
+        local char=player.Character
+        local hum=char and char:FindFirstChildOfClass("Humanoid")
+        local root=char and char:FindFirstChild("HumanoidRootPart")
+        if not hum or not root or hum.Health<=0 then return false,"Character unavailable"end
+        goal=Vector3.new(goal.X,root.Position.Y,goal.Z)
+        local route=game:GetService("PathfindingService"):CreatePath({AgentCanJump=true,WaypointSpacing=5})
+        local ok=pcall(route.ComputeAsync,route,root.Position,goal)
+        if not valid()then return false,"Cancelled"end
+        if not ok or route.Status~=Enum.PathStatus.Success then return false,"No walkable path"end
+        for _,waypoint in ipairs(route:GetWaypoints())do
+            if not valid()or player.Character~=char then return false,"Cancelled"end
+            if waypoint.Action==Enum.PathWaypointAction.Jump then hum.Jump=true end
+            hum:MoveTo(waypoint.Position)
+            local untilAt=os.clock()+8
+            while valid()and player.Character==char and root.Parent and hum.Health>0 and(root.Position-waypoint.Position).Magnitude>4 do
+                if os.clock()>untilAt then ctx.CancelMovement();return false,"Path blocked"end
+                task.wait(.1)
+            end
+            if not valid()or player.Character~=char or not root.Parent or hum.Health<=0 then return false,"Character unavailable / cancelled"end
+        end
+        return valid(),valid()and"Arrived"or"Cancelled"
+    end
+    function ctx.Destroy()
+        ctx.CancelMovement()
+        for _,link in ipairs(ctx.Links)do link:Disconnect()end
+        table.clear(ctx.Links)
+    end
+    return ctx
+end
+
+end)()
+local makeCore=(function()
+return function(ctx,P)
+    local jobs={"Roll","Collect","EquipBase","Level","Upgrade","Dice","Sell","Lock","Tower","Haunted","Rebirth","Stats",
+        "Trait","Grade","Quirk","Fuse","Boost","Spin","Gear","Rewards","Quests","Codes","Pumpkin","Pass","EventQuests","CandyShop","Doors","QuestShop"}
+    local cfg={MoneyReserve=0,CandyReserve=0,PumpkinReserve=0,KeepBest=1,KeepCopies=1,KeepIds={},KeepNames={},SkipMutations=true,
+        SellChanceMax=0,FuseChanceMax=0,LockChanceMin=0,UpgradeBranch="All",DiceChoice="Best affordable",LevelCap=100,
+        TowerChoice="",WingChoice="Front Yard",RebirthLimit=1,StatChoice="Luck",SelectedUnit="",RerollLimit=50,
+        TraitTargets={},GradeTargets={},QuirkTargets={},BoostNames={},SpinNames={},GearPriority="Luck",PumpkinCount=1,
+        PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true}
+    local clock=ctx.Clock or os.clock
+    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-1",Jobs={},Log={},LiveVerified=false},Stopped=false,Generation={}}
+    local states,handlers,pending,spend={}, {}, {}, {}
+    local towerOwned=false;local towerEpoch=0;local originalRoll,rollOwned=nil,false
+    local doorReady=setmetatable({},{__mode="k"});local lastKnock
+    local function log(name,message)
+        local list=ctl.Report.Log
+        list[#list+1]={At=math.floor(clock()*10)/10,Job=name,Message=tostring(message):sub(1,400)}
+        if #list>40 then table.remove(list,1)end
+    end
+    for _,name in ipairs(jobs)do
+        cfg[name]=false;ctl.Generation[name]=0
+        local state={Status="Off",Requests=0,Confirmed=0,Errors=0,Next=0,Busy=false}
+        states[name]=state;ctl.Report.Jobs[name]=state
+    end
+    local function valid(name,token)return not ctl.Stopped and cfg[name]and ctl.Generation[name]==token end
+    local function data()local snapshot=ctx.Snapshot();assert(snapshot,"Waiting for live player data");return snapshot end
+    local function catalog(key)assert(ctx.Catalog[key],"Unavailable module: "..key);return ctx.Catalog[key]end
+    local function status(name,message)states[name].Status=message end
+    local function call(name,token,kind,ns,method,...)
+        if not valid(name,token)then return end
+        local s=states[name];s.Requests+=1;s.LastRequest=ns.."/"..method;s.LastRequestAt=clock()
+        if kind=="RF"then return ctx.Invoke(ns,method,...)end
+        ctx.Fire(ns,method,...)
+    end
+    local function expect(name,fn,detail)
+        if states[name].RunToken~=nil and states[name].RunToken~=ctl.Generation[name]then return end
+        pending[name]={Check=fn,Until=clock()+10,Detail=detail or"Waiting for game data"}
+        status(name,detail or"Waiting for game data")
+    end
+    local function spendable(currency,value,cost,reserve)
+        local prior=spend[currency]
+        if prior and prior.Until>clock()and prior.Value==value then return false end
+        if cost<0 or cost~=cost or cost==math.huge or value-cost<reserve then return false end
+        spend[currency]={Value=value,Until=clock()+3};return true
+    end
+    local function finish(name,detail)
+        states[name].Confirmed+=1;status(name,detail or"Confirmed");log(name,detail or"Confirmed")
+    end
+    local function inventoryChange(name,before,detail)
+        expect(name,function(d)
+            for id,item in pairs(before.Inventory or{})do
+                local after=(d.Inventory or{})[id]
+                if not after or item.amount~=after.amount then return true end
+            end
+            for id in pairs(d.Inventory or{})do if not(before.Inventory or{})[id]then return true end end
+            return false
+        end,detail)
+    end
+    local function moneyAction(name,token,d,cost,ns,method,...)
+        if not spendable("Money",d.Money,P.Number(cost),cfg.MoneyReserve)then status(name,"Waiting for money / reserve");return false end
+        call(name,token,"RE",ns,method,...);return true
+    end
+    function ctl.Set(name,value)
+        assert(states[name],"Unknown feature")
+        value=value==true
+        if cfg[name]==value then return end
+        cfg[name]=value;ctl.Generation[name]+=1;pending[name]=nil
+        states[name].Status=value and"Ready"or"Off";states[name].Next=0
+        if value and(name=="Trait"or name=="Grade"or name=="Quirk")then states[name].Attempts=0 end
+        if value and(name=="CandyShop"or name=="QuestShop")then states[name].Purchases=0 end
+        if value and name=="Tower"then ctl.Set("Haunted",false)elseif value and name=="Haunted"then ctl.Set("Tower",false)end
+        if not value and name=="Doors"then ctx.CancelMovement()end
+        if not value and name=="Roll"and rollOwned then
+            rollOwned=false;pcall(ctx.Fire,"RollService","SetAutoRoll",originalRoll==true)
+        end
+        if not value and(name=="Tower"or name=="Haunted")and towerOwned then
+            towerOwned=false;towerEpoch+=1
+            ctx.Spawn(function()pcall(ctx.Invoke,"Towers","CancelTower")end)
+        end
+    end
+    function ctl.StopAll()
+        for _,name in ipairs(jobs)do ctl.Set(name,false)end
+        ctx.CancelMovement()
+    end
+    function ctl.Destroy()
+        if ctl.Stopped then return end
+        ctl.StopAll();ctl.Stopped=true;ctx.Destroy()
+    end
+    function ctl.Preview(kind)
+        local d=data()
+        return P.Materials(d,catalog("Registry"),cfg,kind=="Fuse"and cfg.FuseChanceMax or cfg.SellChanceMax,kind=="Fuse")
+    end
+    handlers.Roll=function(name,token,d)
+        if cfg.UseNativeRoll then
+            if d.AutoRoll then status(name,"Native Auto Roll active");return 2 end
+            if originalRoll==nil then originalRoll=d.AutoRoll==true end
+            rollOwned=true;call(name,token,"RE","RollService","SetAutoRoll",true)
+            expect(name,function(s)return s.AutoRoll==true end,"Enabling game Auto Roll");return 2
+        end
+        if d.AutoRoll then status(name,"Game Auto Roll already active");return 2 end
+        if P.Number(d.Storage)>0 and #P.Units(d,catalog("Registry"))>=d.Storage then status(name,"Inventory full");return 2 end
+        local results=call(name,token,"RF","RollService","RollDice")
+        if results then inventoryChange(name,d,"Waiting for rolled units")else status(name,"Roll not ready / fusion active")end
+        return math.max(.75,ctx.Buff("Roll Duration")or 1)
+    end
+    handlers.Collect=function(name,token,d)
+        for index,slot in pairs(d.Slots or{})do
+            local n=tonumber(index)
+            if n and P.Number(slot.balance)>0 then
+                call(name,token,"RE","PlotService","CollectBalance",n)
+                expect(name,function(s)return P.Number(((s.Slots or{})[index]or{}).balance)<slot.balance end,"Collecting slot "..n)
+                return .3
+            end
+        end
+        status(name,"No balance to collect");return 1
+    end
+    handlers.EquipBase=function(name,token,d)
+        local before={};for index,slot in pairs(d.Slots or{})do before[index]=slot.unitId end
+        call(name,token,"RE","PlotService","EquipBest")
+        expect(name,function(s)
+            for i,slot in pairs(s.Slots or{})do if slot.unitId~=before[i]then return true end end
+            for i in pairs(before)do if not(s.Slots or{})[i]then return true end end
+            return false
+        end,"Equip Best requested; may already be optimal")
+        return 5
+    end
+    handlers.Level=function(name,token,d)
+        local registry=catalog("Registry");local util=catalog("UnitUtil")
+        local choices={}
+        for index,slot in pairs(d.Slots or{})do
+            local unit=(d.Inventory or{})[slot.unitId]
+            if unit and P.Number((unit.attributes or{}).level,1)<cfg.LevelCap then
+                local cost=util.GetLevelPrice(unit.name,unit.attributes or{})
+                choices[#choices+1]={index=tonumber(index),id=slot.unitId,cost=cost,level=P.Number((unit.attributes or{}).level,1)}
+            end
+        end
+        table.sort(choices,function(a,b)return a.cost<b.cost end)
+        local choice=choices[1]
+        if choice and moneyAction(name,token,d,choice.cost,"PlotService","LevelUpSlot",choice.index)then
+            expect(name,function(s)local u=(s.Inventory or{})[choice.id];return u and P.Number((u.attributes or{}).level,1)>choice.level end,"Level upgrade requested")
+        elseif not choice then status(name,"No eligible plotted unit")end
+        return .5
+    end
+    handlers.Upgrade=function(name,token,d)
+        local c={Upgrades=catalog("Upgrades"),TreeStructure=catalog("TreeStructure")}
+        local item=P.Upgrade(d,c,cfg)
+        if item and moneyAction(name,token,d,item.price,"","BuyUpgrade",item.id)then
+            expect(name,function(s)return(s.Upgrades or{})[item.id]==true end,"Buying "..item.id)
+        elseif not item then status(name,"No affordable unlocked upgrade")end
+        return .6
+    end
+    handlers.Dice=function(name,token,d)
+        local item=P.Dice(d,{Dice=catalog("Dice")},cfg)
+        if not item then status(name,"Best selected dice equipped / waiting for money");return 2 end
+        if item.owned then call(name,token,"RE","DiceShopService","EquipDice",item.name)
+        elseif not moneyAction(name,token,d,item.price,"DiceShopService","BuyDice",item.name)then return 1 end
+        expect(name,function(s)return s.Dice==item.name end,"Equipping "..item.name);return 1
+    end
+    handlers.Sell=function(name,token,d)
+        if P.Number(d.AutoSell)>0 then status(name,"Disable game Auto Sell before using custom filters");return 3 end
+        local items=P.Materials(d,catalog("Registry"),cfg,cfg.SellChanceMax,false)
+        local ids={};for i=1,math.min(25,#items)do ids[i]=items[i].id end
+        if #ids==0 then status(name,"No units match sell filters");return 3 end
+        local earned,count=call(name,token,"RF","SellService","SellInventory",ids)
+        if P.Number(count)>0 then
+            states[name].Units=(states[name].Units or 0)+count;states[name].Earned=(states[name].Earned or 0)+P.Number(earned)
+            finish(name,"Sold "..count.." units")
+        else status(name,"Sale rejected / units protected")end
+        return 2
+    end
+    handlers.Lock=function(name,token,d)
+        if cfg.LockChanceMin<=0 then status(name,"Set minimum chance before locking");return 3 end
+        local locks={}
+        for _,u in ipairs(P.Units(d,catalog("Registry")))do if not u.attributes.locked and u.chance>=cfg.LockChanceMin then locks[u.id]=true end end
+        if not next(locks)then status(name,"No units need locking");return 3 end
+        call(name,token,"RE","UnitService","SetLocked",locks)
+        expect(name,function(s)
+            for id in pairs(locks)do local u=(s.Inventory or{})[id];if not u or not(u.attributes or{}).locked then return false end end
+            return true
+        end,"Locking matching units");return 2
+    end
+    local function tower(name,token,d)
+        local choice=name=="Haunted"and cfg.WingChoice or cfg.TowerChoice
+        local spec=catalog("Towers").GetAll()[choice]
+        if not spec then status(name,"Select a tower / wing");return 3 end
+        if type(d.AutoTower)=="string"and d.AutoTower~=""then status(name,"Turn off the game's Auto Tower first");return 3 end
+        if not towerOwned then
+            call(name,token,"RE","Towers","EquipBestTowerTeam")
+            ctx.Wait(1.1)
+            if not valid(name,token)then return end
+            local started=call(name,token,"RF","Towers","PlayTower",choice)
+            if started then
+                if not valid(name,token)then pcall(ctx.Invoke,"Towers","CancelTower");return end
+                towerOwned=true;status(name,"Tower started: "..choice)
+            else status(name,"Tower unavailable / already running / locked")end
+            return 5.2
+        end
+        local epoch=towerEpoch
+        local actions=call(name,token,"RF","Towers","CompleteTowerFloor")
+        if epoch~=towerEpoch or not valid(name,token)then return end
+        if actions=="destroyed"then towerOwned=false;status(name,"Tower finished");return 5.2 end
+        local delay=0
+        if type(actions)=="table"then
+            local refs=catalog("TowerRefs").ActionWaitTime
+            for _,action in ipairs(actions)do
+                delay+=P.Number(refs[action.action])
+                if action.action=="floorCompleted"then finish(name,"Floor "..tostring(action.floor).." complete")end
+                if action.action=="ended"then towerOwned=false;status(name,"Run complete")end
+            end
+        end
+        return math.max(1,delay+.35)
+    end
+    handlers.Tower=tower;handlers.Haunted=tower
+    handlers.Rebirth=function(name,token,d)
+        if d.Rebirth>=cfg.RebirthLimit then status(name,"Rebirth target reached");return 5 end
+        local nextTier=catalog("Rebirths").GetNext(d.Rebirth)
+        if not nextTier or d.Money<nextTier.cost then status(name,"Waiting for rebirth cost");return 3 end
+        if not spendable("Money",d.Money,d.Money,0)then return 2 end
+        call(name,token,"RE","RebirthService","Rebirth")
+        expect(name,function(s)return s.Rebirth>d.Rebirth end,"Rebirth requested (cash resets)");return 2
+    end
+    handlers.Stats=function(name,token,d)
+        local config=catalog("RebirthStats")
+        if not config.Get(cfg.StatChoice)or config.GetRemaining(d.Rebirth,d.RebirthStats)<1 then status(name,"No rebirth points");return 3 end
+        local previous=P.Number((d.RebirthStats or{})[cfg.StatChoice]);local selected=cfg.StatChoice
+        call(name,token,"RE","RebirthService","AddStat",selected)
+        expect(name,function(s)return P.Number((s.RebirthStats or{})[selected])>previous end,"Allocating "..selected);return .4
+    end
+    local reroll={Trait={Attr="trait",Currency="Trait Reroll",Protected="ProtectedTraits"},Grade={Attr="grade",Currency="Gems",Protected="ProtectedGrades"},Quirk={Attr="quirk",Protected="ProtectedQuirks"}}
+    for name,rule in pairs(reroll)do handlers[name]=function(job,token,d)
+        local u=(d.Inventory or{})[cfg.SelectedUnit];local id=cfg.SelectedUnit
+        if not u then status(job,"Select a live inventory unit");return 2 end
+        local targets=cfg[job.."Targets"]
+        if not next(targets)then status(job,"Select target values");return 2 end
+        local attr=(u.attributes or{})[rule.Attr]
+        if targets[attr]then ctl.Set(job,false);status(job,"Target reached: "..tostring(attr));return end
+        if (d[rule.Protected]or{})[attr]then status(job,"Current value protected by game");return 3 end
+        if states[job].Attempts>=cfg.RerollLimit then status(job,"Reroll request limit reached");return 3 end
+        if rule.Currency then
+            if P.Amount(d,rule.Currency)<1 then status(job,"No "..rule.Currency);return 3 end
+        else
+            local cost=catalog("QuirkUtil").GetRollCost(u.name,u.attributes or{})
+            if not spendable("Money",d.Money,cost,cfg.MoneyReserve)then status(job,"Waiting for quirk budget");return 2 end
+        end
+        call(job,token,"RE",job.."Service","Roll",id,false);states[job].Attempts+=1
+        -- A reroll may produce the same value. Currency changes also confirm processing.
+        local before=rule.Currency and P.Amount(d,rule.Currency)or d.Money
+        expect(job,function(s)
+            local item=(s.Inventory or{})[id]
+            return item and((item.attributes or{})[rule.Attr]~=attr or(rule.Currency and P.Amount(s,rule.Currency)or s.Money)<before)
+        end,"Reroll request "..states[job].Attempts)
+        return .6
+    end end
+    handlers.Fuse=function(name,token,d)
+        local choices=P.Materials(d,catalog("Registry"),cfg,cfg.FuseChanceMax,true)
+        if #choices<3 then status(name,"Need 3 eligible surplus units");return 3 end
+        local utility=catalog("FusingUtil");local total=0
+        for i=1,3 do local chance=utility.GetChance((d.Inventory or{})[choices[i].id]);if not chance then return 3 end;total+=chance end
+        if not utility.BuildPools(total)then status(name,"No balanced fusion pool");return 4 end
+        local cost=catalog("FusingConfig").GetCost(total)
+        if moneyAction(name,token,d,cost,"FusingService","Fuse",choices[1].id,choices[2].id,choices[3].id)then
+            inventoryChange(name,d,"Fusion requested")
+        end
+        return 3.5
+    end
+    local function useEntry(name,token,d)
+        local names=cfg[name.."Names"]
+        for entryName in pairs(names)do
+            local config=catalog("Registry").getEntryConfig(entryName)
+            if config and config.kind==name and P.Amount(d,entryName)>0 and not(d.ActiveEntries or{})[entryName]then
+                call(name,token,"RE",name=="Boost"and"BoostService"or"SpinService","Use",entryName)
+                inventoryChange(name,d,"Using "..entryName);return 2
+            end
+        end
+        status(name,"No selected inactive items");return 3
+    end
+    handlers.Boost=useEntry;handlers.Spin=useEntry
+    handlers.Gear=function(name,token,d)
+        local best={};local registry=catalog("Registry")
+        for _,entry in pairs(d.Inventory or{})do
+            local config=registry.getEntryConfig(entry.name)
+            if config and config.kind=="Gear"and entry.amount>0 then
+                local score=0
+                for buff,amount in pairs(config.buffs or{})do
+                    if buff:lower():find(cfg.GearPriority:lower(),1,true)then score+=type(amount)=="table"and P.Number(amount.amount)or P.Number(amount)end
+                end
+                if score>0 and(not best[config.slot]or score>best[config.slot].score)then best[config.slot]={name=entry.name,score=score}end
+            end
+        end
+        for slot,item in pairs(best)do if(d.EquippedGear or{})[slot]~=item.name then
+            call(name,token,"RE","GearService","Equip",slot,item.name)
+            expect(name,function(s)return(s.EquippedGear or{})[slot]==item.name end,"Equipping "..item.name);return 1
+        end end
+        status(name,"Selected gear already equipped");return 4
+    end
+    handlers.Rewards=function(name,token,d)
+        if P.Number(d.PendingOfflineEarnings)>0 then
+            call(name,token,"RE","OfflineEarningsService","Claim")
+            expect(name,function(s)return P.Number(s.PendingOfflineEarnings)==0 end,"Claiming offline earnings");return 1
+        end
+        local now=ctx.WallTime()
+        if d.LastDailyRewardClaim==0 or now-P.Number(d.LastDailyRewardClaim)>=catalog("Daily").Cooldown then
+            call(name,token,"RE","DailyRewardService","Claim")
+            expect(name,function(s)return s.LastDailyRewardClaim~=d.LastDailyRewardClaim end,"Claiming daily reward");return 1
+        end
+        if not d.ClaimedGroupReward and ctx.InGroup()then
+            call(name,token,"RE","GroupRewardService","Claim")
+            expect(name,function(s)return s.ClaimedGroupReward==true end,"Claiming group reward");return 1
+        end
+        status(name,"No claimable rewards");return 20
+    end
+    local function quest(name,token,d)
+        local event=name=="EventQuests"
+        local period,id,expires=P.Quest(d,catalog(event and"HalloweenQuests"or"Quest"),event)
+        if not id then status(name,"No completed quests");return 5 end
+        if event then call(name,token,"RE","HalloweenQuestService","Claim",period,id)
+        else call(name,token,"RE","QuestService","Claim",period,id,expires)end
+        expect(name,function(s)
+            local key=event and catalog("HalloweenQuests")[period].dataKey
+            local state=event and(s.Halloween or{})[key]or(s.Quests or{})[period]
+            return state and(state.claimed or{})[id]==true
+        end,"Claiming "..period.." / "..id);return .5
+    end
+    handlers.Quests=quest;handlers.EventQuests=quest
+    local codesTried={}
+    handlers.Codes=function(name,token,d)
+        for _,code in ipairs(cfg.CodeList)do if not codesTried[code]and not(d.RedeemedCodes or{})[code]then
+            codesTried[code]=true;call(name,token,"RE","CodesService","RedeemCode",code)
+            expect(name,function(s)return(s.RedeemedCodes or{})[code]and true or false end,"Trying code: "..code);return 1
+        end end
+        status(name,"Code list processed");return 10
+    end
+    handlers.Pumpkin=function(name,token,d)
+        local spec=catalog("PumpkinDice");local count=cfg.PumpkinCount==spec.MULTI and spec.MULTI or 1
+        local currency=catalog("Halloween").PUMPKINS
+        if P.Number(d.Storage)>0 and #P.Units(d,catalog("Registry"))+count>d.Storage then status(name,"Inventory full");return 3 end
+        if not spendable("Pumpkins",P.Amount(d,currency),spec.COST*count,cfg.PumpkinReserve)then status(name,"Waiting for pumpkins / reserve");return 3 end
+        local result=call(name,token,"RF","PumpkinDiceService","Roll",count)
+        if result and result.ok then finish(name,"Pumpkin rolls: "..#(result.results or{}))else status(name,result and result.message or"Pumpkin roll rejected")end
+        return math.max(2.6,P.Number(spec.ROLL_DURATION,2.5)+.25)
+    end
+    handlers.Pass=function(name,token,d)
+        local h=d.Halloween or{};local available=false
+        for i,tier in ipairs(catalog("PumpkinPass"))do
+            if P.Number(h.CandyEarned)>=tier.candy and(not(h.PathClaimed or{})[tostring(i)]and not(h.PathClaimed or{})[i]
+                or h.PathPremium and not(h.PathPremiumClaimed or{})[tostring(i)]and not(h.PathPremiumClaimed or{})[i])then available=true;break end
+        end
+        if not available then status(name,"No claimable pass tiers");return 5 end
+        call(name,token,"RE","HalloweenService","ClaimAllPath")
+        inventoryChange(name,d,"Claiming earned pass rewards");return 2
+    end
+    handlers.CandyShop=function(name,token,d)
+        if(states[name].Purchases or 0)>=cfg.OfferLimit then status(name,"Purchase limit reached");return 5 end
+        for i,offer in ipairs(catalog("HalloweenShop"))do if offer.name==cfg.OfferChoice then
+            local currency=catalog("Halloween").CANDY
+            if not spendable("Candy",P.Amount(d,currency),offer.candy,cfg.CandyReserve)then status(name,"Waiting for candy / reserve");return 3 end
+            call(name,token,"RE","HalloweenService","BuyOffer",i)
+            local before=P.Amount(d,currency)
+            expect(name,function(s)
+                if P.Amount(s,currency)<before then states[name].Purchases=(states[name].Purchases or 0)+1;return true end
+                return false
+            end,"Buying "..offer.name);return 1
+        end end
+        status(name,"Select a candy shop item");return 3
+    end
+    handlers.QuestShop=function(name,token,d)
+        if(states[name].Purchases or 0)>=cfg.QuestLimit then status(name,"Purchase limit reached");return 5 end
+        for _,offer in ipairs(catalog("Quest").Shop or{})do if offer.name==cfg.QuestOffer then
+            if offer.gamepass and(d.OwnedGamepasses or{})[offer.name]then status(name,"Already owned");return 5 end
+            local before=P.Amount(d,"Tickets")
+            if not spendable("Tickets",before,offer.tickets,cfg.TicketReserve)then status(name,"Waiting for tickets / reserve");return 3 end
+            call(name,token,"RE","QuestService","Buy",offer.name)
+            expect(name,function(s)
+                if P.Amount(s,"Tickets")<before then states[name].Purchases=(states[name].Purchases or 0)+1;return true end
+                return false
+            end,"Buying "..offer.name);return 1
+        end end
+        status(name,"Select a quest shop item");return 3
+    end
+    handlers.Doors=function(name,token)
+        local doors=ctx.Doors();local pos=ctx.Position()
+        if not pos then status(name,"Waiting for character");return 2 end
+        local now=ctx.Now();local best,distance
+        for _,door in ipairs(doors)do
+            if(doorReady[door.key]or ctx.DoorInitialReady())<=now then
+                local dist=(door.position-pos).Magnitude
+                if not distance or dist<distance then best,distance=door,dist end
+            end
+        end
+        if not best then status(name,"Waiting for loaded doors / cooldown");return 2 end
+        local active=function()return valid(name,token)end
+        -- Exit the door volume first so the server can arm a previous visit.
+        status(name,"Walking to door")
+        local outside=best.position+best.front*(best.range+10)
+        local ok,why=ctx.Walk(outside,active)
+        if not ok then status(name,why);doorReady[best.key]=now+5;return 2 end
+        ctx.Wait(.4) -- Allow the server's door check to observe the outside position.
+        local latest=lastKnock
+        if latest and latest.position then
+            local config=catalog("Halloween")
+            local earliest=latest.at+math.max(config.MIN_KNOCK_GAP,(best.position-latest.position).Magnitude/config.MAX_TRAVEL_SPEED)
+            while active()and ctx.Now()<earliest do ctx.Wait(.1)end
+        end
+        if not active()then return end
+        ok,why=ctx.Walk(best.position+best.front*math.min(best.range*.6,6),active)
+        if not ok then status(name,why);return 2 end
+        status(name,"Waiting for server knock")
+        local deadline=clock()+8
+        while active()and clock()<deadline and not(doorReady[best.key]and doorReady[best.key]>now)do ctx.Wait(.1)end
+        if active()and not(doorReady[best.key]and doorReady[best.key]>now)then
+            doorReady[best.key]=ctx.Now()+5;status(name,"No knock confirmation; retrying another route")
+        end
+        return .5
+    end
+    function ctl.BindEvents()
+        ctx.Listen("TrickOrTreatService","Knocked",function(part,_,readyAt)
+            if ctl.Stopped or not cfg.Doors or not part then return end
+            doorReady[part]=type(readyAt)=="number"and readyAt or ctx.Now()+catalog("Halloween").COOLDOWN
+            lastKnock={at=ctx.Now(),position=part.Position};finish("Doors","Door knock confirmed")
+        end)
+        ctx.Listen("TrickOrTreatService","Landed",function(_,amount)
+            if not ctl.Stopped and cfg.Doors then states.Doors.Candy=(states.Doors.Candy or 0)+P.Number(amount)end
+        end)
+        ctx.Listen("FusingService","Result",function(result,message)
+            if ctl.Stopped or not pending.Fuse then return end
+            if not result then pending.Fuse=nil;status("Fuse",message or"Fusion rejected")end
+        end)
+    end
+    function ctl.Tick()
+        if ctl.Stopped then return end
+        local d=ctx.Snapshot()
+        ctl.Report.Ready=d~=nil;ctl.Report.Warnings=ctx.Warnings
+        if not d then return end
+        ctl.Report.Summary={Money=d.Money,Rolls=d.Rolls,Units=#P.Units(d,catalog("Registry")),Storage=d.Storage,
+            Candy=P.Amount(d,(ctx.Catalog.Halloween or{}).CANDY or"Candy"),Pumpkins=P.Amount(d,(ctx.Catalog.Halloween or{}).PUMPKINS or"Pumpkins"),Rebirth=d.Rebirth}
+        for _,name in ipairs(jobs)do
+            local state=states[name];local waitFor=pending[name]
+            if cfg[name]and waitFor then
+                local ok,confirmed=pcall(waitFor.Check,d)
+                if ok and confirmed then pending[name]=nil;finish(name,"Confirmed by live data")
+                elseif clock()>waitFor.Until then pending[name]=nil;status(name,"No confirmation yet; rechecking live state");state.Next=clock()+3 end
+            end
+            if cfg[name]and not state.Busy and not pending[name]and clock()>=state.Next then
+                local token=ctl.Generation[name];state.Busy=true;state.Started=clock()
+                ctx.Spawn(function()
+                    state.RunToken=token
+                    local result=table.pack(xpcall(function()
+                        if valid(name,token)then return handlers[name](name,token,data())end
+                    end,debug.traceback))
+                    state.Busy=false;state.Next=clock()+math.max(.25,P.Number(result[2],2))
+                    if not result[1]and valid(name,token)then
+                        state.Errors+=1;state.LastError=tostring(result[2]):sub(1,700);state.Status="Error: "..state.LastError:match("^[^\n]+")
+                        state.Next=clock()+5;log(name,state.LastError)
+                    end
+                end)
+            elseif state.Busy and clock()-state.Started>15 then state.Status="Waiting for request / movement (no duplicate call)"end
+        end
+    end
+    function ctl.Teleport(destination)
+        assert(destination=="Island"or destination=="Hub","Unknown destination")
+        ctl.Set("Doors",false)
+        return ctx.Invoke("HalloweenService","Teleport",destination)
+    end
+    function ctl.PumpkinFilter(names)
+        local selected={};for _,unit in ipairs(catalog("PumpkinDice").Units or{})do selected[unit.id]=names[unit.id]==true end
+        ctx.Spawn(function()
+            for name,value in pairs(selected)do
+                if ctl.Stopped then return end
+                ctx.Fire("PumpkinDiceService","SetAutoSell",name,value);ctx.Wait(.25)
+            end
+        end)
+    end
+    function ctl.Protect(kind,names)
+        assert(reroll[kind],"Unknown protection type")
+        ctx.Spawn(function()for name,value in pairs(names)do
+            if ctl.Stopped then return end
+            ctx.Fire(kind.."Service","Set"..kind.."Protected",name,value==true);ctx.Wait(.3)
+        end end)
+    end
+    ctl.Jobs=jobs
+    return ctl
+end
+
+end)()
+local ctx=makeAdapter(scope)
+local core=makeCore(ctx,planner)
+local cfg=core.Config
+local app={Core=core,Config=cfg,Report=core.Report,Version=core.Report.Version,Stopped=false}
+local window,library
+local links,widgets,optionWidgets={}, {}, {}
+local function destroy()
+    if app.Stopped then return end
+    app.Stopped=true;core.Destroy()
+    for _,link in ipairs(links)do link:Disconnect()end
+    if window then window:Destroy()end
+    if scope.DevilAnimeDiceTest==app then scope.DevilAnimeDiceTest=nil end
+    if scope.DevilAnimeDiceStarting==startup then scope.DevilAnimeDiceStarting=nil end
+end
+app.Destroy=destroy
+local ok,problem=xpcall(function()
+    -- BEGIN SHARED DEVIL BLUE GUI
+do
+    local shared=type(getgenv)=="function"and getgenv()or _G
+    local current=shared.DevilHubBlueGui
+    if not(current and current.Version=="devil-blue-20261019-10"and not current.Stopped)then
+        local ok,problem=pcall(function()
+            local source=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/9a9812469df7b5dad2848abb33c5206f7d57e685/devil-blue-gui.lua")
+            assert(type(source)=="string"and #source==95003,"DEVIL blue GUI download size mismatch")
+            local sum=0
+            for i=1,#source do sum=(sum*33+source:byte(i))%4294967296;if i%32768==0 and task and task.wait then task.wait()end end
+            assert(sum==941138957,"DEVIL blue GUI checksum mismatch")
+            local run,err=loadstring(source,"DEVIL HUB / Blue GUI")
+            assert(run,err)
+            return run()
+        end)
+        if not ok then warn("DEVIL HUB: blue GUI could not start: "..tostring(problem))end
+    end
+end
+-- END SHARED DEVIL BLUE GUI
+
+    local source=game:HttpGet("https://raw.githubusercontent.com/joustingmatch/OuroFlow/c8251f76f74d9942114ebccb0564aa0ac196320a/Source.luau")
+    assert(type(source)=="string"and #source==402130,"GUI download size mismatch")
+    local checksum=0;for i=1,#source do checksum=(checksum*33+source:byte(i))%4294967296 end
+    assert(checksum==1125396239,"GUI download checksum mismatch")
+    local run,err=loadstring(source,"DEVIL HUB / Anime Dice GUI");assert(run,err)
+    library=run()
+    assert(scope.DevilAnimeDiceStarting==startup,"Startup replaced by a newer run")
+    local image=scope.DevilHubSilverLogo
+    if not image then pcall(function()
+        local asset=getcustomasset or getsynasset
+        if type(asset)~="function"or type(writefile)~="function"then return end
+        local bytes=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/9a9812469df7b5dad2848abb33c5206f7d57e685/assets/devil-logo-silver-transparent.png")
+        assert(bytes:sub(1,8)=="\137PNG\13\10\26\10","Logo download failed")
+        writefile("DevilHub_Silver_AnimeDice.png",bytes)
+        image=asset("DevilHub_Silver_AnimeDice.png");scope.DevilHubSilverLogo=image
+    end)end
+    local theme={Background=Color3.fromRGB(7,9,13),Surface=Color3.fromRGB(11,13,18),Surface2=Color3.fromRGB(16,19,25),
+        Surface3=Color3.fromRGB(32,39,49),Accent=Color3.fromRGB(164,221,255),Text=Color3.fromRGB(255,255,255),
+        Muted=Color3.fromRGB(153,169,185),Warning=Color3.fromRGB(164,221,255)}
+    window=library:CreateWindow({Name="DEVIL HUB",Icon=image,LoadingSubtitle="ANIME DICE / TEST",
+        Theme=theme,Density="Compact",Profile=true,Search=true,Home=false,Loading=false,Backdrop=false,
+        UnsupportedExecutor=false,Disclaimer=false,Size=UDim2.fromOffset(840,570),
+        ToggleButton={Platform="Both",Icon=image},IslandDraggable=true,KeepOnScreen=true,ConfigurationSaving={Enabled=false}})
+    app.Window=window;window.Gui:SetAttribute("DevilHubPresentation",true)
+    links[#links+1]=window.Gui.Destroying:Connect(destroy)
+    local function group(tab,name,side)return tab:CreateGroupbox({Name=name,Side=side or"Left"})end
+    local function tab(name,icon)return window:CreateTab({Name=name,Icon=icon,Backdrop=false})end
+    local function toggle(host,key,name)
+        local widget=host:CreateToggle({Name=name,CurrentValue=false,Callback=function(v)core.Set(key,v)end})
+        widgets[key]=widget;return widget
+    end
+    local function input(host,key,name,default)
+        return host:CreateInput({Name=name,CurrentValue=tostring(default or cfg[key]),Callback=function(v)cfg[key]=planner.Number(v,cfg[key])end})
+    end
+    local function multi(value)
+        local set={};for k,v in pairs(value or{})do local name=type(k)=="number"and v or v==true and k;if type(name)=="string"then set[name]=true end end
+        return set
+    end
+    local function dropdown(host,key,name,options,default,multiple,convert)
+        local widget=host:CreateDropdown({Name=name,Options=options or{},CurrentOption=multiple and{}or default,MultipleOptions=multiple,
+            AllowNone=multiple==true,Searchable=true,Callback=function(v)
+                if multiple then cfg[key]=multi(v)else cfg[key]=convert and convert(v)or v end
+            end})
+        optionWidgets[key]=widget;return widget
+    end
+    local function button(host,name,fn)
+        return host:CreateButton({Name=name,Callback=function()
+            ctx.Spawn(function()
+                local success,err=xpcall(fn,debug.traceback)
+                if not success then core.Report.LastUIError=tostring(err);warn("DEVIL HUB: "..tostring(err))end
+            end)
+        end})
+    end
+    local main=tab("Farm","sprout")
+    local farm=group(main,"Farm controls")
+    toggle(farm,"Roll","Auto Roll")
+    toggle(farm,"Collect","Auto Collect Money")
+    toggle(farm,"EquipBase","Auto Equip Best Base")
+    toggle(farm,"Level","Auto Level Units")
+    input(farm,"LevelCap","Maximum unit level")
+    local buy=group(main,"Dice and upgrades","Right")
+    toggle(buy,"Dice","Auto Buy / Equip Dice")
+    dropdown(buy,"DiceChoice","Dice selection",{"Best affordable"},"Best affordable")
+    toggle(buy,"Upgrade","Auto Upgrade Tree")
+    dropdown(buy,"UpgradeBranch","Upgrade branch",{"All","Money","Luck","Damage","Health","Unit Storage","Roll","Trait","Grade"},"All")
+    input(buy,"MoneyReserve","Money reserve")
+    local overview=group(main,"Live status","Right")
+    local summary=overview:CreateLabel({Text="Connecting game modules..."})
+    local resultLabel=overview:CreateLabel({Text="All automation starts off."})
+    button(overview,"Stop all automation",core.StopAll)
+    local inventory=tab("Inventory","backpack")
+    local sell=group(inventory,"Sell and protect")
+    toggle(sell,"Sell","Auto Sell Filtered Units")
+    input(sell,"SellChanceMax","Sell maximum chance (0 = off)")
+    input(sell,"KeepBest","Keep best units")
+    input(sell,"KeepCopies","Keep copies per character")
+    sell:CreateToggle({Name="Keep mutated / variant units",CurrentValue=true,Callback=function(v)cfg.SkipMutations=v end})
+    dropdown(sell,"KeepNames","Keep character names",{},nil,true)
+    local keepIdLabels={}
+    -- The callback maps friendly labels back to current live inventory IDs.
+    local function mapIds(selected)
+        local set={};for label in pairs(multi(selected))do if keepIdLabels[label]then set[keepIdLabels[label]]=true end end;cfg.KeepIds=set
+    end
+    local keepWidget=sell:CreateDropdown({Name="Keep specific units",Options={},CurrentOption={},MultipleOptions=true,AllowNone=true,Searchable=true,Callback=mapIds})
+    optionWidgets.KeepIds=keepWidget
+    button(sell,"Disable game Auto Sell",function()ctx.Fire("SellService","UpdateAutoSell",0)end)
+    local preview=sell:CreateLabel({Text="Preview matching units before selling or fusing."})
+    button(sell,"Preview sale",function()
+        local items=core.Preview("Sell");local names={}
+        for i=1,math.min(8,#items)do names[#names+1]=items[i].name.." | 1 / "..string.format("%.3g",items[i].chance)end
+        preview:Set(tostring(#items).." matching units\n"..table.concat(names,"\n"))
+    end)
+    local materials=group(inventory,"Lock and fusion","Right")
+    toggle(materials,"Lock","Auto Lock Rare Units")
+    input(materials,"LockChanceMin","Lock minimum chance (0 = off)")
+    toggle(materials,"Fuse","Auto Fuse Surplus Units")
+    input(materials,"FuseChanceMax","Fuse maximum chance (0 = off)")
+    button(materials,"Preview fusion",function()
+        local items=core.Preview("Fuse");local names={}
+        for i=1,math.min(3,#items)do names[#names+1]=items[i].name.." | "..items[i].id:sub(1,8)end
+        preview:Set("Fusion candidates: "..#items.."\n"..table.concat(names,"\n"))
+    end)
+    materials:CreateParagraph({Name="Material filters",Content="Locked, plotted, team and kept units are excluded. Fusion consumes three units. Set chance limits before enabling."})
+    local towerTab=tab("Towers","swords")
+    local towers=group(towerTab,"Tower farming")
+    dropdown(towers,"TowerChoice","Tower selection",{},nil)
+    toggle(towers,"Tower","Auto Tower")
+    button(towers,"Equip Best Tower Team",function()ctx.Fire("Towers","EquipBestTowerTeam")end)
+    towers:CreateParagraph({Name="Tower timing",Content="Uses the actual server battle results and game timing. Only one Tower or Haunted House runs at a time."})
+    local rebirth=group(towerTab,"Rebirth and points","Right")
+    toggle(rebirth,"Rebirth","Auto Rebirth")
+    input(rebirth,"RebirthLimit","Stop at rebirth")
+    rebirth:CreateLabel({Text="Rebirth resets your cash to zero."})
+    dropdown(rebirth,"StatChoice","Rebirth stat",{"Luck","Money","Damage","Health","Trait Luck","Grade Luck"},"Luck")
+    toggle(rebirth,"Stats","Auto Allocate Rebirth Points")
+    button(rebirth,"Use one reset token",function()
+        local d=ctx.Snapshot();assert(d,"Waiting for data")
+        assert(planner.Amount(d,"Reset Token")>0,"No reset tokens")
+        ctx.Fire("RebirthService","UseResetToken")
+    end)
+    local rerollTab=tab("Rerolls","sparkles")
+    local target=group(rerollTab,"Selected unit")
+    local unitLabels={}
+    local unitPicker=target:CreateDropdown({Name="Unit selection",Options={},AllowNone=true,Searchable=true,Callback=function(v)
+        core.Set("Trait",false);core.Set("Grade",false);core.Set("Quirk",false);cfg.SelectedUnit=unitLabels[v]or""
+    end})
+    input(target,"RerollLimit","Reroll request limit")
+    button(target,"Equip selected unit",function()assert(cfg.SelectedUnit~="","Select a unit");ctx.Invoke("UnitService","Equip",cfg.SelectedUnit)end)
+    button(target,"Put unit back",function()ctx.Invoke("UnitService","Unequip")end)
+    local rolls=group(rerollTab,"Reroll targets","Right")
+    for _,kind in ipairs({"Trait","Grade","Quirk"})do
+        dropdown(rolls,kind.."Targets",kind.." targets",{},nil,true)
+        toggle(rolls,kind,"Auto "..kind)
+    end
+    local protection=group(rerollTab,"Game protection")
+    local protectedChoices={Trait={},Grade={},Quirk={}}
+    local protectionWidgets={}
+    for _,kind in ipairs({"Trait","Grade","Quirk"})do
+        protectionWidgets[kind]=protection:CreateDropdown({Name="Protect "..kind,Options={},CurrentOption={},MultipleOptions=true,AllowNone=true,Searchable=true,
+            Callback=function(v)protectedChoices[kind]=multi(v)end})
+        button(protection,"Apply "..kind.." protection",function()
+            local c=ctx.Catalog[kind=="Trait"and"Traits"or kind=="Grade"and"Grades"or"Quirks"]or{}
+            local values={};for name in pairs(c)do values[name]=protectedChoices[kind][name]==true end;core.Protect(kind,values)
+        end)
+    end
+    local items=tab("Items and rewards","gift")
+    local use=group(items,"Items and gear")
+    dropdown(use,"BoostNames","Boosts to use",{},nil,true);toggle(use,"Boost","Auto Use Selected Boosts")
+    dropdown(use,"SpinNames","Spins to use",{},nil,true);toggle(use,"Spin","Auto Use Selected Spins")
+    dropdown(use,"GearPriority","Gear priority",{"Luck","Money","Damage","Health","Roll","Candy","Pumpkin"},"Luck")
+    toggle(use,"Gear","Auto Equip Gear")
+    local rewards=group(items,"Rewards and codes","Right")
+    toggle(rewards,"Rewards","Auto Claim Daily / Group / Offline")
+    toggle(rewards,"Quests","Auto Claim Completed Quests")
+    dropdown(rewards,"QuestOffer","Quest shop item",{},nil)
+    input(rewards,"QuestLimit","Quest purchase limit")
+    input(rewards,"TicketReserve","Tickets reserve")
+    toggle(rewards,"QuestShop","Auto Buy Quest Shop Item")
+    rewards:CreateInput({Name="Codes (comma separated)",CurrentValue="",Callback=function(v)
+        cfg.CodeList={};for code in tostring(v):gmatch("[^,%s]+")do cfg.CodeList[#cfg.CodeList+1]=code end
+    end})
+    toggle(rewards,"Codes","Auto Redeem Entered Codes")
+    local halloween=tab("Halloween","flame")
+    local eventFarm=group(halloween,"Pumpkin Dice")
+    toggle(eventFarm,"Pumpkin","Auto Pumpkin Dice")
+    dropdown(eventFarm,"PumpkinCount","Roll count",{"1","5"},"1",false,tonumber)
+    input(eventFarm,"PumpkinReserve","Pumpkins reserve")
+    dropdown(eventFarm,"PumpkinSellNames","Pumpkin units to auto sell",{},nil,true)
+    button(eventFarm,"Apply Pumpkin sell filter",function()core.PumpkinFilter(cfg.PumpkinSellNames)end)
+    local eventTower=group(halloween,"Haunted House","Right")
+    dropdown(eventTower,"WingChoice","Haunted wing",{},"Front Yard")
+    toggle(eventTower,"Haunted","Auto Haunted House")
+    button(eventTower,"Travel to Halloween Island",function()core.Teleport("Island")end)
+    button(eventTower,"Return to Hub",function()core.Teleport("Hub")end)
+    local candy=group(halloween,"Trick or Treat")
+    toggle(candy,"Doors","Auto Walk Trick or Treat")
+    candy:CreateParagraph({Name="Door route",Content="Walks to currently loaded doors, exits before revisiting and waits for server cooldown. No knock or reward is forged."})
+    local pass=group(halloween,"Pass and event quests","Right")
+    toggle(pass,"Pass","Auto Claim Pumpkin Pass")
+    toggle(pass,"EventQuests","Auto Claim Halloween Quests")
+    local shop=group(halloween,"Candy shop")
+    dropdown(shop,"OfferChoice","Candy shop item",{},nil)
+    input(shop,"OfferLimit","Purchase limit")
+    input(shop,"CandyReserve","Candy reserve")
+    toggle(shop,"CandyShop","Auto Buy Candy Shop Item")
+    local settings=tab("Status","activity")
+    local reportGroup=group(settings,"Test report")
+    local statuses={}
+    for _,name in ipairs(core.Jobs)do statuses[name]=reportGroup:CreateLabel({Text=name..": Off"})end
+    local actions=group(settings,"Test controls","Right")
+    button(actions,"Stop all automation",core.StopAll)
+    button(actions,"Copy / save test report",function()
+        local text=game:GetService("HttpService"):JSONEncode(core.Report)
+        if type(setclipboard)=="function"then pcall(setclipboard,text)end
+        if type(writefile)=="function"then pcall(writefile,"DevilHub-AnimeDice-test-report.json",text)end
+        print(text)
+    end)
+    actions:CreateToggle({Name="Use game Auto Roll",CurrentValue=true,Callback=function(v)core.Set("Roll",false);cfg.UseNativeRoll=v end})
+    button(actions,"Close test",destroy)
+    actions:CreateParagraph({Name="Standalone test",Content="All automation starts off. This test is separate from the main loader. Game rules, balances and inventory updates decide the result."})
+    local function keys(t)
+        local list={};for name in pairs(t or{})do if type(name)=="string"then list[#list+1]=name end end;table.sort(list);return list
+    end
+    local protectionInitialized={};local pumpkinFilterInitialized=false
+    local function refreshOptions()
+        if not ctx.Ready or app.Stopped then return end
+        local c=ctx.Catalog;local d=ctx.Snapshot();if not d then return end
+        local function options(key,values)
+            if optionWidgets[key]then optionWidgets[key]:Refresh(values,true,true)end
+        end
+        local dice={"Best affordable"};if c.Dice then for _,name in ipairs(keys(c.Dice.GetAll()))do dice[#dice+1]=name end end;options("DiceChoice",dice)
+        local towerNames,wingNames={},{}
+        if c.Towers then for name,tower in pairs(c.Towers.GetAll())do if not tower.event then towerNames[#towerNames+1]=name end end end;table.sort(towerNames)
+        for _,wing in ipairs(c.HauntedHouse and c.HauntedHouse.Wings or{})do wingNames[#wingNames+1]=wing.name end
+        options("TowerChoice",towerNames);options("WingChoice",wingNames)
+        for _,kind in ipairs({"Trait","Grade","Quirk"})do
+            local values=keys(c[kind=="Trait"and"Traits"or kind=="Grade"and"Grades"or"Quirks"])
+            options(kind.."Targets",values);protectionWidgets[kind]:Refresh(values,true,true)
+            if not protectionInitialized[kind]then
+                protectionInitialized[kind]=true;local chosen={}
+                for name,value in pairs(d["Protected"..(kind=="Trait"and"Traits"or kind=="Grade"and"Grades"or"Quirks")]or{})do
+                    if value then chosen[#chosen+1]=name;protectedChoices[kind][name]=true end
+                end
+                protectionWidgets[kind]:Set(chosen,true)
+            end
+        end
+        local offers={};for _,offer in ipairs(c.HalloweenShop or{})do offers[#offers+1]=offer.name end;options("OfferChoice",offers)
+        local questOffers={};for _,offer in ipairs(c.Quest and c.Quest.Shop or{})do questOffers[#questOffers+1]=offer.name end;options("QuestOffer",questOffers)
+        local pumpkinNames={};for _,unit in ipairs(c.PumpkinDice and c.PumpkinDice.Units or{})do pumpkinNames[#pumpkinNames+1]=unit.id end;options("PumpkinSellNames",pumpkinNames)
+        if not pumpkinFilterInitialized then
+            pumpkinFilterInitialized=true;local chosen={}
+            for name,value in pairs(d.Halloween and d.Halloween.DiceAutoSell or{})do if value then cfg.PumpkinSellNames[name]=true;chosen[#chosen+1]=name end end
+            optionWidgets.PumpkinSellNames:Set(chosen,true)
+        end
+        local labels,names,boosts,spins={}, {}, {}, {}
+        unitLabels={};keepIdLabels={}
+        for _,u in ipairs(planner.Units(d,c.Registry))do
+            local label=u.name.." | "..tostring(u.attributes.level or 1).." | "..u.id:sub(1,8)
+            if unitLabels[label]then label=label.." / "..u.id end
+            labels[#labels+1]=label;unitLabels[label]=u.id;keepIdLabels[label]=u.id;names[u.name]=true
+        end
+        for _,entry in pairs(d.Inventory or{})do
+            local spec=c.Registry.getEntryConfig(entry.name)
+            if spec and spec.kind=="Boost"then boosts[entry.name]=true elseif spec and spec.kind=="Spin"then spins[entry.name]=true end
+        end
+        unitPicker:Refresh(labels,true,true);options("KeepIds",labels);options("KeepNames",keys(names));options("BoostNames",keys(boosts));options("SpinNames",keys(spins))
+        local kept={};local selected
+        for label,id in pairs(unitLabels)do if id==cfg.SelectedUnit then selected=label end;if cfg.KeepIds[id]then kept[#kept+1]=label end end
+        unitPicker:Set(selected,true);keepWidget:Set(kept,true)
+    end
+    button(actions,"Refresh inventory and choices",refreshOptions)
+    -- Reuse the single language menu provided by the shared DEVIL HUB presentation.
+local translations={
+    ["Farm"]="ฟาร์ม",["Farm controls"]="ระบบฟาร์ม",["Auto Roll"]="สุ่มลูกเต๋าอัตโนมัติ",
+    ["Auto Collect Money"]="เก็บเงินฐานอัตโนมัติ",["Auto Equip Best Base"]="จัดตัวหาเงินดีที่สุด",
+    ["Auto Level Units"]="อัปเลเวลตัวในฐาน",["Maximum unit level"]="เลเวลตัวสูงสุด",
+    ["Dice and upgrades"]="ลูกเต๋าและอัปเกรด",["Auto Buy / Equip Dice"]="ซื้อและใส่ลูกเต๋าอัตโนมัติ",
+    ["Dice selection"]="เลือกลูกเต๋า",["Auto Upgrade Tree"]="ซื้อโหนดอัปเกรดอัตโนมัติ",
+    ["Upgrade branch"]="สายอัปเกรด",["Money reserve"]="เงินสำรอง",["Live status"]="สถานะปัจจุบัน",
+    ["Connecting game modules..."]="กำลังเชื่อมต่อข้อมูลเกม...",["All automation starts off."]="ออโต้ทุกระบบเริ่มปิดไว้",
+    ["Stop all automation"]="หยุดออโต้ทั้งหมด",["Inventory"]="กระเป๋า",["Sell and protect"]="ขายและเก็บตัว",
+    ["Auto Sell Filtered Units"]="ขายอัตโนมัติตามตัวกรอง",["Sell maximum chance (0 = off)"]="โอกาสสุ่มสูงสุดที่ขาย (0 = ปิด)",
+    ["Keep best units"]="จำนวนตัวดีที่สุดที่เก็บ",["Keep copies per character"]="จำนวนที่เก็บต่อชื่อตัว",
+    ["Keep mutated / variant units"]="เก็บตัวติด Mutation / Variant",["Keep character names"]="ชื่อตัวที่เก็บไว้",
+    ["Keep specific units"]="เลือกตัวที่เก็บไว้",["Disable game Auto Sell"]="ปิด Auto Sell เดิมของเกม",
+    ["Preview matching units before selling or fusing."]="ดูรายชื่อก่อนเปิดขายหรือผสม",["Preview sale"]="ดูตัวที่จะขาย",
+    ["Lock and fusion"]="ล็อกและผสม",["Auto Lock Rare Units"]="ล็อกตัวหายากอัตโนมัติ",
+    ["Lock minimum chance (0 = off)"]="โอกาสสุ่มขั้นต่ำที่ล็อก (0 = ปิด)",["Auto Fuse Surplus Units"]="ผสมตัวส่วนเกินอัตโนมัติ",
+    ["Fuse maximum chance (0 = off)"]="โอกาสสุ่มสูงสุดที่ใช้ผสม (0 = ปิด)",["Preview fusion"]="ดูตัวที่จะผสม",
+    ["Material filters"]="ตัวกรองวัตถุดิบ",
+    ["Locked, plotted, team and kept units are excluded. Fusion consumes three units. Set chance limits before enabling."]="ข้ามตัวที่ล็อก อยู่ในฐาน อยู่ในทีม และตัวที่เก็บไว้ การผสมใช้ตัวสามตัว ตั้งขอบเขตก่อนเปิด",
+    ["Towers"]="หอคอย",["Tower farming"]="ฟาร์มหอคอย",["Tower selection"]="เลือกหอคอย",["Auto Tower"]="ลงหอคอยอัตโนมัติ",
+    ["Equip Best Tower Team"]="จัดทีมตีหอคอยดีที่สุด",["Tower timing"]="จังหวะหอคอย",
+    ["Uses the actual server battle results and game timing. Only one Tower or Haunted House runs at a time."]="ใช้ผลต่อสู้และเวลาจริงของเกม เปิด Tower หรือ Haunted House ได้ทีละระบบ",
+    ["Rebirth and points"]="รีเบิร์ธและแต้ม",["Auto Rebirth"]="รีเบิร์ธอัตโนมัติ",["Stop at rebirth"]="หยุดที่รีเบิร์ธ",
+    ["Rebirth resets your cash to zero."]="รีเบิร์ธจะรีเซ็ตเงินสดเป็นศูนย์",["Rebirth stat"]="ค่าสถานะที่ลงแต้ม",
+    ["Auto Allocate Rebirth Points"]="ลงแต้มรีเบิร์ธอัตโนมัติ",["Use one reset token"]="ใช้ Reset Token หนึ่งชิ้น",
+    ["Rerolls"]="สุ่มค่าสถานะ",["Selected unit"]="ตัวที่เลือก",["Unit selection"]="เลือกตัวจากกระเป๋า",
+    ["Reroll request limit"]="จำกัดจำนวนคำขอสุ่ม",["Equip selected unit"]="ถือตัวที่เลือก",["Put unit back"]="เก็บตัวที่ถือ",
+    ["Reroll targets"]="เป้าหมายการสุ่ม",["Trait targets"]="Trait ที่ต้องการ",["Grade targets"]="Grade ที่ต้องการ",["Quirk targets"]="Quirk ที่ต้องการ",
+    ["Auto Trait"]="สุ่ม Trait อัตโนมัติ",["Auto Grade"]="สุ่ม Grade อัตโนมัติ",["Auto Quirk"]="สุ่ม Quirk อัตโนมัติ",
+    ["Game protection"]="การป้องกันค่าของเกม",["Protect Trait"]="Trait ที่ป้องกัน",["Protect Grade"]="Grade ที่ป้องกัน",["Protect Quirk"]="Quirk ที่ป้องกัน",
+    ["Apply Trait protection"]="บันทึกการป้องกัน Trait",["Apply Grade protection"]="บันทึกการป้องกัน Grade",["Apply Quirk protection"]="บันทึกการป้องกัน Quirk",
+    ["Items and rewards"]="ไอเทมและรางวัล",["Items and gear"]="ไอเทมและอุปกรณ์",["Boosts to use"]="ยาที่อนุญาตให้ใช้",
+    ["Spins to use"]="Spin ที่อนุญาตให้ใช้",["Auto Use Selected Boosts"]="ใช้ยาที่เลือกอัตโนมัติ",["Auto Use Selected Spins"]="ใช้ Spin ที่เลือกอัตโนมัติ",
+    ["Gear priority"]="เป้าหมายการจัดอุปกรณ์",["Auto Equip Gear"]="จัดอุปกรณ์อัตโนมัติ",["Rewards and codes"]="รางวัลและโค้ด",
+    ["Auto Claim Daily / Group / Offline"]="รับรางวัลรายวัน / กลุ่ม / ออฟไลน์",["Auto Claim Completed Quests"]="รับเควสต์ที่ครบอัตโนมัติ",
+    ["Quest shop item"]="สินค้าร้านเควสต์",["Quest purchase limit"]="จำนวนซื้อร้านเควสต์สูงสุด",["Tickets reserve"]="Tickets สำรอง",
+    ["Auto Buy Quest Shop Item"]="ซื้อสินค้าร้านเควสต์อัตโนมัติ",["Codes (comma separated)"]="รายการโค้ด (คั่นด้วยจุลภาค)",
+    ["Auto Redeem Entered Codes"]="แลกโค้ดในรายการอัตโนมัติ",["Halloween"]="ฮาโลวีน",["Auto Pumpkin Dice"]="สุ่ม Pumpkin Dice อัตโนมัติ",
+    ["Roll count"]="จำนวนต่อครั้ง",["Pumpkins reserve"]="Pumpkins สำรอง",["Pumpkin units to auto sell"]="ตัว Pumpkin ที่ขายอัตโนมัติ",
+    ["Apply Pumpkin sell filter"]="บันทึกตัวกรองขาย Pumpkin",["Haunted wing"]="เลือกโซนบ้านผีสิง",["Auto Haunted House"]="ลงบ้านผีสิงอัตโนมัติ",
+    ["Travel to Halloween Island"]="ไปเกาะฮาโลวีน",["Return to Hub"]="กลับเกาะหลัก",["Auto Walk Trick or Treat"]="เดินฟาร์ม Trick or Treat",
+    ["Door route"]="เส้นทางประตู",["Walks to currently loaded doors, exits before revisiting and waits for server cooldown. No knock or reward is forged."]="เดินไปประตูที่โหลดอยู่ ออกจากเขตก่อนกลับเข้า และรอคูลดาวน์กับผลจากเกม",
+    ["Pass and event quests"]="Pass และเควสต์อีเวนต์",["Auto Claim Pumpkin Pass"]="รับรางวัล Pumpkin Pass อัตโนมัติ",
+    ["Auto Claim Halloween Quests"]="รับเควสต์ฮาโลวีนที่ครบ",["Candy shop"]="ร้าน Candy",["Candy shop item"]="สินค้าที่ซื้อด้วย Candy",
+    ["Purchase limit"]="จำนวนซื้อสูงสุด",["Candy reserve"]="Candy สำรอง",["Auto Buy Candy Shop Item"]="ซื้อสินค้าด้วย Candy อัตโนมัติ",
+    ["Status"]="สถานะ",["Test report"]="รายงานตัวทดสอบ",["Test controls"]="ควบคุมตัวทดสอบ",
+    ["Copy / save test report"]="คัดลอก / บันทึกรายงาน",["Use game Auto Roll"]="ใช้ระบบ Auto Roll เดิมของเกม",["Close test"]="ปิดตัวทดสอบ",
+    ["Standalone test"]="ตัวทดสอบแยก",["All automation starts off. This test is separate from the main loader. Game rules, balances and inventory updates decide the result."]="ทุกออโต้เริ่มปิด ตัวนี้แยกจาก loader หลัก ผลขึ้นอยู่กับกติกา ยอดคงเหลือ และข้อมูลกระเป๋าจริงของเกม",
+    ["Refresh inventory and choices"]="อัปเดตกระเป๋าและตัวเลือก",["Connection failed; copy the test report"]="เชื่อมต่อไม่สำเร็จ กรุณาคัดลอกรายงาน"
+}
+local localized=setmetatable({},{__mode="k"})
+local inverse={};for en,th in pairs(translations)do inverse[th]=en end
+local currentLanguage="EN"
+local function inspectText(node)
+    if node:GetAttribute("DevilLocalizationOverlay")or node:GetAttribute("DevilBlueSettings")then return end
+    if not(node:IsA("TextLabel")or node:IsA("TextButton"))or localized[node]then return end
+    local record={Writing=false};localized[node]=record
+    local function update()
+        if record.Writing then return end
+        local english=inverse[node.Text]or node.Text
+        if not translations[english]then return end
+        record.English=english;record.Writing=true
+        node.Text=currentLanguage=="TH"and translations[english]or english
+        record.Writing=false
+    end
+    links[#links+1]=node:GetPropertyChangedSignal("Text"):Connect(update)
+    update()
+end
+links[#links+1]=window.Gui.DescendantAdded:Connect(inspectText)
+for _,node in ipairs(window.Gui:GetDescendants())do inspectText(node)end
+local function refreshLanguage()
+    local theme=scope.DevilHubBlueGui
+    local language=theme and theme.Get and theme.Get().Language or"EN"
+    if language==currentLanguage then return end
+    currentLanguage=language
+    for node,record in pairs(localized)do
+        if node.Parent and record.English then
+            record.Writing=true;node.Text=language=="TH"and translations[record.English]or record.English;record.Writing=false
+        end
+    end
+end
+
+    scope.DevilAnimeDiceTest=app
+    scope.DevilAnimeDiceStarting=nil
+    ctx.Spawn(function()
+        local initialized,err=xpcall(function()
+            ctx.Initialize(function()return not app.Stopped end)
+            if app.Stopped then return end
+            core.BindEvents();refreshOptions()
+        end,debug.traceback)
+        if not initialized and not app.Stopped then core.Report.InitializationError=tostring(err);summary:Set("Connection failed; copy the test report");warn(err)end
+    end)
+    ctx.Spawn(function()
+        local refreshAt=0
+        while not app.Stopped do
+            local worked,err=xpcall(core.Tick,debug.traceback)
+            if not worked then core.Report.LastTickError=tostring(err)end
+            local r=core.Report.Summary
+            if r then summary:Set(string.format("Money: %.4g | Units: %d / %d\nRolls: %s | Rebirth: %s\nCandy: %.4g | Pumpkins: %.4g",r.Money,r.Units,r.Storage,tostring(r.Rolls),tostring(r.Rebirth),r.Candy,r.Pumpkins))end
+            local enabled=0
+            for name,widget in pairs(widgets)do if cfg[name]then enabled+=1 end;widget:Set(cfg[name],true)end
+            resultLabel:Set("Enabled: "..enabled.." / "..#core.Jobs)
+            for name,label in pairs(statuses)do local s=core.Report.Jobs[name];label:Set(name..": "..s.Status.." | "..s.Requests.." requests / "..s.Confirmed.." confirmed")end
+            if os.clock()>refreshAt and ctx.Ready then
+                refreshAt=os.clock()+8
+                local success,err=pcall(refreshOptions);if not success then core.Report.ChoicesError=tostring(err)end
+            end
+            refreshLanguage()
+            ctx.Wait(.5)
+        end
+    end)
+end,debug.traceback)
+if scope.DevilAnimeDiceStarting==startup then scope.DevilAnimeDiceStarting=nil end
+if not ok then destroy();error(problem,0)end
+return app
