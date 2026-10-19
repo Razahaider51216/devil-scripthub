@@ -1,7 +1,7 @@
 {
-  "release": "devil-blue-20261019-9",
-  "module_commit": "ed0e12ca6c662e8a4b4cb40561b220d65a362e25",
-  "game_entries_commit": "4560e8e395fa8af245264cfde7327e7e6b41090d",
+  "release": "devil-blue-20261019-10",
+  "module_commit": "9a9812469df7b5dad2848abb33c5206f7d57e685",
+  "game_entries_commit": "e39fb7f24bda4d132f439416c7c68ad7467ff351",
   "map_ids_unchanged": true,
   "native_logic_unchanged_except_presentation_bootstrap_and_entry_pins": true,
   "routes": [
@@ -66,11 +66,11 @@
       "File": "build-an-ant-empire.lua"
     }
   ],
-  "before_native_sha256": "c1625ea012ff1c4804c6d125d61cc0ef1bc887b5a85d7809d4edec96209055ea",
-  "after_native_sha256": "59e450810ea548a5bafbc931a3c6b9212c8f57dee482d04815c48c1f9a6137e6",
+  "before_native_sha256": "59e450810ea548a5bafbc931a3c6b9212c8f57dee482d04815c48c1f9a6137e6",
+  "after_native_sha256": "aec770dcd18ff291b8c3e3f19c50d91ef06d396310aa03c6dd1d784b95efe41b",
   "live_rendering_verified": false,
-  "public_loader_sha256": "ed3a7daf55dcf868170d99e66eb9da64bf968eb3325a4c27935a0f629aaed54d",
-  "public_loader_bytes": 126467,
+  "public_loader_sha256": "0010f28c60af5eb55e36e276f3ff5925766d104258500ad8de9caf43ad5a91ff",
+  "public_loader_bytes": 126468,
   "ui_offline_checks": 165,
   "public_router_universe_place_cases": 30,
   "language_choices": [
@@ -112,5 +112,17 @@
     "#FFFFFF"
   ],
   "native_waveform_animation_preserved": true,
-  "waveform_offline_checks": 25
+  "waveform_offline_checks": 25,
+  "desktop_startup_offline_checks": 860,
+  "desktop_startup_routes": 10,
+  "desktop_gui_access_profiles": [
+    "CoreGui",
+    "HiddenFolder",
+    "HiddenScreen",
+    "PlayerGui",
+    "ThrowingHelper"
+  ],
+  "pixel_and_rendered_screen_layer_coverage": true,
+  "late_viewport_and_primary_window_discovery": true,
+  "desktop_executor_live_verified": false
 }
