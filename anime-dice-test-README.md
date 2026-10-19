@@ -1,15 +1,17 @@
-# DEVIL HUB / Anime Dice — standalone test
+# DEVIL HUB / Anime Dice
 
 Open Anime Dice (place `113290951185459`, universe `10708913337`) and run:
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/anime-dice-test.lua?v=test-7"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?v=vm-1"))()
 ```
 
 This test adds a DEVIL HUB interface for the actions identified in the supplied
 Workspace (3) dump. It reads live game modules and inventory, not captured unit
-IDs. It is published separately; the main loader and its ten game routes are
-unchanged. Roblox/executor behavior has not been verified live.
+IDs. The main loader now supports Anime Dice as its eleventh route, pinned to
+the reviewed entry commit; the previous ten route definitions/pins are retained.
+Roblox/executor behavior has not been verified live. Direct entry remains available
+at `anime-dice-test.lua?v=test-8` for existing direct-loader users.
 
 The GUI uses the existing black/blue/white presentation, its single EN/Thai
 language menu, blue switches and native minimize/restore controls. No full-screen
@@ -22,7 +24,7 @@ All 28 automation switches start OFF and are not restored from saved configs.
 | Inventory | Sell unused units by selected rarities (empty = Sell All), Auto Lock, surplus Fuse, previews and explicit keep selections |
 | Towers | Tower runs, per-floor reward cards, Equip Best Tower Team, Rebirth, Rebirth points and manual reset token |
 | Rerolls | Trait, Grade, Quirk targets, request limits, selected unit and game protection |
-| Items and rewards | Selected Boost/Spin use, Gear priority, Daily/Group/Offline rewards, completed quests, Quest shop and user-entered codes |
+| Items and rewards | Boost/Spin choices with item icons, Gear priority with buff icons, Daily/Group/Offline rewards, completed quests, Quest shop icons/Ticket prices and user-entered codes |
 | Halloween | Pumpkin Dice (1/5), Pumpkin sell filter, Haunted House wings, event travel, teleporting Trick or Treat, Pumpkin Pass, event quests and Candy shop with item icons / Candy prices |
 | Status | Per-feature requests/confirmations/errors, Stop All, refresh choices, copy/save report and unload |
 
@@ -107,6 +109,12 @@ and refreshes with the UI loop. Choosing a dice alone does not send a purchase;
 enable Auto Buy / Equip Dice to apply it. Explicit choices can equip an already
 owned weaker dice; Best affordable still selects only an upgrade. Reserves apply.
 
+Quest Shop selectors show item artwork or the native Gamepass image and the
+current Ticket price. Boosts / Spins to use show owned-item artwork beside their
+selection checkboxes. Gear priority uses the game's buff icons for Luck, Money,
+Damage, Health, Roll, Candy and Pumpkin. Refreshes preserve the exact purchase,
+use and equip keys and selected values; selecting an icon does not send an action.
+
 Trick or Treat uses **Teleport only**, with no movement mode selector. Use
 Halloween > Start Event Collection to enable doors, completed event quests and
 Pass claims together; purchases and Pumpkin rolls remain separate switches.
@@ -134,6 +142,12 @@ Sources are under `tools/anime-dice/`. Run `build.py` then `test.py` there with
 Python and the sibling official Luau tools. The builder assembles one public
 file, includes the immutable checksummed shared DEVIL theme, and checksums the
 pinned OuroFlow GUI dependency. No compiler/environment/HTTP hooks are installed.
+The tracked main router source is `tools/blue-gui/router.lua`; after committing
+an entry, `tools/anime-dice/build-main-loader.py <entry-commit>` pins its exact
+content and rebuilds the existing VM startup boundary with the sibling VM tools.
+Run `tools/blue-gui/test-router.py` for all eleven universe/place routes and the
+legacy public-loader test to check previous behavior. The Anime Dice entry test
+also runs the actual VM loader through the actual GUI entry and initialization.
 
 Offline checks exercise inventory/material protection, budgets/prerequisites,
 real-game remote paths and argument shapes, state confirmation, server event

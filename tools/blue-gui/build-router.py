@@ -14,14 +14,17 @@ spec = importlib.util.spec_from_file_location('blue_entries', Path(__file__).wit
 builder = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(builder)
 assert manifest['release'] == builder.RELEASE
-native_path = build / 'loader.native'
+canonical = root / 'tools/blue-gui/router.lua'
+native_path = canonical if canonical.exists() else build / 'loader.native'
 before = native_path.read_text(encoding='utf-8')
 assert before.startswith('-- BEGIN SHARED DEVIL BLUE GUI\n')
 body = before.split('-- END SHARED DEVIL BLUE GUI\n', 1)[1]
 old_ref = audit['game_entries_commit']
-assert body.count(old_ref) == len(audit['routes']) == 10
+legacy_count = sum(1 for row in audit['routes'] if not row.get('Commit'))
+assert body.count(old_ref) == legacy_count == 10
 after = builder.prefix(manifest['module_commit']) + body.replace(old_ref, entries_ref)
 native_path.write_text(after, encoding='utf-8', newline='\n')
+(build / 'loader.native').write_text(after, encoding='utf-8', newline='\n')
 subprocess.run([sys.executable, str(build / 'build-router.py'), '--only', 'loader',
                 '--release', manifest['release']], cwd=build, check=True)
 public = (build / 'candidate/loader').read_bytes()

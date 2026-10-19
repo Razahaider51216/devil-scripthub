@@ -1,9 +1,9 @@
 {
-  "release": "devil-blue-20261019-10",
+  "release": "devil-anime-dice-20261020-8",
   "module_commit": "9a9812469df7b5dad2848abb33c5206f7d57e685",
   "game_entries_commit": "e39fb7f24bda4d132f439416c7c68ad7467ff351",
-  "map_ids_unchanged": true,
-  "native_logic_unchanged_except_presentation_bootstrap_and_entry_pins": true,
+  "map_ids_unchanged": false,
+  "native_logic_unchanged_except_presentation_bootstrap_and_entry_pins": false,
   "routes": [
     {
       "Name": "Mine / Dump23",
@@ -64,15 +64,23 @@
       "Universe": 10436530264,
       "Place": 78490532994307,
       "File": "build-an-ant-empire.lua"
+    },
+    {
+      "Name": "Anime Dice",
+      "Universe": 10708913337,
+      "Place": 113290951185459,
+      "File": "anime-dice-test.lua",
+      "Commit": "8a5fef9f96d9faa8f9b9cb57f38e70bf9f014170",
+      "Version": "anime-dice-test-20261020-8"
     }
   ],
-  "before_native_sha256": "59e450810ea548a5bafbc931a3c6b9212c8f57dee482d04815c48c1f9a6137e6",
-  "after_native_sha256": "aec770dcd18ff291b8c3e3f19c50d91ef06d396310aa03c6dd1d784b95efe41b",
+  "before_native_sha256": "1b3842fc2fd775470a52f96af6952563fe40bc0da12797cbd5ee9a904da2634a",
+  "after_native_sha256": "f150a8c024baf171921c7fd426d36f19047f99a4b44525698488daf95a8752df",
   "live_rendering_verified": false,
-  "public_loader_sha256": "0010f28c60af5eb55e36e276f3ff5925766d104258500ad8de9caf43ad5a91ff",
-  "public_loader_bytes": 126468,
+  "public_loader_sha256": "d6fc572c00a886fd24fc9f16e4e49948ef35e6c5fdfb8a9c159f892e7b80018d",
+  "public_loader_bytes": 128042,
   "ui_offline_checks": 165,
-  "public_router_universe_place_cases": 30,
+  "public_router_universe_place_cases": 33,
   "language_choices": [
     "EN",
     "TH"
@@ -124,5 +132,8 @@
   ],
   "pixel_and_rendered_screen_layer_coverage": true,
   "late_viewport_and_primary_window_discovery": true,
-  "desktop_executor_live_verified": false
+  "desktop_executor_live_verified": false,
+  "existing_game_routes_unchanged": true,
+  "anime_dice_entry_commit": "8a5fef9f96d9faa8f9b9cb57f38e70bf9f014170",
+  "anime_dice_entry_sha256": "1a0b2c31f6b8437c6923ebb9005669a3c3c29ac166c5a40eed455008d7c48df3"
 }

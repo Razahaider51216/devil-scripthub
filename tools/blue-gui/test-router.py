@@ -7,7 +7,8 @@ source = (root / 'loader').read_text(encoding='utf-8')
 eq = '='
 while ']' + eq + ']' in source:
     eq += '='
-definitions = '{' + ','.join('{' + str(row['Universe']) + ',' + str(row['Place']) + ',' + json.dumps(row['File']) + '}' for row in audit['routes']) + '}'
+definitions = '{' + ','.join('{' + str(row['Universe']) + ',' + str(row['Place']) + ',' + json.dumps(row['File']) + ','
+    + json.dumps(row.get('Commit', audit['game_entries_commit'])) + ',' + json.dumps(row.get('Version', '')) + '}' for row in audit['routes']) + '}'
 fixture = 'local public=[' + eq + '[' + source + ']' + eq + ']\nlocal definitions=' + definitions + '\n' + r'''
 local nativeCompile=loadstring
 local function setup(universe,place,failures)
@@ -41,7 +42,8 @@ for _,entry in ipairs(definitions)do
   local run,state,downloads=setup(ids[1],ids[2])
   local result,first,second=run('sentinel',42)
   assert(result=='route-ok'and first=='sentinel'and second==42,'arguments/returns changed')
-  assert(#downloads==1 and downloads[1]:find('/GAME_PIN/'..entry[3]..'?hub=',1,true),'map or immutable release pin changed')
+  assert(#downloads==1 and downloads[1]:find('/'..entry[4]..'/'..entry[3]..'?hub=',1,true),'map or immutable release pin changed')
+  if entry[5]~=''then assert(downloads[1]:find('?hub='..entry[5],1,true),'per-game version changed')end
   assert(state.DevilHubRouterLoading==false,'router busy state leaked')
   cases+=1
  end
@@ -59,7 +61,19 @@ assert(run()==nil and #downloads==0,'busy router relaunched')
 run,state,downloads=setup(10563114921,1)
 state.DevilChilliMainUI={}
 assert(run()==nil and #downloads==0,'existing Steal GUI relaunched')
-print('PASS actual public router: '..cases..' universe/place cases across all 10 games, immutable pins, retries, errors, argument forwarding, busy guards')
+local anime=definitions[#definitions]
+if anime[3]=='anime-dice-test.lua'then
+ run,state,downloads=setup(anime[1],1)
+ local app={Version=anime[5],Stopped=false};state.DevilAnimeDiceTest=app
+ assert(run()==app and #downloads==0,'current Anime GUI relaunched / redownloaded')
+ run,state,downloads=setup(anime[1],1)
+ state.DevilAnimeDiceTest={Version='older-release',Stopped=false}
+ assert(run()=='route-ok'and #downloads==1,'older Anime release blocked an update')
+ run,state,downloads=setup(anime[1],1)
+ state.DevilAnimeDiceStarting={At=os.clock()}
+ assert(run()==nil and #downloads==0,'Anime startup guard redownloaded')
+end
+print('PASS actual public router: '..cases..' universe/place cases across '..#definitions..' games, immutable pins, retries, errors, arguments and session guards')
 '''
 fixture = fixture.replace('GAME_PIN', audit['game_entries_commit'])
 path = Path(__file__).with_suffix('.generated.luau')

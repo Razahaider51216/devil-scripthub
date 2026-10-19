@@ -43,6 +43,11 @@ mocks = (root / 'tests/blue-gui-mocks.luau').read_text(encoding='utf-8')
 entry = (root / 'anime-dice-test.lua').read_text(encoding='utf-8')
 ouro = dependency.read(root).decode('utf-8')
 fixture = mocks + '\nlocal entrySource=' + literal(entry) + '\nlocal ouroSource=' + literal(ouro) + '\n'
+router = json.loads((root / 'devil-blue-gui-router-audit.json').read_text(encoding='utf-8'))
+anime_route = next((r for r in router['routes'] if r['File'] == 'anime-dice-test.lua'), None)
+if anime_route:
+    fixture += 'local mainLoaderSource=' + literal((root / 'loader').read_text(encoding='utf-8')) + '\n'
+    fixture += 'local mainEntryCommit=' + json.dumps(anime_route['Commit']) + '\n'
 fixture += (root / 'tests/anime-dice-entry.luau').read_text(encoding='utf-8')
 path = here / 'entry-test.generated.luau'
 path.write_text(fixture, encoding='utf-8', newline='\n')
@@ -51,6 +56,7 @@ validation = {'release':'anime-dice-test-20261020-8','live_game_verified':False,
     'entry_sha256':hashlib.sha256((root / 'anime-dice-test.lua').read_bytes()).hexdigest(),
     'checks':sum(int(n) for result in results for n in re.findall(r'(\d+) checks', result)),
     'literal_remote_contract_checks':count,'results':results,
+    'main_loader_sha256':hashlib.sha256((root / 'loader').read_bytes()).hexdigest() if anime_route else None,
     'pinned_gui_sha256':dependency.SHA256,
     'fixtures':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (root / 'tests').glob('anime-dice-*.luau')}}
 (root / 'anime-dice-test-validation.json').write_text(json.dumps(validation,indent=2)+'\n',encoding='utf-8',newline='\n')

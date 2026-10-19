@@ -293,4 +293,38 @@ do
  check(copies==1 and #f.remote.Sent==0,'refresh duplicated item icons or started automation')
  app.Destroy()
 end
+if mainLoaderSource then
+ local f=setup(113290951185459,false);local routeRequests=0
+ local loading={SetLogo=function()end,Update=function()end,Finish=function()end,Fail=function()end}
+ f.scope.DevilHubLoadController={Acquire=function()return loading end,IsActive=function()return true end}
+ function f.game:IsLoaded()return true end
+ f.game.HttpGet=function(self,url)
+  if url:find('/anime-dice-test.lua',1,true)then
+   check(url:find('/'..mainEntryCommit..'/anime-dice-test.lua?hub=anime-dice-test-20261020-8',1,true),'main loader fetched wrong entry pin / version')
+   routeRequests+=1;return entrySource
+  end
+  return f.http(self,url)
+ end
+ f.env.loadstring=function(source,label)
+  if source==ouroSource then return f.compiler(source,label)end
+  local run,err=nativeCompile(source,label);if run then setfenv(run,f.env)end;return run,err
+ end
+ local run=assert(nativeCompile(mainLoaderSource));setfenv(run,f.env)
+ local co=coroutine.create(run);local app
+ for _=1,60 do
+  local ok,result=coroutine.resume(co);check(ok,'main loader / actual entry failed: '..tostring(result))
+  if coroutine.status(co)=='dead'then app=result;break end
+ end
+ check(app and app==f.scope.DevilAnimeDiceTest and app.Version=='anime-dice-test-20261020-8','main loader did not return the actual Anime Dice GUI')
+ check(routeRequests==1 and not f.scope.DevilHubRouterLoading,'main loader duplicated entry download or leaked busy state')
+ table.remove(f.work,1)()
+ check(not app.Report.InitializationError and f.objects['Quest shop item']and f.objects['Boosts to use']and f.objects['Spins to use']and f.objects['Gear priority'],'main-loaded app did not initialize requested selectors')
+ local duplicate=coroutine.create(run);local repeated
+ for _=1,60 do
+  local ok,result=coroutine.resume(duplicate);check(ok,'duplicate loader failed: '..tostring(result))
+  if coroutine.status(duplicate)=='dead'then repeated=result;break end
+ end
+ check(repeated==app and routeRequests==1,'running main loader twice duplicated GUI / download')
+ app.Destroy()
+end
 print('PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: '..checks..' checks')
