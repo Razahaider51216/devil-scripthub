@@ -1,7 +1,7 @@
 {
-  "release": "devil-blue-20261019-7",
-  "module_commit": "9187848e2ab566636c81c7dde5d2efe93c161add",
-  "game_entries_commit": "63365c3dff168260d5258aa3ca7427531a9680eb",
+  "release": "devil-blue-20261019-8",
+  "module_commit": "8985ef77de8684b26d4c293d753788024f5e0294",
+  "game_entries_commit": "af1e95ec7b85d2265f1bba37c60a462dc199ac25",
   "map_ids_unchanged": true,
   "native_logic_unchanged_except_presentation_bootstrap_and_entry_pins": true,
   "routes": [
@@ -66,12 +66,12 @@
       "File": "build-an-ant-empire.lua"
     }
   ],
-  "before_native_sha256": "29eb8c78547bec01e261d60e7e6e3b38add46458c9cb9bbf53c32a8b67df6dcb",
-  "after_native_sha256": "42e33e363dea364f2c4e98cfa9295e16fb11975d9c693aad2c9fc79bbc506dab",
+  "before_native_sha256": "42e33e363dea364f2c4e98cfa9295e16fb11975d9c693aad2c9fc79bbc506dab",
+  "after_native_sha256": "c1625ea012ff1c4804c6d125d61cc0ef1bc887b5a85d7809d4edec96209055ea",
   "live_rendering_verified": false,
-  "public_loader_sha256": "f62ef33b23151c1b03b40ab3858055f4a3fce57d87b7b2b1c5bab69c9044a037",
-  "public_loader_bytes": 126464,
-  "ui_offline_checks": 137,
+  "public_loader_sha256": "bd53bfcb74031e2d9479628ccf37cea83a778bb58c693d73c1ae3aec05f61050",
+  "public_loader_bytes": 126468,
+  "ui_offline_checks": 165,
   "public_router_universe_place_cases": 30,
   "language_choices": [
     "EN",
@@ -103,5 +103,8 @@
   "menu_background": "#101319",
   "menu_background_transparency": 0.14,
   "bitmap_menu_backgrounds_dark": true,
-  "dropdown_names_not_used_as_switch_state": true
+  "dropdown_names_not_used_as_switch_state": true,
+  "fullscreen_layers_keep_native_backgrounds": true,
+  "break_native_dialogs_follow_window_visibility": true,
+  "layer_diagnostics_available": true
 }

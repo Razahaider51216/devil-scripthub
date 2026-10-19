@@ -62,7 +62,31 @@ presentation-owned descendants do not schedule layout reconstruction. Native
 window size and sidebar changes still update the language row. Property writes
 use a reentrancy guard and retain Roblox's stored values to avoid rounding feedback.
 
-137 offline UI checks include eight cycles of the library's original Minimize /
+Full-screen input planes, dimmers and backdrop gradients retain native colors
+and transparency. They are excluded from menu-card styling and main-window
+discovery. Break and Steal an Egg's bridge reparents Obsidian AddDialog overlays
+(full-size TextButtons at ZIndex 9000) to the OuroFlow ScreenGui. These overlays
+now follow the primary window's visibility while preserving their controller's
+original state. Minimizing hides an open dialog's overlay; restoring returns it
+only if the native dialog still exists. Closing/destroying it stays native.
+
+The previous menu policy changed these native 0.5/0.95 transparency layers to
+0.14, and their separate parent let them cover the game after minimize. Both
+failures reproduce against release 30b809e; the new fixture verifies the fix.
+This reproduces the report's mechanism without establishing the exact layer on
+the reporting user's live session.
+
+Read-only diagnostics for another report (no input text or credentials collected):
+
+```lua
+local report = getgenv().DevilHubBlueGui.InspectLayers()
+print(game:GetService("HttpService"):JSONEncode(report))
+```
+
+The report lists main windows and screen-covering layers, including names,
+parents, dimensions, native/applied opacity and main-window visibility.
+
+165 offline UI checks include eight cycles of the library's original Minimize /
 Restore functions with simulated animation timing, plus integrity, callback and
 routing checks. A regression replay confirms that the previous release adopts
 the temporary animation frame. Live

@@ -66,6 +66,8 @@ There is no separate GUI / Colors button or color settings window.
 Search fields use soft black backgrounds, white input text and readable gray
 hints. The theme keeps the main window during minimize/restore and leaves native
 animation scales untouched.
+Screen-wide dimmers retain their original opacity. Break's native dialog overlays
+hide with the main window so they cannot cover the game while its GUI is minimized.
 See [GUI details and validation](devil-blue-gui-README.md).
 
 ```lua
