@@ -1,7 +1,7 @@
 {
-  "release": "anime-dice-test-20261020-5",
+  "release": "anime-dice-test-20261020-6",
   "live_game_verified": false,
-  "entry_sha256": "d9c349536a12b8c4e21c9d5c5ad43a961c058d0019e165c28d10a868b888f5ef",
+  "entry_sha256": "d0c61a38f6bf9e95e4171c7ebed74ca8ac1e4a0db55fdfd8381334dd77571320",
   "checks": 358,
   "literal_remote_contract_checks": 24,
   "results": [
@@ -12,7 +12,7 @@
   "pinned_gui_sha256": "0c30762d3c9c3aa7c25ca3aeceab960a771c96b5af290a3b67aed627161385f5",
   "fixtures": {
     "anime-dice-core.luau": "dc23486d63b359fcad08367e2ddaa7774cb03d04418868e8e073f154d4cddbd3",
-    "anime-dice-entry.luau": "3f1a53560cef2d2e1e9487e8ab77a11cb67a39cba31353d90e78a9b155034c22",
+    "anime-dice-entry.luau": "b774375109788f1e16e043a206c738be01d51c056cfac5871622307ebae9c5a3",
     "anime-dice-movement.luau": "5d993b29e034b5bb4a66f7eb3c9b282581ac9b77f648e00e0cc3a6dfc53013f8"
   }
 }

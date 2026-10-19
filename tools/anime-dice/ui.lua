@@ -1,7 +1,7 @@
 -- Standalone TEST entry. The production router is intentionally unchanged.
 assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
 local scope=type(getgenv)=="function"and getgenv()or _G
-local release="anime-dice-test-20261020-5"
+local release="anime-dice-test-20261020-6"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end

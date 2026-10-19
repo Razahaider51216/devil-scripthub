@@ -198,7 +198,7 @@ do
  local f=setup(113290951185459,false);local destroyed=0
  f.scope.DevilAnimeDiceTest={Version='anime-dice-test-20261020-1',Stopped=false,Destroy=function()destroyed+=1 end}
  local app=f.Run()
- check(destroyed==1 and app.Version=='anime-dice-test-20261020-5','rerun retained previous broken release')
+ check(destroyed==1 and app.Version=='anime-dice-test-20261020-6','rerun retained previous broken release')
  app.Destroy()
 end
 do

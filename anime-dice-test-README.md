@@ -3,7 +3,7 @@
 Open Anime Dice (place `113290951185459`, universe `10708913337`) and run:
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/anime-dice-test.lua?v=test-5"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/anime-dice-test.lua?v=test-6"))()
 ```
 
 This test adds a DEVIL HUB interface for the actions identified in the supplied
@@ -88,7 +88,8 @@ item artwork and quantities from the server's `floorCompleted.rewards` response.
 Empty drops are labeled explicitly. Run totals in `ended` are not counted again.
 The latest 20 floor reports are included in the exported test report. Cards last
 seven seconds, can be dismissed, and are bounded to two on desktop / one on small
-screens; long item lists scroll. A notice error does not stop Tower farming.
+screens. Compact cards are 260 px wide and 76-116 px high, with 18 px item icons;
+long item lists scroll. A notice error does not stop Tower farming.
 
 Candy Shop rows show native item artwork plus a blue/white vector Candy icon
 and the live price. The icon is defined in `assets/devil-candy.svg`; the builder

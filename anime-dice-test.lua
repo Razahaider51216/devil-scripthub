@@ -1,7 +1,7 @@
 -- Standalone TEST entry. The production router is intentionally unchanged.
 assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
 local scope=type(getgenv)=="function"and getgenv()or _G
-local release="anime-dice-test-20261020-5"
+local release="anime-dice-test-20261020-6"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end
@@ -326,7 +326,7 @@ return function(ctx,P)
         TraitTargets={},GradeTargets={},QuirkTargets={},BoostNames={},SpinNames={},GearPriority="Luck",PumpkinCount=1,
         PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true}
     local clock=ctx.Clock or os.clock
-    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-5",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
+    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-6",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
     local states,handlers,pending,spend={}, {}, {}, {}
     local towerOwned=false;local towerName;local towerEpoch=0;local originalRoll,rollOwned=nil,false
     local doorReady=setmetatable({},{__mode="k"});local lastKnock;local nextIslandTravel=0;local stopEpoch=0
@@ -1009,8 +1009,8 @@ return function(window,ctx,app,logo)
         end end
         view.UpdateDiceState(data)
     end
-    view.Root=node("Frame","DevilTowerRewardStack",window.Gui,{AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-16,0,16),
-        Size=UDim2.fromOffset(360,540),BackgroundTransparency=1,ZIndex=80})
+    view.Root=node("Frame","DevilTowerRewardStack",window.Gui,{AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-12,0,12),
+        Size=UDim2.fromOffset(260,240),BackgroundTransparency=1,ZIndex=80})
     local function remove(index)
         local card=table.remove(view.Cards,index)
         if card then if card.Link then card.Link:Disconnect()end;card.Frame:Destroy()end
@@ -1033,40 +1033,40 @@ return function(window,ctx,app,logo)
         for i=#view.Cards,1,-1 do if view.Cards[i].Expires<=now then remove(i)end end
         local screen=viewport();local maxCards=(screen.X<500 or screen.Y<500)and 1 or 2
         while #view.Cards>maxCards do remove(#view.Cards)end
-        local width=math.max(200,math.min(360,screen.X-32));local height=math.max(140,screen.Y-32)
+        local width=math.max(180,math.min(260,screen.X-24));local height=math.max(100,screen.Y-24)
         view.Root.Size=UDim2.fromOffset(width,height)
-        local bodyMax=math.max(28,math.min(196,(height-8*(maxCards-1))/maxCards-84))
+        local bodyMax=math.max(20,math.min(60,(height-6*(maxCards-1))/maxCards-56))
         local y=0
         for _,card in ipairs(view.Cards)do
-            local body=math.min(bodyMax,math.max(1,#card.Event.Items)*28)
-            card.Frame.Position=UDim2.fromOffset(0,y);card.Frame.Size=UDim2.new(1,0,0,84+body)
-            card.List.Size=UDim2.new(1,-24,0,body)
+            local body=math.min(bodyMax,math.max(1,#card.Event.Items)*20)
+            card.Frame.Position=UDim2.fromOffset(0,y);card.Frame.Size=UDim2.new(1,0,0,56+body)
+            card.List.Size=UDim2.new(1,-16,0,body)
             card.Timer.Size=UDim2.new(math.clamp((card.Expires-now)/7,0,1),0,0,2)
-            y+=92+body
+            y+=62+body
         end
     end
     function view.Notify(event)
         if app.Stopped then return end
         local frame=node("Frame","DevilTowerRewardCard",view.Root,{BackgroundColor3=black,BackgroundTransparency=.1,BorderSizePixel=0,ZIndex=81})
-        corner(frame,12);node("UIStroke","Border",frame,{Color=blue,Transparency=.55,Thickness=1})
-        if logo then node("ImageLabel","DevilHubLogo",frame,{Position=UDim2.fromOffset(12,10),Size=UDim2.fromOffset(28,28),
+        corner(frame,9);node("UIStroke","Border",frame,{Color=blue,Transparency=.55,Thickness=1})
+        if logo then node("ImageLabel","DevilHubLogo",frame,{Position=UDim2.fromOffset(8,6),Size=UDim2.fromOffset(18,18),
             Image=logo,ImageColor3=white,BackgroundTransparency=1,ScaleType=Enum.ScaleType.Fit,ZIndex=83})
-        else label("DevilHubLogo",frame,{Text="D",TextSize=24,TextColor3=white,Position=UDim2.fromOffset(12,8),Size=UDim2.fromOffset(28,30)})end
-        label("Brand",frame,{Text="DEVIL HUB",Font=Enum.Font.GothamBold,TextColor3=blue,Position=UDim2.fromOffset(49,10),Size=UDim2.new(1,-90,0,20)})
-        local stage=label("Stage",frame,{Position=UDim2.fromOffset(12,43),Size=UDim2.new(1,-24,0,23),TextSize=13,Font=Enum.Font.GothamMedium})
-        local list=node("ScrollingFrame","Rewards",frame,{Position=UDim2.fromOffset(12,72),BackgroundTransparency=1,BorderSizePixel=0,
-            ScrollBarThickness=3,ScrollBarImageColor3=blue,CanvasSize=UDim2.fromOffset(0,math.max(1,#event.Items)*28),ZIndex=82})
+        else label("DevilHubLogo",frame,{Text="D",TextSize=17,TextColor3=white,Position=UDim2.fromOffset(8,5),Size=UDim2.fromOffset(18,20)})end
+        label("Brand",frame,{Text="DEVIL HUB",Font=Enum.Font.GothamBold,TextSize=10,TextColor3=blue,Position=UDim2.fromOffset(34,6),Size=UDim2.new(1,-66,0,18)})
+        local stage=label("Stage",frame,{Position=UDim2.fromOffset(8,27),Size=UDim2.new(1,-16,0,18),TextSize=11,Font=Enum.Font.GothamMedium})
+        local list=node("ScrollingFrame","Rewards",frame,{Position=UDim2.fromOffset(8,49),BackgroundTransparency=1,BorderSizePixel=0,
+            ScrollBarThickness=2,ScrollBarImageColor3=blue,CanvasSize=UDim2.fromOffset(0,math.max(1,#event.Items)*20),ZIndex=82})
         local card={Frame=frame,Stage=stage,List=list,Event=event,Expires=os.clock()+7}
-        if #event.Items==0 then card.Empty=label("EmptyRewards",list,{Text="",TextColor3=muted,Size=UDim2.new(1,-4,0,26)})end
+        if #event.Items==0 then card.Empty=label("EmptyRewards",list,{Text="",TextSize=11,TextColor3=muted,Size=UDim2.new(1,-4,0,18)})end
         for i,item in ipairs(event.Items)do
-            local row=node("Frame","RewardItem",list,{Position=UDim2.fromOffset(0,(i-1)*28),Size=UDim2.new(1,-6,0,26),BackgroundTransparency=1,ZIndex=83})
-            view.Item(row,item.Name,24,84)
-            label("ItemName",row,{Text=item.Name,Position=UDim2.fromOffset(32,0),Size=UDim2.new(1,-100,1,0)})
-            label("ItemAmount",row,{Text="×"..quantity(item.Amount),TextColor3=blue,Position=UDim2.new(1,-66,0,0),Size=UDim2.fromOffset(66,26),TextXAlignment=Enum.TextXAlignment.Right})
+            local row=node("Frame","RewardItem",list,{Position=UDim2.fromOffset(0,(i-1)*20),Size=UDim2.new(1,-4,0,18),BackgroundTransparency=1,ZIndex=83})
+            view.Item(row,item.Name,18,84)
+            label("ItemName",row,{Text=item.Name,TextSize=11,Position=UDim2.fromOffset(24,0),Size=UDim2.new(1,-84,1,0)})
+            label("ItemAmount",row,{Text="×"..quantity(item.Amount),TextSize=11,TextColor3=blue,Position=UDim2.new(1,-58,0,0),Size=UDim2.fromOffset(58,18),TextXAlignment=Enum.TextXAlignment.Right})
         end
         card.Timer=node("Frame","Lifetime",frame,{Position=UDim2.new(0,0,1,-2),BackgroundColor3=blue,BorderSizePixel=0,ZIndex=83})
-        local close=node("TextButton","Dismiss",frame,{Text="×",Font=Enum.Font.Gotham,TextSize=20,TextColor3=white,
-            AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-8,0,8),Size=UDim2.fromOffset(24,24),BackgroundTransparency=1,ZIndex=85})
+        local close=node("TextButton","Dismiss",frame,{Text="×",Font=Enum.Font.Gotham,TextSize=16,TextColor3=white,
+            AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-5,0,4),Size=UDim2.fromOffset(20,20),BackgroundTransparency=1,ZIndex=85})
         card.Link=close.MouseButton1Click:Connect(function()
             local index=table.find(view.Cards,card);if index then remove(index);view.Tick(os.clock())end
         end)
