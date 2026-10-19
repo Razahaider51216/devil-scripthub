@@ -1,7 +1,7 @@
 -- Standalone TEST entry. The production router is intentionally unchanged.
 assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
 local scope=type(getgenv)=="function"and getgenv()or _G
-local release="anime-dice-test-20261020-2"
+local release="anime-dice-test-20261020-3"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end
@@ -41,8 +41,9 @@ function P.Units(data,registry)
     table.sort(result,function(a,b)if a.chance==b.chance then return a.id<b.id end;return a.chance>b.chance end)
     return result
 end
-function P.Protected(data,units,cfg)
+function P.Protected(data,units,cfg,allUnused)
     local protected={}
+    if data.EquippedUnit then protected[data.EquippedUnit]=true end
     if cfg.SelectedUnit and cfg.SelectedUnit~=""then protected[cfg.SelectedUnit]=true end
     for _,slot in pairs(data.Slots or{})do if slot.unitId then protected[slot.unitId]=true end end
     for _,id in pairs(data.TowerTeam or{})do protected[id]=true end
@@ -51,18 +52,19 @@ function P.Protected(data,units,cfg)
         copies[u.name]=(copies[u.name]or 0)+1
         local a=u.attributes
         if a.locked or a.favorite or cfg.KeepIds[u.id]or cfg.KeepNames[u.name]
-            or i<=cfg.KeepBest or copies[u.name]<=cfg.KeepCopies
-            or cfg.SkipMutations and(a.mutation and a.mutation~=""or a.variant and a.variant~="")then protected[u.id]=true end
+            or not allUnused and(i<=cfg.KeepBest or copies[u.name]<=cfg.KeepCopies
+            or cfg.SkipMutations and(a.mutation and a.mutation~=""or a.variant and a.variant~=""))then protected[u.id]=true end
     end
     return protected
 end
 function P.Materials(data,registry,cfg,limit,fusing)
-    local units=P.Units(data,registry);local protected=P.Protected(data,units,cfg)
+    local allUnused=not fusing
+    local units=P.Units(data,registry);local protected=P.Protected(data,units,cfg,allUnused)
     local result={}
-    if limit<=0 or data.PendingTrade then return result end
+    if data.PendingTrade or allUnused and data.EquippedUnitKnown==false or fusing and limit<=0 then return result end
     for i=#units,1,-1 do
         local u=units[i]
-        if not protected[u.id]and u.chance>0 and u.chance<=limit and(not fusing or u.amount==1 and not u.config.limited)then
+        if not protected[u.id]and(allUnused or u.chance>0 and u.chance<=limit and u.amount==1 and not u.config.limited)then
             result[#result+1]=u
         end
     end
@@ -125,7 +127,7 @@ return function(scope)
     local flights=scope.DevilAnimeDiceFlights or{};scope.DevilAnimeDiceFlights=flights
     local requireModule=require
     local paths={
-        Data="Data.DataController",Registry="Inventory.EntryRegistry",Buffs="Buffs.BuffController",
+        Data="Data.DataController",Registry="Inventory.EntryRegistry",Buffs="Buffs.BuffController",UnitController="Inventory.Kinds.Unit.UnitController",
         Dice="Rolling.Dice",PlotConfig="Plot.PlotConfig",UnitUtil="Inventory.Kinds.Unit.UnitUtil",
         Upgrades="Upgrades.Upgrades",TreeStructure="Upgrades.TreeStructure",Towers="Towers.Towers",TowerRefs="Towers.TowerRefs",
         Rebirths="Rebirth.Rebirths",RebirthStats="Rebirth.RebirthStatsConfig",Traits="Traits.Traits",Grades="Grades.Grades",
@@ -179,6 +181,8 @@ return function(scope)
         end
         if type(data.Inventory)~="table"or type(data.Money)~="number"then return end
         data.Storage=ctx.Buff("Unit Storage")
+        local ok,equipped=pcall(function()return ctx.Catalog.UnitController.EquippedUnit()end)
+        data.EquippedUnitKnown=ok;data.EquippedUnit=ok and equipped or nil
         return data
     end
     function ctx.Buff(name)
@@ -310,12 +314,12 @@ return function(ctx,P)
     local jobs={"Roll","Collect","EquipBase","Level","Upgrade","Dice","Sell","Lock","Tower","Haunted","Rebirth","Stats",
         "Trait","Grade","Quirk","Fuse","Boost","Spin","Gear","Rewards","Quests","Codes","Pumpkin","Pass","EventQuests","CandyShop","Doors","QuestShop"}
     local cfg={MoneyReserve=0,CandyReserve=0,PumpkinReserve=0,KeepBest=1,KeepCopies=1,KeepIds={},KeepNames={},SkipMutations=true,
-        SellChanceMax=0,FuseChanceMax=0,LockChanceMin=0,UpgradeBranch="All",DiceChoice="Best affordable",LevelCap=100,
+        FuseChanceMax=0,LockChanceMin=0,UpgradeBranch="All",DiceChoice="Best affordable",LevelCap=100,
         TowerChoice="",WingChoice="Front Yard",RebirthLimit=1,StatChoice="Luck",SelectedUnit="",RerollLimit=50,
         TraitTargets={},GradeTargets={},QuirkTargets={},BoostNames={},SpinNames={},GearPriority="Luck",PumpkinCount=1,
         PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true,DoorMovement="Teleport"}
     local clock=ctx.Clock or os.clock
-    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-2",Jobs={},Log={},LiveVerified=false},Stopped=false,Generation={}}
+    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-3",Jobs={},Log={},LiveVerified=false},Stopped=false,Generation={}}
     local states,handlers,pending,spend={}, {}, {}, {}
     local towerOwned=false;local towerEpoch=0;local originalRoll,rollOwned=nil,false
     local doorReady=setmetatable({},{__mode="k"});local lastKnock;local nextIslandTravel=0;local stopEpoch=0
@@ -396,13 +400,13 @@ return function(ctx,P)
     end
     function ctl.Preview(kind)
         local d=data()
-        return P.Materials(d,catalog("Registry"),cfg,kind=="Fuse"and cfg.FuseChanceMax or cfg.SellChanceMax,kind=="Fuse")
+        return P.Materials(d,catalog("Registry"),cfg,kind=="Fuse"and cfg.FuseChanceMax or 0,kind=="Fuse")
     end
     function ctl.SellSummary()
-        local d=data();local units=P.Units(d,catalog("Registry"));local items=ctl.Preview("Sell")
-        if cfg.SellChanceMax<=0 then return "Set Sell maximum chance above 0 (example: 1/1,000)."end
+        local d=data();local units=P.Units(d,catalog("Registry"));local items=P.Materials(d,catalog("Registry"),cfg,0,false)
         if d.PendingTrade then return "Sale paused: trade in progress."end
-        return string.format("%d eligible / %d units | Ceiling: 1 / %.4g | Keep best: %d | Keep per name: %d",#items,#units,cfg.SellChanceMax,cfg.KeepBest,cfg.KeepCopies)
+        if d.EquippedUnitKnown==false then return "Sale paused: waiting for carried unit data."end
+        return string.format("Sell All Unused: %d eligible / %d units | Used, locked and kept units excluded",#items,#units)
     end
     handlers.Roll=function(name,token,d)
         if cfg.UseNativeRoll then
@@ -471,7 +475,7 @@ return function(ctx,P)
         expect(name,function(s)return s.Dice==item.name end,"Equipping "..item.name);return 1
     end
     handlers.Sell=function(name,token,d)
-        local items=P.Materials(d,catalog("Registry"),cfg,cfg.SellChanceMax,false)
+        local items=P.Materials(d,catalog("Registry"),cfg,0,false)
         local ids={};for i=1,math.min(25,#items)do ids[i]=items[i].id end
         if #ids==0 then status(name,ctl.SellSummary());return 3 end
         local earned,count=call(name,token,"RF","SellService","SellInventory",ids)
@@ -923,11 +927,8 @@ end
     button(overview,"Stop all automation",core.StopAll)
     local inventory=tab("Inventory","backpack")
     local sell=group(inventory,"Sell and protect")
-    toggle(sell,"Sell","Auto Sell Filtered Units")
-    local sellLimit=input(sell,"SellChanceMax","Sell maximum chance (0 = off)")
-    input(sell,"KeepBest","Keep best units")
-    input(sell,"KeepCopies","Keep copies per character")
-    sell:CreateToggle({Name="Keep mutated / variant units",CurrentValue=true,Callback=function(v)cfg.SkipMutations=v end})
+    toggle(sell,"Sell","Auto Sell All Unused Units")
+    sell:CreateParagraph({Name="Sell All Unused",Content="Sells all unused units, including rare and mutated units. Keeps plotted, Tower team, carried, locked, favorite and explicitly kept units."})
     dropdown(sell,"KeepNames","Keep character names",{},nil,true)
     local keepIdLabels={}
     -- The callback maps friendly labels back to current live inventory IDs.
@@ -936,13 +937,7 @@ end
     end
     local keepWidget=sell:CreateDropdown({Name="Keep specific units",Options={},CurrentOption={},MultipleOptions=true,AllowNone=true,Searchable=true,Callback=mapIds})
     optionWidgets.KeepIds=keepWidget
-    button(sell,"Disable game Auto Sell",function()ctx.Fire("SellService","UpdateAutoSell",0)end)
-    button(sell,"Use game sell threshold",function()
-        local d=ctx.Snapshot();assert(d,"Waiting for live data")
-        cfg.SellChanceMax=planner.Number(d.AutoSell)
-        sellLimit:Set(tostring(cfg.SellChanceMax),true)
-    end)
-    local sellStatus=sell:CreateLabel({Text="Set Sell maximum chance above 0 (example: 1/1,000)."})
+    local sellStatus=sell:CreateLabel({Text="Sell All Unused: waiting for live inventory."})
     local preview=sell:CreateLabel({Text="Preview matching units before selling or fusing."})
     button(sell,"Preview sale",function()
         local items=core.Preview("Sell");local names={}
@@ -954,6 +949,9 @@ end
     input(materials,"LockChanceMin","Lock minimum chance (0 = off)")
     toggle(materials,"Fuse","Auto Fuse Surplus Units")
     input(materials,"FuseChanceMax","Fuse maximum chance (0 = off)")
+    input(materials,"KeepBest","Keep best units for fusion")
+    input(materials,"KeepCopies","Keep copies per character for fusion")
+    materials:CreateToggle({Name="Keep mutated / variant units for fusion",CurrentValue=true,Callback=function(v)cfg.SkipMutations=v end})
     button(materials,"Preview fusion",function()
         local items=core.Preview("Fuse");local names={}
         for i=1,math.min(3,#items)do names[#names+1]=items[i].name.." | "..items[i].id:sub(1,8)end
@@ -1117,10 +1115,15 @@ end
     button(actions,"Refresh inventory and choices",refreshOptions)
     -- Reuse the single language menu provided by the shared DEVIL HUB presentation.
 local translations={
+    ["Auto Sell All Unused Units"]="ขายตัวที่ไม่ได้ใช้ทั้งหมดอัตโนมัติ",["Sell All Unused"]="ขายตัวที่ไม่ได้ใช้ทั้งหมด",
+    ["Sell All Unused: waiting for live inventory."]="ขายตัวที่ไม่ได้ใช้ทั้งหมด: กำลังโหลดกระเป๋า",
+    ["Sells all unused units, including rare and mutated units. Keeps plotted, Tower team, carried, locked, favorite and explicitly kept units."]="ขายตัวที่ไม่ได้ใช้ทั้งหมด รวมตัวหายากและ Mutation เว้นตัวในฐาน ทีม Tower ตัวที่ถือ ตัวล็อก รายการโปรด และตัวที่เลือกเก็บไว้",
+    ["Keep best units for fusion"]="เก็บตัวดีที่สุดไว้จากการผสม",["Keep copies per character for fusion"]="จำนวนต่อชื่อที่เก็บจากการผสม",
+    ["Keep mutated / variant units for fusion"]="ไม่ใช้ตัว Mutation / Variant ผสม",
     ["Auto Trick or Treat"]="เก็บ Trick or Treat อัตโนมัติ",["Event movement"]="วิธีเดินทางเก็บอีเวนต์",
     ["Start Event Collection"]="เริ่มเก็บอีเวนต์",["Stop Event Collection"]="หยุดเก็บอีเวนต์",
-    ["Use game sell threshold"]="ใช้เกณฑ์ขายจากเกม",
-    ["Set Sell maximum chance above 0 (example: 1/1,000)."]="ตั้งค่าโอกาสสุ่มสูงสุดที่จะขายให้มากกว่า 0 เช่น 1/1,000",
+
+
     ["Visits event doors automatically. Teleport or Walk; waits for server travel limits, door cooldown and confirmed rewards."]="เก็บประตูอีเวนต์ต่อเนื่อง เลือกวาร์ปหรือเดิน รอคูลดาวน์และยืนยันรางวัลจากเกม",
     ["Farm"]="ฟาร์ม",["Farm controls"]="ระบบฟาร์ม",["Auto Roll"]="สุ่มลูกเต๋าอัตโนมัติ",
     ["Auto Collect Money"]="เก็บเงินฐานอัตโนมัติ",["Auto Equip Best Base"]="จัดตัวหาเงินดีที่สุด",
@@ -1130,10 +1133,10 @@ local translations={
     ["Upgrade branch"]="สายอัปเกรด",["Money reserve"]="เงินสำรอง",["Live status"]="สถานะปัจจุบัน",
     ["Connecting game modules..."]="กำลังเชื่อมต่อข้อมูลเกม...",["All automation starts off."]="ออโต้ทุกระบบเริ่มปิดไว้",
     ["Stop all automation"]="หยุดออโต้ทั้งหมด",["Inventory"]="กระเป๋า",["Sell and protect"]="ขายและเก็บตัว",
-    ["Auto Sell Filtered Units"]="ขายอัตโนมัติตามตัวกรอง",["Sell maximum chance (0 = off)"]="โอกาสสุ่มสูงสุดที่ขาย (0 = ปิด)",
-    ["Keep best units"]="จำนวนตัวดีที่สุดที่เก็บ",["Keep copies per character"]="จำนวนที่เก็บต่อชื่อตัว",
-    ["Keep mutated / variant units"]="เก็บตัวติด Mutation / Variant",["Keep character names"]="ชื่อตัวที่เก็บไว้",
-    ["Keep specific units"]="เลือกตัวที่เก็บไว้",["Disable game Auto Sell"]="ปิด Auto Sell เดิมของเกม",
+
+
+    ["Keep character names"]="ชื่อตัวที่เก็บไว้",
+    ["Keep specific units"]="เลือกตัวที่เก็บไว้",
     ["Preview matching units before selling or fusing."]="ดูรายชื่อก่อนเปิดขายหรือผสม",["Preview sale"]="ดูตัวที่จะขาย",
     ["Lock and fusion"]="ล็อกและผสม",["Auto Lock Rare Units"]="ล็อกตัวหายากอัตโนมัติ",
     ["Lock minimum chance (0 = off)"]="โอกาสสุ่มขั้นต่ำที่ล็อก (0 = ปิด)",["Auto Fuse Surplus Units"]="ผสมตัวส่วนเกินอัตโนมัติ",

@@ -1,7 +1,7 @@
 -- Standalone TEST entry. The production router is intentionally unchanged.
 assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
 local scope=type(getgenv)=="function"and getgenv()or _G
-local release="anime-dice-test-20261020-2"
+local release="anime-dice-test-20261020-3"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end
@@ -111,11 +111,8 @@ local ok,problem=xpcall(function()
     button(overview,"Stop all automation",core.StopAll)
     local inventory=tab("Inventory","backpack")
     local sell=group(inventory,"Sell and protect")
-    toggle(sell,"Sell","Auto Sell Filtered Units")
-    local sellLimit=input(sell,"SellChanceMax","Sell maximum chance (0 = off)")
-    input(sell,"KeepBest","Keep best units")
-    input(sell,"KeepCopies","Keep copies per character")
-    sell:CreateToggle({Name="Keep mutated / variant units",CurrentValue=true,Callback=function(v)cfg.SkipMutations=v end})
+    toggle(sell,"Sell","Auto Sell All Unused Units")
+    sell:CreateParagraph({Name="Sell All Unused",Content="Sells all unused units, including rare and mutated units. Keeps plotted, Tower team, carried, locked, favorite and explicitly kept units."})
     dropdown(sell,"KeepNames","Keep character names",{},nil,true)
     local keepIdLabels={}
     -- The callback maps friendly labels back to current live inventory IDs.
@@ -124,13 +121,7 @@ local ok,problem=xpcall(function()
     end
     local keepWidget=sell:CreateDropdown({Name="Keep specific units",Options={},CurrentOption={},MultipleOptions=true,AllowNone=true,Searchable=true,Callback=mapIds})
     optionWidgets.KeepIds=keepWidget
-    button(sell,"Disable game Auto Sell",function()ctx.Fire("SellService","UpdateAutoSell",0)end)
-    button(sell,"Use game sell threshold",function()
-        local d=ctx.Snapshot();assert(d,"Waiting for live data")
-        cfg.SellChanceMax=planner.Number(d.AutoSell)
-        sellLimit:Set(tostring(cfg.SellChanceMax),true)
-    end)
-    local sellStatus=sell:CreateLabel({Text="Set Sell maximum chance above 0 (example: 1/1,000)."})
+    local sellStatus=sell:CreateLabel({Text="Sell All Unused: waiting for live inventory."})
     local preview=sell:CreateLabel({Text="Preview matching units before selling or fusing."})
     button(sell,"Preview sale",function()
         local items=core.Preview("Sell");local names={}
@@ -142,6 +133,9 @@ local ok,problem=xpcall(function()
     input(materials,"LockChanceMin","Lock minimum chance (0 = off)")
     toggle(materials,"Fuse","Auto Fuse Surplus Units")
     input(materials,"FuseChanceMax","Fuse maximum chance (0 = off)")
+    input(materials,"KeepBest","Keep best units for fusion")
+    input(materials,"KeepCopies","Keep copies per character for fusion")
+    materials:CreateToggle({Name="Keep mutated / variant units for fusion",CurrentValue=true,Callback=function(v)cfg.SkipMutations=v end})
     button(materials,"Preview fusion",function()
         local items=core.Preview("Fuse");local names={}
         for i=1,math.min(3,#items)do names[#names+1]=items[i].name.." | "..items[i].id:sub(1,8)end

@@ -16,7 +16,10 @@ local function setup(place,corrupt)
   ProtectedTraits={},ProtectedGrades={},ProtectedQuirks={}}
  local proxy=setmetatable({},{__index=function(_,key)return function()return data[key]end end})
  module('Data','DataController',proxy)
- module('Inventory','EntryRegistry',{getEntryConfig=function()return nil end})
+ module('Unit','UnitController',{EquippedUnit=function()return data.CarriedId end})
+ module('Inventory','EntryRegistry',{getEntryConfig=function(name)
+  if name=='Weak'then return {kind='Unit',chance=function()return 10 end,income=function()return 1 end}end
+ end})
  local network=node('Folder','Network',rs)
  local roll=node('Folder','RollService',network)
  local remote=node('RemoteEvent','SetAutoRoll',node('Folder','RE',roll));remote.Sent={}
@@ -120,10 +123,15 @@ do
  f.language('EN');check(coroutine.resume(loop),'English language refresh failed')
  check(label.Text=='Auto Roll','test GUI did not return to English')
  local before=f.counts();check(f.Run()==app and f.counts()==before,'duplicate run created another GUI/download')
- f.objects['Sell maximum chance (0 = off)'].Callback('1 / 1,000')
- check(app.Config.SellChanceMax==1000,'GUI chance input rejected formatted denominators')
- f.data.AutoSell=500;f.objects['Use game sell threshold'].Callback();table.remove(f.work,#f.work)()
- check(app.Config.SellChanceMax==500 and f.objects['Sell maximum chance (0 = off)'].Value=='500','game threshold button left filter / input out of sync')
+ check(f.objects['Auto Sell All Unused Units']and not f.objects['Auto Sell Filtered Units']and not f.objects['Sell maximum chance (0 = off)'],'old chance sell controls were not replaced')
+ check(not f.objects['Use game sell threshold']and not f.objects['Disable game Auto Sell'],'old game sell threshold controls remained')
+ check(f.objects['Keep best units for fusion']and f.objects['Keep copies per character for fusion'],'fusion controls were removed with old selling UI')
+ f.objects['Fuse maximum chance (0 = off)'].Callback('1 / 1,000')
+ check(app.Config.FuseChanceMax==1000 and app.Config.SellChanceMax==nil,'fusion parser or removal of sell threshold failed')
+ f.data.CarriedId='held'
+ f.data.Inventory={held={name='Weak',amount=1,attributes={}},unused={name='Weak',amount=1,attributes={}}}
+ local snapshot=app.Core.Preview('Sell')
+ check(#snapshot==1 and snapshot[1].id=='unused'and not app.Report.LastTickError,'live carried unit controller lookup failed to protect held unit')
  f.objects['Start Event Collection'].Callback()
  table.remove(f.work,#f.work)()
  check(app.Config.Doors and app.Config.Pass and app.Config.EventQuests and app.Config.DoorMovement=='Teleport','event start did not enable collection / claims with teleport')
@@ -145,7 +153,7 @@ do
  local f=setup(113290951185459,false);local destroyed=0
  f.scope.DevilAnimeDiceTest={Version='anime-dice-test-20261020-1',Stopped=false,Destroy=function()destroyed+=1 end}
  local app=f.Run()
- check(destroyed==1 and app.Version=='anime-dice-test-20261020-2','rerun retained previous broken release')
+ check(destroyed==1 and app.Version=='anime-dice-test-20261020-3','rerun retained previous broken release')
  app.Destroy()
 end
 print('PASS complete public test entry: GUI callbacks, Halloween, language, integrity, singleton and unload: '..checks..' checks')

@@ -3,7 +3,7 @@
 Open Anime Dice (place `113290951185459`, universe `10708913337`) and run:
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/anime-dice-test.lua?v=test-2"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/anime-dice-test.lua?v=test-3"))()
 ```
 
 This test adds a DEVIL HUB interface for the actions identified in the supplied
@@ -19,7 +19,7 @@ All 28 automation switches start OFF and are not restored from saved configs.
 | Tab | Included systems |
 |---|---|
 | Farm | Roll, Collect Money, Equip Best Base, Level Units, Buy/Equip Dice, Upgrade Tree |
-| Inventory | Filtered Sell, Auto Lock, surplus Fuse, preview lists and keep filters |
+| Inventory | Sell All Unused, Auto Lock, surplus Fuse, preview lists and explicit keep selections |
 | Towers | Tower runs, Equip Best Tower Team, Rebirth, Rebirth points and manual reset token |
 | Rerolls | Trait, Grade, Quirk targets, request limits, selected unit and game protection |
 | Items and rewards | Selected Boost/Spin use, Gear priority, Daily/Group/Offline rewards, completed quests, Quest shop and user-entered codes |
@@ -40,17 +40,20 @@ All 28 automation switches start OFF and are not restored from saved configs.
 
 ## Filters and budgets
 
-- Sell maximum chance and Fuse maximum chance start at **0**, which selects no
-  material. Set a ceiling and use Preview before enabling these features.
-- Locked, plotted, Tower team, selected reroll, explicitly kept and configured
-  best/copy units are excluded from material selection. Mutations/variants are
-  preserved by default. Set Keep copies to 0 to allow selling/fusing all surplus
-  copies of a name; the other keep rules still apply.
-- Native Auto Sell applies to new rolls and no longer blocks filtered inventory
-  sales. The separate disable button remains available. `Use game sell threshold`
-  copies its ceiling; chance inputs also accept `1/1,000` or `100,000`. The live
-  inventory label shows eligibility, keep counts, or an unset-limit/trade reason.
-  Pumpkin Dice has its own native filter, applied only by its separate button.
+- **Sell All Unused replaces chance-based inventory selling.** Inventory > Auto
+  Sell All Unused Units sells every unused unit in batches of up to 25, including
+  rare, mutated, single-copy and limited units. There is no sale chance ceiling.
+  Locked, favorite, plotted, Tower team, carried, selected reroll and explicitly
+  kept units are preserved. Keep character names / Keep specific units apply.
+  Preview sale shows the same selection used by Auto Sell; selling starts OFF.
+- Each sale reads current inventory and usage again before submitting its next
+  batch. Pending trades or unavailable carried-unit state pause sales. The live
+  inventory label shows the eligible count or the reason for a pause. Native
+  Auto Sell applies to new rolls and does not block existing inventory sales.
+- Best-unit counts, copies per name and mutation protection now appear under
+  fusion and apply only to fusion. Fuse maximum chance starts at **0**; set a
+  ceiling and preview before enabling fusion. Chance inputs accept `1/1,000`.
+  Pumpkin Dice still has its separate native filter and apply button.
 - Money, Candy, Pumpkin and Ticket reserves constrain purchases. Candy/Quest shop
   purchase limits and reroll request limits are explicit controls. Rebirth resets
   all current cash, as the label explains, and stops at the selected tier.

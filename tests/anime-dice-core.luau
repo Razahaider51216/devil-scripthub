@@ -70,18 +70,22 @@ end
 do
  local f=fixture();local e=f.entry
  f.d.Inventory={a=e('Weak'),b=e('Weak'),c=e('Weak'),d=e('Weak'),r=e('Rare'),locked=e('Weak',1,{locked=true}),mut=e('Weak',1,{mutation='Gold'})}
- f.d.Slots={['1']={unitId='a'}};f.d.TowerTeam={'b'};f.cfg.KeepNames.Weak=true;f.cfg.SellChanceMax=20
+ f.d.Slots={['1']={unitId='a'}};f.d.TowerTeam={'b'};f.cfg.KeepNames.Weak=true;f.cfg.KeepIds.r=true
  check(#f.ctl.Preview('Sell')==0,'kept names or rare/locked units eligible for sale')
- f.cfg.KeepNames={};f.cfg.KeepCopies=0;f.cfg.KeepBest=0;f.cfg.SelectedUnit='c'
- local list=f.ctl.Preview('Sell');check(#list==1 and list[1].id=='d','plot/team/mutation/selected/locked filtering failed')
- f.d.PendingTrade={reservedUnits=2};check(#f.ctl.Preview('Fuse')==0,'pending trade material guard failed')
- f.cfg.SellChanceMax=0;f.d.PendingTrade=false;check(#f.ctl.Preview('Sell')==0,'unset sell limit allowed sales')
- f.cfg.SellChanceMax=20;f.ctl.Set('Sell',true);f.d.AutoSell=100;f.step()
+ f.cfg.KeepNames={};f.cfg.KeepIds={};f.cfg.SelectedUnit='c'
+ local list=f.ctl.Preview('Sell');local selected={};for _,u in ipairs(list)do selected[u.id]=true end
+ check(#list==3 and selected.d and selected.r and selected.mut,'sell all did not include unused rare/mutated/single-copy units')
+ f.cfg.FuseChanceMax=20;f.cfg.KeepCopies=0;f.cfg.KeepBest=0
+ local fusion=f.ctl.Preview('Fuse');check(#fusion==1 and fusion[1].id=='d','sell all bypass leaked into fusion filters')
+ f.d.PendingTrade={reservedUnits=2};check(#f.ctl.Preview('Fuse')==0 and #f.ctl.Preview('Sell')==0,'pending trade material guard failed')
+ f.d.PendingTrade=false;f.d.EquippedUnit='d';check(#f.ctl.Preview('Sell')==2,'carried unit included in sell all')
+ f.d.EquippedUnitKnown=false;check(#f.ctl.Preview('Sell')==0 and f.ctl.SellSummary():find('carried',1,true),'unknown carried state did not pause selling')
+ f.d.EquippedUnitKnown=true;f.d.EquippedUnit=nil;f.ctl.Set('Sell',true);f.d.AutoSell=100;f.step()
  check(#f.packets==1 and f.packets[1].key=='SellInventory','native roll AutoSell unnecessarily blocked inventory sale')
  check(P.Chance('1 / 1,000')==1000 and P.Chance('100,000')==100000 and P.Chance('-2',50)==50,'formatted sell chances parsed incorrectly')
- check(f.ctl.SellSummary():find('1 eligible',1,true),'live sell filter summary wrong')
- f.cfg.SellChanceMax=0;check(f.ctl.SellSummary():find('above 0',1,true),'unset threshold reason hidden')
- f.d.PendingTrade=true;f.cfg.SellChanceMax=100;check(f.ctl.SellSummary():find('trade',1,true),'trade pause reason hidden')
+ check(f.ctl.SellSummary():find('3 eligible',1,true),'live sell all summary wrong')
+ check(f.cfg.SellChanceMax==nil,'obsolete sell chance configuration remained')
+ f.d.PendingTrade=true;check(f.ctl.SellSummary():find('trade',1,true),'trade pause reason hidden')
 end
 do
  local f=fixture();f.d.Slots={['2']={balance=50}};f.ctl.Set('Collect',true)
@@ -191,7 +195,7 @@ do
  g.ctl.Set('Lock',true);g.step();check(g.packets[1].args[1].r==true,'Auto Lock did not send ID map')
 end
 do
- local f=fixture();f.cfg.KeepBest=0;f.cfg.KeepCopies=0;f.cfg.SellChanceMax=100
+ local f=fixture()
  f.d.Inventory.u=f.entry('Weak')
  f.server(function(ns,key,args)if key=='SellInventory'then check(args[1][1]=='u','sell ID list malformed');return 400,1 end end)
  f.ctl.Set('Sell',true);f.step()
@@ -293,5 +297,37 @@ do
  f.ctl.Set('Doors',true)
  f.server(function(_,key)if key=='Teleport'then f.ctl.StopAll()end end)
  f.ctl.Teleport('Island');check(not f.cfg.Doors,'stop during travel restarted collector')
+end
+do
+ local f=fixture();f.configs.Limited={kind='Unit',limited=true};f.configs.Potion={kind='Boost'}
+ f.d.Inventory={limited=f.entry('Limited'),potion=f.entry('Potion'),favorite=f.entry('Weak',1,{favorite=true})}
+ f.cfg.KeepBest=100;f.cfg.KeepCopies=100;f.cfg.SkipMutations=true
+ local items=f.ctl.Preview('Sell')
+ check(#items==1 and items[1].id=='limited','sell all skipped a unit without chance or included non-units/favorites')
+ f.cfg.FuseChanceMax=100;check(#f.ctl.Preview('Fuse')==0,'limited unit allowed into fusion')
+end
+do
+ local f=fixture()
+ for i=1,60 do f.d.Inventory[string.format('u%02d',i)]=f.entry('Weak')end
+ f.d.Slots={{unitId='u01'}};f.d.TowerTeam={'u02'};f.d.EquippedUnit='u03'
+ f.d.Inventory.u04.attributes.locked=true;f.d.Inventory.u05.attributes.favorite=true;f.cfg.KeepIds.u06=true
+ f.server(function(_,key,args)
+  if key=='SellInventory'then
+   check(#args[1]<=25,'sell all exceeded batch size')
+   for _,id in ipairs(args[1])do
+    check(id~='u01'and id~='u02'and id~='u03'and id~='u04'and id~='u05'and id~='u06'and id~='u10','sell all submitted a used or protected unit')
+    f.d.Inventory[id]=nil
+   end
+   return 400*#args[1],#args[1]
+  end
+ end)
+ f.ctl.Set('Sell',true);f.step()
+ -- This unit is assigned to a base after the first batch, before the next sale.
+ f.d.Slots[2]={unitId='u10'}
+ f.d.PendingTrade=true;f.step(2);check(#f.packets==1,'batch selling continued during a trade')
+ f.d.PendingTrade=false;f.step(3);f.step(2);f.step(2)
+ check(#f.packets==3 and f.ctl.Report.Jobs.Sell.Units==53,'sell all did not drain multiple batches from live snapshots')
+ local remaining=0;for _ in pairs(f.d.Inventory)do remaining+=1 end
+ check(remaining==7 and f.d.Inventory.u10,'batch selling failed to preserve a newly assigned base unit')
 end
 print('PASS Anime Dice planning, network contracts, confirmation, stop and event behavior: '..checks..' checks')

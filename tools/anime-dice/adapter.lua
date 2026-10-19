@@ -5,7 +5,7 @@ return function(scope)
     local flights=scope.DevilAnimeDiceFlights or{};scope.DevilAnimeDiceFlights=flights
     local requireModule=require
     local paths={
-        Data="Data.DataController",Registry="Inventory.EntryRegistry",Buffs="Buffs.BuffController",
+        Data="Data.DataController",Registry="Inventory.EntryRegistry",Buffs="Buffs.BuffController",UnitController="Inventory.Kinds.Unit.UnitController",
         Dice="Rolling.Dice",PlotConfig="Plot.PlotConfig",UnitUtil="Inventory.Kinds.Unit.UnitUtil",
         Upgrades="Upgrades.Upgrades",TreeStructure="Upgrades.TreeStructure",Towers="Towers.Towers",TowerRefs="Towers.TowerRefs",
         Rebirths="Rebirth.Rebirths",RebirthStats="Rebirth.RebirthStatsConfig",Traits="Traits.Traits",Grades="Grades.Grades",
@@ -59,6 +59,8 @@ return function(scope)
         end
         if type(data.Inventory)~="table"or type(data.Money)~="number"then return end
         data.Storage=ctx.Buff("Unit Storage")
+        local ok,equipped=pcall(function()return ctx.Catalog.UnitController.EquippedUnit()end)
+        data.EquippedUnitKnown=ok;data.EquippedUnit=ok and equipped or nil
         return data
     end
     function ctx.Buff(name)

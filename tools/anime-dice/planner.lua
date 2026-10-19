@@ -28,8 +28,9 @@ function P.Units(data,registry)
     table.sort(result,function(a,b)if a.chance==b.chance then return a.id<b.id end;return a.chance>b.chance end)
     return result
 end
-function P.Protected(data,units,cfg)
+function P.Protected(data,units,cfg,allUnused)
     local protected={}
+    if data.EquippedUnit then protected[data.EquippedUnit]=true end
     if cfg.SelectedUnit and cfg.SelectedUnit~=""then protected[cfg.SelectedUnit]=true end
     for _,slot in pairs(data.Slots or{})do if slot.unitId then protected[slot.unitId]=true end end
     for _,id in pairs(data.TowerTeam or{})do protected[id]=true end
@@ -38,18 +39,19 @@ function P.Protected(data,units,cfg)
         copies[u.name]=(copies[u.name]or 0)+1
         local a=u.attributes
         if a.locked or a.favorite or cfg.KeepIds[u.id]or cfg.KeepNames[u.name]
-            or i<=cfg.KeepBest or copies[u.name]<=cfg.KeepCopies
-            or cfg.SkipMutations and(a.mutation and a.mutation~=""or a.variant and a.variant~="")then protected[u.id]=true end
+            or not allUnused and(i<=cfg.KeepBest or copies[u.name]<=cfg.KeepCopies
+            or cfg.SkipMutations and(a.mutation and a.mutation~=""or a.variant and a.variant~=""))then protected[u.id]=true end
     end
     return protected
 end
 function P.Materials(data,registry,cfg,limit,fusing)
-    local units=P.Units(data,registry);local protected=P.Protected(data,units,cfg)
+    local allUnused=not fusing
+    local units=P.Units(data,registry);local protected=P.Protected(data,units,cfg,allUnused)
     local result={}
-    if limit<=0 or data.PendingTrade then return result end
+    if data.PendingTrade or allUnused and data.EquippedUnitKnown==false or fusing and limit<=0 then return result end
     for i=#units,1,-1 do
         local u=units[i]
-        if not protected[u.id]and u.chance>0 and u.chance<=limit and(not fusing or u.amount==1 and not u.config.limited)then
+        if not protected[u.id]and(allUnused or u.chance>0 and u.chance<=limit and u.amount==1 and not u.config.limited)then
             result[#result+1]=u
         end
     end

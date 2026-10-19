@@ -1,9 +1,14 @@
 -- Reuse the single language menu provided by the shared DEVIL HUB presentation.
 local translations={
+    ["Auto Sell All Unused Units"]="ขายตัวที่ไม่ได้ใช้ทั้งหมดอัตโนมัติ",["Sell All Unused"]="ขายตัวที่ไม่ได้ใช้ทั้งหมด",
+    ["Sell All Unused: waiting for live inventory."]="ขายตัวที่ไม่ได้ใช้ทั้งหมด: กำลังโหลดกระเป๋า",
+    ["Sells all unused units, including rare and mutated units. Keeps plotted, Tower team, carried, locked, favorite and explicitly kept units."]="ขายตัวที่ไม่ได้ใช้ทั้งหมด รวมตัวหายากและ Mutation เว้นตัวในฐาน ทีม Tower ตัวที่ถือ ตัวล็อก รายการโปรด และตัวที่เลือกเก็บไว้",
+    ["Keep best units for fusion"]="เก็บตัวดีที่สุดไว้จากการผสม",["Keep copies per character for fusion"]="จำนวนต่อชื่อที่เก็บจากการผสม",
+    ["Keep mutated / variant units for fusion"]="ไม่ใช้ตัว Mutation / Variant ผสม",
     ["Auto Trick or Treat"]="เก็บ Trick or Treat อัตโนมัติ",["Event movement"]="วิธีเดินทางเก็บอีเวนต์",
     ["Start Event Collection"]="เริ่มเก็บอีเวนต์",["Stop Event Collection"]="หยุดเก็บอีเวนต์",
-    ["Use game sell threshold"]="ใช้เกณฑ์ขายจากเกม",
-    ["Set Sell maximum chance above 0 (example: 1/1,000)."]="ตั้งค่าโอกาสสุ่มสูงสุดที่จะขายให้มากกว่า 0 เช่น 1/1,000",
+
+
     ["Visits event doors automatically. Teleport or Walk; waits for server travel limits, door cooldown and confirmed rewards."]="เก็บประตูอีเวนต์ต่อเนื่อง เลือกวาร์ปหรือเดิน รอคูลดาวน์และยืนยันรางวัลจากเกม",
     ["Farm"]="ฟาร์ม",["Farm controls"]="ระบบฟาร์ม",["Auto Roll"]="สุ่มลูกเต๋าอัตโนมัติ",
     ["Auto Collect Money"]="เก็บเงินฐานอัตโนมัติ",["Auto Equip Best Base"]="จัดตัวหาเงินดีที่สุด",
@@ -13,10 +18,10 @@ local translations={
     ["Upgrade branch"]="สายอัปเกรด",["Money reserve"]="เงินสำรอง",["Live status"]="สถานะปัจจุบัน",
     ["Connecting game modules..."]="กำลังเชื่อมต่อข้อมูลเกม...",["All automation starts off."]="ออโต้ทุกระบบเริ่มปิดไว้",
     ["Stop all automation"]="หยุดออโต้ทั้งหมด",["Inventory"]="กระเป๋า",["Sell and protect"]="ขายและเก็บตัว",
-    ["Auto Sell Filtered Units"]="ขายอัตโนมัติตามตัวกรอง",["Sell maximum chance (0 = off)"]="โอกาสสุ่มสูงสุดที่ขาย (0 = ปิด)",
-    ["Keep best units"]="จำนวนตัวดีที่สุดที่เก็บ",["Keep copies per character"]="จำนวนที่เก็บต่อชื่อตัว",
-    ["Keep mutated / variant units"]="เก็บตัวติด Mutation / Variant",["Keep character names"]="ชื่อตัวที่เก็บไว้",
-    ["Keep specific units"]="เลือกตัวที่เก็บไว้",["Disable game Auto Sell"]="ปิด Auto Sell เดิมของเกม",
+
+
+    ["Keep character names"]="ชื่อตัวที่เก็บไว้",
+    ["Keep specific units"]="เลือกตัวที่เก็บไว้",
     ["Preview matching units before selling or fusing."]="ดูรายชื่อก่อนเปิดขายหรือผสม",["Preview sale"]="ดูตัวที่จะขาย",
     ["Lock and fusion"]="ล็อกและผสม",["Auto Lock Rare Units"]="ล็อกตัวหายากอัตโนมัติ",
     ["Lock minimum chance (0 = off)"]="โอกาสสุ่มขั้นต่ำที่ล็อก (0 = ปิด)",["Auto Fuse Surplus Units"]="ผสมตัวส่วนเกินอัตโนมัติ",

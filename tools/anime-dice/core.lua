@@ -2,12 +2,12 @@ return function(ctx,P)
     local jobs={"Roll","Collect","EquipBase","Level","Upgrade","Dice","Sell","Lock","Tower","Haunted","Rebirth","Stats",
         "Trait","Grade","Quirk","Fuse","Boost","Spin","Gear","Rewards","Quests","Codes","Pumpkin","Pass","EventQuests","CandyShop","Doors","QuestShop"}
     local cfg={MoneyReserve=0,CandyReserve=0,PumpkinReserve=0,KeepBest=1,KeepCopies=1,KeepIds={},KeepNames={},SkipMutations=true,
-        SellChanceMax=0,FuseChanceMax=0,LockChanceMin=0,UpgradeBranch="All",DiceChoice="Best affordable",LevelCap=100,
+        FuseChanceMax=0,LockChanceMin=0,UpgradeBranch="All",DiceChoice="Best affordable",LevelCap=100,
         TowerChoice="",WingChoice="Front Yard",RebirthLimit=1,StatChoice="Luck",SelectedUnit="",RerollLimit=50,
         TraitTargets={},GradeTargets={},QuirkTargets={},BoostNames={},SpinNames={},GearPriority="Luck",PumpkinCount=1,
         PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true,DoorMovement="Teleport"}
     local clock=ctx.Clock or os.clock
-    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-2",Jobs={},Log={},LiveVerified=false},Stopped=false,Generation={}}
+    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-3",Jobs={},Log={},LiveVerified=false},Stopped=false,Generation={}}
     local states,handlers,pending,spend={}, {}, {}, {}
     local towerOwned=false;local towerEpoch=0;local originalRoll,rollOwned=nil,false
     local doorReady=setmetatable({},{__mode="k"});local lastKnock;local nextIslandTravel=0;local stopEpoch=0
@@ -88,13 +88,13 @@ return function(ctx,P)
     end
     function ctl.Preview(kind)
         local d=data()
-        return P.Materials(d,catalog("Registry"),cfg,kind=="Fuse"and cfg.FuseChanceMax or cfg.SellChanceMax,kind=="Fuse")
+        return P.Materials(d,catalog("Registry"),cfg,kind=="Fuse"and cfg.FuseChanceMax or 0,kind=="Fuse")
     end
     function ctl.SellSummary()
-        local d=data();local units=P.Units(d,catalog("Registry"));local items=ctl.Preview("Sell")
-        if cfg.SellChanceMax<=0 then return "Set Sell maximum chance above 0 (example: 1/1,000)."end
+        local d=data();local units=P.Units(d,catalog("Registry"));local items=P.Materials(d,catalog("Registry"),cfg,0,false)
         if d.PendingTrade then return "Sale paused: trade in progress."end
-        return string.format("%d eligible / %d units | Ceiling: 1 / %.4g | Keep best: %d | Keep per name: %d",#items,#units,cfg.SellChanceMax,cfg.KeepBest,cfg.KeepCopies)
+        if d.EquippedUnitKnown==false then return "Sale paused: waiting for carried unit data."end
+        return string.format("Sell All Unused: %d eligible / %d units | Used, locked and kept units excluded",#items,#units)
     end
     handlers.Roll=function(name,token,d)
         if cfg.UseNativeRoll then
@@ -163,7 +163,7 @@ return function(ctx,P)
         expect(name,function(s)return s.Dice==item.name end,"Equipping "..item.name);return 1
     end
     handlers.Sell=function(name,token,d)
-        local items=P.Materials(d,catalog("Registry"),cfg,cfg.SellChanceMax,false)
+        local items=P.Materials(d,catalog("Registry"),cfg,0,false)
         local ids={};for i=1,math.min(25,#items)do ids[i]=items[i].id end
         if #ids==0 then status(name,ctl.SellSummary());return 3 end
         local earned,count=call(name,token,"RF","SellService","SellInventory",ids)
