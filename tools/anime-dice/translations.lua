@@ -1,5 +1,7 @@
 -- Reuse the single language menu provided by the shared DEVIL HUB presentation.
 local translations={
+    ["Anime Dice"]="Anime Dice",
+    ["All automation starts off. Launch directly or through the DEVIL HUB main loader. Game rules, balances and inventory updates decide the result."]="ออโต้ทุกระบบเริ่มปิด ใช้ได้โดยตรงหรือผ่าน loader หลัก DEVIL HUB ผลขึ้นกับกติกา ยอดคงเหลือ และกระเป๋าในเกม",
     ["Rarities to sell (empty = all)"]="ระดับที่ต้องการขาย (ไม่เลือก = ขายทั้งหมด)",
     ["Select rarities to sell only those tiers. Clear every selection to Sell All Unused."]="เลือกขายได้หลายระดับ หากไม่เลือกเลยจะขายตัวที่ไม่ได้ใช้ทั้งหมด",
     ["Teleports to ground at each event door and waits for server travel limits, cooldown and confirmed rewards."]="วาร์ปลงพื้นหน้าประตูอีเวนต์ รอเวลาระหว่างประตู คูลดาวน์ และยืนยันรางวัลจากเกม",

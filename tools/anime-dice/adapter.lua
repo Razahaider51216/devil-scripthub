@@ -5,7 +5,7 @@ return function(scope)
     local flights=scope.DevilAnimeDiceFlights or{};scope.DevilAnimeDiceFlights=flights
     local requireModule=require
     local paths={
-        Data="Data.DataController",Registry="Inventory.EntryRegistry",Buffs="Buffs.BuffController",UnitController="Inventory.Kinds.Unit.UnitController",Rarities="Rarities",
+        Data="Data.DataController",Registry="Inventory.EntryRegistry",Buffs="Buffs.BuffController",BuffConfig="Buffs.BuffsConfig",Monetization="Monetization.MonetizationConfig",UnitController="Inventory.Kinds.Unit.UnitController",Rarities="Rarities",
         Dice="Rolling.Dice",PlotConfig="Plot.PlotConfig",UnitUtil="Inventory.Kinds.Unit.UnitUtil",
         Upgrades="Upgrades.Upgrades",TreeStructure="Upgrades.TreeStructure",Towers="Towers.Towers",TowerRefs="Towers.TowerRefs",
         Rebirths="Rebirth.Rebirths",RebirthStats="Rebirth.RebirthStatsConfig",Traits="Traits.Traits",Grades="Grades.Grades",

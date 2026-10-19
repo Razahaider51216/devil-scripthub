@@ -1,7 +1,7 @@
--- Standalone TEST entry. The production router is intentionally unchanged.
+-- DEVIL HUB Anime Dice entry, available directly and through the main loader.
 assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
 local scope=type(getgenv)=="function"and getgenv()or _G
-local release="anime-dice-test-20261020-7"
+local release="anime-dice-test-20261020-8"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end
@@ -153,7 +153,7 @@ return function(scope)
     local flights=scope.DevilAnimeDiceFlights or{};scope.DevilAnimeDiceFlights=flights
     local requireModule=require
     local paths={
-        Data="Data.DataController",Registry="Inventory.EntryRegistry",Buffs="Buffs.BuffController",UnitController="Inventory.Kinds.Unit.UnitController",Rarities="Rarities",
+        Data="Data.DataController",Registry="Inventory.EntryRegistry",Buffs="Buffs.BuffController",BuffConfig="Buffs.BuffsConfig",Monetization="Monetization.MonetizationConfig",UnitController="Inventory.Kinds.Unit.UnitController",Rarities="Rarities",
         Dice="Rolling.Dice",PlotConfig="Plot.PlotConfig",UnitUtil="Inventory.Kinds.Unit.UnitUtil",
         Upgrades="Upgrades.Upgrades",TreeStructure="Upgrades.TreeStructure",Towers="Towers.Towers",TowerRefs="Towers.TowerRefs",
         Rebirths="Rebirth.Rebirths",RebirthStats="Rebirth.RebirthStatsConfig",Traits="Traits.Traits",Grades="Grades.Grades",
@@ -326,7 +326,7 @@ return function(ctx,P)
         TraitTargets={},GradeTargets={},QuirkTargets={},BoostNames={},SpinNames={},GearPriority="Luck",PumpkinCount=1,
         PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true}
     local clock=ctx.Clock or os.clock
-    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-7",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
+    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-8",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
     local states,handlers,pending,spend={}, {}, {}, {}
     local towerOwned=false;local towerName;local towerEpoch=0;local originalRoll,rollOwned=nil,false
     local doorReady=setmetatable({},{__mode="k"});local lastKnock;local nextIslandTravel=0;local stopEpoch=0
@@ -885,6 +885,8 @@ return function(window,ctx,app,logo)
         if type(image)=="function"then local worked,value=pcall(image,{});image=worked and value or nil end
         if type(image)=="number"then image="rbxassetid://"..image end
         if type(image)=="string"and image~=""then return image end
+        local pass=(ctx.Catalog.Monetization and ctx.Catalog.Monetization.Gamepasses or{})[name]
+        if pass and type(pass.image)=="string"then return pass.image end
         local images=ctx.Catalog.Halloween and ctx.Catalog.Halloween.Images or{}
         return images[name]or images[name:gsub("%s","")]
     end
@@ -905,10 +907,10 @@ return function(window,ctx,app,logo)
         return result
     end
     -- Capture only the popup created by this dropdown; other selectors are untouched.
-    local function picker(host,name,selected,default)
+    local function picker(host,name,selected,default,multiple)
         local before={};if window.Body then for _,child in ipairs(window.Body:GetChildren())do before[child]=true end end
-        local widget=host:CreateDropdown({Name=name,Options=default and{default}or{},CurrentOption=default,Searchable=true,PopupWidth=420,
-            AllowNone=default==nil,Callback=selected})
+        local widget=host:CreateDropdown({Name=name,Options=default and{default}or{},CurrentOption=multiple and{}or default,MultipleOptions=multiple==true,Searchable=true,PopupWidth=420,
+            AllowNone=multiple==true or default==nil,Callback=selected})
         local popup
         if window.Body then for _,child in ipairs(window.Body:GetChildren())do
             if not before[child]and child:IsA("Frame")then popup=child end
@@ -922,6 +924,55 @@ return function(window,ctx,app,logo)
     end
     local function plainText(text)
         return text:gsub("<[^>]*>",""):gsub("&amp;","&"):gsub("&lt;","<"):gsub("&gt;",">")
+    end
+    local itemPickers={}
+    function view.CreateItems(host,key,name,selected,multiple,default)
+        local widget,popup=picker(host,name,selected,default,multiple)
+        itemPickers[key]={Widget=widget,Popup=popup,Multiple=multiple,Rows=setmetatable({},{__mode="k"})}
+        return widget
+    end
+    local priorityBuffs={Luck="Luck",Money="Money Multiplier",Damage="Damage Multiplier",Health="Health Multiplier",
+        Roll="Roll Duration",Candy="Candy Gain",Pumpkin="Pumpkin Gain"}
+    local function priorityImage(name)
+        local ok,spec=pcall(function()return ctx.Catalog.BuffConfig.GetBuff(priorityBuffs[name])end)
+        if ok and spec and type(spec.image)=="string"then return spec.image end
+        local images=ctx.Catalog.Halloween and ctx.Catalog.Halloween.Images or{}
+        return images[name=="Pumpkin"and"Pumpkins"or name]
+    end
+    function view.RefreshItems(key,names,offers)
+        local pickerInfo=itemPickers[key];if not pickerInfo then return end
+        pickerInfo.Widget:Refresh(names,true,true)
+        if not pickerInfo.Popup then return end
+        local wanted={};for _,name in ipairs(names)do wanted[name]=true end
+        local prices={};for _,offer in ipairs(offers or{})do prices[offer.name]=offer end
+        for _,text in ipairs(pickerInfo.Popup:GetDescendants())do
+            if text:IsA("TextLabel")and text.Parent and text.Parent:IsA("TextButton")then
+                local name=plainText(text.Text)
+                if wanted[name]then
+                    local row=pickerInfo.Rows[text]
+                    if not row then
+                        row={};pickerInfo.Rows[text]=row
+                        local left=pickerInfo.Multiple and 62 or 42
+                        text.Position=UDim2.fromOffset(left,0);text.Size=UDim2.new(1,-(left+30+(offers and 110 or 0)),1,0)
+                        local image=key=="GearPriority"and priorityImage(name)or nil
+                        if image then
+                            row.Icon=node("ImageLabel","PriorityIcon",text.Parent,{Image=image,ImageColor3=white,BackgroundTransparency=1,
+                                Size=UDim2.fromOffset(22,22),ScaleType=Enum.ScaleType.Fit,ZIndex=text.ZIndex+1})
+                            row.Icon:SetAttribute("CustomIcon",true)
+                        else row.Icon=view.Item(text.Parent,name,22,text.ZIndex+1)end
+                        row.Icon.AnchorPoint=Vector2.new(0,.5);row.Icon.Position=UDim2.new(0,pickerInfo.Multiple and 34 or 13,.5,0)
+                        if offers then
+                            row.Price=label("TicketPrice",text.Parent,{AnchorPoint=Vector2.new(1,.5),Position=UDim2.new(1,-29,.5,0),
+                                Size=UDim2.fromOffset(102,22),TextColor3=blue,TextSize=11,TextXAlignment=Enum.TextXAlignment.Right,ZIndex=text.ZIndex+1})
+                        end
+                    end
+                    if row.Price and prices[name]then
+                        local offer=prices[name]
+                        row.Price.Text=quantity(tonumber(offer.tickets)or 0).." Tickets"
+                    end
+                end
+            end
+        end
     end
     local shopRows=setmetatable({},{__mode="k"})
     function view.RefreshShop(offers)
@@ -1156,7 +1207,7 @@ end
     local theme={Background=Color3.fromRGB(7,9,13),Surface=Color3.fromRGB(11,13,18),Surface2=Color3.fromRGB(16,19,25),
         Surface3=Color3.fromRGB(32,39,49),Accent=Color3.fromRGB(164,221,255),Text=Color3.fromRGB(255,255,255),
         Muted=Color3.fromRGB(153,169,185),Warning=Color3.fromRGB(164,221,255)}
-    window=library:CreateWindow({Name="DEVIL HUB",Icon=image,LoadingSubtitle="ANIME DICE / TEST",
+    window=library:CreateWindow({Name="DEVIL HUB",Icon=image,LoadingSubtitle="ANIME DICE",
         Theme=theme,Density="Compact",Profile=true,Search=true,Home=false,Loading=false,Backdrop=false,
         UnsupportedExecutor=false,Disclaimer=false,Size=UDim2.fromOffset(840,570),
         ToggleButton={Platform="Both",Icon=image},IslandDraggable=true,KeepOnScreen=true,ConfigurationSaving={Enabled=false}})
@@ -1290,14 +1341,16 @@ end
     end
     local items=tab("Items and rewards","gift")
     local use=group(items,"Items and gear")
-    dropdown(use,"BoostNames","Boosts to use",{},nil,true);toggle(use,"Boost","Auto Use Selected Boosts")
-    dropdown(use,"SpinNames","Spins to use",{},nil,true);toggle(use,"Spin","Auto Use Selected Spins")
-    dropdown(use,"GearPriority","Gear priority",{"Luck","Money","Damage","Health","Roll","Candy","Pumpkin"},"Luck")
+    optionWidgets.BoostNames=presentation.CreateItems(use,"BoostNames","Boosts to use",function(v)cfg.BoostNames=multi(v)end,true)
+    toggle(use,"Boost","Auto Use Selected Boosts")
+    optionWidgets.SpinNames=presentation.CreateItems(use,"SpinNames","Spins to use",function(v)cfg.SpinNames=multi(v)end,true)
+    toggle(use,"Spin","Auto Use Selected Spins")
+    optionWidgets.GearPriority=presentation.CreateItems(use,"GearPriority","Gear priority",function(v)cfg.GearPriority=v end,false,"Luck")
     toggle(use,"Gear","Auto Equip Gear")
     local rewards=group(items,"Rewards and codes","Right")
     toggle(rewards,"Rewards","Auto Claim Daily / Group / Offline")
     toggle(rewards,"Quests","Auto Claim Completed Quests")
-    dropdown(rewards,"QuestOffer","Quest shop item",{},nil)
+    optionWidgets.QuestOffer=presentation.CreateItems(rewards,"QuestOffer","Quest shop item",function(v)cfg.QuestOffer=v end,false)
     input(rewards,"QuestLimit","Quest purchase limit")
     input(rewards,"TicketReserve","Tickets reserve")
     toggle(rewards,"QuestShop","Auto Buy Quest Shop Item")
@@ -1348,7 +1401,7 @@ end
     end)
     actions:CreateToggle({Name="Use game Auto Roll",CurrentValue=true,Callback=function(v)core.Set("Roll",false);cfg.UseNativeRoll=v end})
     button(actions,"Close test",destroy)
-    actions:CreateParagraph({Name="Standalone test",Content="All automation starts off. This test is separate from the main loader. Game rules, balances and inventory updates decide the result."})
+    actions:CreateParagraph({Name="Anime Dice",Content="All automation starts off. Launch directly or through the DEVIL HUB main loader. Game rules, balances and inventory updates decide the result."})
     local function keys(t)
         local list={};for name in pairs(t or{})do if type(name)=="string"then list[#list+1]=name end end;table.sort(list);return list
     end
@@ -1376,7 +1429,9 @@ end
             end
         end
         presentation.RefreshShop(c.HalloweenShop)
-        local questOffers={};for _,offer in ipairs(c.Quest and c.Quest.Shop or{})do questOffers[#questOffers+1]=offer.name end;options("QuestOffer",questOffers)
+        local questOffers={};for _,offer in ipairs(c.Quest and c.Quest.Shop or{})do questOffers[#questOffers+1]=offer.name end
+        presentation.RefreshItems("QuestOffer",questOffers,c.Quest and c.Quest.Shop or{})
+        presentation.RefreshItems("GearPriority",{"Luck","Money","Damage","Health","Roll","Candy","Pumpkin"})
         local pumpkinNames={};for _,unit in ipairs(c.PumpkinDice and c.PumpkinDice.Units or{})do pumpkinNames[#pumpkinNames+1]=unit.id end;options("PumpkinSellNames",pumpkinNames)
         if not pumpkinFilterInitialized then
             pumpkinFilterInitialized=true;local chosen={}
@@ -1396,7 +1451,8 @@ end
             local spec=c.Registry.getEntryConfig(entry.name)
             if spec and spec.kind=="Boost"then boosts[entry.name]=true elseif spec and spec.kind=="Spin"then spins[entry.name]=true end
         end
-        unitPicker:Refresh(labels,true,true);options("KeepIds",labels);options("KeepNames",keys(names));options("BoostNames",keys(boosts));options("SpinNames",keys(spins))
+        unitPicker:Refresh(labels,true,true);options("KeepIds",labels);options("KeepNames",keys(names))
+        presentation.RefreshItems("BoostNames",keys(boosts));presentation.RefreshItems("SpinNames",keys(spins))
         local kept={};local selected
         for label,id in pairs(unitLabels)do if id==cfg.SelectedUnit then selected=label end;if cfg.KeepIds[id]then kept[#kept+1]=label end end
         unitPicker:Set(selected,true);keepWidget:Set(kept,true)
@@ -1404,6 +1460,8 @@ end
     button(actions,"Refresh inventory and choices",refreshOptions)
     -- Reuse the single language menu provided by the shared DEVIL HUB presentation.
 local translations={
+    ["Anime Dice"]="Anime Dice",
+    ["All automation starts off. Launch directly or through the DEVIL HUB main loader. Game rules, balances and inventory updates decide the result."]="ออโต้ทุกระบบเริ่มปิด ใช้ได้โดยตรงหรือผ่าน loader หลัก DEVIL HUB ผลขึ้นกับกติกา ยอดคงเหลือ และกระเป๋าในเกม",
     ["Rarities to sell (empty = all)"]="ระดับที่ต้องการขาย (ไม่เลือก = ขายทั้งหมด)",
     ["Select rarities to sell only those tiers. Clear every selection to Sell All Unused."]="เลือกขายได้หลายระดับ หากไม่เลือกเลยจะขายตัวที่ไม่ได้ใช้ทั้งหมด",
     ["Teleports to ground at each event door and waits for server travel limits, cooldown and confirmed rewards."]="วาร์ปลงพื้นหน้าประตูอีเวนต์ รอเวลาระหว่างประตู คูลดาวน์ และยืนยันรางวัลจากเกม",

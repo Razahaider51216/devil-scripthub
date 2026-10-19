@@ -42,6 +42,8 @@ return function(window,ctx,app,logo)
         if type(image)=="function"then local worked,value=pcall(image,{});image=worked and value or nil end
         if type(image)=="number"then image="rbxassetid://"..image end
         if type(image)=="string"and image~=""then return image end
+        local pass=(ctx.Catalog.Monetization and ctx.Catalog.Monetization.Gamepasses or{})[name]
+        if pass and type(pass.image)=="string"then return pass.image end
         local images=ctx.Catalog.Halloween and ctx.Catalog.Halloween.Images or{}
         return images[name]or images[name:gsub("%s","")]
     end
@@ -62,10 +64,10 @@ return function(window,ctx,app,logo)
         return result
     end
     -- Capture only the popup created by this dropdown; other selectors are untouched.
-    local function picker(host,name,selected,default)
+    local function picker(host,name,selected,default,multiple)
         local before={};if window.Body then for _,child in ipairs(window.Body:GetChildren())do before[child]=true end end
-        local widget=host:CreateDropdown({Name=name,Options=default and{default}or{},CurrentOption=default,Searchable=true,PopupWidth=420,
-            AllowNone=default==nil,Callback=selected})
+        local widget=host:CreateDropdown({Name=name,Options=default and{default}or{},CurrentOption=multiple and{}or default,MultipleOptions=multiple==true,Searchable=true,PopupWidth=420,
+            AllowNone=multiple==true or default==nil,Callback=selected})
         local popup
         if window.Body then for _,child in ipairs(window.Body:GetChildren())do
             if not before[child]and child:IsA("Frame")then popup=child end
@@ -79,6 +81,55 @@ return function(window,ctx,app,logo)
     end
     local function plainText(text)
         return text:gsub("<[^>]*>",""):gsub("&amp;","&"):gsub("&lt;","<"):gsub("&gt;",">")
+    end
+    local itemPickers={}
+    function view.CreateItems(host,key,name,selected,multiple,default)
+        local widget,popup=picker(host,name,selected,default,multiple)
+        itemPickers[key]={Widget=widget,Popup=popup,Multiple=multiple,Rows=setmetatable({},{__mode="k"})}
+        return widget
+    end
+    local priorityBuffs={Luck="Luck",Money="Money Multiplier",Damage="Damage Multiplier",Health="Health Multiplier",
+        Roll="Roll Duration",Candy="Candy Gain",Pumpkin="Pumpkin Gain"}
+    local function priorityImage(name)
+        local ok,spec=pcall(function()return ctx.Catalog.BuffConfig.GetBuff(priorityBuffs[name])end)
+        if ok and spec and type(spec.image)=="string"then return spec.image end
+        local images=ctx.Catalog.Halloween and ctx.Catalog.Halloween.Images or{}
+        return images[name=="Pumpkin"and"Pumpkins"or name]
+    end
+    function view.RefreshItems(key,names,offers)
+        local pickerInfo=itemPickers[key];if not pickerInfo then return end
+        pickerInfo.Widget:Refresh(names,true,true)
+        if not pickerInfo.Popup then return end
+        local wanted={};for _,name in ipairs(names)do wanted[name]=true end
+        local prices={};for _,offer in ipairs(offers or{})do prices[offer.name]=offer end
+        for _,text in ipairs(pickerInfo.Popup:GetDescendants())do
+            if text:IsA("TextLabel")and text.Parent and text.Parent:IsA("TextButton")then
+                local name=plainText(text.Text)
+                if wanted[name]then
+                    local row=pickerInfo.Rows[text]
+                    if not row then
+                        row={};pickerInfo.Rows[text]=row
+                        local left=pickerInfo.Multiple and 62 or 42
+                        text.Position=UDim2.fromOffset(left,0);text.Size=UDim2.new(1,-(left+30+(offers and 110 or 0)),1,0)
+                        local image=key=="GearPriority"and priorityImage(name)or nil
+                        if image then
+                            row.Icon=node("ImageLabel","PriorityIcon",text.Parent,{Image=image,ImageColor3=white,BackgroundTransparency=1,
+                                Size=UDim2.fromOffset(22,22),ScaleType=Enum.ScaleType.Fit,ZIndex=text.ZIndex+1})
+                            row.Icon:SetAttribute("CustomIcon",true)
+                        else row.Icon=view.Item(text.Parent,name,22,text.ZIndex+1)end
+                        row.Icon.AnchorPoint=Vector2.new(0,.5);row.Icon.Position=UDim2.new(0,pickerInfo.Multiple and 34 or 13,.5,0)
+                        if offers then
+                            row.Price=label("TicketPrice",text.Parent,{AnchorPoint=Vector2.new(1,.5),Position=UDim2.new(1,-29,.5,0),
+                                Size=UDim2.fromOffset(102,22),TextColor3=blue,TextSize=11,TextXAlignment=Enum.TextXAlignment.Right,ZIndex=text.ZIndex+1})
+                        end
+                    end
+                    if row.Price and prices[name]then
+                        local offer=prices[name]
+                        row.Price.Text=quantity(tonumber(offer.tickets)or 0).." Tickets"
+                    end
+                end
+            end
+        end
     end
     local shopRows=setmetatable({},{__mode="k"})
     function view.RefreshShop(offers)

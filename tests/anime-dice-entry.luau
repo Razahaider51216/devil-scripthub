@@ -25,7 +25,11 @@ local function setup(place,corrupt)
  module('Inventory','EntryRegistry',{getEntryConfig=function(name)
   if name=='Weak'then return {kind='Unit',chance=function()return 10 end,income=function()return 1 end,getRarity=function(a)return a.mutation=='Gold'and'Rare'or'Common'end}end
   if name=='Pumpkin Spin'or name=="Witch's Jackpot"or name=='Candy Pot I'or name=='Gems'then return {kind='Boost',image='rbxassetid://123456'}end
+  if name=='Lucky Spin'then return {kind='Spin',image='rbxassetid://654321'}end
  end})
+ module('Buffs','BuffsConfig',{GetBuff=function(name)return {image='rbxassetid://777'}end})
+ module('Monetization','MonetizationConfig',{Gamepasses={Luck={image='rbxassetid://999'}}})
+ module('Quests','QuestConfig',{Shop={{name='Gems',amount=10,tickets=1},{name='Luck',gamepass=true,tickets=199}}})
  local dice={Basic={luck=1,image='rbxassetid://1'},Fire={luck=5,price=2500,image='rbxassetid://2'},Water={luck=10,price=10000,image='rbxassetid://3'}}
  local offers={{name='Pumpkin Spin',candy=2500},{name='Candy Pot I',candy=500},{name="Witch's Jackpot",candy=50000}}
  module('Rolling','Dice',{GetAll=function()return dice end,GetDefault=function()return 'Basic'end})
@@ -198,7 +202,7 @@ do
  local f=setup(113290951185459,false);local destroyed=0
  f.scope.DevilAnimeDiceTest={Version='anime-dice-test-20261020-1',Stopped=false,Destroy=function()destroyed+=1 end}
  local app=f.Run()
- check(destroyed==1 and app.Version=='anime-dice-test-20261020-7','rerun retained previous broken release')
+ check(destroyed==1 and app.Version=='anime-dice-test-20261020-8','rerun retained previous broken release')
  app.Destroy()
 end
 do
@@ -267,5 +271,26 @@ do
  check(#p.Cards==0,'expired reward card remained visible')
  p.Notify({Tower='Test',Floor=12,Items={}});local last=p.Cards[1];app.Destroy()
  check(p.Root.destroyed and last.Frame.destroyed and not last.Link.Connected and not last.CollapseLink.Connected,'unload left cards / click connections alive')
+end
+do
+ local f=setup(113290951185459,false);local app=f.Run()
+ f.data.Inventory={boost={name='Candy Pot I',amount=2},spin={name='Lucky Spin',amount=1}}
+ table.remove(f.work,1)()
+ local boost=f.objects['Boosts to use'];local spins=f.objects['Spins to use'];local gear=f.objects['Gear priority'];local quest=f.objects['Quest shop item']
+ check(boost.Rows['Candy Pot I'].ItemIcon.Image=='rbxassetid://123456','Boost choice missing native item artwork')
+ check(spins.Rows['Lucky Spin'].ItemIcon.Image=='rbxassetid://654321','Spin choice missing native item artwork')
+ check(boost.Rows['Candy Pot I'].ItemIcon.Position.X.Offset==34 and boost.Rows['Candy Pot I'].OptionLabel.Position.X.Offset==62,'multi-select icons overlap selection checkbox')
+ for _,name in ipairs({'Luck','Money','Damage','Health','Roll','Candy','Pumpkin'})do
+  check(gear.Rows[name].PriorityIcon.Image=='rbxassetid://777','gear priority did not use native buff icon: '..name)
+ end
+ check(quest.Rows.Gems.ItemIcon.Image=='rbxassetid://123456'and quest.Rows.Luck.ItemIcon.Image=='rbxassetid://999','Quest item/gamepass icon missing')
+ check(quest.Rows.Gems.TicketPrice.Text=='1 Tickets'and quest.Rows.Luck.TicketPrice.Text=='199 Tickets','Quest ticket price incorrect')
+ boost.Callback({'Candy Pot I'});spins.Callback({'Lucky Spin'});gear.Callback('Damage');quest.Callback('Luck')
+ check(app.Config.BoostNames['Candy Pot I']and app.Config.SpinNames['Lucky Spin']and app.Config.GearPriority=='Damage'and app.Config.QuestOffer=='Luck','decorated choices changed actual use/equip/purchase keys')
+ f.objects['Refresh inventory and choices'].Callback();table.remove(f.work,#f.work)()
+ check(app.Config.BoostNames['Candy Pot I']and app.Config.SpinNames['Lucky Spin']and app.Config.GearPriority=='Damage'and app.Config.QuestOffer=='Luck','refresh cleared selected items / gear priority')
+ local copies=0;for _,child in ipairs(boost.Rows['Candy Pot I']:GetChildren())do if child.Name=='ItemIcon'then copies+=1 end end
+ check(copies==1 and #f.remote.Sent==0,'refresh duplicated item icons or started automation')
+ app.Destroy()
 end
 print('PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: '..checks..' checks')

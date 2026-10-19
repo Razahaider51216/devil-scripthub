@@ -1,7 +1,7 @@
--- Standalone TEST entry. The production router is intentionally unchanged.
+-- DEVIL HUB Anime Dice entry, available directly and through the main loader.
 assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
 local scope=type(getgenv)=="function"and getgenv()or _G
-local release="anime-dice-test-20261020-7"
+local release="anime-dice-test-20261020-8"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end
@@ -59,7 +59,7 @@ local ok,problem=xpcall(function()
     local theme={Background=Color3.fromRGB(7,9,13),Surface=Color3.fromRGB(11,13,18),Surface2=Color3.fromRGB(16,19,25),
         Surface3=Color3.fromRGB(32,39,49),Accent=Color3.fromRGB(164,221,255),Text=Color3.fromRGB(255,255,255),
         Muted=Color3.fromRGB(153,169,185),Warning=Color3.fromRGB(164,221,255)}
-    window=library:CreateWindow({Name="DEVIL HUB",Icon=image,LoadingSubtitle="ANIME DICE / TEST",
+    window=library:CreateWindow({Name="DEVIL HUB",Icon=image,LoadingSubtitle="ANIME DICE",
         Theme=theme,Density="Compact",Profile=true,Search=true,Home=false,Loading=false,Backdrop=false,
         UnsupportedExecutor=false,Disclaimer=false,Size=UDim2.fromOffset(840,570),
         ToggleButton={Platform="Both",Icon=image},IslandDraggable=true,KeepOnScreen=true,ConfigurationSaving={Enabled=false}})
@@ -193,14 +193,16 @@ local ok,problem=xpcall(function()
     end
     local items=tab("Items and rewards","gift")
     local use=group(items,"Items and gear")
-    dropdown(use,"BoostNames","Boosts to use",{},nil,true);toggle(use,"Boost","Auto Use Selected Boosts")
-    dropdown(use,"SpinNames","Spins to use",{},nil,true);toggle(use,"Spin","Auto Use Selected Spins")
-    dropdown(use,"GearPriority","Gear priority",{"Luck","Money","Damage","Health","Roll","Candy","Pumpkin"},"Luck")
+    optionWidgets.BoostNames=presentation.CreateItems(use,"BoostNames","Boosts to use",function(v)cfg.BoostNames=multi(v)end,true)
+    toggle(use,"Boost","Auto Use Selected Boosts")
+    optionWidgets.SpinNames=presentation.CreateItems(use,"SpinNames","Spins to use",function(v)cfg.SpinNames=multi(v)end,true)
+    toggle(use,"Spin","Auto Use Selected Spins")
+    optionWidgets.GearPriority=presentation.CreateItems(use,"GearPriority","Gear priority",function(v)cfg.GearPriority=v end,false,"Luck")
     toggle(use,"Gear","Auto Equip Gear")
     local rewards=group(items,"Rewards and codes","Right")
     toggle(rewards,"Rewards","Auto Claim Daily / Group / Offline")
     toggle(rewards,"Quests","Auto Claim Completed Quests")
-    dropdown(rewards,"QuestOffer","Quest shop item",{},nil)
+    optionWidgets.QuestOffer=presentation.CreateItems(rewards,"QuestOffer","Quest shop item",function(v)cfg.QuestOffer=v end,false)
     input(rewards,"QuestLimit","Quest purchase limit")
     input(rewards,"TicketReserve","Tickets reserve")
     toggle(rewards,"QuestShop","Auto Buy Quest Shop Item")
@@ -251,7 +253,7 @@ local ok,problem=xpcall(function()
     end)
     actions:CreateToggle({Name="Use game Auto Roll",CurrentValue=true,Callback=function(v)core.Set("Roll",false);cfg.UseNativeRoll=v end})
     button(actions,"Close test",destroy)
-    actions:CreateParagraph({Name="Standalone test",Content="All automation starts off. This test is separate from the main loader. Game rules, balances and inventory updates decide the result."})
+    actions:CreateParagraph({Name="Anime Dice",Content="All automation starts off. Launch directly or through the DEVIL HUB main loader. Game rules, balances and inventory updates decide the result."})
     local function keys(t)
         local list={};for name in pairs(t or{})do if type(name)=="string"then list[#list+1]=name end end;table.sort(list);return list
     end
@@ -279,7 +281,9 @@ local ok,problem=xpcall(function()
             end
         end
         presentation.RefreshShop(c.HalloweenShop)
-        local questOffers={};for _,offer in ipairs(c.Quest and c.Quest.Shop or{})do questOffers[#questOffers+1]=offer.name end;options("QuestOffer",questOffers)
+        local questOffers={};for _,offer in ipairs(c.Quest and c.Quest.Shop or{})do questOffers[#questOffers+1]=offer.name end
+        presentation.RefreshItems("QuestOffer",questOffers,c.Quest and c.Quest.Shop or{})
+        presentation.RefreshItems("GearPriority",{"Luck","Money","Damage","Health","Roll","Candy","Pumpkin"})
         local pumpkinNames={};for _,unit in ipairs(c.PumpkinDice and c.PumpkinDice.Units or{})do pumpkinNames[#pumpkinNames+1]=unit.id end;options("PumpkinSellNames",pumpkinNames)
         if not pumpkinFilterInitialized then
             pumpkinFilterInitialized=true;local chosen={}
@@ -299,7 +303,8 @@ local ok,problem=xpcall(function()
             local spec=c.Registry.getEntryConfig(entry.name)
             if spec and spec.kind=="Boost"then boosts[entry.name]=true elseif spec and spec.kind=="Spin"then spins[entry.name]=true end
         end
-        unitPicker:Refresh(labels,true,true);options("KeepIds",labels);options("KeepNames",keys(names));options("BoostNames",keys(boosts));options("SpinNames",keys(spins))
+        unitPicker:Refresh(labels,true,true);options("KeepIds",labels);options("KeepNames",keys(names))
+        presentation.RefreshItems("BoostNames",keys(boosts));presentation.RefreshItems("SpinNames",keys(spins))
         local kept={};local selected
         for label,id in pairs(unitLabels)do if id==cfg.SelectedUnit then selected=label end;if cfg.KeepIds[id]then kept[#kept+1]=label end end
         unitPicker:Set(selected,true);keepWidget:Set(kept,true)
