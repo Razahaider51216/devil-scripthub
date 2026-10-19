@@ -71,7 +71,11 @@ function mt.__newindex(self,key,value)
             table.insert(value.children,self)
             if value.signals.ChildAdded then value.signals.ChildAdded:Fire(self)end
             local p=value
-            while p do if p.signals.DescendantAdded then p.signals.DescendantAdded:Fire(self)end;p=p.Parent end
+            local added={self};for _,descendant in ipairs(self:GetDescendants())do table.insert(added,descendant)end
+            while p do
+                if p.signals.DescendantAdded then for _,descendant in ipairs(added)do p.signals.DescendantAdded:Fire(descendant)end end
+                p=p.Parent
+            end
         end
     else self.props[key]=value end
     if previous~=value and self.signals[key] then self.signals[key]:Fire()end

@@ -1,6 +1,6 @@
 -- Shared presentation only. Game callbacks, network APIs and compiler environments stay original.
 local scope=type(getgenv)=="function"and getgenv()or _G
-local VERSION="devil-blue-20261019-8"
+local VERSION="devil-blue-20261019-9"
 if scope.DevilHubBlueGui and scope.DevilHubBlueGui.Version==VERSION and not scope.DevilHubBlueGui.Stopped then return scope.DevilHubBlueGui end
 if scope.DevilHubBlueGui and scope.DevilHubBlueGui.Destroy then scope.DevilHubBlueGui.Destroy()end
 local controller={Version=VERSION,Stopped=false,Report={screens=0,nodes=0,callbacksReplaced=0}}
@@ -14,6 +14,7 @@ local inputHosts=setmetatable({},{__mode="k"})
 local dialogs=setmetatable({},{__mode="k"})
 local ui,refreshUI,refreshAll,createUI,windowRoot,refreshLayers={},nil,nil,nil,nil,nil
 local toggleTracks,toggleThumbs=setmetatable({},{__mode="k"}),setmetatable({},{__mode="k"})
+local waveTones=setmetatable({},{__mode="k"})
 local http=game:GetService("HttpService")
 local function hex(text)
     if type(text)~="string"then return nil end
@@ -790,6 +791,27 @@ local function glyphFrame(node)
     return size.X.Scale==0 and size.Y.Scale==0 and size.X.Offset>0 and size.Y.Offset>0
         and math.max(size.X.Offset,size.Y.Offset)<=24 and math.min(size.X.Offset,size.Y.Offset)<=4
 end
+local function waveHost(node)
+    local parent=node.Parent
+    while parent and not parent:IsA("ScreenGui")do
+        if parent.Name=="Island"and parent:IsA("CanvasGroup")
+            or parent.Name=="IslandBubble"and parent:IsA("GuiButton")then return true end
+        parent=parent.Parent
+    end
+    return false
+end
+local function waveBar(node)
+    -- OuroFlow's four animated bars are unnamed. Match their fixed horizontal
+    -- geometry inside the native mini bar, never their animated height/color.
+    if not node:IsA("Frame")or not node.Parent or not node.Parent:IsA("Frame")then return false end
+    local size,position,anchor=node.Size,node.Position,node.AnchorPoint
+    local group=node.Parent.Size
+    if size.X.Scale~=0 or size.X.Offset~=3 or size.Y.Scale~=0
+        or position.X.Scale~=0 or position.X.Offset<0 or position.X.Offset>15 or position.X.Offset%5~=0
+        or position.Y.Scale~=.5 or position.Y.Offset~=0 or anchor.X~=0 or anchor.Y~=.5
+        or group.X.Scale~=0 or group.X.Offset~=18 or group.Y.Scale~=0 or group.Y.Offset~=16 then return false end
+    return waveHost(node.Parent)
+end
 local function screenLayer(node)
     if not node or not node:IsA("GuiObject")then return end
     local current=node
@@ -840,6 +862,7 @@ local function target(node,key,source)
         -- Screen dimmers and input-catching planes are not menu cards.
         return source
     elseif key=="BackgroundTransparency"then
+        if waveTones[node]then return source end
         if inputHosts[node]then return .14 end
         if node:IsA("TextBox")then return source>=.98 and source or .14 end
         if node:IsA("GuiButton")and(launcher(node)or brandImage(node))then return 0 end
@@ -879,6 +902,7 @@ local function target(node,key,source)
         if parent and parent:IsA("TextLabel")and parent.BackgroundTransparency>=.98 then return ColorSequence.new(palette.Blue,white)end
         return ColorSequence.new(palette.Background,palette.Surface2)
     elseif key=="BackgroundColor3"then
+        if waveTones[node]then return white end
         if node:IsA("TextBox")or inputHosts[node]then return palette.Input end
         if launcher(node)or node:IsA("ImageButton")and brandImage(node)then return Color3.fromRGB(0,0,0)end
         if toggleTracks[node]then return toggleOn(node,toggleTracks[node])and palette.Accent or palette.Off end
@@ -911,6 +935,15 @@ local function observe(node,state,key)
         state.Source[key]=node[key]
         applyProperty(node,state,key)
     end,state.Links)
+end
+local function inspectWave(node,state)
+    if waveTones[node]or not waveBar(node)then return end
+    local tone=Instance.new("UIGradient")
+    tone.Name="DevilWaveTone";tone:SetAttribute("DevilBlueSettings",true)
+    tone.Color=ColorSequence.new(palette.Blue,white);tone.Rotation=90
+    waveTones[node]=tone;tone.Parent=node
+    applyProperty(node,state,"BackgroundColor3")
+    applyProperty(node,state,"BackgroundTransparency")
 end
 refreshLayers=function(screen)
     for node,parent in pairs(dialogs)do
@@ -1002,6 +1035,14 @@ local function patch(node)
     local state={Source={},Applied={},Writing={},Links={}};states[node]=state
     controller.Report.nodes+=1
     for _,key in ipairs(keys)do observe(node,state,key)end
+    if node:IsA("Frame")and waveHost(node)then
+        inspectWave(node,state)
+        -- Instance factories may parent before assigning geometry. One deferred
+        -- probe handles that order without subscribing to per-frame Size writes.
+        if not waveTones[node]then
+            task.defer(function()if not controller.Stopped and node.Parent and states[node]==state then inspectWave(node,state)end end)
+        end
+    end
     if node:IsA("GuiButton")then
         inspectLayer(node,state)
         for _,key in ipairs({"Size","ZIndex","Parent"})do
@@ -1013,7 +1054,7 @@ local function patch(node)
     if toggleThumbs[node]then applyProperty(node,state,"BackgroundColor3")end
     keep(node.Destroying,function()
         for _,link in ipairs(state.Links)do link:Disconnect()end
-        dialogs[node]=nil;states[node]=nil
+        dialogs[node]=nil;waveTones[node]=nil;states[node]=nil
     end,state.Links)
     if node:IsA("ImageLabel")or node:IsA("ImageButton")then
         keep(node:GetPropertyChangedSignal("Size"),function()
@@ -1273,6 +1314,7 @@ function controller.Destroy()
         for _,link in ipairs(state.Links)do link:Disconnect()end
         for key,value in pairs(state.Source)do pcall(function()if node[key]==state.Applied[key]then node[key]=value end end)end
     end
+    for node,tone in pairs(waveTones)do tone:Destroy();waveTones[node]=nil end
     table.clear(roots)
     for _,panel in pairs(table.clone(ui))do panel.Cleanup();panel.Frame:Destroy()end
     if scope.DevilHubBlueGui==controller then scope.DevilHubBlueGui=nil end

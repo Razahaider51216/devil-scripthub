@@ -22,6 +22,14 @@ including unnamed library icons. Named inventory, pet/item images, avatars and
 thumbnail images keep their source colors. Composite open buttons keep a solid
 black background and white DEVIL logo.
 
+The four animated mini-bar waveform bars use a vertical #68B1FF-to-white
+gradient on an opaque white base. Matching is restricted to their native fixed
+horizontal geometry under Island/IslandBubble; animated height, native status
+callbacks, visibility and reparenting remain original. Native color redraws
+retain the gradient; unload removes it and restores the latest native color.
+One deferred construction probe supports parent-first instance factories without
+subscribing to per-frame height changes.
+
 The 583-entry English/Thai dictionary handles common menus and features. Unknown
 wording stays original. Inert translation labels preserve the engine's raw Text
 values and callbacks. TextBox input is not translated. Native search still uses
@@ -88,6 +96,8 @@ parents, dimensions, native/applied opacity and main-window visibility.
 
 165 offline UI checks include eight cycles of the library's original Minimize /
 Restore functions with simulated animation timing, plus integrity, callback and
-routing checks. A regression replay confirms that the previous release adopts
+routing checks. Another 25 offline checks reproduce the previous dark waveform
+and validate color redraws, 80 native height writes, pinned/compact placement,
+late construction, HUD isolation and unload restoration. A regression replay confirms that the previous release adopts
 the temporary animation frame. Live
 Roblox/Delta rendering across every game still requires validation.
