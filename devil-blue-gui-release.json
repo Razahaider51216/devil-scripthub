@@ -1,65 +1,65 @@
 {
-  "release": "devil-blue-20261019-7",
-  "module_commit": "9187848e2ab566636c81c7dde5d2efe93c161add",
-  "module_sha256": "e152999dfe4c11f539ffb93161f2254e906b77b76d9ae329352e4a33fbca011b",
+  "release": "devil-blue-20261019-8",
+  "module_commit": "8985ef77de8684b26d4c293d753788024f5e0294",
+  "module_sha256": "ebf71d6163a917e63e2a9a7ea3a449df039cdf79aa6287b119e2def21a6450bd",
   "gameplay_bodies_unchanged": true,
   "live_verified": false,
   "entries": {
     "mine-auto-test.lua": {
       "original_body_sha256": "5eae6432fb73c9922460c5a0ad3683f2f0b93d13d6b3a7e2274cf865df630df0",
-      "public_sha256": "e3964d7a459629a2138a531ee86600b2c04cf61795dc6e557a4e31e5179082a5"
+      "public_sha256": "55950e75470e2a469c7f1d4bd610e702709c367b2dee1e1a8bce00dba3422363"
     },
     "tapping-auto-test.lua": {
       "original_body_sha256": "b0f3b3af1be12f81151d6cec9913fdcbbe4f8482d9378d63087ee3bf93f1947e",
-      "public_sha256": "e4eefa848cda538e53bde1a3ea9e96f876dd2c9e432e27af208e178744784134"
+      "public_sha256": "4cc15d929480aa569e301de79ddb9bd13ece42589dbc4734f7f6c2385cc9b929"
     },
     "climb-for-eggs.lua": {
       "original_body_sha256": "bfaa03d58f3eda5ee18fd1961b555868a77c5ba9d91fb11a3fca59e03c2f6d1e",
-      "public_sha256": "4f746fcabaf825401eec75ce6460ffa33bad49b7bd1d95fb3e0566fca2146f83"
+      "public_sha256": "b87f1897e1c69b9419ae15966b28c76b123c0a7d27569c4a463623fbd193afeb"
     },
     "lift-rock-for-eggs.lua": {
       "original_body_sha256": "ad9a36e4772cbd28513f732698391de49a460b34e4e9b873b6cbdc55d4e7f67e",
-      "public_sha256": "5a80482177a7763a0f2c9f5e0b371a2585839a6d30ef769e25dd1c307b679a99"
+      "public_sha256": "3c14cacdc8bf85c43627ebb1771fe55c695bd4306c4661515eb8b83d2ba64d72"
     },
     "aqua-auto-egg.lua": {
       "original_body_sha256": "08b7b2cccb5f615e7c1fb2c2bca24e5517103b7d0cdbbef88b08b62385d1657a",
-      "public_sha256": "456bea70405ed83ad8be3948a77a02b975491bb6fc260398a8ec87e3f3117d44"
+      "public_sha256": "d35e10e3a138950fef10a3823f9435bdd89597aca72dd95cae110b3dca40df6a"
     },
     "devil-steal-an-egg.lua": {
       "original_body_sha256": "0955d8ef3f322c11ca22fd3d366a5b4552c8d2e3bd6456b5b705de5c25f09df6",
-      "public_sha256": "1c899e4fe14b37d7460420d6028258d345a141cfafcc924f00bd31c96b9a27a8"
+      "public_sha256": "54ba0ff2a9c59e38823f865043729aa449317d928220d2f4a401fcf1dd07f5c6"
     },
     "ride-a-pet.lua": {
       "original_body_sha256": "0a2ba202ff86c3c6bbc5968854cbad0ad65a98d435c7dadee7d5145045918ea8",
-      "public_sha256": "b1606321f10120891a9c2b833686edd1684c83fc4232cdf44df3d3ef9d8dae02"
+      "public_sha256": "f82536895392f95767e0d30f60bd9626fc157346b63f8baeb4359d7e2486a6e1"
     },
     "break-and-steal-an-egg.lua": {
       "original_body_sha256": "5b1eaa9ede6b9c9a5a2b1788fe161daf6d81381c4aa765a082403576ecd16ec4",
-      "public_sha256": "f026445f1b5063509bcf6f60fdb57f2ff0f5c2947ba020508721d716f2e1d717"
+      "public_sha256": "da8e2c52f9c2411500d12979b246fd22ccfaad2e5fac2cc57b7369d896b6ba12"
     },
     "loot-to-forge.lua": {
       "original_body_sha256": "88eca6b5ecc3e8c184095f1fa6fd01c87fdf7c78bdf7233251f978096594c515",
-      "public_sha256": "ef909b0b39f3f0770b60dbbbfcae4518fb89d9c6130b1451105e2bc7ecaf3fa1"
+      "public_sha256": "a510c82dc3b058aacb0ec712d2548ba60f3311bd957a50b0c76ba8d5298d8d84"
     },
     "build-an-ant-empire.lua": {
       "original_body_sha256": "1ade406247e543c1a04386a4d52cc890ad7995747abb00198141f524dc66d004",
-      "public_sha256": "7b8b92382d24fc389927d07e1bc4632265db9596ddbdbbc0bd3ba1256ec13e61"
+      "public_sha256": "530138b2c9549ff6957c0d5f90ab74178d25ab66a0f0055426556236939b8084"
     },
     "ride-a-pet-delta.lua": {
       "original_body_sha256": "ff15ce6bf52b96aa8c693ca0a36aec3a88f8126612016b985db4dca07249afeb",
-      "public_sha256": "2f93024c1c9381e91839fb7e0bbc2edb26fa3e86fd0aad40384fb11680a524f4"
+      "public_sha256": "3906bbc6e7ec274c792d808c67805bf465f7a1afc7a5226b15248250ecd61b07"
     },
     "break-and-steal-an-egg-runtime.lua": {
       "original_body_sha256": "0484a89304a64852ca6324dc4c633148ee55f11d24976c2b078b123c4b601215",
-      "public_sha256": "963b06a60f337f05f5b076d06fd2132109078d1f5effa0e46a635abe40ddcdbd"
+      "public_sha256": "47e78b9459bc0bee91833791d66fb4c6534100d0dc93b6e2d563ed37217b7c4c"
     },
     "devil-steal-an-egg-chilli-main-gui.lua": {
       "original_body_sha256": "b92a71bf03b1621e8b0b67d857d09496a864be8b93ac50f1a57750a59f31c4b2",
-      "public_sha256": "8818db31eccece7f7286d58e37c6e4c18ce6965b0c337a49320e4070e3ff0045"
+      "public_sha256": "8b155e6e0eeae4e204f8fef63d31b2d599fc4814af70d1810d46504df9f7a0aa"
     },
     "devil-steal-an-egg-chilli-recovered-ui-test.lua": {
       "original_body_sha256": "b92a71bf03b1621e8b0b67d857d09496a864be8b93ac50f1a57750a59f31c4b2",
-      "public_sha256": "8818db31eccece7f7286d58e37c6e4c18ce6965b0c337a49320e4070e3ff0045"
+      "public_sha256": "8b155e6e0eeae4e204f8fef63d31b2d599fc4814af70d1810d46504df9f7a0aa"
     }
   }
 }
