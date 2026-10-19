@@ -1,7 +1,7 @@
 -- Standalone TEST entry. The production router is intentionally unchanged.
 assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
 local scope=type(getgenv)=="function"and getgenv()or _G
-local release="anime-dice-test-20261020-6"
+local release="anime-dice-test-20261020-7"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end
@@ -326,7 +326,7 @@ return function(ctx,P)
         TraitTargets={},GradeTargets={},QuirkTargets={},BoostNames={},SpinNames={},GearPriority="Luck",PumpkinCount=1,
         PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true}
     local clock=ctx.Clock or os.clock
-    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-6",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
+    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-7",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
     local states,handlers,pending,spend={}, {}, {}, {}
     local towerOwned=false;local towerName;local towerEpoch=0;local originalRoll,rollOwned=nil,false
     local doorReady=setmetatable({},{__mode="k"});local lastKnock;local nextIslandTravel=0;local stopEpoch=0
@@ -843,7 +843,7 @@ end)()
 local makePresentation=(function()
 -- Owned UI additions. Native dropdown values and purchase callbacks stay intact.
 return function(window,ctx,app,logo)
-    local view={Cards={},Language="EN"}
+    local view={Cards={},Language="EN",Collapsed=false}
     local white=Color3.fromRGB(255,255,255);local blue=Color3.fromRGB(164,221,255)
     local muted=Color3.fromRGB(160,178,195);local black=Color3.fromRGB(7,9,13)
     local candyPaths={{7.0,10.0,2.0,7.0,3.0,12.0,2.0,17.0,7.0,14.0},{17.0,10.0,22.0,7.0,21.0,12.0,22.0,17.0,17.0,14.0},{10.0,9.0,12.0,15.0}} -- Generated from assets/devil-candy.svg.
@@ -1013,7 +1013,11 @@ return function(window,ctx,app,logo)
         Size=UDim2.fromOffset(260,240),BackgroundTransparency=1,ZIndex=80})
     local function remove(index)
         local card=table.remove(view.Cards,index)
-        if card then if card.Link then card.Link:Disconnect()end;card.Frame:Destroy()end
+        if card then
+            if card.Link then card.Link:Disconnect()end
+            if card.CollapseLink then card.CollapseLink:Disconnect()end
+            card.Frame:Destroy()
+        end
     end
     local function viewport()
         local camera=workspace.CurrentCamera
@@ -1039,11 +1043,23 @@ return function(window,ctx,app,logo)
         local y=0
         for _,card in ipairs(view.Cards)do
             local body=math.min(bodyMax,math.max(1,#card.Event.Items)*20)
-            card.Frame.Position=UDim2.fromOffset(0,y);card.Frame.Size=UDim2.new(1,0,0,56+body)
+            local cardHeight=view.Collapsed and 50 or 56+body
+            card.Frame.Position=UDim2.fromOffset(0,y);card.Frame.Size=UDim2.new(1,0,0,cardHeight)
+            card.List.Visible=not view.Collapsed
+            card.Collapse.Text=view.Collapsed and"+"or"−"
             card.List.Size=UDim2.new(1,-16,0,body)
             card.Timer.Size=UDim2.new(math.clamp((card.Expires-now)/7,0,1),0,0,2)
-            y+=62+body
+            y+=cardHeight+6
         end
+    end
+    function view.SetCollapsed(value)
+        if app.Stopped then return end
+        view.Collapsed=value==true
+        -- Keep the setting for subsequent floors, and give an expanded card
+        -- enough time to read after clicking near its original expiry.
+        local now=os.clock()
+        for _,card in ipairs(view.Cards)do card.Expires=now+7 end
+        view.Tick(now)
     end
     function view.Notify(event)
         if app.Stopped then return end
@@ -1052,7 +1068,7 @@ return function(window,ctx,app,logo)
         if logo then node("ImageLabel","DevilHubLogo",frame,{Position=UDim2.fromOffset(8,6),Size=UDim2.fromOffset(18,18),
             Image=logo,ImageColor3=white,BackgroundTransparency=1,ScaleType=Enum.ScaleType.Fit,ZIndex=83})
         else label("DevilHubLogo",frame,{Text="D",TextSize=17,TextColor3=white,Position=UDim2.fromOffset(8,5),Size=UDim2.fromOffset(18,20)})end
-        label("Brand",frame,{Text="DEVIL HUB",Font=Enum.Font.GothamBold,TextSize=10,TextColor3=blue,Position=UDim2.fromOffset(34,6),Size=UDim2.new(1,-66,0,18)})
+        label("Brand",frame,{Text="DEVIL HUB",Font=Enum.Font.GothamBold,TextSize=10,TextColor3=blue,Position=UDim2.fromOffset(34,6),Size=UDim2.new(1,-90,0,18)})
         local stage=label("Stage",frame,{Position=UDim2.fromOffset(8,27),Size=UDim2.new(1,-16,0,18),TextSize=11,Font=Enum.Font.GothamMedium})
         local list=node("ScrollingFrame","Rewards",frame,{Position=UDim2.fromOffset(8,49),BackgroundTransparency=1,BorderSizePixel=0,
             ScrollBarThickness=2,ScrollBarImageColor3=blue,CanvasSize=UDim2.fromOffset(0,math.max(1,#event.Items)*20),ZIndex=82})
@@ -1065,6 +1081,9 @@ return function(window,ctx,app,logo)
             label("ItemAmount",row,{Text="×"..quantity(item.Amount),TextSize=11,TextColor3=blue,Position=UDim2.new(1,-58,0,0),Size=UDim2.fromOffset(58,18),TextXAlignment=Enum.TextXAlignment.Right})
         end
         card.Timer=node("Frame","Lifetime",frame,{Position=UDim2.new(0,0,1,-2),BackgroundColor3=blue,BorderSizePixel=0,ZIndex=83})
+        card.Collapse=node("TextButton","Collapse",frame,{Text="−",Font=Enum.Font.Gotham,TextSize=16,TextColor3=blue,
+            AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-27,0,4),Size=UDim2.fromOffset(20,20),BackgroundTransparency=1,ZIndex=85})
+        card.CollapseLink=card.Collapse.MouseButton1Click:Connect(function()view.SetCollapsed(not view.Collapsed)end)
         local close=node("TextButton","Dismiss",frame,{Text="×",Font=Enum.Font.Gotham,TextSize=16,TextColor3=white,
             AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-5,0,4),Size=UDim2.fromOffset(20,20),BackgroundTransparency=1,ZIndex=85})
         card.Link=close.MouseButton1Click:Connect(function()

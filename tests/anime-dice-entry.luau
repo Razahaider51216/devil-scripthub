@@ -125,7 +125,7 @@ local function setup(place,corrupt)
  local originalCompiler=env.loadstring;local originalHttp=game.HttpGet
  local fn=assert(nativeCompile(entrySource));setfenv(fn,env)
  return {Run=fn,scope=scope,work=work,objects=objects,remote=remote,env=env,data=data,offers=offers,dice=dice,
-  advance=function(n)clockNow+=n end,actions=function(value)floorActions=value end,
+  advance=function(n)clockNow+=n end,now=function()return clockNow end,actions=function(value)floorActions=value end,
   compiler=originalCompiler,http=originalHttp,game=game,language=function(v)language=v end,
   counts=function()return downloads,libraryCalls end,window=function()return window end}
 end
@@ -198,7 +198,7 @@ do
  local f=setup(113290951185459,false);local destroyed=0
  f.scope.DevilAnimeDiceTest={Version='anime-dice-test-20261020-1',Stopped=false,Destroy=function()destroyed+=1 end}
  local app=f.Run()
- check(destroyed==1 and app.Version=='anime-dice-test-20261020-6','rerun retained previous broken release')
+ check(destroyed==1 and app.Version=='anime-dice-test-20261020-7','rerun retained previous broken release')
  app.Destroy()
 end
 do
@@ -242,19 +242,30 @@ do
  check(rows[2].ItemIconFallback~=nil,'unknown reward had no fallback icon')
  p.Notify({Tower='Front Yard',Floor=2,Items={}})
  check(#p.Cards==2 and p.Cards[1].Empty.Text=='No drops this floor','no-drop floor claimed a reward or did not show separately')
+ p.Cards[1].Collapse.MouseButton1Click:Fire()
+ check(p.Collapsed and not card.List.Visible and card.Frame.Size.Y.Offset==50,'collapse did not hide rewards / shrink stack')
+ check(card.Stage.Visible and card.Frame.DevilHubLogo.Visible and card.Frame.Brand.Visible,'collapse hid the tower / logo header')
+ check(#card.Event.Items==2 and p.Cards[1].Collapse.Text=='+','collapse discarded rewards or did not offer expansion')
+ f.advance(2);p.Cards[1].Collapse.MouseButton1Click:Fire()
+ check(not p.Collapsed and card.List.Visible and card.Frame.Size.Y.Offset>50,'expand did not restore complete reward card')
+ check(card.Expires>=f.now()+7,'interacting with notice did not refresh reading time')
+ p.Cards[1].Collapse.MouseButton1Click:Fire()
  p.SetLanguage('TH');check(p.Cards[1].Stage.Text=='Front Yard  ·  ชั้น 2','Tower floor did not use selected language')
  local many={};for i=1,20 do many[i]={Name='Reward '..i,Amount=i}end
  p.Notify({Tower='Test',Floor=10,Items=many})
  check(#p.Cards==2 and card.Frame.destroyed,'notification stack grew without bound')
+ check(p.Cards[1].Frame.Size.Y.Offset==50 and not p.Cards[1].List.Visible,'new floor notice forgot collapsed preference')
  check(#p.Cards[1].List:GetChildren()==20 and p.Cards[1].List.CanvasSize.Y.Offset>p.Cards[1].List.Size.Y.Offset,'long reward list was dropped instead of scrollable')
- f.env.workspace.CurrentCamera.ViewportSize=Vector2.new(320,480);p.Tick(107.1)
+ p.Cards[1].List.CanvasPosition=Vector2.new(0,60);p.Cards[1].Collapse.MouseButton1Click:Fire()
+ check(p.Cards[1].List.Visible and p.Cards[1].List.CanvasPosition.Y==60 and #p.Cards[1].List:GetChildren()==20,'expand reset scroll position or lost reward rows')
+ f.env.workspace.CurrentCamera.ViewportSize=Vector2.new(320,480);p.Tick(f.now())
  check(#p.Cards==1 and p.Root.Size.X.Offset<=288,'mobile notification escaped screen width / stack limit')
  local mobile=p.Cards[1]
  check(mobile.Frame.Size.Y.Offset<=p.Root.Size.Y.Offset,'mobile reward list escaped available height')
  mobile.Frame.Dismiss.MouseButton1Click:Fire();check(#p.Cards==0,'close button did not dismiss card')
- p.Notify({Tower='Test',Floor=11,Items={}});f.advance(8);p.Tick(116)
+ p.Notify({Tower='Test',Floor=11,Items={}});f.advance(8);p.Tick(f.now())
  check(#p.Cards==0,'expired reward card remained visible')
  p.Notify({Tower='Test',Floor=12,Items={}});local last=p.Cards[1];app.Destroy()
- check(p.Root.destroyed and last.Frame.destroyed and not last.Link.Connected,'unload left cards / click connections alive')
+ check(p.Root.destroyed and last.Frame.destroyed and not last.Link.Connected and not last.CollapseLink.Connected,'unload left cards / click connections alive')
 end
 print('PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: '..checks..' checks')
