@@ -90,7 +90,20 @@ return function(scope)
         local link=obj.OnClientEvent:Connect(fn);ctx.Links[#ctx.Links+1]=link;return link
     end
     function ctx.Now()return workspace:GetServerTimeNow()end
-    function ctx.DoorInitialReady()return player:GetAttribute("TrickOrTreatReadyAt")or ctx.Now()+30 end
+    local fallbackDoorReady
+    function ctx.DoorInitialReady()
+        local ready=player:GetAttribute("TrickOrTreatReadyAt")
+        if type(ready)=="number"then return ready end
+        if not fallbackDoorReady then fallbackDoorReady=ctx.Now()+30 end
+        return fallbackDoorReady
+    end
+    function ctx.StreamEvent()
+        local island=workspace:FindFirstChild("Halloween")
+        local arrival=island and island:FindFirstChild("ArrivalPoint",true)
+        if arrival and arrival:IsA("BasePart")then
+            pcall(player.RequestStreamAroundAsync,player,arrival.Position,3)
+        end
+    end
     function ctx.InGroup()
         local group=ctx.Catalog.Group
         if not group then return false end
@@ -118,6 +131,27 @@ return function(scope)
         local char=player.Character;local hum=char and char:FindFirstChildOfClass("Humanoid")
         local root=char and char:FindFirstChild("HumanoidRootPart")
         if hum then if root then hum:MoveTo(root.Position)end;hum:Move(Vector3.zero)end
+    end
+    function ctx.MoveDoor(goal,valid,mode)
+        if mode=="Walk"then return ctx.Walk(goal,valid)end
+        if not valid()then return false,"Cancelled"end
+        local char=player.Character
+        local hum=char and char:FindFirstChildOfClass("Humanoid")
+        local root=char and char:FindFirstChild("HumanoidRootPart")
+        if not hum or not root or hum.Health<=0 then return false,"Character unavailable"end
+        pcall(player.RequestStreamAroundAsync,player,goal,2)
+        if not valid()or player.Character~=char or hum.Health<=0 then return false,"Cancelled"end
+        local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Exclude
+        params.FilterDescendantsInstances={char};params.RespectCanCollide=true
+        local floor=workspace:Raycast(goal+Vector3.new(0,12,0),Vector3.new(0,-60,0),params)
+        if not floor then return false,"Door ground not loaded; retrying"end
+        local position=Vector3.new(goal.X,floor.Position.Y+hum.HipHeight+root.Size.Y/2,goal.Z)
+        char:PivotTo(CFrame.new(position)*root.CFrame.Rotation)
+        root.AssemblyLinearVelocity=Vector3.zero;root.AssemblyAngularVelocity=Vector3.zero
+        ctx.Wait(.35)
+        if not valid()or player.Character~=char or not root.Parent or hum.Health<=0 then return false,"Cancelled"end
+        if(root.Position-position).Magnitude>8 then return false,"Door teleport corrected; retry or use Walk"end
+        return true,"Arrived"
     end
     function ctx.Walk(goal,valid)
         local char=player.Character

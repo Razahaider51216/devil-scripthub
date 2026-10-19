@@ -87,7 +87,7 @@ local function setup(place,corrupt)
  end
  local originalCompiler=env.loadstring;local originalHttp=game.HttpGet
  local fn=assert(nativeCompile(entrySource));setfenv(fn,env)
- return {Run=fn,scope=scope,work=work,objects=objects,remote=remote,env=env,
+ return {Run=fn,scope=scope,work=work,objects=objects,remote=remote,env=env,data=data,
   compiler=originalCompiler,http=originalHttp,game=game,language=function(v)language=v end,
   counts=function()return downloads,libraryCalls end,window=function()return window end}
 end
@@ -104,7 +104,7 @@ do
  local f=setup(113290951185459,false);local app=f.Run()
  check(app and f.scope.DevilAnimeDiceTest==app,'test entry did not publish its controller')
  check(#f.remote.Sent==0,'entry startup fired an action')
- check(f.objects['Auto Pumpkin Dice']and f.objects['Auto Walk Trick or Treat']and f.objects['Auto Haunted House'],'Halloween controls missing')
+ check(f.objects['Auto Pumpkin Dice']and f.objects['Auto Trick or Treat']and f.objects['Auto Haunted House'],'Halloween controls missing')
  check(f.objects['Auto Trait']and f.objects['Auto Buy Quest Shop Item']and f.objects['Auto Fuse Surplus Units'],'supported systems missing from GUI')
  check(app.Window.Gui:GetAttribute('DevilHubPresentation')==true,'DEVIL theme ownership marker missing')
  -- Run initialization only. The second queued function is the periodic UI loop.
@@ -120,6 +120,17 @@ do
  f.language('EN');check(coroutine.resume(loop),'English language refresh failed')
  check(label.Text=='Auto Roll','test GUI did not return to English')
  local before=f.counts();check(f.Run()==app and f.counts()==before,'duplicate run created another GUI/download')
+ f.objects['Sell maximum chance (0 = off)'].Callback('1 / 1,000')
+ check(app.Config.SellChanceMax==1000,'GUI chance input rejected formatted denominators')
+ f.data.AutoSell=500;f.objects['Use game sell threshold'].Callback();table.remove(f.work,#f.work)()
+ check(app.Config.SellChanceMax==500 and f.objects['Sell maximum chance (0 = off)'].Value=='500','game threshold button left filter / input out of sync')
+ f.objects['Start Event Collection'].Callback()
+ table.remove(f.work,#f.work)()
+ check(app.Config.Doors and app.Config.Pass and app.Config.EventQuests and app.Config.DoorMovement=='Teleport','event start did not enable collection / claims with teleport')
+ check(not app.Config.CandyShop and not app.Config.Pumpkin,'event collection unexpectedly enabled purchases')
+ f.objects['Stop Event Collection'].Callback()
+ table.remove(f.work,#f.work)()
+ check(not app.Config.Doors and not app.Config.Pass and not app.Config.EventQuests,'event stop left work enabled')
  f.objects['Auto Roll'].Callback(true);app.Core.Tick()
  local worker=table.remove(f.work,#f.work);worker()
  check(#f.remote.Sent==1 and f.remote.Sent[1][1]==true,'GUI toggle not connected to actual game action')
@@ -129,5 +140,12 @@ do
  check(#f.remote.Sent==2 and f.remote.Sent[2][1]==false,'entry unload failed to restore owned Auto Roll')
  check(coroutine.resume(loop),'closed UI loop crashed')
  check(coroutine.status(loop)=='dead','closed UI loop kept running')
+end
+do
+ local f=setup(113290951185459,false);local destroyed=0
+ f.scope.DevilAnimeDiceTest={Version='anime-dice-test-20261020-1',Stopped=false,Destroy=function()destroyed+=1 end}
+ local app=f.Run()
+ check(destroyed==1 and app.Version=='anime-dice-test-20261020-2','rerun retained previous broken release')
+ app.Destroy()
 end
 print('PASS complete public test entry: GUI callbacks, Halloween, language, integrity, singleton and unload: '..checks..' checks')

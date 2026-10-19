@@ -1,7 +1,13 @@
 -- Standalone TEST entry. The production router is intentionally unchanged.
 assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
 local scope=type(getgenv)=="function"and getgenv()or _G
-if scope.DevilAnimeDiceTest and not scope.DevilAnimeDiceTest.Stopped then return scope.DevilAnimeDiceTest end
+local release="anime-dice-test-20261020-2"
+local previous=scope.DevilAnimeDiceTest
+if previous and not previous.Stopped then
+    if previous.Version==release then return previous end
+    assert(type(previous.Destroy)=="function","Close the previous Anime Dice test before updating")
+    previous.Destroy()
+end
 if scope.DevilAnimeDiceStarting and os.clock()-scope.DevilAnimeDiceStarting.At<30 then warn("DEVIL HUB: Anime Dice test is already starting");return end
 local startup={At=os.clock()};scope.DevilAnimeDiceStarting=startup
 local planner=(function()
@@ -62,7 +68,10 @@ local ok,problem=xpcall(function()
         widgets[key]=widget;return widget
     end
     local function input(host,key,name,default)
-        return host:CreateInput({Name=name,CurrentValue=tostring(default or cfg[key]),Callback=function(v)cfg[key]=planner.Number(v,cfg[key])end})
+        return host:CreateInput({Name=name,CurrentValue=tostring(default or cfg[key]),Callback=function(v)
+            local parse=key:find("Chance",1,true)and planner.Chance or planner.Number
+            cfg[key]=parse(v,cfg[key])
+        end})
     end
     local function multi(value)
         local set={};for k,v in pairs(value or{})do local name=type(k)=="number"and v or v==true and k;if type(name)=="string"then set[name]=true end end
@@ -103,7 +112,7 @@ local ok,problem=xpcall(function()
     local inventory=tab("Inventory","backpack")
     local sell=group(inventory,"Sell and protect")
     toggle(sell,"Sell","Auto Sell Filtered Units")
-    input(sell,"SellChanceMax","Sell maximum chance (0 = off)")
+    local sellLimit=input(sell,"SellChanceMax","Sell maximum chance (0 = off)")
     input(sell,"KeepBest","Keep best units")
     input(sell,"KeepCopies","Keep copies per character")
     sell:CreateToggle({Name="Keep mutated / variant units",CurrentValue=true,Callback=function(v)cfg.SkipMutations=v end})
@@ -116,6 +125,12 @@ local ok,problem=xpcall(function()
     local keepWidget=sell:CreateDropdown({Name="Keep specific units",Options={},CurrentOption={},MultipleOptions=true,AllowNone=true,Searchable=true,Callback=mapIds})
     optionWidgets.KeepIds=keepWidget
     button(sell,"Disable game Auto Sell",function()ctx.Fire("SellService","UpdateAutoSell",0)end)
+    button(sell,"Use game sell threshold",function()
+        local d=ctx.Snapshot();assert(d,"Waiting for live data")
+        cfg.SellChanceMax=planner.Number(d.AutoSell)
+        sellLimit:Set(tostring(cfg.SellChanceMax),true)
+    end)
+    local sellStatus=sell:CreateLabel({Text="Set Sell maximum chance above 0 (example: 1/1,000)."})
     local preview=sell:CreateLabel({Text="Preview matching units before selling or fusing."})
     button(sell,"Preview sale",function()
         local items=core.Preview("Sell");local names={}
@@ -205,8 +220,15 @@ local ok,problem=xpcall(function()
     button(eventTower,"Travel to Halloween Island",function()core.Teleport("Island")end)
     button(eventTower,"Return to Hub",function()core.Teleport("Hub")end)
     local candy=group(halloween,"Trick or Treat")
-    toggle(candy,"Doors","Auto Walk Trick or Treat")
-    candy:CreateParagraph({Name="Door route",Content="Walks to currently loaded doors, exits before revisiting and waits for server cooldown. No knock or reward is forged."})
+    toggle(candy,"Doors","Auto Trick or Treat")
+    dropdown(candy,"DoorMovement","Event movement",{"Teleport","Walk"},"Teleport")
+    button(candy,"Start Event Collection",function()
+        for _,key in ipairs({"Doors","Pass","EventQuests"})do core.Set(key,true);widgets[key]:Set(true,true)end
+    end)
+    button(candy,"Stop Event Collection",function()
+        for _,key in ipairs({"Doors","Pass","EventQuests"})do core.Set(key,false);widgets[key]:Set(false,true)end
+    end)
+    candy:CreateParagraph({Name="Door route",Content="Visits event doors automatically. Teleport or Walk; waits for server travel limits, door cooldown and confirmed rewards."})
     local pass=group(halloween,"Pass and event quests","Right")
     toggle(pass,"Pass","Auto Claim Pumpkin Pass")
     toggle(pass,"EventQuests","Auto Claim Halloween Quests")
@@ -298,7 +320,10 @@ local ok,problem=xpcall(function()
             local worked,err=xpcall(core.Tick,debug.traceback)
             if not worked then core.Report.LastTickError=tostring(err)end
             local r=core.Report.Summary
-            if r then summary:Set(string.format("Money: %.4g | Units: %d / %d\nRolls: %s | Rebirth: %s\nCandy: %.4g | Pumpkins: %.4g",r.Money,r.Units,r.Storage,tostring(r.Rolls),tostring(r.Rebirth),r.Candy,r.Pumpkins))end
+            if r then
+                summary:Set(string.format("Money: %.4g | Units: %d / %d\nRolls: %s | Rebirth: %s\nCandy: %.4g | Pumpkins: %.4g",r.Money,r.Units,r.Storage,tostring(r.Rolls),tostring(r.Rebirth),r.Candy,r.Pumpkins))
+                sellStatus:Set(core.SellSummary())
+            end
             local enabled=0
             for name,widget in pairs(widgets)do if cfg[name]then enabled+=1 end;widget:Set(cfg[name],true)end
             resultLabel:Set("Enabled: "..enabled.." / "..#core.Jobs)

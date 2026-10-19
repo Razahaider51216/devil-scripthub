@@ -9,6 +9,12 @@ function P.Value(fn,...)
     local ok,value=pcall(fn,...)
     return ok and P.Number(value)or 0
 end
+function P.Chance(value,default)
+    if type(value)=="string"then
+        value=value:gsub(",",""):gsub("%s",""):gsub("^1/","")
+    end
+    return P.Number(value,default)
+end
 function P.Units(data,registry)
     local result={}
     for id,item in pairs(data.Inventory or{})do

@@ -1,5 +1,10 @@
 -- Reuse the single language menu provided by the shared DEVIL HUB presentation.
 local translations={
+    ["Auto Trick or Treat"]="เก็บ Trick or Treat อัตโนมัติ",["Event movement"]="วิธีเดินทางเก็บอีเวนต์",
+    ["Start Event Collection"]="เริ่มเก็บอีเวนต์",["Stop Event Collection"]="หยุดเก็บอีเวนต์",
+    ["Use game sell threshold"]="ใช้เกณฑ์ขายจากเกม",
+    ["Set Sell maximum chance above 0 (example: 1/1,000)."]="ตั้งค่าโอกาสสุ่มสูงสุดที่จะขายให้มากกว่า 0 เช่น 1/1,000",
+    ["Visits event doors automatically. Teleport or Walk; waits for server travel limits, door cooldown and confirmed rewards."]="เก็บประตูอีเวนต์ต่อเนื่อง เลือกวาร์ปหรือเดิน รอคูลดาวน์และยืนยันรางวัลจากเกม",
     ["Farm"]="ฟาร์ม",["Farm controls"]="ระบบฟาร์ม",["Auto Roll"]="สุ่มลูกเต๋าอัตโนมัติ",
     ["Auto Collect Money"]="เก็บเงินฐานอัตโนมัติ",["Auto Equip Best Base"]="จัดตัวหาเงินดีที่สุด",
     ["Auto Level Units"]="อัปเลเวลตัวในฐาน",["Maximum unit level"]="เลเวลตัวสูงสุด",

@@ -1,7 +1,13 @@
 -- Standalone TEST entry. The production router is intentionally unchanged.
 assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
 local scope=type(getgenv)=="function"and getgenv()or _G
-if scope.DevilAnimeDiceTest and not scope.DevilAnimeDiceTest.Stopped then return scope.DevilAnimeDiceTest end
+local release="anime-dice-test-20261020-2"
+local previous=scope.DevilAnimeDiceTest
+if previous and not previous.Stopped then
+    if previous.Version==release then return previous end
+    assert(type(previous.Destroy)=="function","Close the previous Anime Dice test before updating")
+    previous.Destroy()
+end
 if scope.DevilAnimeDiceStarting and os.clock()-scope.DevilAnimeDiceStarting.At<30 then warn("DEVIL HUB: Anime Dice test is already starting");return end
 local startup={At=os.clock()};scope.DevilAnimeDiceStarting=startup
 local planner=(function()
@@ -15,6 +21,12 @@ function P.Value(fn,...)
     if type(fn)~="function"then return P.Number(fn)end
     local ok,value=pcall(fn,...)
     return ok and P.Number(value)or 0
+end
+function P.Chance(value,default)
+    if type(value)=="string"then
+        value=value:gsub(",",""):gsub("%s",""):gsub("^1/","")
+    end
+    return P.Number(value,default)
 end
 function P.Units(data,registry)
     local result={}
@@ -198,7 +210,20 @@ return function(scope)
         local link=obj.OnClientEvent:Connect(fn);ctx.Links[#ctx.Links+1]=link;return link
     end
     function ctx.Now()return workspace:GetServerTimeNow()end
-    function ctx.DoorInitialReady()return player:GetAttribute("TrickOrTreatReadyAt")or ctx.Now()+30 end
+    local fallbackDoorReady
+    function ctx.DoorInitialReady()
+        local ready=player:GetAttribute("TrickOrTreatReadyAt")
+        if type(ready)=="number"then return ready end
+        if not fallbackDoorReady then fallbackDoorReady=ctx.Now()+30 end
+        return fallbackDoorReady
+    end
+    function ctx.StreamEvent()
+        local island=workspace:FindFirstChild("Halloween")
+        local arrival=island and island:FindFirstChild("ArrivalPoint",true)
+        if arrival and arrival:IsA("BasePart")then
+            pcall(player.RequestStreamAroundAsync,player,arrival.Position,3)
+        end
+    end
     function ctx.InGroup()
         local group=ctx.Catalog.Group
         if not group then return false end
@@ -226,6 +251,27 @@ return function(scope)
         local char=player.Character;local hum=char and char:FindFirstChildOfClass("Humanoid")
         local root=char and char:FindFirstChild("HumanoidRootPart")
         if hum then if root then hum:MoveTo(root.Position)end;hum:Move(Vector3.zero)end
+    end
+    function ctx.MoveDoor(goal,valid,mode)
+        if mode=="Walk"then return ctx.Walk(goal,valid)end
+        if not valid()then return false,"Cancelled"end
+        local char=player.Character
+        local hum=char and char:FindFirstChildOfClass("Humanoid")
+        local root=char and char:FindFirstChild("HumanoidRootPart")
+        if not hum or not root or hum.Health<=0 then return false,"Character unavailable"end
+        pcall(player.RequestStreamAroundAsync,player,goal,2)
+        if not valid()or player.Character~=char or hum.Health<=0 then return false,"Cancelled"end
+        local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Exclude
+        params.FilterDescendantsInstances={char};params.RespectCanCollide=true
+        local floor=workspace:Raycast(goal+Vector3.new(0,12,0),Vector3.new(0,-60,0),params)
+        if not floor then return false,"Door ground not loaded; retrying"end
+        local position=Vector3.new(goal.X,floor.Position.Y+hum.HipHeight+root.Size.Y/2,goal.Z)
+        char:PivotTo(CFrame.new(position)*root.CFrame.Rotation)
+        root.AssemblyLinearVelocity=Vector3.zero;root.AssemblyAngularVelocity=Vector3.zero
+        ctx.Wait(.35)
+        if not valid()or player.Character~=char or not root.Parent or hum.Health<=0 then return false,"Cancelled"end
+        if(root.Position-position).Magnitude>8 then return false,"Door teleport corrected; retry or use Walk"end
+        return true,"Arrived"
     end
     function ctx.Walk(goal,valid)
         local char=player.Character
@@ -267,12 +313,12 @@ return function(ctx,P)
         SellChanceMax=0,FuseChanceMax=0,LockChanceMin=0,UpgradeBranch="All",DiceChoice="Best affordable",LevelCap=100,
         TowerChoice="",WingChoice="Front Yard",RebirthLimit=1,StatChoice="Luck",SelectedUnit="",RerollLimit=50,
         TraitTargets={},GradeTargets={},QuirkTargets={},BoostNames={},SpinNames={},GearPriority="Luck",PumpkinCount=1,
-        PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true}
+        PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true,DoorMovement="Teleport"}
     local clock=ctx.Clock or os.clock
-    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-1",Jobs={},Log={},LiveVerified=false},Stopped=false,Generation={}}
+    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-2",Jobs={},Log={},LiveVerified=false},Stopped=false,Generation={}}
     local states,handlers,pending,spend={}, {}, {}, {}
     local towerOwned=false;local towerEpoch=0;local originalRoll,rollOwned=nil,false
-    local doorReady=setmetatable({},{__mode="k"});local lastKnock
+    local doorReady=setmetatable({},{__mode="k"});local lastKnock;local nextIslandTravel=0;local stopEpoch=0
     local function log(name,message)
         local list=ctl.Report.Log
         list[#list+1]={At=math.floor(clock()*10)/10,Job=name,Message=tostring(message):sub(1,400)}
@@ -340,6 +386,7 @@ return function(ctx,P)
         end
     end
     function ctl.StopAll()
+        stopEpoch+=1
         for _,name in ipairs(jobs)do ctl.Set(name,false)end
         ctx.CancelMovement()
     end
@@ -350,6 +397,12 @@ return function(ctx,P)
     function ctl.Preview(kind)
         local d=data()
         return P.Materials(d,catalog("Registry"),cfg,kind=="Fuse"and cfg.FuseChanceMax or cfg.SellChanceMax,kind=="Fuse")
+    end
+    function ctl.SellSummary()
+        local d=data();local units=P.Units(d,catalog("Registry"));local items=ctl.Preview("Sell")
+        if cfg.SellChanceMax<=0 then return "Set Sell maximum chance above 0 (example: 1/1,000)."end
+        if d.PendingTrade then return "Sale paused: trade in progress."end
+        return string.format("%d eligible / %d units | Ceiling: 1 / %.4g | Keep best: %d | Keep per name: %d",#items,#units,cfg.SellChanceMax,cfg.KeepBest,cfg.KeepCopies)
     end
     handlers.Roll=function(name,token,d)
         if cfg.UseNativeRoll then
@@ -418,10 +471,9 @@ return function(ctx,P)
         expect(name,function(s)return s.Dice==item.name end,"Equipping "..item.name);return 1
     end
     handlers.Sell=function(name,token,d)
-        if P.Number(d.AutoSell)>0 then status(name,"Disable game Auto Sell before using custom filters");return 3 end
         local items=P.Materials(d,catalog("Registry"),cfg,cfg.SellChanceMax,false)
         local ids={};for i=1,math.min(25,#items)do ids[i]=items[i].id end
-        if #ids==0 then status(name,"No units match sell filters");return 3 end
+        if #ids==0 then status(name,ctl.SellSummary());return 3 end
         local earned,count=call(name,token,"RF","SellService","SellInventory",ids)
         if P.Number(count)>0 then
             states[name].Units=(states[name].Units or 0)+count;states[name].Earned=(states[name].Earned or 0)+P.Number(earned)
@@ -641,34 +693,47 @@ return function(ctx,P)
     handlers.Doors=function(name,token)
         local doors=ctx.Doors();local pos=ctx.Position()
         if not pos then status(name,"Waiting for character");return 2 end
-        local now=ctx.Now();local best,distance
+        local config=catalog("Halloween").TrickOrTreat
+        assert(config,"TrickOrTreat configuration unavailable")
+        states[name].LoadedDoors=#doors
+        local now=ctx.Now();local best,distance;local nearest=math.huge;local nextReady=math.huge
+        local active=function()return valid(name,token)end
         for _,door in ipairs(doors)do
-            if(doorReady[door.key]or ctx.DoorInitialReady())<=now then
-                local dist=(door.position-pos).Magnitude
+            local dist=(door.position-pos).Magnitude;nearest=math.min(nearest,dist)
+            local ready=doorReady[door.key]or ctx.DoorInitialReady();nextReady=math.min(nextReady,ready)
+            if ready<=now then
                 if not distance or dist<distance then best,distance=door,dist end
             end
         end
-        if not best then status(name,"Waiting for loaded doors / cooldown");return 2 end
-        local active=function()return valid(name,token)end
+        if #doors==0 or nearest>1500 then
+            if now>=nextIslandTravel then
+                nextIslandTravel=now+30;status(name,"Traveling to Halloween Island / loading doors")
+                call(name,token,"RF","HalloweenService","Teleport","Island")
+                if not active()then return end
+                ctx.StreamEvent();return 2
+            end
+            ctx.StreamEvent();status(name,"Waiting for streamed event doors ("..#doors.." loaded)");return 2
+        end
+        if not best then status(name,"Door cooldown: "..math.max(0,math.ceil(nextReady-now)).."s | Loaded: "..#doors);return 1 end
         -- Exit the door volume first so the server can arm a previous visit.
-        status(name,"Walking to door")
+        status(name,cfg.DoorMovement.." to door")
         local outside=best.position+best.front*(best.range+10)
-        local ok,why=ctx.Walk(outside,active)
+        local ok,why=ctx.MoveDoor(outside,active,cfg.DoorMovement)
         if not ok then status(name,why);doorReady[best.key]=now+5;return 2 end
         ctx.Wait(.4) -- Allow the server's door check to observe the outside position.
         local latest=lastKnock
         if latest and latest.position then
-            local config=catalog("Halloween")
             local earliest=latest.at+math.max(config.MIN_KNOCK_GAP,(best.position-latest.position).Magnitude/config.MAX_TRAVEL_SPEED)
             while active()and ctx.Now()<earliest do ctx.Wait(.1)end
         end
         if not active()then return end
-        ok,why=ctx.Walk(best.position+best.front*math.min(best.range*.6,6),active)
-        if not ok then status(name,why);return 2 end
+        ok,why=ctx.MoveDoor(best.position+best.front*math.min(best.range*.6,6),active,cfg.DoorMovement)
+        if not ok then status(name,why);doorReady[best.key]=ctx.Now()+5;return 2 end
         status(name,"Waiting for server knock")
         local deadline=clock()+8
-        while active()and clock()<deadline and not(doorReady[best.key]and doorReady[best.key]>now)do ctx.Wait(.1)end
-        if active()and not(doorReady[best.key]and doorReady[best.key]>now)then
+        local function knocked()return lastKnock and lastKnock.part==best.key and lastKnock.at>=now end
+        while active()and clock()<deadline and not knocked()do ctx.Wait(.1)end
+        if active()and not knocked()then
             doorReady[best.key]=ctx.Now()+5;status(name,"No knock confirmation; retrying another route")
         end
         return .5
@@ -676,8 +741,8 @@ return function(ctx,P)
     function ctl.BindEvents()
         ctx.Listen("TrickOrTreatService","Knocked",function(part,_,readyAt)
             if ctl.Stopped or not cfg.Doors or not part then return end
-            doorReady[part]=type(readyAt)=="number"and readyAt or ctx.Now()+catalog("Halloween").COOLDOWN
-            lastKnock={at=ctx.Now(),position=part.Position};finish("Doors","Door knock confirmed")
+            doorReady[part]=type(readyAt)=="number"and readyAt or ctx.Now()+catalog("Halloween").TrickOrTreat.COOLDOWN
+            lastKnock={at=ctx.Now(),position=part.Position,part=part};finish("Doors","Door knock confirmed")
         end)
         ctx.Listen("TrickOrTreatService","Landed",function(_,amount)
             if not ctl.Stopped and cfg.Doors then states.Doors.Candy=(states.Doors.Candy or 0)+P.Number(amount)end
@@ -719,8 +784,12 @@ return function(ctx,P)
     end
     function ctl.Teleport(destination)
         assert(destination=="Island"or destination=="Hub","Unknown destination")
+        local resume=destination=="Island"and cfg.Doors;local epoch=stopEpoch
         ctl.Set("Doors",false)
-        return ctx.Invoke("HalloweenService","Teleport",destination)
+        local generation=ctl.Generation.Doors
+        local result=ctx.Invoke("HalloweenService","Teleport",destination)
+        if resume and not ctl.Stopped and epoch==stopEpoch and generation==ctl.Generation.Doors then ctl.Set("Doors",true)end
+        return result
     end
     function ctl.PumpkinFilter(names)
         local selected={};for _,unit in ipairs(catalog("PumpkinDice").Units or{})do selected[unit.id]=names[unit.id]==true end
@@ -811,7 +880,10 @@ end
         widgets[key]=widget;return widget
     end
     local function input(host,key,name,default)
-        return host:CreateInput({Name=name,CurrentValue=tostring(default or cfg[key]),Callback=function(v)cfg[key]=planner.Number(v,cfg[key])end})
+        return host:CreateInput({Name=name,CurrentValue=tostring(default or cfg[key]),Callback=function(v)
+            local parse=key:find("Chance",1,true)and planner.Chance or planner.Number
+            cfg[key]=parse(v,cfg[key])
+        end})
     end
     local function multi(value)
         local set={};for k,v in pairs(value or{})do local name=type(k)=="number"and v or v==true and k;if type(name)=="string"then set[name]=true end end
@@ -852,7 +924,7 @@ end
     local inventory=tab("Inventory","backpack")
     local sell=group(inventory,"Sell and protect")
     toggle(sell,"Sell","Auto Sell Filtered Units")
-    input(sell,"SellChanceMax","Sell maximum chance (0 = off)")
+    local sellLimit=input(sell,"SellChanceMax","Sell maximum chance (0 = off)")
     input(sell,"KeepBest","Keep best units")
     input(sell,"KeepCopies","Keep copies per character")
     sell:CreateToggle({Name="Keep mutated / variant units",CurrentValue=true,Callback=function(v)cfg.SkipMutations=v end})
@@ -865,6 +937,12 @@ end
     local keepWidget=sell:CreateDropdown({Name="Keep specific units",Options={},CurrentOption={},MultipleOptions=true,AllowNone=true,Searchable=true,Callback=mapIds})
     optionWidgets.KeepIds=keepWidget
     button(sell,"Disable game Auto Sell",function()ctx.Fire("SellService","UpdateAutoSell",0)end)
+    button(sell,"Use game sell threshold",function()
+        local d=ctx.Snapshot();assert(d,"Waiting for live data")
+        cfg.SellChanceMax=planner.Number(d.AutoSell)
+        sellLimit:Set(tostring(cfg.SellChanceMax),true)
+    end)
+    local sellStatus=sell:CreateLabel({Text="Set Sell maximum chance above 0 (example: 1/1,000)."})
     local preview=sell:CreateLabel({Text="Preview matching units before selling or fusing."})
     button(sell,"Preview sale",function()
         local items=core.Preview("Sell");local names={}
@@ -954,8 +1032,15 @@ end
     button(eventTower,"Travel to Halloween Island",function()core.Teleport("Island")end)
     button(eventTower,"Return to Hub",function()core.Teleport("Hub")end)
     local candy=group(halloween,"Trick or Treat")
-    toggle(candy,"Doors","Auto Walk Trick or Treat")
-    candy:CreateParagraph({Name="Door route",Content="Walks to currently loaded doors, exits before revisiting and waits for server cooldown. No knock or reward is forged."})
+    toggle(candy,"Doors","Auto Trick or Treat")
+    dropdown(candy,"DoorMovement","Event movement",{"Teleport","Walk"},"Teleport")
+    button(candy,"Start Event Collection",function()
+        for _,key in ipairs({"Doors","Pass","EventQuests"})do core.Set(key,true);widgets[key]:Set(true,true)end
+    end)
+    button(candy,"Stop Event Collection",function()
+        for _,key in ipairs({"Doors","Pass","EventQuests"})do core.Set(key,false);widgets[key]:Set(false,true)end
+    end)
+    candy:CreateParagraph({Name="Door route",Content="Visits event doors automatically. Teleport or Walk; waits for server travel limits, door cooldown and confirmed rewards."})
     local pass=group(halloween,"Pass and event quests","Right")
     toggle(pass,"Pass","Auto Claim Pumpkin Pass")
     toggle(pass,"EventQuests","Auto Claim Halloween Quests")
@@ -1032,6 +1117,11 @@ end
     button(actions,"Refresh inventory and choices",refreshOptions)
     -- Reuse the single language menu provided by the shared DEVIL HUB presentation.
 local translations={
+    ["Auto Trick or Treat"]="เก็บ Trick or Treat อัตโนมัติ",["Event movement"]="วิธีเดินทางเก็บอีเวนต์",
+    ["Start Event Collection"]="เริ่มเก็บอีเวนต์",["Stop Event Collection"]="หยุดเก็บอีเวนต์",
+    ["Use game sell threshold"]="ใช้เกณฑ์ขายจากเกม",
+    ["Set Sell maximum chance above 0 (example: 1/1,000)."]="ตั้งค่าโอกาสสุ่มสูงสุดที่จะขายให้มากกว่า 0 เช่น 1/1,000",
+    ["Visits event doors automatically. Teleport or Walk; waits for server travel limits, door cooldown and confirmed rewards."]="เก็บประตูอีเวนต์ต่อเนื่อง เลือกวาร์ปหรือเดิน รอคูลดาวน์และยืนยันรางวัลจากเกม",
     ["Farm"]="ฟาร์ม",["Farm controls"]="ระบบฟาร์ม",["Auto Roll"]="สุ่มลูกเต๋าอัตโนมัติ",
     ["Auto Collect Money"]="เก็บเงินฐานอัตโนมัติ",["Auto Equip Best Base"]="จัดตัวหาเงินดีที่สุด",
     ["Auto Level Units"]="อัปเลเวลตัวในฐาน",["Maximum unit level"]="เลเวลตัวสูงสุด",
@@ -1129,7 +1219,10 @@ end
             local worked,err=xpcall(core.Tick,debug.traceback)
             if not worked then core.Report.LastTickError=tostring(err)end
             local r=core.Report.Summary
-            if r then summary:Set(string.format("Money: %.4g | Units: %d / %d\nRolls: %s | Rebirth: %s\nCandy: %.4g | Pumpkins: %.4g",r.Money,r.Units,r.Storage,tostring(r.Rolls),tostring(r.Rebirth),r.Candy,r.Pumpkins))end
+            if r then
+                summary:Set(string.format("Money: %.4g | Units: %d / %d\nRolls: %s | Rebirth: %s\nCandy: %.4g | Pumpkins: %.4g",r.Money,r.Units,r.Storage,tostring(r.Rolls),tostring(r.Rebirth),r.Candy,r.Pumpkins))
+                sellStatus:Set(core.SellSummary())
+            end
             local enabled=0
             for name,widget in pairs(widgets)do if cfg[name]then enabled+=1 end;widget:Set(cfg[name],true)end
             resultLabel:Set("Enabled: "..enabled.." / "..#core.Jobs)

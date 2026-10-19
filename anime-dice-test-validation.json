@@ -1,18 +1,18 @@
 {
-  "release": "anime-dice-test-20261020-1",
+  "release": "anime-dice-test-20261020-2",
   "live_game_verified": false,
-  "entry_sha256": "ab73c558b560d7d3c12a773cbe214ca087e161c380f0cf09d8501fdb6e20a8b3",
-  "checks": 157,
-  "literal_remote_contract_checks": 23,
+  "entry_sha256": "231262a227ef1ae8a8cd961258421c81e2effe6e628267ea1dd23864488d0f6b",
+  "checks": 196,
+  "literal_remote_contract_checks": 24,
   "results": [
-    "PASS Anime Dice planning, network contracts, confirmation, stop and event behavior: 89 checks",
-    "PASS Halloween movement: valid paths, elevation, blocked paths, death and cancellation: 9 checks",
-    "PASS complete public test entry: GUI callbacks, Halloween, language, integrity, singleton and unload: 59 checks"
+    "PASS Anime Dice planning, network contracts, confirmation, stop and event behavior: 112 checks",
+    "PASS Halloween movement: valid paths, elevation, blocked paths, death and cancellation: 17 checks",
+    "PASS complete public test entry: GUI callbacks, Halloween, language, integrity, singleton and unload: 67 checks"
   ],
   "pinned_gui_sha256": "0c30762d3c9c3aa7c25ca3aeceab960a771c96b5af290a3b67aed627161385f5",
   "fixtures": {
-    "anime-dice-core.luau": "b0fc8fee98d9c2af6a3f0a0b426c9926a975729c186c78df4fb3fe0f18711043",
-    "anime-dice-entry.luau": "bac8475dbf8568b99544c7e47609132e6685d155ef4dd0cb1c747ac76884d8a7",
-    "anime-dice-movement.luau": "e755e46e105942ba19afe94822101a66598d8a65092ae22f02f25ecd9e5db5f0"
+    "anime-dice-core.luau": "1d9d3948deafb7adefd1205d3b77f5aafa318cd352d632714bb752f9df72001a",
+    "anime-dice-entry.luau": "1263728c090bae1762813da99159d742b55a55589b04706729ca86b65ac00ed6",
+    "anime-dice-movement.luau": "61aebad53f31dcbbe439afebe05af9b6feb0b7c620fdb9d6635d9376d895dd60"
   }
 }

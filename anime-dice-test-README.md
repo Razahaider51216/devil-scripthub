@@ -3,7 +3,7 @@
 Open Anime Dice (place `113290951185459`, universe `10708913337`) and run:
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/anime-dice-test.lua?v=test-1"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/anime-dice-test.lua?v=test-2"))()
 ```
 
 This test adds a DEVIL HUB interface for the actions identified in the supplied
@@ -23,7 +23,7 @@ All 28 automation switches start OFF and are not restored from saved configs.
 | Towers | Tower runs, Equip Best Tower Team, Rebirth, Rebirth points and manual reset token |
 | Rerolls | Trait, Grade, Quirk targets, request limits, selected unit and game protection |
 | Items and rewards | Selected Boost/Spin use, Gear priority, Daily/Group/Offline rewards, completed quests, Quest shop and user-entered codes |
-| Halloween | Pumpkin Dice (1/5), Pumpkin sell filter, Haunted House wings, event travel, walking Trick or Treat, Pumpkin Pass, event quests and Candy shop |
+| Halloween | Pumpkin Dice (1/5), Pumpkin sell filter, Haunted House wings, event travel, teleporting Trick or Treat, Pumpkin Pass, event quests and Candy shop |
 | Status | Per-feature requests/confirmations/errors, Stop All, refresh choices, copy/save report and unload |
 
 ## First test
@@ -46,9 +46,11 @@ All 28 automation switches start OFF and are not restored from saved configs.
   best/copy units are excluded from material selection. Mutations/variants are
   preserved by default. Set Keep copies to 0 to allow selling/fusing all surplus
   copies of a name; the other keep rules still apply.
-- The game's native Auto Sell must be disabled before using custom Sell filters.
-  The button beside the filters performs that action explicitly. Pumpkin Dice has
-  its own native filter, applied only by its separate button.
+- Native Auto Sell applies to new rolls and no longer blocks filtered inventory
+  sales. The separate disable button remains available. `Use game sell threshold`
+  copies its ceiling; chance inputs also accept `1/1,000` or `100,000`. The live
+  inventory label shows eligibility, keep counts, or an unset-limit/trade reason.
+  Pumpkin Dice has its own native filter, applied only by its separate button.
 - Money, Candy, Pumpkin and Ticket reserves constrain purchases. Candy/Quest shop
   purchase limits and reroll request limits are explicit controls. Rebirth resets
   all current cash, as the label explains, and stops at the selected tier.
@@ -70,11 +72,18 @@ status tab; this test does not reproduce the native battle animation. Existing
 native Auto Tower must be off to avoid two controllers competing. Stopping cancels
 only a Tower session that this test successfully started.
 
-Trick or Treat finds currently loaded `TrickOrTreatDoor` tags, uses Pathfinding
-and normal Humanoid MoveTo, leaves the door region before revisiting, and waits
-for server knock/candy events. It does not fire the server-to-client `Knocked`
-or `Landed` remotes. Blocked paths time out; death/unload/Stop All cancel walking.
-Streaming, obstacles and the live event map still need testing in Roblox.
+Trick or Treat defaults to **Teleport**, with optional Walk movement. Use
+Halloween > Start Event Collection to enable doors, completed event quests and
+Pass claims together; purchases and Pumpkin rolls remain separate switches.
+The collector travels to the Island when no nearby doors are loaded, requests
+map streaming, exits each door region to rearm, and visits the nearest ready door.
+Teleport checks loaded ground, living character and cancellation before moving.
+It waits for the actual nested `HalloweenConfig.TrickOrTreat` travel-speed/minimum
+gap limits and server knock/candy events; it never sends `Knocked` or `Landed`.
+If the initial cooldown attribute is missing, its fallback deadline stays fixed.
+Manual Island travel resumes an enabled collector; Hub travel stops it.
+Stop All during travel prevents resuming. Rerunning replaces an older test release.
+Streaming, server movement corrections and the live map still need Roblox testing.
 
 Auto Trade is not part of this test: the previous analysis identified its remote
 state machine but did not establish a trade policy or validate the full exchange

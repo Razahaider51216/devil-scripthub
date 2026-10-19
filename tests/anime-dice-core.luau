@@ -1,5 +1,11 @@
 local checks=0
 local function check(v,message)assert(v,message);checks+=1 end
+local V={};local vm={}
+function V.new(x,y,z)return setmetatable({X=x,Y=y,Z=z},vm)end
+vm.__add=function(a,b)return V.new(a.X+b.X,a.Y+b.Y,a.Z+b.Z)end
+vm.__sub=function(a,b)return V.new(a.X-b.X,a.Y-b.Y,a.Z-b.Z)end
+vm.__mul=function(a,b)return V.new(a.X*b,a.Y*b,a.Z*b)end
+vm.__index=function(a,k)if k=='Magnitude'then return math.sqrt(a.X*a.X+a.Y*a.Y+a.Z*a.Z)end end
 local P=(function()
 -- TEST_PLANNER
 end)()
@@ -36,7 +42,7 @@ local function fixture()
  c.FusingConfig={GetCost=function()return 30 end}
  c.FusingUtil={GetChance=function(item)return item.name=='Weak'and not item.attributes.locked and 10 or nil end,BuildPools=function()return {}end}
  c.Daily={Cooldown=10000};c.Quest={Periods={Daily={quests={{id='Rolls',target=5}}}},Shop={{name='Gems',tickets=1}}}
- c.Halloween={PUMPKINS='Pumpkins',CANDY='Candy',COOLDOWN=30,MIN_KNOCK_GAP=2,MAX_TRAVEL_SPEED=60}
+ c.Halloween={PUMPKINS='Pumpkins',CANDY='Candy',TrickOrTreat={COOLDOWN=30,MIN_KNOCK_GAP=2,MAX_TRAVEL_SPEED=60}}
  c.PumpkinDice={COST=100,MULTI=5,ROLL_DURATION=2.5,Units={{id='Mummy'}}}
  c.PumpkinPass={{candy=500,free={Pumpkins=100}}}
  c.HalloweenShop={{name='Potion',candy=10}}
@@ -70,7 +76,12 @@ do
  local list=f.ctl.Preview('Sell');check(#list==1 and list[1].id=='d','plot/team/mutation/selected/locked filtering failed')
  f.d.PendingTrade={reservedUnits=2};check(#f.ctl.Preview('Fuse')==0,'pending trade material guard failed')
  f.cfg.SellChanceMax=0;f.d.PendingTrade=false;check(#f.ctl.Preview('Sell')==0,'unset sell limit allowed sales')
- f.cfg.SellChanceMax=20;f.cfg.Sell=true;f.d.AutoSell=100;f.step();check(#f.packets==0,'custom sale ran alongside native AutoSell')
+ f.cfg.SellChanceMax=20;f.ctl.Set('Sell',true);f.d.AutoSell=100;f.step()
+ check(#f.packets==1 and f.packets[1].key=='SellInventory','native roll AutoSell unnecessarily blocked inventory sale')
+ check(P.Chance('1 / 1,000')==1000 and P.Chance('100,000')==100000 and P.Chance('-2',50)==50,'formatted sell chances parsed incorrectly')
+ check(f.ctl.SellSummary():find('1 eligible',1,true),'live sell filter summary wrong')
+ f.cfg.SellChanceMax=0;check(f.ctl.SellSummary():find('above 0',1,true),'unset threshold reason hidden')
+ f.d.PendingTrade=true;f.cfg.SellChanceMax=100;check(f.ctl.SellSummary():find('trade',1,true),'trade pause reason hidden')
 end
 do
  local f=fixture();f.d.Slots={['2']={balance=50}};f.ctl.Set('Collect',true)
@@ -238,5 +249,49 @@ do
  f.ctl.Set('Tower',true);f.step();f.step(6);f.step(7)
  check(f.cfg.Haunted and f.packets[#f.packets].key=='CompleteTowerFloor','stale Tower response discarded the new Haunted session')
  check(f.ctl.Report.Jobs.Haunted.Confirmed==1,'Haunted session lost progress after mode switch')
+end
+do
+ local f=fixture();f.ctl.BindEvents()
+ local first={Position=V.new(0,0,0)};local second={Position=V.new(240,0,0)}
+ local doors={{key=first,position=first.Position,front=V.new(1,0,0),range=14},
+  {key=second,position=second.Position,front=V.new(1,0,0),range=14}}
+ local pos=V.new(30,0,0);local moves={};local armed={};local blocked={};local last
+ f.ctx.Doors=function()return doors end;f.ctx.Position=function()return pos end;f.ctx.DoorInitialReady=function()return 0 end
+ f.ctx.MoveDoor=function(goal,active,mode)
+  check(active()and mode=='Teleport','route ignored movement selection / cancellation')
+  pos=goal;moves[#moves+1]={at=f.time(),position=pos}
+  for _,door in ipairs(doors)do
+   local distance=(pos-door.position).Magnitude
+   if distance>door.range+3 then armed[door.key]=true end
+   if distance<door.range and armed[door.key]and(not blocked[door.key]or blocked[door.key]<=f.time())then
+    if last then check(f.time()-last.at>=(door.position-last.position).Magnitude/60,'teleport ignored server travel-speed gate')end
+    armed[door.key]=false;blocked[door.key]=f.time()+30;last={at=f.time(),position=door.position}
+    f.listeners['TrickOrTreatService/Knocked'](door.key,1,blocked[door.key])
+    f.listeners['TrickOrTreatService/Landed'](door.key,10)
+   end
+  end
+  return true,'Arrived'
+ end
+ f.ctl.Set('Doors',true);f.step();f.step(1)
+ check(f.ctl.Report.Jobs.Doors.Errors==0 and f.ctl.Report.Jobs.Doors.Confirmed==2,'multi-door route failed with actual nested Halloween configuration')
+ check(#moves==4 and f.ctl.Report.Jobs.Doors.Candy==20,'route did not visit two doors / collect confirmed candy')
+ local before=#moves;f.step(1)
+ check(#moves==before and f.ctl.Report.Jobs.Doors.Status:find('cooldown',1,true),'cooling doors were repeatedly visited')
+ f.step(31);check(f.ctl.Report.Jobs.Doors.Confirmed==3,'previous door did not rearm after cooldown')
+ check(#f.packets==0,'door collector sent server-to-client knock/reward events')
+end
+do
+ local f=fixture();local streamed=0
+ f.ctx.Position=function()return V.new(0,0,0)end;f.ctx.Doors=function()return {}end
+ f.ctx.StreamEvent=function()streamed+=1 end
+ f.ctl.Set('Doors',true);f.step();f.step(3)
+ check(#f.packets==1 and f.packets[1].key=='Teleport'and f.packets[1].args[1]=='Island','no loaded doors did not initiate event travel')
+ check(f.cfg.Doors and streamed==2,'event travel disabled collection / failed to request streaming')
+ f.step(30);check(#f.packets==2,'missing map did not retry travel after bounded cooldown')
+ f.ctl.Teleport('Island');check(f.cfg.Doors,'manual Island travel permanently disabled collection')
+ f.ctl.Teleport('Hub');check(not f.cfg.Doors,'Hub return immediately traveled back to event')
+ f.ctl.Set('Doors',true)
+ f.server(function(_,key)if key=='Teleport'then f.ctl.StopAll()end end)
+ f.ctl.Teleport('Island');check(not f.cfg.Doors,'stop during travel restarted collector')
 end
 print('PASS Anime Dice planning, network contracts, confirmation, stop and event behavior: '..checks..' checks')
