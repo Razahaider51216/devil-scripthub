@@ -1,19 +1,22 @@
 local nativeCompile=loadstring
 local function setup(place,corrupt)
  local work={};local downloads=0;local libraryCalls=0
+ local clockNow=100
  local scope={DevilHubSilverLogo='devil-logo.png',DevilHubBlueGui={Version='devil-blue-20261019-10',Stopped=false}}
  local language='EN';scope.DevilHubBlueGui.Get=function()return {Language=language}end
  local testTask={spawn=function(fn)work[#work+1]=fn end,defer=function(fn)work[#work+1]=fn end,
   wait=function(n)return coroutine.yield(n)end,delay=function()end}
  local function node(class,name,parent)
-  local obj=Instance.new(class);obj.Name=name;obj.Parent=parent;return obj
+  local obj=Instance.new(class);obj.Name=name
+  if class=='TextButton'then obj.MouseButton1Click=signal()end
+  obj.Parent=parent;return obj
  end
  local rs=node('ReplicatedStorage','ReplicatedStorage')
  local core=node('CoreGui','CoreGui')
  local features=node('Folder','Features',node('Folder','Framework',rs))
  local function module(branch,name,value)local obj=node('ModuleScript',name,node('Folder',branch,features));obj.Export=value;return obj end
  local data={Money=1000,Inventory={},Slots={},AutoRoll=false,AutoSell=0,AutoTower='',TowerTeam={},Rebirth=0,Rolls=0,Halloween={},
-  ProtectedTraits={},ProtectedGrades={},ProtectedQuirks={}}
+  ProtectedTraits={},ProtectedGrades={},ProtectedQuirks={},Dice='Basic',OwnedDice={Basic=true}}
  local proxy=setmetatable({},{__index=function(_,key)return function()return data[key]end end})
  module('Data','DataController',proxy)
  module('Unit','UnitController',{EquippedUnit=function()return data.CarriedId end})
@@ -21,10 +24,24 @@ local function setup(place,corrupt)
  rarityModule.Export={Refs={Common='Common',Rare='Rare',Secret1='Secret I'},Get=function(name)return {sortOrder=({Common=1,Rare=3,['Secret I']=10})[name]}end}
  module('Inventory','EntryRegistry',{getEntryConfig=function(name)
   if name=='Weak'then return {kind='Unit',chance=function()return 10 end,income=function()return 1 end,getRarity=function(a)return a.mutation=='Gold'and'Rare'or'Common'end}end
+  if name=='Pumpkin Spin'or name=="Witch's Jackpot"or name=='Candy Pot I'or name=='Gems'then return {kind='Boost',image='rbxassetid://123456'}end
  end})
+ local dice={Basic={luck=1,image='rbxassetid://1'},Fire={luck=5,price=2500,image='rbxassetid://2'},Water={luck=10,price=10000,image='rbxassetid://3'}}
+ local offers={{name='Pumpkin Spin',candy=2500},{name='Candy Pot I',candy=500},{name="Witch's Jackpot",candy=50000}}
+ module('Rolling','Dice',{GetAll=function()return dice end,GetDefault=function()return 'Basic'end})
+ module('Halloween','HalloweenShop',offers)
+ module('Towers','Towers',{GetAll=function()return {Test={},['Front Yard']={event=true}}end})
+ module('Towers','TowerRefs',{ActionWaitTime={floorCompleted=.24,ended=0}})
  local network=node('Folder','Network',rs)
  local roll=node('Folder','RollService',network)
  local remote=node('RemoteEvent','SetAutoRoll',node('Folder','RE',roll));remote.Sent={}
+ local towers=node('Folder','Towers',network);local towerEvents=node('Folder','RE',towers);local towerFunctions=node('Folder','RF',towers)
+ local equip=node('RemoteEvent','EquipBestTowerTeam',towerEvents);equip.Sent={}
+ for _,name in ipairs({'PlayTower','CompleteTowerFloor','CancelTower'})do node('RemoteFunction',name,towerFunctions)end
+ local floorActions={{action='floorCompleted',floor=9,rewards={Gems=3,['Unknown Relic']=1}}}
+ function methods:InvokeServer(...)
+  if self.Name=='PlayTower'then return true elseif self.Name=='CompleteTowerFloor'then return floorActions end
+ end
  function methods:FireServer(...)
   self.Sent[#self.Sent+1]=table.pack(...)
   if self==remote then data.AutoRoll=(...)end
@@ -46,6 +63,9 @@ local function setup(place,corrupt)
   local frame=node('Frame','Control',host)
   local label=node('TextLabel','Title',frame);label.Text=info.Name or info.Text or''
   local widget={_frame=frame,Callback=info.Callback,Value=info.CurrentValue,Options=info.Options or{}}
+  if class=='Dropdown'then
+   widget.Popup=node('Frame','Popup',window.Body);widget.Rows={}
+  end
   function widget:Set(v,silent)
    self.Value=v
    if class=='Label'then label.Text=tostring(v)end
@@ -54,6 +74,15 @@ local function setup(place,corrupt)
   function widget:Refresh(values,keep,silent)
    check(keep==true and silent==true,'choice refresh invoked callbacks / dropped selections')
    self.Options=values
+   if self.Rows then
+    local present={};for _,value in ipairs(values)do present[value]=true end
+    for value,row in pairs(self.Rows)do if not present[value]then row:Destroy();self.Rows[value]=nil end end
+    for _,value in ipairs(values)do if not self.Rows[value]then
+     local row=node('TextButton','Option',self.Popup);row.Size=UDim2.new(1,0,0,30)
+     local text=node('TextLabel','OptionLabel',row);text.Text=value;text.ZIndex=46
+     self.Rows[value]=row
+    end end
+   end
   end
   function widget:Destroy()frame:Destroy()end
   objects[info.Name or info.Text or class]=widget
@@ -74,7 +103,7 @@ local function setup(place,corrupt)
   check(type(info.Theme)=='table'and info.Theme.Accent==Color3.fromRGB(164,221,255),'entry did not supply DEVIL blue palette')
   local screen=node('ScreenGui','DEVIL HUB',core)
   local root=node('Frame','Window',screen)
-  local w={Gui=screen}
+  local w={Gui=screen,Body=root}
   function w:CreateTab(info)
    local host=node('Frame',info.Name,root)
    return {CreateGroupbox=function(_,args)return group(host,args.Name)end}
@@ -82,9 +111,12 @@ local function setup(place,corrupt)
   function w:Destroy()screen:Destroy()end
   window=w;return w
  end}
- local env=setmetatable({game=game,workspace={GetServerTimeNow=function()return 100 end},task=testTask,
+ local env=setmetatable({game=game,workspace={GetServerTimeNow=function()return clockNow end,CurrentCamera={ViewportSize=Vector2.new(1280,720)}},task=testTask,
+  os=setmetatable({clock=function()return clockNow end},{__index=os}),
   getgenv=function()return scope end,require=function(obj)return assert(obj.Export,'missing module')end,
-  Instance=Instance,Color3=Color3,ColorSequence=ColorSequence,UDim2=UDim2,UDim=UDim,Vector2=Vector2,Enum=Enum,
+  Instance={new=function(class)
+   local obj=Instance.new(class);if class=='TextButton'then obj.MouseButton1Click=signal()end;return obj
+  end},Color3=Color3,ColorSequence=ColorSequence,UDim2=UDim2,UDim=UDim,Vector2=Vector2,Enum=Enum,
   warn=function()end,print=function()end},{__index=getfenv(0)})
  env.loadstring=function(source,label)
   assert(source==ouroSource and label=='DEVIL HUB / Anime Dice GUI','entry changed native compile boundary')
@@ -92,7 +124,8 @@ local function setup(place,corrupt)
  end
  local originalCompiler=env.loadstring;local originalHttp=game.HttpGet
  local fn=assert(nativeCompile(entrySource));setfenv(fn,env)
- return {Run=fn,scope=scope,work=work,objects=objects,remote=remote,env=env,data=data,
+ return {Run=fn,scope=scope,work=work,objects=objects,remote=remote,env=env,data=data,offers=offers,dice=dice,
+  advance=function(n)clockNow+=n end,actions=function(value)floorActions=value end,
   compiler=originalCompiler,http=originalHttp,game=game,language=function(v)language=v end,
   counts=function()return downloads,libraryCalls end,window=function()return window end}
 end
@@ -165,7 +198,63 @@ do
  local f=setup(113290951185459,false);local destroyed=0
  f.scope.DevilAnimeDiceTest={Version='anime-dice-test-20261020-1',Stopped=false,Destroy=function()destroyed+=1 end}
  local app=f.Run()
- check(destroyed==1 and app.Version=='anime-dice-test-20261020-4','rerun retained previous broken release')
+ check(destroyed==1 and app.Version=='anime-dice-test-20261020-5','rerun retained previous broken release')
  app.Destroy()
 end
-print('PASS complete public test entry: GUI callbacks, Halloween, language, integrity, singleton and unload: '..checks..' checks')
+do
+ local f=setup(113290951185459,false);local app=f.Run();table.remove(f.work,1)()
+ local p=app.Presentation;local shop=f.objects['Candy shop item'];local dice=f.objects['Dice selection']
+ check(p.ShopPopup==shop.Popup and p.DicePopup==dice.Popup and p.ShopPopup~=p.DicePopup,'decorated selector captured the wrong popup')
+ for _,offer in ipairs(f.offers)do
+  local row=shop.Rows[offer.name];local price=row:FindFirstChild('CandyPrice')
+  check(row:FindFirstChild('ItemIcon').Image=='rbxassetid://123456','shop item used a placeholder instead of game artwork')
+  check(price and price:FindFirstChild('DevilCandyIcon'):GetAttribute('DevilCandySvg')==true,'shop row missing SVG candy icon')
+  check(price.CandyAmount.Text==({['Pumpkin Spin']='2,500',['Candy Pot I']='500',["Witch's Jackpot"]='50,000'})[offer.name],'shop candy price formatted incorrectly')
+  check(row.OptionLabel.Position.X.Offset==42 and row.OptionLabel.Size.X.Offset==-158,'shop name overlaps icon or price')
+ end
+ shop.Callback("Witch's Jackpot");check(app.Config.OfferChoice=="Witch's Jackpot",'icon/price presentation changed actual purchase key')
+ f.offers[1].candy=3000;p.RefreshShop(f.offers)
+ check(shop.Rows['Pumpkin Spin'].CandyPrice.CandyAmount.Text=='3,000','shop prices did not update from live offers')
+ local icons=0;for _,node in ipairs(shop.Rows['Pumpkin Spin']:GetChildren())do if node.Name=='CandyPrice'then icons+=1 end end
+ check(icons==1 and app.Config.OfferChoice=="Witch's Jackpot",'refresh duplicated prices or reset selected purchase')
+ check(dice.Rows.Fire.DiceIcon.Image=='rbxassetid://2'and dice.Rows.Fire.DicePrice.MoneyPrice.Text=='$2,500','dice icon or price missing')
+ check(dice.Rows.Basic.DicePrice.Ownership.Text=='Equipped'and dice.Rows.Fire.DicePrice.Ownership.Text=='Not purchased','initial dice ownership incorrect')
+ dice.Callback('Fire');check(app.Config.DiceChoice=='Fire'and #f.remote.Sent==0,'selecting dice auto-purchased or changed value')
+ f.data.OwnedDice.Fire=true;p.UpdateDiceState(f.data)
+ check(dice.Rows.Fire.DicePrice.Ownership.Text=='Purchased','live owned dice not marked purchased')
+ f.data.Dice='Fire';p.UpdateDiceState(f.data)
+ check(dice.Rows.Fire.DicePrice.Ownership.Text=='Equipped'and dice.Rows.Basic.DicePrice.Ownership.Text=='Purchased','equipped dice state did not switch')
+ p.SetLanguage('TH')
+ check(dice.Rows.Fire.DicePrice.Ownership.Text=='กำลังใช้อยู่'and dice.Rows.Basic.DicePrice.Ownership.Text=='ซื้อแล้ว','dice badges ignored Thai language')
+ p.SetLanguage('EN');p.RefreshDice({GetAll=function()return f.dice end,GetDefault=function()return 'Basic'end},f.data)
+ check(app.Config.DiceChoice=='Fire','dice refresh changed selection')
+ app.Config.TowerChoice='Test';app.Core.Set('Tower',true);app.Core.Tick()
+ local start=coroutine.create(table.remove(f.work,#f.work))
+ check(coroutine.resume(start),'Tower start worker failed before game wait');f.advance(1.1)
+ check(coroutine.resume(start)and coroutine.status(start)=='dead','Tower start worker failed after game wait')
+ f.advance(6);app.Core.Tick();table.remove(f.work,#f.work)()
+ check(not app.Report.PresentationError and #p.Cards==1,'real Tower floor callback failed to show a reward card')
+ local card=p.Cards[1]
+ check(card.Stage.Text=='Test  ·  Floor 9'and #card.Event.Items==2,'card displayed wrong Tower/floor or reward count')
+ check(card.Frame.DevilHubLogo.Image=='devil-logo.png'and card.Frame.Brand.Text=='DEVIL HUB','Tower card missing hub branding')
+ local rows=card.List:GetChildren()
+ check(rows[1].ItemName.Text=='Gems'and rows[1].ItemAmount.Text=='×3'and rows[1].ItemIcon.Image=='rbxassetid://123456','reward name, amount or native image wrong')
+ check(rows[2].ItemIconFallback~=nil,'unknown reward had no fallback icon')
+ p.Notify({Tower='Front Yard',Floor=2,Items={}})
+ check(#p.Cards==2 and p.Cards[1].Empty.Text=='No drops this floor','no-drop floor claimed a reward or did not show separately')
+ p.SetLanguage('TH');check(p.Cards[1].Stage.Text=='Front Yard  ·  ชั้น 2','Tower floor did not use selected language')
+ local many={};for i=1,20 do many[i]={Name='Reward '..i,Amount=i}end
+ p.Notify({Tower='Test',Floor=10,Items=many})
+ check(#p.Cards==2 and card.Frame.destroyed,'notification stack grew without bound')
+ check(#p.Cards[1].List:GetChildren()==20 and p.Cards[1].List.CanvasSize.Y.Offset>p.Cards[1].List.Size.Y.Offset,'long reward list was dropped instead of scrollable')
+ f.env.workspace.CurrentCamera.ViewportSize=Vector2.new(320,480);p.Tick(107.1)
+ check(#p.Cards==1 and p.Root.Size.X.Offset<=288,'mobile notification escaped screen width / stack limit')
+ local mobile=p.Cards[1]
+ check(mobile.Frame.Size.Y.Offset<=p.Root.Size.Y.Offset,'mobile reward list escaped available height')
+ mobile.Frame.Dismiss.MouseButton1Click:Fire();check(#p.Cards==0,'close button did not dismiss card')
+ p.Notify({Tower='Test',Floor=11,Items={}});f.advance(8);p.Tick(116)
+ check(#p.Cards==0,'expired reward card remained visible')
+ p.Notify({Tower='Test',Floor=12,Items={}});local last=p.Cards[1];app.Destroy()
+ check(p.Root.destroyed and last.Frame.destroyed and not last.Link.Connected,'unload left cards / click connections alive')
+end
+print('PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: '..checks..' checks')

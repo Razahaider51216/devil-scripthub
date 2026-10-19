@@ -1,5 +1,5 @@
 {
-  "release": "anime-dice-test-20261020-4",
+  "release": "anime-dice-test-20261020-5",
   "place_id": 113290951185459,
   "universe_id": 10708913337,
   "production_router_changed": false,
@@ -8,12 +8,14 @@
   "theme_module_commit": "9a9812469df7b5dad2848abb33c5206f7d57e685",
   "ouroflow_commit": "c8251f76f74d9942114ebccb0564aa0ac196320a",
   "ouroflow_sha256": "0c30762d3c9c3aa7c25ca3aeceab960a771c96b5af290a3b67aed627161385f5",
-  "entry_sha256": "0d81b256e0494498b75933acc1a834bdc5bd775494d87084a7fcea4c4a7d834c",
+  "entry_sha256": "d9c349536a12b8c4e21c9d5c5ad43a961c058d0019e165c28d10a868b888f5ef",
+  "candy_svg_sha256": "c7025836ff6cd9849344697ffbd5f8ff5961a23c812cb85c5abe1ec9ecdc5a43",
   "sources": {
     "adapter.lua": "eab9a87c3f8cdf6c1777112903a9fca4e5c8ca7cc2aaade94fac502b8ccb70f3",
-    "core.lua": "0c6c151bc2a503f194a4e2dce00394f3d2251d46ce79e6965d461594c4641a4b",
-    "planner.lua": "69b39c55fbc643a158305ca31ce4ecaddfb3be868a813b34c9cac3745143dd23",
+    "core.lua": "9cd9f778b0ccf837be4e938b7a31f89e57452b146b8c03a3dd19f6efbc2e2193",
+    "planner.lua": "f85810afe30a9714d877caf19bc4d141c4b907790f8d70c0e1626a6e6c301211",
+    "presentation.lua": "500c601d1b34fd1859b1cdce9d0aa28ccdcbd02c9403fd6fd0e7e6a440c06b4d",
     "translations.lua": "6a02b34b693861cadf2c556d1856489274cdb670c9e4dab11648b300890ab1a9",
-    "ui.lua": "48a513ed19d014f0864fec508aceda9c2a2987ac9a121ddc83df580e8ab352e6"
+    "ui.lua": "fe41e4975f16117cafbbbfb2577ec3672132b4cb9d7ff4f803d5deda88ab3186"
   }
 }

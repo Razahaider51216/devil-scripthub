@@ -3,7 +3,7 @@
 Open Anime Dice (place `113290951185459`, universe `10708913337`) and run:
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/anime-dice-test.lua?v=test-4"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/anime-dice-test.lua?v=test-5"))()
 ```
 
 This test adds a DEVIL HUB interface for the actions identified in the supplied
@@ -18,12 +18,12 @@ All 28 automation switches start OFF and are not restored from saved configs.
 
 | Tab | Included systems |
 |---|---|
-| Farm | Roll, Collect Money, Equip Best Base, Level Units, Buy/Equip Dice, Upgrade Tree |
+| Farm | Roll, Collect Money, Equip Best Base, Level Units, Dice with artwork/prices/live ownership, Upgrade Tree |
 | Inventory | Sell unused units by selected rarities (empty = Sell All), Auto Lock, surplus Fuse, previews and explicit keep selections |
-| Towers | Tower runs, Equip Best Tower Team, Rebirth, Rebirth points and manual reset token |
+| Towers | Tower runs, per-floor reward cards, Equip Best Tower Team, Rebirth, Rebirth points and manual reset token |
 | Rerolls | Trait, Grade, Quirk targets, request limits, selected unit and game protection |
 | Items and rewards | Selected Boost/Spin use, Gear priority, Daily/Group/Offline rewards, completed quests, Quest shop and user-entered codes |
-| Halloween | Pumpkin Dice (1/5), Pumpkin sell filter, Haunted House wings, event travel, teleporting Trick or Treat, Pumpkin Pass, event quests and Candy shop |
+| Halloween | Pumpkin Dice (1/5), Pumpkin sell filter, Haunted House wings, event travel, teleporting Trick or Treat, Pumpkin Pass, event quests and Candy shop with item icons / Candy prices |
 | Status | Per-feature requests/confirmations/errors, Stop All, refresh choices, copy/save report and unload |
 
 ## First test
@@ -82,6 +82,26 @@ status tab; this test does not reproduce the native battle animation. Existing
 native Auto Tower must be off to avoid two controllers competing. Stopping cancels
 only a Tower session that this test successfully started.
 
+Each confirmed Tower / Haunted floor produces a separate DEVIL HUB reward card
+at the top right, with the hub logo, the actual running tower/wing, floor number,
+item artwork and quantities from the server's `floorCompleted.rewards` response.
+Empty drops are labeled explicitly. Run totals in `ended` are not counted again.
+The latest 20 floor reports are included in the exported test report. Cards last
+seven seconds, can be dismissed, and are bounded to two on desktop / one on small
+screens; long item lists scroll. A notice error does not stop Tower farming.
+
+Candy Shop rows show native item artwork plus a blue/white vector Candy icon
+and the live price. The icon is defined in `assets/devil-candy.svg`; the builder
+embeds its vector paths as Roblox GUI strokes, without needing SVG file support
+or another image download in the executor. Prices and icons do not alter option
+values or the server purchase key. Missing item artwork gets a fallback icon.
+
+Dice choices show native artwork, their cash price, and live Purchased / Equipped
+badges from `OwnedDice` and `Dice`. Badge state follows the existing EN/Thai menu
+and refreshes with the UI loop. Choosing a dice alone does not send a purchase;
+enable Auto Buy / Equip Dice to apply it. Explicit choices can equip an already
+owned weaker dice; Best affordable still selects only an upgrade. Reserves apply.
+
 Trick or Treat uses **Teleport only**, with no movement mode selector. Use
 Halloween > Start Event Collection to enable doors, completed event quests and
 Pass claims together; purchases and Pumpkin rolls remain separate switches.
@@ -114,5 +134,6 @@ Offline checks exercise inventory/material protection, budgets/prerequisites,
 real-game remote paths and argument shapes, state confirmation, server event
 direction, request cooldowns, late responses after stop, roof/ground selection,
 teleport failure/death, rarity selection/clearing and native mutation-aware tiers,
+icon/price dropdowns, ownership changes, per-floor reward data, notice placement,
 GUI callbacks, silent selection refresh, language changes, duplicate startup,
 corrupt downloads and unload. These mocks do not replace live validation.

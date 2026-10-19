@@ -370,4 +370,27 @@ do
  f.cfg.SellRarities={Rare=true};f.step(2)
  check(f.packets[2].args[1][1]=='r'and f.ctl.Report.Jobs.Sell.Units==2,'running seller did not apply changed tiers to the next batch')
 end
+do
+ local f=fixture();local events={};f.ctx.OnTowerReward=function(event)events[#events+1]=event end
+ f.cfg.TowerChoice='Test'
+ f.server(function(_,key)
+  if key=='PlayTower'then return true end
+  if key=='CompleteTowerFloor'then return {{action='floorCompleted',floor=9,rewards={Gems=3,['Trait Reroll']=1,Invalid=-2,Infinite=math.huge}},
+   {action='ended',rewards={Gems=100}}}end
+ end)
+ f.ctl.Set('Tower',true);f.step();f.cfg.TowerChoice='Front Yard';f.step(6)
+ check(#events==1 and events[1].Tower=='Test'and events[1].Floor==9,'floor notice mislabeled running Tower or duplicated end summary')
+ check(#events[1].Items==2 and events[1].Items[1].Name=='Gems'and events[1].Items[1].Amount==3,'notice included unconfirmed/end-total/invalid rewards')
+ check(#f.ctl.Report.TowerRewards==1,'confirmed rewards absent from exported report')
+ local g=fixture();g.cfg.WingChoice='Front Yard';g.ctx.OnTowerReward=function()error('UI unavailable')end
+ g.server(function(_,key)if key=='PlayTower'then return true elseif key=='CompleteTowerFloor'then return {{action='floorCompleted',floor=1,rewards={Candy=1,Pumpkins=1}}}end end)
+ g.ctl.Set('Haunted',true);g.step();g.step(6)
+ check(g.ctl.Report.PresentationError and g.ctl.Report.Jobs.Haunted.Errors==0 and g.ctl.Report.Jobs.Haunted.Confirmed==1,'notice error stopped farming')
+ check(g.ctl.Report.TowerRewards[1].Job=='Haunted','Haunted reward report mixed with regular Tower')
+end
+do
+ local f=fixture();f.d.Dice='Water';f.d.OwnedDice.Fire=true;f.cfg.DiceChoice='Fire'
+ f.ctl.Set('Dice',true);f.step()
+ check(#f.packets==1 and f.packets[1].key=='EquipDice'and f.packets[1].args[1]=='Fire','explicit owned lower-luck dice was ignored or repurchased')
+end
 print('PASS Anime Dice planning, network contracts, confirmation, stop and event behavior: '..checks..' checks')

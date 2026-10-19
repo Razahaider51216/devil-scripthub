@@ -107,7 +107,8 @@ function P.Dice(data,catalog,cfg)
     for name,dice in pairs(all)do
         local wanted=cfg.DiceChoice=="Best affordable"or cfg.DiceChoice==name
         local owned=(data.OwnedDice or{})[name]==true or data.Dice==name
-        if wanted and P.Number(dice.luck)>P.Number(current.luck)and(owned or type(dice.price)=="number"and dice.price<=data.Money-cfg.MoneyReserve)then
+        if wanted and data.Dice~=name and(cfg.DiceChoice~="Best affordable"or P.Number(dice.luck)>P.Number(current.luck))
+            and(owned or type(dice.price)=="number"and dice.price<=data.Money-cfg.MoneyReserve)then
             if not best or dice.luck>best.luck then best={name=name,luck=dice.luck,owned=owned,price=dice.price or 0}end
         end
     end

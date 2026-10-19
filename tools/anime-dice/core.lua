@@ -7,9 +7,9 @@ return function(ctx,P)
         TraitTargets={},GradeTargets={},QuirkTargets={},BoostNames={},SpinNames={},GearPriority="Luck",PumpkinCount=1,
         PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true}
     local clock=ctx.Clock or os.clock
-    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-4",Jobs={},Log={},LiveVerified=false},Stopped=false,Generation={}}
+    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-5",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
     local states,handlers,pending,spend={}, {}, {}, {}
-    local towerOwned=false;local towerEpoch=0;local originalRoll,rollOwned=nil,false
+    local towerOwned=false;local towerName;local towerEpoch=0;local originalRoll,rollOwned=nil,false
     local doorReady=setmetatable({},{__mode="k"});local lastKnock;local nextIslandTravel=0;local stopEpoch=0
     local function log(name,message)
         local list=ctl.Report.Log
@@ -73,7 +73,7 @@ return function(ctx,P)
             rollOwned=false;pcall(ctx.Fire,"RollService","SetAutoRoll",originalRoll==true)
         end
         if not value and(name=="Tower"or name=="Haunted")and towerOwned then
-            towerOwned=false;towerEpoch+=1
+            towerOwned=false;towerName=nil;towerEpoch+=1
             ctx.Spawn(function()pcall(ctx.Invoke,"Towers","CancelTower")end)
         end
     end
@@ -198,21 +198,36 @@ return function(ctx,P)
             local started=call(name,token,"RF","Towers","PlayTower",choice)
             if started then
                 if not valid(name,token)then pcall(ctx.Invoke,"Towers","CancelTower");return end
-                towerOwned=true;status(name,"Tower started: "..choice)
+                towerOwned=true;towerName=choice;status(name,"Tower started: "..choice)
             else status(name,"Tower unavailable / already running / locked")end
             return 5.2
         end
         local epoch=towerEpoch
         local actions=call(name,token,"RF","Towers","CompleteTowerFloor")
         if epoch~=towerEpoch or not valid(name,token)then return end
-        if actions=="destroyed"then towerOwned=false;status(name,"Tower finished");return 5.2 end
+        if actions=="destroyed"then towerOwned=false;towerName=nil;status(name,"Tower finished");return 5.2 end
         local delay=0
         if type(actions)=="table"then
             local refs=catalog("TowerRefs").ActionWaitTime
             for _,action in ipairs(actions)do
                 delay+=P.Number(refs[action.action])
-                if action.action=="floorCompleted"then finish(name,"Floor "..tostring(action.floor).." complete")end
-                if action.action=="ended"then towerOwned=false;status(name,"Run complete")end
+                if action.action=="floorCompleted"then
+                    finish(name,"Floor "..tostring(action.floor).." complete")
+                    local items={}
+                    for item,amount in pairs(type(action.rewards)=="table"and action.rewards or{})do
+                        local count=P.Number(amount)
+                        if type(item)=="string"and count>0 then items[#items+1]={Name=item,Amount=count}end
+                    end
+                    table.sort(items,function(a,b)return a.Name<b.Name end)
+                    local event={Job=name,Tower=towerName or choice,Floor=action.floor,Items=items,At=clock()}
+                    local history=ctl.Report.TowerRewards;history[#history+1]=event
+                    if #history>20 then table.remove(history,1)end
+                    if ctx.OnTowerReward then
+                        local ok,err=pcall(ctx.OnTowerReward,event)
+                        if not ok then ctl.Report.PresentationError=tostring(err):sub(1,500)end
+                    end
+                end
+                if action.action=="ended"then towerOwned=false;towerName=nil;status(name,"Run complete")end
             end
         end
         return math.max(1,delay+.35)

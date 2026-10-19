@@ -6,9 +6,12 @@ root = Path(__file__).resolve().parents[2]
 here = Path(__file__).resolve().parent
 results = []
 def execute(path):
-    result = subprocess.run([str(root.parent / 'luau-tools/luau.exe'), str(path)], check=True,
+    result = subprocess.run([str(root.parent / 'luau-tools/luau.exe'), str(path)],
                             timeout=25, capture_output=True, text=True, encoding='utf-8')
     print(result.stdout, end='')
+    if result.returncode:
+        print(result.stderr, end='')
+        result.check_returncode()
     results.append(result.stdout.strip())
 checks = (root / 'tests/anime-dice-core.luau').read_text(encoding='utf-8')
 checks = checks.replace('-- TEST_PLANNER', (here / 'planner.lua').read_text(encoding='utf-8'))
@@ -44,7 +47,7 @@ fixture += (root / 'tests/anime-dice-entry.luau').read_text(encoding='utf-8')
 path = here / 'entry-test.generated.luau'
 path.write_text(fixture, encoding='utf-8', newline='\n')
 execute(path)
-validation = {'release':'anime-dice-test-20261020-4','live_game_verified':False,
+validation = {'release':'anime-dice-test-20261020-5','live_game_verified':False,
     'entry_sha256':hashlib.sha256((root / 'anime-dice-test.lua').read_bytes()).hexdigest(),
     'checks':sum(int(n) for result in results for n in re.findall(r'(\d+) checks', result)),
     'literal_remote_contract_checks':count,'results':results,

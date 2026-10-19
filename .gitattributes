@@ -2,4 +2,5 @@
 *.luau text eol=lf
 *.py text eol=lf
 *.md text eol=lf
+assets/devil-candy.svg text eol=lf
 loader text eol=lf

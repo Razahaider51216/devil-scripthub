@@ -1,7 +1,7 @@
 -- Standalone TEST entry. The production router is intentionally unchanged.
 assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
 local scope=type(getgenv)=="function"and getgenv()or _G
-local release="anime-dice-test-20261020-4"
+local release="anime-dice-test-20261020-5"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end
@@ -19,15 +19,19 @@ end)()
 local makeCore=(function()
 -- ANIME_CORE
 end)()
+local makePresentation=(function()
+-- ANIME_PRESENTATION
+end)()
 local ctx=makeAdapter(scope)
 local core=makeCore(ctx,planner)
 local cfg=core.Config
 local app={Core=core,Config=cfg,Report=core.Report,Version=core.Report.Version,Stopped=false}
-local window,library
+local window,library,presentation
 local links,widgets,optionWidgets={}, {}, {}
 local function destroy()
     if app.Stopped then return end
     app.Stopped=true;core.Destroy()
+    if presentation then presentation.Destroy()end
     for _,link in ipairs(links)do link:Disconnect()end
     if window then window:Destroy()end
     if scope.DevilAnimeDiceTest==app then scope.DevilAnimeDiceTest=nil end
@@ -60,6 +64,7 @@ local ok,problem=xpcall(function()
         UnsupportedExecutor=false,Disclaimer=false,Size=UDim2.fromOffset(840,570),
         ToggleButton={Platform="Both",Icon=image},IslandDraggable=true,KeepOnScreen=true,ConfigurationSaving={Enabled=false}})
     app.Window=window;window.Gui:SetAttribute("DevilHubPresentation",true)
+    presentation=makePresentation(window,ctx,app,image);app.Presentation=presentation
     links[#links+1]=window.Gui.Destroying:Connect(destroy)
     local function group(tab,name,side)return tab:CreateGroupbox({Name=name,Side=side or"Left"})end
     local function tab(name,icon)return window:CreateTab({Name=name,Icon=icon,Backdrop=false})end
@@ -101,7 +106,7 @@ local ok,problem=xpcall(function()
     input(farm,"LevelCap","Maximum unit level")
     local buy=group(main,"Dice and upgrades","Right")
     toggle(buy,"Dice","Auto Buy / Equip Dice")
-    dropdown(buy,"DiceChoice","Dice selection",{"Best affordable"},"Best affordable")
+    optionWidgets.DiceChoice=presentation.CreateDice(buy,function(name)cfg.DiceChoice=name end)
     toggle(buy,"Upgrade","Auto Upgrade Tree")
     dropdown(buy,"UpgradeBranch","Upgrade branch",{"All","Money","Luck","Damage","Health","Unit Storage","Roll","Trait","Grade"},"All")
     input(buy,"MoneyReserve","Money reserve")
@@ -228,7 +233,7 @@ local ok,problem=xpcall(function()
     toggle(pass,"Pass","Auto Claim Pumpkin Pass")
     toggle(pass,"EventQuests","Auto Claim Halloween Quests")
     local shop=group(halloween,"Candy shop")
-    dropdown(shop,"OfferChoice","Candy shop item",{},nil)
+    optionWidgets.OfferChoice=presentation.CreateShop(shop,function(name)cfg.OfferChoice=name end)
     input(shop,"OfferLimit","Purchase limit")
     input(shop,"CandyReserve","Candy reserve")
     toggle(shop,"CandyShop","Auto Buy Candy Shop Item")
@@ -257,7 +262,7 @@ local ok,problem=xpcall(function()
         local function options(key,values)
             if optionWidgets[key]then optionWidgets[key]:Refresh(values,true,true)end
         end
-        local dice={"Best affordable"};if c.Dice then for _,name in ipairs(keys(c.Dice.GetAll()))do dice[#dice+1]=name end end;options("DiceChoice",dice)
+        presentation.RefreshDice(c.Dice,d)
         local towerNames,wingNames={},{}
         if c.Towers then for name,tower in pairs(c.Towers.GetAll())do if not tower.event then towerNames[#towerNames+1]=name end end end;table.sort(towerNames)
         for _,wing in ipairs(c.HauntedHouse and c.HauntedHouse.Wings or{})do wingNames[#wingNames+1]=wing.name end
@@ -273,7 +278,7 @@ local ok,problem=xpcall(function()
                 protectionWidgets[kind]:Set(chosen,true)
             end
         end
-        local offers={};for _,offer in ipairs(c.HalloweenShop or{})do offers[#offers+1]=offer.name end;options("OfferChoice",offers)
+        presentation.RefreshShop(c.HalloweenShop)
         local questOffers={};for _,offer in ipairs(c.Quest and c.Quest.Shop or{})do questOffers[#questOffers+1]=offer.name end;options("QuestOffer",questOffers)
         local pumpkinNames={};for _,unit in ipairs(c.PumpkinDice and c.PumpkinDice.Units or{})do pumpkinNames[#pumpkinNames+1]=unit.id end;options("PumpkinSellNames",pumpkinNames)
         if not pumpkinFilterInitialized then
@@ -330,6 +335,7 @@ local ok,problem=xpcall(function()
                 local success,err=pcall(refreshOptions);if not success then core.Report.ChoicesError=tostring(err)end
             end
             refreshLanguage()
+            presentation.SetLanguage(currentLanguage,ctx.Ready and ctx.Snapshot()or nil);presentation.Tick(os.clock())
             ctx.Wait(.5)
         end
     end)
