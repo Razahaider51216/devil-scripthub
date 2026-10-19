@@ -11,7 +11,7 @@ Workspace (3) dump. It reads live game modules and inventory, not captured unit
 IDs. The main loader now supports Anime Dice as its eleventh route, pinned to
 the reviewed entry commit; the previous ten route definitions/pins are retained.
 Roblox/executor behavior has not been verified live. Direct entry remains available
-at `anime-dice-test.lua?v=test-8` for existing direct-loader users.
+at `anime-dice-test.lua?v=test-9` for existing direct-loader users.
 
 The GUI uses the existing black/blue/white presentation, its single EN/Thai
 language menu, blue switches and native minimize/restore controls. No full-screen
@@ -26,6 +26,7 @@ All 28 automation switches start OFF and are not restored from saved configs.
 | Rerolls | Trait, Grade, Quirk targets, request limits, selected unit and game protection |
 | Items and rewards | Boost/Spin choices with item icons, Gear priority with buff icons, Daily/Group/Offline rewards, completed quests, Quest shop icons/Ticket prices and user-entered codes |
 | Halloween | Pumpkin Dice (1/5), Pumpkin sell filter, Haunted House wings, event travel, teleporting Trick or Treat, Pumpkin Pass, event quests and Candy shop with item icons / Candy prices |
+| Discord | Official community logo, EN/Thai community card, selectable invitation and copy button with clipboard fallback |
 | Status | Per-feature requests/confirmations/errors, Stop All, refresh choices, copy/save report and unload |
 
 ## First test

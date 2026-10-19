@@ -2,6 +2,7 @@ from pathlib import Path
 import hashlib, importlib.util, json, subprocess
 import dependency
 import xml.etree.ElementTree as ET
+from PIL import Image
 
 root = Path(__file__).resolve().parents[2]
 here = Path(__file__).resolve().parent
@@ -21,6 +22,31 @@ candy_paths = [[float(n) for n in path.attrib['points'].replace(',', ' ').split(
                for path in art.findall('.//{http://www.w3.org/2000/svg}polyline')]
 assert len(candy_paths) == 3 and all(len(p) >= 4 and len(p) % 2 == 0 for p in candy_paths)
 source = source.replace('__CANDY_PATHS__', '{' + ','.join('{' + ','.join(map(str, p)) + '}' for p in candy_paths) + '}')
+# Native GUI rectangles keep the official silhouette available on executors
+# without custom-asset support, with no extra network request at startup.
+discord = root / 'assets/discord-logo.png'
+mask = Image.open(discord).convert('RGBA').resize((64,64), Image.Resampling.LANCZOS).getchannel('A')
+rects, active = [], {}
+for y in range(64):
+    runs, x = set(), 0
+    while x < 64:
+        if mask.getpixel((x,y)) < 128:
+            x += 1
+            continue
+        start = x
+        while x < 64 and mask.getpixel((x,y)) >= 128:
+            x += 1
+        runs.add((start,x-start))
+    for run in list(active):
+        if run not in runs:
+            rects.append(active.pop(run))
+    for start,width in sorted(runs):
+        if (start,width) in active:
+            active[start,width][3] += 1
+        else:
+            active[start,width] = [start,y,width,1]
+rects.extend(active.values())
+source = source.replace('__DISCORD_RECTS__', '{' + ','.join('{' + ','.join(map(str,r)) + '}' for r in rects) + '}')
 ouro = dependency.read(root)
 source = source.replace('__OURO_LEN__', str(len(ouro))).replace('__OURO_HASH__', str(blue.checksum(ouro)))
 public = root / 'anime-dice-test.lua'
@@ -28,11 +54,12 @@ public.write_text(source, encoding='utf-8', newline='\n')
 subprocess.run([str(root.parent / 'luau-tools/luau-compile.exe'), '--null', str(public)], check=True)
 routes = json.loads((root / 'devil-blue-gui-router-audit.json').read_text(encoding='utf-8'))['routes']
 anime_route = next((r for r in routes if r['File'] == 'anime-dice-test.lua'), None)
-manifest = {'release':'anime-dice-test-20261020-8','place_id':113290951185459,'universe_id':10708913337,
+manifest = {'release':'anime-dice-test-20261020-9','place_id':113290951185459,'universe_id':10708913337,
     'production_router_changed':anime_route is not None,'live_game_verified':False,'all_automation_defaults_off':True,
     'theme_module_commit':module_ref,'ouroflow_commit':'c8251f76f74d9942114ebccb0564aa0ac196320a',
     'ouroflow_sha256':hashlib.sha256(ouro).hexdigest(),'entry_sha256':hashlib.sha256(public.read_bytes()).hexdigest(),
     'candy_svg_sha256':hashlib.sha256(svg.read_bytes()).hexdigest(),
+    'discord_logo_sha256':hashlib.sha256(discord.read_bytes()).hexdigest(),
     'sources':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in here.glob('*.lua')}}
 if anime_route:
     manifest['main_loader_entry_commit'] = anime_route['Commit']

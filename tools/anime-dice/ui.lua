@@ -1,7 +1,7 @@
 -- DEVIL HUB Anime Dice entry, available directly and through the main loader.
 assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
 local scope=type(getgenv)=="function"and getgenv()or _G
-local release="anime-dice-test-20261020-8"
+local release="anime-dice-test-20261020-9"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end
@@ -254,6 +254,19 @@ local ok,problem=xpcall(function()
     actions:CreateToggle({Name="Use game Auto Roll",CurrentValue=true,Callback=function(v)core.Set("Roll",false);cfg.UseNativeRoll=v end})
     button(actions,"Close test",destroy)
     actions:CreateParagraph({Name="Anime Dice",Content="All automation starts off. Launch directly or through the DEVIL HUB main loader. Game rules, balances and inventory updates decide the result."})
+    local discord=tab("Discord","users")
+    local community=group(discord,"DEVIL HUB Community")
+    presentation.Community(community)
+    local inviteStatus=community:CreateLabel({Text="Invite ready to copy."})
+    community:CreateButton({Name="Copy Discord Invite",Icon="copy",Style="Primary",Callback=function()
+        if app.Stopped then return end
+        local copy=setclipboard or toclipboard
+        local copied=type(copy)=="function"and pcall(copy,"https://discord.gg/fDwPCmpkkh")
+        inviteStatus:Set(copied and"Discord invite copied!"or"Clipboard unavailable. Select and copy the invite above.")
+    end})
+    local news=group(discord,"Stay connected","Right")
+    news:CreateParagraph({Name="Updates and announcements",Content="New releases, supported games and DEVIL HUB news."})
+    news:CreateParagraph({Name="Support and feedback",Content="Report bugs, share suggestions and connect with the community."})
     local function keys(t)
         local list={};for name in pairs(t or{})do if type(name)=="string"then list[#list+1]=name end end;table.sort(list);return list
     end

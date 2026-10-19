@@ -149,6 +149,19 @@ do
  check(f.objects['Auto Pumpkin Dice']and f.objects['Auto Trick or Treat']and f.objects['Auto Haunted House'],'Halloween controls missing')
  check(f.objects['Auto Trait']and f.objects['Auto Buy Quest Shop Item']and f.objects['Auto Fuse Surplus Units'],'supported systems missing from GUI')
  check(app.Window.Gui:GetAttribute('DevilHubPresentation')==true,'DEVIL theme ownership marker missing')
+ local community=app.Presentation.CommunityCard
+ check(community and community.Parent and community.AutomaticSize==Enum.AutomaticSize.None,'Discord card missing / uncontrolled height')
+ check(#community.DiscordLogo:GetChildren()>0 and community.CommunityBrand.RichText,'Discord silhouette / two-tone brand missing')
+ check(community.DiscordInvite.Text=='https://discord.gg/fDwPCmpkkh'and community.DiscordInvite.TextEditable==false,'Discord invitation incorrect / editable')
+ local copy=f.objects['Copy Discord Invite'];local status=f.objects['Invite ready to copy.']
+ copy.Callback();check(status.Value=='Clipboard unavailable. Select and copy the invite above.','missing clipboard API did not offer manual copy')
+ local copied
+ f.env.setclipboard=function(text)copied=text end
+ copy.Callback();check(copied==community.DiscordInvite.Text and status.Value=='Discord invite copied!','Discord button copied wrong invitation / showed wrong status')
+ f.env.setclipboard=function()error('executor denied clipboard')end
+ copy.Callback();check(status.Value=='Clipboard unavailable. Select and copy the invite above.','clipboard failure escaped callback')
+ f.env.setclipboard=nil;f.env.toclipboard=function(text)copied=text end;copied=nil
+ copy.Callback();check(copied==community.DiscordInvite.Text,'alternate clipboard API unsupported')
  -- Run initialization only. The second queued function is the periodic UI loop.
  local init=table.remove(f.work,1);init()
  check(app.Report.InitializationError==nil,'entry failed initialization')
@@ -159,6 +172,7 @@ do
  f.language('TH');check(coroutine.resume(loop),'Thai language refresh failed')
  local label=f.objects['Auto Roll']._frame:FindFirstChild('Title')
  check(label.Text=='สุ่มลูกเต๋าอัตโนมัติ','shared language selection not reflected in test GUI')
+ check(community.CommunityHeading.Text=='เข้าร่วม Discord ของเรา','Discord did not follow shared language selection')
  f.language('EN');check(coroutine.resume(loop),'English language refresh failed')
  check(label.Text=='Auto Roll','test GUI did not return to English')
  local before=f.counts();check(f.Run()==app and f.counts()==before,'duplicate run created another GUI/download')
@@ -202,7 +216,7 @@ do
  local f=setup(113290951185459,false);local destroyed=0
  f.scope.DevilAnimeDiceTest={Version='anime-dice-test-20261020-1',Stopped=false,Destroy=function()destroyed+=1 end}
  local app=f.Run()
- check(destroyed==1 and app.Version=='anime-dice-test-20261020-8','rerun retained previous broken release')
+ check(destroyed==1 and app.Version=='anime-dice-test-20261020-9','rerun retained previous broken release')
  app.Destroy()
 end
 do
@@ -300,7 +314,7 @@ if mainLoaderSource then
  function f.game:IsLoaded()return true end
  f.game.HttpGet=function(self,url)
   if url:find('/anime-dice-test.lua',1,true)then
-   check(url:find('/'..mainEntryCommit..'/anime-dice-test.lua?hub=anime-dice-test-20261020-8',1,true),'main loader fetched wrong entry pin / version')
+   check(url:find('/'..mainEntryCommit..'/anime-dice-test.lua?hub=anime-dice-test-20261020-9',1,true),'main loader fetched wrong entry pin / version')
    routeRequests+=1;return entrySource
   end
   return f.http(self,url)
@@ -315,7 +329,7 @@ if mainLoaderSource then
   local ok,result=coroutine.resume(co);check(ok,'main loader / actual entry failed: '..tostring(result))
   if coroutine.status(co)=='dead'then app=result;break end
  end
- check(app and app==f.scope.DevilAnimeDiceTest and app.Version=='anime-dice-test-20261020-8','main loader did not return the actual Anime Dice GUI')
+ check(app and app==f.scope.DevilAnimeDiceTest and app.Version=='anime-dice-test-20261020-9','main loader did not return the actual Anime Dice GUI')
  check(routeRequests==1 and not f.scope.DevilHubRouterLoading,'main loader duplicated entry download or leaked busy state')
  table.remove(f.work,1)()
  check(not app.Report.InitializationError and f.objects['Quest shop item']and f.objects['Boosts to use']and f.objects['Spins to use']and f.objects['Gear priority'],'main-loaded app did not initialize requested selectors')

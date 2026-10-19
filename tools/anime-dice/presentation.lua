@@ -4,9 +4,12 @@ return function(window,ctx,app,logo)
     local white=Color3.fromRGB(255,255,255);local blue=Color3.fromRGB(164,221,255)
     local muted=Color3.fromRGB(160,178,195);local black=Color3.fromRGB(7,9,13)
     local candyPaths=__CANDY_PATHS__ -- Generated from assets/devil-candy.svg.
+    local discordRects=__DISCORD_RECTS__ -- Offline silhouette from the existing official logo.
     local function node(class,name,parent,props)
         local obj=Instance.new(class);obj.Name=name
         for key,value in pairs(props or{})do obj[key]=value end
+        -- Preserve these authored brand colors through the shared theme pass.
+        if name=="LogoShape"or name=="CommunityBrand"then obj:SetAttribute("DevilBlueSettings",true)end
         obj.Parent=parent;return obj
     end
     local function label(name,parent,props)
@@ -16,6 +19,35 @@ return function(window,ctx,app,logo)
         return node("TextLabel",name,parent,defaults)
     end
     local function corner(parent,radius)node("UICorner","Corner",parent,{CornerRadius=UDim.new(0,radius)})end
+    function view.Community(host)
+        local widget=host:CreateParagraph({Name="DEVIL HUB Community",Content=""})
+        local frame=assert(widget._frame,"Community card host unavailable")
+        for _,child in ipairs(frame:GetChildren())do child:Destroy()end
+        frame.Name="DevilDiscordCommunity";frame.AutomaticSize=Enum.AutomaticSize.None
+        frame.Size=UDim2.new(1,0,0,244);frame.BackgroundColor3=black;frame.BackgroundTransparency=.12
+        corner(frame,10)
+        local icon=node("Frame","DiscordLogo",frame,{AnchorPoint=Vector2.new(.5,0),Position=UDim2.new(.5,0,0,16),
+            Size=UDim2.fromOffset(64,64),BackgroundTransparency=1,ZIndex=3})
+        icon:SetAttribute("CustomIcon",true)
+        for _,rect in ipairs(discordRects)do
+            node("Frame","LogoShape",icon,{Position=UDim2.fromOffset(rect[1],rect[2]),Size=UDim2.fromOffset(rect[3],rect[4]),
+                BackgroundColor3=white:Lerp(blue,rect[2]/64),BorderSizePixel=0,ZIndex=3})
+        end
+        label("CommunityBrand",frame,{Text='<font color="#FFFFFF">DEVIL</font> <font color="#A4DDFF">HUB</font>',RichText=true,
+            Font=Enum.Font.GothamBold,TextSize=24,TextXAlignment=Enum.TextXAlignment.Center,
+            Position=UDim2.fromOffset(12,88),Size=UDim2.new(1,-24,0,30),ZIndex=3})
+        label("CommunityHeading",frame,{Text="Join our Discord",TextColor3=blue,TextSize=14,
+            TextXAlignment=Enum.TextXAlignment.Center,Position=UDim2.fromOffset(12,124),Size=UDim2.new(1,-24,0,22),ZIndex=3})
+        label("CommunityDescription",frame,{Text="Updates, announcements and community support.",TextColor3=muted,TextSize=12,
+            TextWrapped=true,TextTruncate=Enum.TextTruncate.None,TextXAlignment=Enum.TextXAlignment.Center,
+            Position=UDim2.fromOffset(20,152),Size=UDim2.new(1,-40,0,36),ZIndex=3})
+        local invite=node("TextBox","DiscordInvite",frame,{Text="https://discord.gg/fDwPCmpkkh",TextEditable=false,ClearTextOnFocus=false,
+            Font=Enum.Font.GothamMedium,TextSize=12,TextColor3=blue,TextXAlignment=Enum.TextXAlignment.Center,
+            Position=UDim2.fromOffset(12,202),Size=UDim2.new(1,-24,0,30),BackgroundColor3=Color3.fromRGB(24,27,33),
+            BackgroundTransparency=.15,BorderSizePixel=0,ZIndex=3})
+        corner(invite,6)
+        view.CommunityCard=frame
+    end
     local function line(parent,x1,y1,x2,y2,color,size,z)
         local scale=size/24;local dx,dy=x2-x1,y2-y1
         local part=node("Frame","VectorStroke",parent,{AnchorPoint=Vector2.new(.5,.5),

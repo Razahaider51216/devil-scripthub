@@ -1,5 +1,17 @@
 -- Reuse the single language menu provided by the shared DEVIL HUB presentation.
 local translations={
+    ["DEVIL HUB Community"]="ชุมชน DEVIL HUB",
+    ["Join our Discord"]="เข้าร่วม Discord ของเรา",
+    ["Updates, announcements and community support."]="อัปเดต ประกาศ และความช่วยเหลือจากชุมชน",
+    ["Invite ready to copy."]="พร้อมคัดลอกลิงก์เชิญ",
+    ["Copy Discord Invite"]="คัดลอกลิงก์ Discord",
+    ["Discord invite copied!"]="คัดลอกลิงก์ Discord แล้ว!",
+    ["Clipboard unavailable. Select and copy the invite above."]="คัดลอกอัตโนมัติไม่ได้ เลือกและคัดลอกลิงก์ด้านบน",
+    ["Stay connected"]="ติดตามข่าวสาร",
+    ["Updates and announcements"]="อัปเดตและประกาศ",
+    ["New releases, supported games and DEVIL HUB news."]="เวอร์ชันใหม่ เกมที่รองรับ และข่าวสาร DEVIL HUB",
+    ["Support and feedback"]="ช่วยเหลือและเสนอแนะ",
+    ["Report bugs, share suggestions and connect with the community."]="แจ้งบั๊ก เสนอแนะ และพูดคุยกับชุมชน",
     ["Anime Dice"]="Anime Dice",
     ["All automation starts off. Launch directly or through the DEVIL HUB main loader. Game rules, balances and inventory updates decide the result."]="ออโต้ทุกระบบเริ่มปิด ใช้ได้โดยตรงหรือผ่าน loader หลัก DEVIL HUB ผลขึ้นกับกติกา ยอดคงเหลือ และกระเป๋าในเกม",
     ["Rarities to sell (empty = all)"]="ระดับที่ต้องการขาย (ไม่เลือก = ขายทั้งหมด)",

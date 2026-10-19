@@ -50,13 +50,13 @@ source = source.rstrip() + '\n'
 canonical.write_text(source, encoding='utf-8', newline='\n')
 (build / 'loader.native').write_text(source, encoding='utf-8', newline='\n')
 subprocess.run([sys.executable, str(build / 'build-router.py'), '--only', 'loader',
-                '--release', 'devil-anime-dice-20261020-8'], cwd=build, check=True)
+                '--release', 'devil-anime-dice-20261020-9'], cwd=build, check=True)
 public = (build / 'candidate/loader').read_bytes()
 (root / 'loader').write_bytes(public)
 row = dict(Name='Anime Dice', Universe=10708913337, Place=113290951185459,
            File='anime-dice-test.lua', Commit=commit, Version=release['release'])
 audit['routes'] = [r for r in audit['routes'] if r['File'] != row['File']] + [row]
-audit.update(release='devil-anime-dice-20261020-8', map_ids_unchanged=False,
+audit.update(release='devil-anime-dice-20261020-9', map_ids_unchanged=False,
     existing_game_routes_unchanged=True,
     native_logic_unchanged_except_presentation_bootstrap_and_entry_pins=False,
     before_native_sha256=hashlib.sha256(before.encode()).hexdigest(),

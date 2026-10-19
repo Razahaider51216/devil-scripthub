@@ -1,7 +1,7 @@
 -- DEVIL HUB Anime Dice entry, available directly and through the main loader.
 assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
 local scope=type(getgenv)=="function"and getgenv()or _G
-local release="anime-dice-test-20261020-8"
+local release="anime-dice-test-20261020-9"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end
@@ -326,7 +326,7 @@ return function(ctx,P)
         TraitTargets={},GradeTargets={},QuirkTargets={},BoostNames={},SpinNames={},GearPriority="Luck",PumpkinCount=1,
         PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true}
     local clock=ctx.Clock or os.clock
-    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-8",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
+    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-9",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
     local states,handlers,pending,spend={}, {}, {}, {}
     local towerOwned=false;local towerName;local towerEpoch=0;local originalRoll,rollOwned=nil,false
     local doorReady=setmetatable({},{__mode="k"});local lastKnock;local nextIslandTravel=0;local stopEpoch=0
@@ -847,9 +847,12 @@ return function(window,ctx,app,logo)
     local white=Color3.fromRGB(255,255,255);local blue=Color3.fromRGB(164,221,255)
     local muted=Color3.fromRGB(160,178,195);local black=Color3.fromRGB(7,9,13)
     local candyPaths={{7.0,10.0,2.0,7.0,3.0,12.0,2.0,17.0,7.0,14.0},{17.0,10.0,22.0,7.0,21.0,12.0,22.0,17.0,17.0,14.0},{10.0,9.0,12.0,15.0}} -- Generated from assets/devil-candy.svg.
+    local discordRects={{22,11,2,1},{39,11,3,1},{18,12,7,1},{39,12,7,1},{15,13,10,1},{30,13,1,1},{32,13,1,1},{38,13,10,1},{13,14,38,1},{12,15,40,1},{11,16,41,1},{11,17,42,1},{10,18,43,1},{9,19,45,2},{8,21,47,2},{8,23,48,1},{7,24,49,1},{7,25,50,1},{6,26,51,2},{6,28,52,1},{5,29,15,1},{25,29,13,1},{44,29,14,1},{5,30,14,1},{26,30,11,1},{45,30,13,2},{5,31,13,3},{46,32,13,4},{27,31,9,6},{4,34,14,3},{45,36,14,2},{4,37,15,1},{26,37,11,1},{4,38,16,1},{25,38,13,1},{44,38,15,1},{4,39,18,1},{23,39,17,1},{42,39,17,1},{4,40,55,5},{4,45,13,1},{19,45,26,1},{46,45,13,1},{5,46,13,1},{21,46,21,1},{46,46,12,1},{7,47,13,1},{25,47,13,1},{44,47,13,1},{8,48,13,1},{42,48,13,1},{10,49,11,1},{43,49,11,1},{12,50,8,1},{43,50,9,1},{14,51,5,1},{44,51,5,1},{17,52,2,1},{45,52,2,1}} -- Offline silhouette from the existing official logo.
     local function node(class,name,parent,props)
         local obj=Instance.new(class);obj.Name=name
         for key,value in pairs(props or{})do obj[key]=value end
+        -- Preserve these authored brand colors through the shared theme pass.
+        if name=="LogoShape"or name=="CommunityBrand"then obj:SetAttribute("DevilBlueSettings",true)end
         obj.Parent=parent;return obj
     end
     local function label(name,parent,props)
@@ -859,6 +862,35 @@ return function(window,ctx,app,logo)
         return node("TextLabel",name,parent,defaults)
     end
     local function corner(parent,radius)node("UICorner","Corner",parent,{CornerRadius=UDim.new(0,radius)})end
+    function view.Community(host)
+        local widget=host:CreateParagraph({Name="DEVIL HUB Community",Content=""})
+        local frame=assert(widget._frame,"Community card host unavailable")
+        for _,child in ipairs(frame:GetChildren())do child:Destroy()end
+        frame.Name="DevilDiscordCommunity";frame.AutomaticSize=Enum.AutomaticSize.None
+        frame.Size=UDim2.new(1,0,0,244);frame.BackgroundColor3=black;frame.BackgroundTransparency=.12
+        corner(frame,10)
+        local icon=node("Frame","DiscordLogo",frame,{AnchorPoint=Vector2.new(.5,0),Position=UDim2.new(.5,0,0,16),
+            Size=UDim2.fromOffset(64,64),BackgroundTransparency=1,ZIndex=3})
+        icon:SetAttribute("CustomIcon",true)
+        for _,rect in ipairs(discordRects)do
+            node("Frame","LogoShape",icon,{Position=UDim2.fromOffset(rect[1],rect[2]),Size=UDim2.fromOffset(rect[3],rect[4]),
+                BackgroundColor3=white:Lerp(blue,rect[2]/64),BorderSizePixel=0,ZIndex=3})
+        end
+        label("CommunityBrand",frame,{Text='<font color="#FFFFFF">DEVIL</font> <font color="#A4DDFF">HUB</font>',RichText=true,
+            Font=Enum.Font.GothamBold,TextSize=24,TextXAlignment=Enum.TextXAlignment.Center,
+            Position=UDim2.fromOffset(12,88),Size=UDim2.new(1,-24,0,30),ZIndex=3})
+        label("CommunityHeading",frame,{Text="Join our Discord",TextColor3=blue,TextSize=14,
+            TextXAlignment=Enum.TextXAlignment.Center,Position=UDim2.fromOffset(12,124),Size=UDim2.new(1,-24,0,22),ZIndex=3})
+        label("CommunityDescription",frame,{Text="Updates, announcements and community support.",TextColor3=muted,TextSize=12,
+            TextWrapped=true,TextTruncate=Enum.TextTruncate.None,TextXAlignment=Enum.TextXAlignment.Center,
+            Position=UDim2.fromOffset(20,152),Size=UDim2.new(1,-40,0,36),ZIndex=3})
+        local invite=node("TextBox","DiscordInvite",frame,{Text="https://discord.gg/fDwPCmpkkh",TextEditable=false,ClearTextOnFocus=false,
+            Font=Enum.Font.GothamMedium,TextSize=12,TextColor3=blue,TextXAlignment=Enum.TextXAlignment.Center,
+            Position=UDim2.fromOffset(12,202),Size=UDim2.new(1,-24,0,30),BackgroundColor3=Color3.fromRGB(24,27,33),
+            BackgroundTransparency=.15,BorderSizePixel=0,ZIndex=3})
+        corner(invite,6)
+        view.CommunityCard=frame
+    end
     local function line(parent,x1,y1,x2,y2,color,size,z)
         local scale=size/24;local dx,dy=x2-x1,y2-y1
         local part=node("Frame","VectorStroke",parent,{AnchorPoint=Vector2.new(.5,.5),
@@ -1402,6 +1434,19 @@ end
     actions:CreateToggle({Name="Use game Auto Roll",CurrentValue=true,Callback=function(v)core.Set("Roll",false);cfg.UseNativeRoll=v end})
     button(actions,"Close test",destroy)
     actions:CreateParagraph({Name="Anime Dice",Content="All automation starts off. Launch directly or through the DEVIL HUB main loader. Game rules, balances and inventory updates decide the result."})
+    local discord=tab("Discord","users")
+    local community=group(discord,"DEVIL HUB Community")
+    presentation.Community(community)
+    local inviteStatus=community:CreateLabel({Text="Invite ready to copy."})
+    community:CreateButton({Name="Copy Discord Invite",Icon="copy",Style="Primary",Callback=function()
+        if app.Stopped then return end
+        local copy=setclipboard or toclipboard
+        local copied=type(copy)=="function"and pcall(copy,"https://discord.gg/fDwPCmpkkh")
+        inviteStatus:Set(copied and"Discord invite copied!"or"Clipboard unavailable. Select and copy the invite above.")
+    end})
+    local news=group(discord,"Stay connected","Right")
+    news:CreateParagraph({Name="Updates and announcements",Content="New releases, supported games and DEVIL HUB news."})
+    news:CreateParagraph({Name="Support and feedback",Content="Report bugs, share suggestions and connect with the community."})
     local function keys(t)
         local list={};for name in pairs(t or{})do if type(name)=="string"then list[#list+1]=name end end;table.sort(list);return list
     end
@@ -1460,6 +1505,18 @@ end
     button(actions,"Refresh inventory and choices",refreshOptions)
     -- Reuse the single language menu provided by the shared DEVIL HUB presentation.
 local translations={
+    ["DEVIL HUB Community"]="ชุมชน DEVIL HUB",
+    ["Join our Discord"]="เข้าร่วม Discord ของเรา",
+    ["Updates, announcements and community support."]="อัปเดต ประกาศ และความช่วยเหลือจากชุมชน",
+    ["Invite ready to copy."]="พร้อมคัดลอกลิงก์เชิญ",
+    ["Copy Discord Invite"]="คัดลอกลิงก์ Discord",
+    ["Discord invite copied!"]="คัดลอกลิงก์ Discord แล้ว!",
+    ["Clipboard unavailable. Select and copy the invite above."]="คัดลอกอัตโนมัติไม่ได้ เลือกและคัดลอกลิงก์ด้านบน",
+    ["Stay connected"]="ติดตามข่าวสาร",
+    ["Updates and announcements"]="อัปเดตและประกาศ",
+    ["New releases, supported games and DEVIL HUB news."]="เวอร์ชันใหม่ เกมที่รองรับ และข่าวสาร DEVIL HUB",
+    ["Support and feedback"]="ช่วยเหลือและเสนอแนะ",
+    ["Report bugs, share suggestions and connect with the community."]="แจ้งบั๊ก เสนอแนะ และพูดคุยกับชุมชน",
     ["Anime Dice"]="Anime Dice",
     ["All automation starts off. Launch directly or through the DEVIL HUB main loader. Game rules, balances and inventory updates decide the result."]="ออโต้ทุกระบบเริ่มปิด ใช้ได้โดยตรงหรือผ่าน loader หลัก DEVIL HUB ผลขึ้นกับกติกา ยอดคงเหลือ และกระเป๋าในเกม",
     ["Rarities to sell (empty = all)"]="ระดับที่ต้องการขาย (ไม่เลือก = ขายทั้งหมด)",
