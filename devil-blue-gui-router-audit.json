@@ -1,5 +1,5 @@
 {
-  "release": "devil-anime-dice-20261020-11",
+  "release": "devil-anime-dice-20261020-12",
   "module_commit": "9a9812469df7b5dad2848abb33c5206f7d57e685",
   "game_entries_commit": "e39fb7f24bda4d132f439416c7c68ad7467ff351",
   "map_ids_unchanged": false,
@@ -72,15 +72,15 @@
       "Universe": 10708913337,
       "Place": 113290951185459,
       "File": "anime-dice-test.lua",
-      "Commit": "b556c7e5ffd93a274ee889ab1a157844c0831089",
-      "Version": "anime-dice-test-20261020-11"
+      "Commit": "ea790b8bfd404e47512b95d9a8d650628dd246fe",
+      "Version": "anime-dice-test-20261020-12"
     }
   ],
-  "before_native_sha256": "71f838c738dd29430c3f84d1cbac3df69c4614b47561beeda9ff16159a114acc",
-  "after_native_sha256": "1fa7343fee1e4478d1e900d262e0cd891cd2857286d56545aed62d5b48a12369",
+  "before_native_sha256": "1fa7343fee1e4478d1e900d262e0cd891cd2857286d56545aed62d5b48a12369",
+  "after_native_sha256": "3051da589ec8036bec14ed80f2d207e5f5fa4a1c2c0e2040e885cdf4dbadab47",
   "live_rendering_verified": false,
-  "public_loader_sha256": "89c43b7e52a02d28d81a74c2857ac0828e6ce055a491118aff7c609525110287",
-  "public_loader_bytes": 135548,
+  "public_loader_sha256": "f2372ac4c58f4647009c6d3219a136187d7140310f145788633e6d9a94127612",
+  "public_loader_bytes": 135543,
   "ui_offline_checks": 165,
   "public_router_universe_place_cases": 33,
   "language_choices": [
@@ -136,8 +136,8 @@
   "late_viewport_and_primary_window_discovery": true,
   "desktop_executor_live_verified": false,
   "existing_game_routes_unchanged": true,
-  "anime_dice_entry_commit": "b556c7e5ffd93a274ee889ab1a157844c0831089",
-  "anime_dice_entry_sha256": "db98d1c6ff2340693211cd49293ff40e8dd20f4868d77a67f02bf26fa2b195cc",
+  "anime_dice_entry_commit": "ea790b8bfd404e47512b95d9a8d650628dd246fe",
+  "anime_dice_entry_sha256": "1cd058337648e7308b849169711d80b9c6a974d2ff093c6425ad111741e49870",
   "auto_execute_enabled": true,
   "auto_execute_sha256": "6b071230dd8fcb24541ac6d8008d9bdeabaf8ea7051d4ca744be1bfbee2700c1",
   "break_language_entry_commit": "a7cf89d5f4aa4cf74d84e12af125cf82b788eae5",
