@@ -1,92 +1,45 @@
-# Steal an Egg ? Chilli Halloween update (2026-10-19)
+# Steal an Egg upstream integration ? 2026-10-20
 
-The DEVIL HUB adapter now uses Chilli's StealAnEggg release pinned to upstream
-03468a41b2ecf2d983b39993ba603c943c140f4f, reached through the current Chilli.lua router.
-The previous production runtime was pinned to the older StealAnEgg release.
+Release: `chilli-fishing-rotation-20261020-1`.
+Chilli.lua routes this game to `tienkhanh1/Chilli-Hub-Script/StealAnEggg`.
+The immutable upstream commit is `7b9215d199e43d7dda2569a8cf84477c77552630`;
+its 811,078 bytes must match SHA256
+`52812e88b260512c0362cd1085c2d830665b33675c67b92d0b168fa2577b6fa2`.
 
-The latest native engine includes Halloween controls for Auto Fishing, Auto Phantom
-Express, Auto Pumpkin Moon, Auto Ghost Dog Quest, Auto Play Cursed Island Wars,
-Auto Catch Shooting Star, Auto Farm Monsters, Auto Vacuum Ghouler Boss, Auto Trade
-Souls, Auto Buy Halloween Dimension Egg and Auto Steal Halloween Eggs. These are
-upstream implementations exposed through the existing native controls and callbacks.
-Seasonal feature availability follows upstream and the current game event.
+New upstream systems are exposed using the existing DEVIL HUB handle bridge:
+- Farm Monsters While Fishing and live Fishing History canvas.
+- Fishing/Treadmill rotation: Timer or Every Day; separate minute sliders.
+- Teleport To Monsters, Pumpkins and Ghosts.
+- Continuous target loops for monsters/pumpkins with cooperative upstream yielding.
 
-The existing DEVIL HUB frontend discovers tabs and sections from the exported
-native window, including new sections. The native constructor export, hidden
-loading screen, DEVIL community links/logo and blue panel header are adapted.
-Game VM instructions/data are unchanged; this is native layer unpacking and
-integration, not complete devirtualization. Prior variable-specific panel styling
-is not blindly applied to the new runtime.
+The build unpacks the native layer, exports its native Window, hides only the
+upstream loading ScreenGui, retains DEVIL community branding and disables the
+Venyx promotional initializer. The blue Steal Panel header adaptation is retained.
+The latest wrapper uses a different base85 alphabet/order and dispatcher layout.
+Six global-read opcodes receive the existing narrowly scoped webhook-branding
+adapter; original environment/compiler APIs and global writes retain their identity.
+No configured destination, gameplay arguments, or payload fields are redirected.
 
-Validation: both upstream and adapted bootstraps decoded with an inert compiler
-interceptor; adapted native source round-tripped exactly and all 368,215 game data
-bytes matched upstream. Official Luau compilation passed. The actual new native
-constructor passed ownership/state/default-tab/reflow checks. The existing published
-DEVIL bridge passed 39 checks using the new runtime's actual option API methods,
-covering callbacks, synchronization, live rich-panel identity, restoration and
-missing-handle behavior. The game VM was not run in these offline tests.
-Live Roblox/Delta gameplay and event completion remain unverified.
+All 360,955 upstream game-data bytes are preserved. Native modifications are
+reversible declared substitutions plus the scoped request adapter. Both compression
+round-trip and game-data equality are checked before writing the runtime.
+This is native-layer recovery, not complete devirtualization of the protected VM.
 
-Rebuild the runtime with `python tools/chilli-20261019/build-update.py`; it requires
-Python and the existing sibling luau-tools executables. It downloads an immutable
-upstream pin and rejects an unexpected SHA256 before decoding. Temporary decode
-files are generated beside the builder. See devil-chilli-native-ui-recovery.json
-for source hashes, byte counts and transfer checksum.
+The previously requested startup rollback is retained: no VM timeout/watchdog,
+injected VM instruction yielding, compiler/environment replacement, loading-module
+replacement, native GUI quarantine, or pet-icon startup patches are reintroduced.
+`bridge.lua` is unchanged. Upstream seasonal behavior follows the current game.
 
-The release wrapper passed 20 offline checks, including wrong-map rejection,
-duplicate launch, unavailable APIs, compiler/runtime failures, corrupt downloads
-and HTML responses. `python tools/chilli-20261019/test-delegate.py` exercises the
-actual public VM delegate for both map IDs, transfer integrity, native compilation,
-argument forwarding and cross-map redirection. The top-level loader is unchanged.
-The older all-map router fixture does not model the current shared startup
-loader and was not used as evidence for this release.
+Build runtime: `python tools/chilli-20261019/build-update.py`.
+Run `test-integration.py`: actual latest option methods and exported constructor,
+60 bridge checks including new toggles, original callbacks, silent state refresh,
+live history canvas and unload restoration. Its fixture mocks Roblox UI/services;
+it does not invoke the protected VM, remote events, or game actions.
+`test-customization.py` checks webhook alias/brand/return/header behavior.
+`build-ui.py RUNTIME_COMMIT` pins both GUI entries to the exact adapted runtime.
+`build-release.py delegate GUI_COMMIT` and `router DELEGATE_COMMIT` build the
+remaining immutable chain, changing only the Steal route and version.
 
-Main loader follow-up: its previous immutable Steal an Egg pin also needed to
-change. The public loader now pins the Halloween delegate at 8a4857ead8e18257e43d434ebb53a9083ec08bd5.
-Only that map pin and version changed in the recovered native router.
-Run `python tools/chilli-20261019/test-public-loader.py` to test the actual public
-VM loader with the existing shared loading-controller API mocked: universe and
-place selection, immutable URL, argument forwarding, retries, failure cleanup,
-busy and already-mounted guards. Other map definitions remain unchanged.
-
-GUI customization follow-up (2026-10-19): the native Venyx promotional initializer
-returns before creating UI/callbacks. The adapter also filters Venyx and the old
-DEVIL HUB utility tab. Settings retains native options except the UI Size slider
-for the hidden native window; its new DEVIL HUB Appearance group controls the
-visible OuroFlow window: accent color, background color, 60?140% size and reset.
-Values are stored locally in DevilHub-StealAnEgg-appearance.json. Rich embedded
-panels receive the selected colors. Malformed saved settings fall back to defaults.
-
-Discord webhook POSTs from the native runtime's request/http_request/httprequest,
-syn.request, http.request and fluxus.request aliases use DEVIL HUB as sender,
-logo and embed author; old Chilli/Venyx branding in embed/content text is replaced.
-Configured webhook URLs and event fields are preserved. Non-webhook destinations
-and malformed bodies pass through. The wrapper changes its own compiler environment
-and does not replace executor globals. This changes webhook message branding;
-it does not rename a separately registered Discord application.
-
-Validation: `test-customization.py` covers appearance persistence/reset, colors,
-window dimensions, webhook aliases, nested compiler environments, headers, return
-values, malformed JSON, unrelated URLs and unchanged executor functions. The actual
-updated bridge passed 43 checks with latest native option methods, including no
-Venyx/DEVIL HUB mode tabs, one Settings tab and original callback/widget restoration.
-GUI entries pass the official Luau compiler. Live Delta rendering and live Discord
-posting remain unverified. `build-ui.py RUNTIME_COMMIT` rebuilds both GUI entries
-from the retained bridge and webhook helper.
-
-The main public loader now pins the customized delegate at
-9806d26ecbaa221f6a2bb2a41b369817caaebe1a, which pins GUI entry
-c09572d8297fad1528be0e270d218db6d7df95d2 and runtime
-5b4a699be9c93e2865ee5cade61b1cf9e2d38509. Public loader and delegate tests
-passed again after the pin changes. Other game route definitions are unchanged.
-
-70% startup fix: the earlier webhook wrapper replaced getfenv/loadstring and the
-protected bootstrap environment. This can conflict with native runtime probes;
-the hang was reported in-game and cannot be reproduced by the offline UI mocks.
-The environment wrapper is removed. All original compiler, environment functions
-and _G references remain unchanged. Branding now intercepts only the eight native
-VM global-read sites and only adapts request aliases; unrelated globals pass through
-with their original identity. The original game instructions/data are unchanged.
-Offline tests check compiler/environment identity, stable request caches, payloads,
-bootstrap compression round-trip and public download integrity. Live Delta startup
-still requires user validation; this is a compatibility fix, not a claimed live pass.
+Public wrapper, router and shared GUI regressions must pass before publishing.
+No live Roblox/executor compatibility or event completion is claimed. The earlier
+70% freeze on Arceus X cannot be established or resolved by offline UI mocks.

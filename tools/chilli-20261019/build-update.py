@@ -5,9 +5,9 @@ ROOT = Path(__file__).resolve().parents[2]
 WORK = Path(__file__).resolve().parent
 LUAU = ROOT.parent / 'luau-tools/luau.exe'
 COMPILER = ROOT.parent / 'luau-tools/luau-compile.exe'
-UPSTREAM = '03468a41b2ecf2d983b39993ba603c943c140f4f'
+UPSTREAM = '7b9215d199e43d7dda2569a8cf84477c77552630'
 URL = f'https://raw.githubusercontent.com/tienkhanh1/Chilli-Hub-Script/{UPSTREAM}/StealAnEggg'
-EXPECTED = '7a9695a6cf5844852b59da7e527ea66c753de71fd633cb90a4e287313fdf7113'
+EXPECTED = '52812e88b260512c0362cd1085c2d830665b33675c67b92d0b168fa2577b6fa2'
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()
@@ -32,9 +32,9 @@ return function()end
 end
 end
 '''
-    assert source.count('[76]=loadstring') == 1
+    assert source.count('[94]=loadstring') == 1
     path = WORK / (label + '.decode.luau')
-    path.write_text(capture + source.replace('[76]=loadstring', '[76]=capture', 1), encoding='utf-8')
+    path.write_text(capture + source.replace('[94]=loadstring', '[94]=capture', 1), encoding='utf-8')
     result = subprocess.run([str(LUAU), str(path)], capture_output=True, check=True, timeout=45)
     text = result.stdout.decode('utf-8').replace('\r\n', '\n')
     vm = text.split('__STAGE_BEGIN__\n', 1)[1].split('\n__STAGE_END__', 1)[0]
@@ -45,6 +45,8 @@ original = urllib.request.urlopen(URL, timeout=30).read()
 assert sha(original) == EXPECTED, 'Upstream pin/hash mismatch'
 source = original.decode('utf-8').replace('\r\n', '\n')
 native, game_data = decode(source, 'upstream')
+(WORK / 'upstream-native.generated.luau').write_text(native, encoding='utf-8')
+(WORK / 'upstream-game.generated.bin').write_bytes(game_data)
 adapted = native
 patches = []
 
@@ -54,22 +56,22 @@ def replace(before, after, count=1):
     adapted = adapted.replace(before, after)
     patches.append((before, after, count))
 
-replace('h.Window=P;function S.ReflowTabs',
-        'h.Window=P;(type(getgenv)=="function"and getgenv()or _G).DevilChilliNativeWindow=P;function S.ReflowTabs')
-replace('F.Name="ChilliHubLoading";F.ResetOnSpawn=false;',
-        'F.Name="ChilliHubLoading";F.Enabled=false;F.ResetOnSpawn=false;')
+replace('Q.Window=o;function l.ReflowTabs',
+        'Q.Window=o;(type(getgenv)=="function"and getgenv()or _G).DevilChilliNativeWindow=o;function l.ReflowTabs')
+replace('M.Name="ChilliHubLoading";M.ResetOnSpawn=false;',
+        'M.Name="ChilliHubLoading";M.Enabled=false;M.ResetOnSpawn=false;')
 replace('discord.gg/CJK4bs2mgT', 'discord.gg/fDwPCmpkkh', adapted.count('discord.gg/CJK4bs2mgT'))
-replace('Text="<b>Chilli Hub</b>",Gradient=J', 'Text="<b>DEVIL HUB</b>",Gradient=J')
+replace('Text="<b>Chilli Hub</b>",Gradient=a', 'Text="<b>DEVIL HUB</b>",Gradient=a')
 replace('"rbxassetid://128961717706452","180K+"',
         '((type(getgenv)=="function"and getgenv()or _G).DevilChilliBrandLogo or "https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png"),"180K+"')
 replace('loadstring(game:HttpGet("https://raw.githubusercontent.com/tienkhanh1/spicy/refs/heads/main/DiscordLink"))()',
         'local copy=setclipboard or toclipboard;if type(copy)=="function"then copy("https://discord.gg/fDwPCmpkkh");end')
 # Disable the upstream promotional mode before it creates controls or callbacks.
-replace('return function()local N;local N=Q;local U,t,r,k,h,P,c,X,x=N:CreateTab({Name="Venyx"',
-        'return function()do return end;local N;local N=Q;local U,t,r,k,h,P,c,X,x=N:CreateTab({Name="Venyx"')
+replace('return function()local E=G:CreateTab({Name="Venyx"',
+        'return function()do return end;local E=G:CreateTab({Name="Venyx"')
 # Preserve the existing blue Steal Panel header without modifying game actions.
-replace('IW.Color=A({{0,T(200,18,24)},{0.53,T(255,88,90)},{1,T(214,28,34)}});',
-        'IW.Color=A({{0,T(8,18,35)},{0.53,T(0,140,255)},{1,T(16,42,70)}});')
+replace('Rq.Color=I({{0,W(200,18,24)},{0.53,W(255,88,90)},{1,W(214,28,34)}});',
+        'Rq.Color=I({{0,W(8,18,35)},{0.53,W(0,140,255)},{1,W(16,42,70)}});')
 
 restored = adapted
 for before, after, count in reversed(patches):
@@ -79,12 +81,14 @@ assert restored == native, 'Unexpected edits outside declared adaptation'
 
 # Keep the original compiler, getfenv/setfenv, _G and bootstrap environment intact.
 # Only request globals fetched by the game VM receive message-branding adapters.
-vm_start = adapted.index('[4201]=function')
+vm_start = adapted.index('[9705]=function')
 vm_end = adapted.index('end,[', vm_start) + len('end')
 vm_section = adapted[vm_start:vm_end]
-vm_section, request_lookup_count = re.subn(r'B\[((?:c|P|F)\[Y\])\]',
-    lambda m: 'devilWebhookLookup(' + m[1] + ',B[' + m[1] + '])', vm_section)
-assert request_lookup_count == 8, 'Native global-lookup sites changed'
+# This revision has six environment READ opcodes in this dispatcher. Do not
+# wrap environment writes or the interpreter's own constant/register tables.
+vm_section, request_lookup_count = re.subn(r'(L\[[^;=]+\]=)E\[([obwS]\[G\])\]',
+    lambda m: m[1] + 'devilWebhookLookup(' + m[2] + ',E[' + m[2] + '])', vm_section)
+assert request_lookup_count == 6, 'Native global-read opcodes changed'
 adapted = adapted[:vm_start] + vm_section + adapted[vm_end:]
 helper = (WORK / 'webhook-branding.lua').read_text(encoding='utf-8')
 adapted = 'local devilWebhookLookup=(function()\n' + helper + '\nend)()()\n' + adapted
@@ -99,7 +103,7 @@ for (word,) in struct.iter_unpack('<I', padded):
     for _ in range(5):
         digits.append(word % 85)
         word //= 85
-    encoded.append(''.join(chr(digits[i] + 32) for i in [4, 0, 1, 3, 2]))
+    encoded.append(''.join(chr(digits[i] + 34) for i in [4, 2, 3, 1, 0]))
 blocks = list(re.finditer(r'\[(=*)\[(.*?)\]\1\]', source, re.S))
 assert len(blocks) == 2
 runtime_block = blocks[0]
@@ -108,16 +112,21 @@ eq = '='
 while ']' + eq + ']' in payload:
     eq += '='
 output = source[:runtime_block.start()] + '[' + eq + '[' + payload + ']' + eq + ']' + source[runtime_block.end():]
-assert output.count('Z(m,H,1285437)') == 1
-output = output.replace('Z(m,H,1285437)', f'Z(m,H,{len(adapted.encode())})')
+assert output.count('f(P,T,1264377)') == 1
+output = output.replace('f(P,T,1264377)', f'f(P,T,{len(adapted.encode())})')
 result_native, result_data = decode(output, 'candidate')
 assert result_native == adapted
 assert result_data == game_data, 'Game bytecode must be identical to upstream'
 target = ROOT / 'devil-chilli-native-ui-runtime.lua'
 target.write_text(output, encoding='utf-8', newline='\n')
+(WORK / 'native-layer.generated.luau').write_text(adapted, encoding='utf-8')
 subprocess.run([str(COMPILER), '--null', str(target)], check=True)
 manifest = {
-    'release': 'chilli-halloween-20261019', 'upstream_commit': UPSTREAM,
+    'release': 'chilli-fishing-rotation-20261020-1', 'upstream_commit': UPSTREAM,
+    'features': ['Farm Monsters While Fishing', 'Fishing History',
+        'Fishing/Treadmill rotation: Timer or Every Day', 'Teleport To Monsters',
+        'Teleport To Pumpkins', 'Teleport To Ghosts', 'Continuous monster/pumpkin target loops'],
+    'startup_policy': 'Retain rolled-back bootstrap/environment; no VM watchdog, yield injection, loader replacement, or native GUI quarantine',
     'upstream_url': URL, 'upstream_sha256': EXPECTED,
     'upstream_bytes': len(original), 'source_bytes': target.stat().st_size,
     'source_sha256': sha(target.read_bytes()), 'transfer_checksum': checksum(target.read_bytes()),
