@@ -823,9 +823,9 @@ if env.DevilChilliFullRuntimeTest then
     warn("DEVIL HUB: this full-runtime test already ran; rejoin before testing again")
     return
 end
-local report={schema="devil-chilli-full-runtime-test-1",release="chilli-performance-20261021-1",map="Steal an Egg",
+local report={schema="devil-chilli-full-runtime-test-1",release="chilli-rejoin-clipboard-20261021-2",map="Steal an Egg",
     placeId=game.PlaceId,universeId=game.GameId,status="Starting",devirtualized=false,
-    frontend="DEVIL HUB / native constructor export",referenceSHA256="a472e94451b2f138fae3bd99340e6c16c195faf4f8255ed71f7e24c129b05eb7",referenceCommit="97c207f985864561250f11b07480095814dff492"}
+    frontend="DEVIL HUB / native constructor export",referenceSHA256="894f9f1a5f0d1f5a73ab173508854c173394f181fe39ac966db0193feefcb068",referenceCommit="fece13f3913dd4989f4101c77d9b861f7ccaa258"}
 env.DevilChilliFullRuntimeTest=report
 local function save()
     if type(writefile)=="function"then
@@ -845,12 +845,12 @@ local outcome=table.pack(xpcall(function()
     end
     warn("DEVIL HUB: loading the original systems into the main GUI")
     loading.Update("Downloading systems...",0.15)
-    local originalGameSource=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/97c207f985864561250f11b07480095814dff492/devil-chilli-native-ui-runtime.lua")
-    assert(type(originalGameSource)=="string"and #originalGameSource==812731,"Pinned runtime download has an unexpected size")
+    local originalGameSource=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/fece13f3913dd4989f4101c77d9b861f7ccaa258/devil-chilli-native-ui-runtime.lua")
+    assert(type(originalGameSource)=="string"and #originalGameSource==812911,"Pinned runtime download has an unexpected size")
     loading.Update("Checking download...",0.4)
     local checksum=0
     for index=1,#originalGameSource do checksum=(checksum*33+string.byte(originalGameSource,index))%4294967296; if index%32768==0 and task and task.wait then task.wait() end end
-    assert(checksum==1168144710,"Pinned runtime download checksum mismatch")
+    assert(checksum==2880846688,"Pinned runtime download checksum mismatch")
     loading.Update("Compiling systems...",0.55)
     local run,err=loadstring(originalGameSource,"Chilli / Steal an Egg / pinned runtime")
     assert(run,err)
