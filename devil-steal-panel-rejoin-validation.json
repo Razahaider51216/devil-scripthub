@@ -1,8 +1,11 @@
 {
-  "release": "steal-startup-layout-20261020-4",
+  "release": "steal-startup-vm-20261020-5",
   "live_game_verified": false,
-  "runtime_sha256": "74cbab9a79ebb8d163aa335b222fe5a06c2fa897f0577178d0868a6ea1e6eea8",
+  "runtime_sha256": "f6f4107a790607f6dc8e734040a172dde6b9f52c79351a64fba49555111be989",
   "game_bytecode_unchanged": true,
   "result": "PASS Steal Panel artwork, live catalog refresh, shared theme, native startup and exact rejoin payload: 43 checks",
-  "checks": 43
+  "checks": 43,
+  "vm_startup_checks": 15,
+  "vm_startup_result": "PASS actual pre-GUI VM: 307200 dispatches, 599 scheduler yields, bounded timeout; CPU 0.206s\nPASS VM startup scheduler: 15 checks; live Arceus X remains unverified",
+  "live_arceus_verified": false
 }

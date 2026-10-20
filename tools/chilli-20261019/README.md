@@ -165,3 +165,30 @@ with their original identity. The original game instructions/data are unchanged.
 Offline tests check compiler/environment identity, stable request caches, payloads,
 bootstrap compression round-trip and public download integrity. Live Delta startup
 still requires user validation; this is a compatibility fix, not a claimed live pass.
+# Current startup release: steal-startup-vm-20261020-5
+
+The Arceus X 2.3.7 user report reaches `VM startup` after 1.112 seconds,
+before `Native UI write probe`. This rules out decompression as the ongoing
+stall, but does not establish which executor probe or VM instruction fails.
+Earlier UI visibility changes did not resolve the user's report.
+
+Both native interpreters (`6324` and `4201`) contain dispatch loops before UI
+construction. All eight dispatch paths now checkpoint every 512 instructions,
+yield after a 4ms CPU slice, and stop with an explicit error after a 120s startup
+deadline. Checkpoints record method, state, PC, opcode, elapsed time and yield
+count to `DevilHub-Steal-Startup.json`, at most once per second. Successful native
+window export disables the guard so it does not schedule gameplay callbacks.
+The loading screen shows elapsed initialization time without inventing progress.
+The protected bootstrap, original compiler/environment identities, and all
+368,215 game bytecode bytes remain unchanged.
+
+`python tools/chilli-20261019/test-vm-startup.py` exercises all eight inserted
+anchors, scheduler budgets, timeout/error behavior, completion and missing task
+APIs. It also executes the actual released native pre-GUI interpreter against
+an inert host with a simulated clock: over 300,000 instructions yield hundreds
+of times before the intentional unsupported-host timeout. No game/server APIs
+or networking are available in this fixture. This demonstrates bounded CPU
+behavior, not successful initialization on Arceus X. Live executor startup and
+gameplay still require verification; a checkpoint report is now available if
+the executor cannot finish initialization.
+

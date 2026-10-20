@@ -57,7 +57,7 @@ def replace(before, after, count=1):
     patches.append((before, after, count))
 
 replace('h.Window=P;function S.ReflowTabs',
-        'h.Window=P;(type(getgenv)=="function"and getgenv()or _G).DevilChilliNativeWindow=P;devilStartupStage("Native handles ready");function S.ReflowTabs')
+        'h.Window=P;(type(getgenv)=="function"and getgenv()or _G).DevilChilliNativeWindow=P;devilVmCheckpoint("finish");devilStartupStage("Native handles ready");function S.ReflowTabs')
 replace('F.Name="ChilliHubLoading";F.ResetOnSpawn=false;',
         'F.Name="ChilliHubLoading";F.Enabled=false;F.ResetOnSpawn=false;')
 # Set the presentation exemption before parenting, without changing Enabled.
@@ -68,7 +68,30 @@ replace('F[42]=F[19].obj2;F[43]=F[19].obj1;F[42].Parent=F[43];',
 replace('F[35]=N[0](pcall(function()local E={};local e=Instance.new("ScreenGui");',
         'devilStartupStage("Native UI write probe");F[35]=N[0](pcall(function()local E={};local e=Instance.new("ScreenGui");')
 replace('Bc=function(N,...)local Q,E,F,e,p,m,U,t,r,k,h,P=N:yc();',
-        'Bc=function(N,...)devilStartupStage("VM startup");local Q,E,F,e,p,m,U,t,r,k,h,P=N:yc();')
+        'Bc=function(N,...)devilStartupStage("VM bytecode reader");local Q,E,F,e,p,m,U,t,r,k,h,P=N:yc();')
+replace('elseif m<=35 then return 1;else local Q=N[3](t,2+U);',
+        'elseif m<=35 then devilStartupStage("VM game entry");return 1;else local Q=N[3](t,2+U);')
+# Both interpreters execute before the first native UI probe. A yield in the
+# decompressor or frontend cannot interrupt these dispatch loops. Preserve each
+# instruction and register; checkpoint every 512 dispatched VM instructions.
+replace('return function(...)local X,x,G,q,M,Y,Z,y,L,J,i,w,H;local d,K,n,V=t[1];',
+        'return function(...)local devilTicks=0;local X,x,G,q,M,Y,Z,y,L,J,i,w,H;local d,K,n,V=t[1];')
+replace('local function x(...)local G=r[1];local q,M=r[2],z;',
+        'local function x(...)local devilTicks=0;local G=r[1];local q,M=r[2],z;')
+dispatch_sites=0
+for method,pc,state in [(6324,'U','t'),(4201,'Y','Z')]:
+    first=adapted.index('['+str(method)+']=function')
+    last=adapted.index('end,[',first)+len('end')
+    section=adapted[first:last]
+    matches=list(re.finditer(r'while true do local ([\w,]+)=([\w]+)\['+pc+r'\];',section))
+    assert len(matches)==4, ('VM dispatch layout changed',method)
+    for match in {m[0]:m for m in matches}.values():
+        before=match[0]
+        count=section.count(before)
+        after=before+'devilTicks+=1;if devilTicks%512==0 then devilVmCheckpoint("'+str(method)+'",'+state+','+pc+','+match[1].split(',')[0]+');end;'
+        replace(before,after,count)
+        dispatch_sites+=count
+assert dispatch_sites==8
 # Keep the original loading initializer, flags, file diagnostics and .05s wait.
 # Its screen stays unparented, so it cannot appear in CoreGui/hidden UI.
 replace('F.Parent=Q;local Q,e="ChilliLibrary/SAE_LoadProgress.txt";',
@@ -129,6 +152,8 @@ adapted = 'local devilStealArtwork=(function()\n' + artwork + '\nend)()\n' + ada
 for variable,filename in [('devilNativeProgress','native-loading.lua'),('devilKeepNativeHidden','native-visibility.lua')]:
     adapted = 'local ' + variable + '=(function()\n' + (WORK / filename).read_text(encoding='utf-8') + '\nend)()\n' + adapted
 adapted='local devilStartupStage=(function()\n'+(WORK/'startup-trace.lua').read_text(encoding='utf-8')+'\nend)()()\n'+adapted
+trace_end=adapted.index('\nend)()()\n')+len('\nend)()()\n')
+adapted=adapted[:trace_end]+'local devilVmCheckpoint=(function()\n'+(WORK/'vm-startup.lua').read_text(encoding='utf-8')+'\nend)()(devilStartupStage)\n'+adapted[trace_end:]
 (WORK / 'native-layer.generated.luau').write_text(adapted, encoding='utf-8', newline='\n')
 
 
@@ -167,7 +192,7 @@ target = ROOT / 'devil-chilli-native-ui-runtime.lua'
 target.write_text(output, encoding='utf-8', newline='\n')
 subprocess.run([str(COMPILER), '--null', str(target)], check=True)
 manifest = {
-    'release': 'steal-startup-layout-20261020-4', 'upstream_commit': UPSTREAM,
+    'release': 'steal-startup-vm-20261020-5', 'upstream_commit': UPSTREAM,
     'upstream_url': URL, 'upstream_sha256': EXPECTED,
     'upstream_bytes': len(original), 'source_bytes': target.stat().st_size,
     'source_sha256': sha(target.read_bytes()), 'transfer_checksum': checksum(target.read_bytes()),
@@ -184,6 +209,8 @@ manifest = {
     'native_visibility_lock':False,'native_enabled_state_preserved':True,'cooperative_decompression':False,
     'protected_bootstrap_structure_unchanged':True,'original_loading_initializer_and_timing_preserved':True,
     'startup_phase_report':'DevilHub-Steal-Startup.json',
+    'cooperative_vm_dispatch_sites':dispatch_sites,'vm_startup_timeout_seconds':120,
+    'vm_checkpoint_interval':512,'vm_frame_budget_seconds':.004,
 }
 (ROOT / 'devil-chilli-native-ui-recovery.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
 print(json.dumps(manifest, indent=2))
