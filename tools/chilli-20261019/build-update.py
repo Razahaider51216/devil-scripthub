@@ -41,7 +41,8 @@ end
     data = bytes.fromhex(text.split('__DATA_BEGIN__\n', 1)[1].split('\n__DATA_END__', 1)[0])
     return vm, data
 
-original = urllib.request.urlopen(URL, timeout=30).read()
+cached = ROOT / 'analysis/chilli-20261019/StealAnEggg.original.lua'
+original = cached.read_bytes() if cached.is_file() and sha(cached.read_bytes()) == EXPECTED else urllib.request.urlopen(URL, timeout=30).read()
 assert sha(original) == EXPECTED, 'Upstream pin/hash mismatch'
 source = original.decode('utf-8').replace('\r\n', '\n')
 native, game_data = decode(source, 'upstream')
@@ -58,6 +59,20 @@ replace('h.Window=P;function S.ReflowTabs',
         'h.Window=P;(type(getgenv)=="function"and getgenv()or _G).DevilChilliNativeWindow=P;function S.ReflowTabs')
 replace('F.Name="ChilliHubLoading";F.ResetOnSpawn=false;',
         'F.Name="ChilliHubLoading";F.Enabled=false;F.ResetOnSpawn=false;')
+# Disable the native menu BEFORE parenting, so no upstream window can render
+# during the handoff to DEVIL HUB, including a rejoin into a fresh client.
+replace('F[40]=F[19].obj1;F[40].Parent=F[15];',
+        'F[40]=F[19].obj1;F[40].Enabled=false;F[40].Parent=F[15];')
+# The native auto-load queue used to download Chilli.lua independently of our
+# main loader. Share its destination guard with the always-enabled hub queue.
+queue_match = re.search(r'local Q,r="__ChilliAutoLoadScriptEnabled",("(?:\\.|[^"\\])*");local function k\(\)', adapted)
+assert queue_match, 'Native auto-load payload anchor changed'
+common = (ROOT / 'tools/auto-execute/bootstrap.lua').read_text(encoding='utf-8')
+arrival = common.split('local payload=[==[\n', 1)[1].split('\n]==]', 1)[0]
+queued = ('local enabled=true\n'
+          'pcall(function()enabled=game:GetService("TeleportService"):GetTeleportSetting("__ChilliAutoLoadScriptEnabled")==true end)\n'
+          'if enabled then\n' + arrival + '\nend\n')
+replace(queue_match[1], '[==[' + queued + ']==]')
 replace('discord.gg/CJK4bs2mgT', 'discord.gg/fDwPCmpkkh', adapted.count('discord.gg/CJK4bs2mgT'))
 replace('Text="<b>Chilli Hub</b>",Gradient=J', 'Text="<b>DEVIL HUB</b>",Gradient=J')
 replace('"rbxassetid://128961717706452","180K+"',
@@ -70,6 +85,13 @@ replace('return function()local N;local N=Q;local U,t,r,k,h,P,c,X,x=N:CreateTab(
 # Preserve the existing blue Steal Panel header without modifying game actions.
 replace('IW.Color=A({{0,T(200,18,24)},{0.53,T(255,88,90)},{1,T(214,28,34)}});',
         'IW.Color=A({{0,T(8,18,35)},{0.53,T(0,140,255)},{1,T(16,42,70)}});')
+replace('uW.BadgeGradient=uW.Badge and uW.Badge:FindFirstChildOfClass("UIGradient")or nil;',
+        'uW.Icon=devilStealArtwork(fW,uW.Icon);uW.BadgeGradient=uW.Badge and uW.Badge:FindFirstChildOfClass("UIGradient")or nil;')
+# Retry a catalog entry whose artwork was not ready when the first row appeared.
+replace('local function _(v)local s=S[v];if s then return s;end;',
+        'local function _(v)local s=S[v];if s and s.Icon~=""then return s;end;')
+replace('local function zW(_W,vW)local IW=vW.Style;if _W.Category~=vW.Category then',
+        'local function zW(_W,vW)local IW=vW.Style;if _W.Category~=vW.Category or(_W.Icon and _W.Icon.Image~=IW.Icon)then')
 
 restored = adapted
 for before, after, count in reversed(patches):
@@ -88,6 +110,9 @@ assert request_lookup_count == 8, 'Native global-lookup sites changed'
 adapted = adapted[:vm_start] + vm_section + adapted[vm_end:]
 helper = (WORK / 'webhook-branding.lua').read_text(encoding='utf-8')
 adapted = 'local devilWebhookLookup=(function()\n' + helper + '\nend)()()\n' + adapted
+artwork = (WORK / 'panel-artwork.lua').read_text(encoding='utf-8')
+adapted = 'local devilStealArtwork=(function()\n' + artwork + '\nend)()\n' + adapted
+(WORK / 'native-layer.generated.luau').write_text(adapted, encoding='utf-8', newline='\n')
 
 
 filters = [{'id': lzma.FILTER_LZMA1, 'lc': 3, 'lp': 0, 'pb': 0, 'dict_size': 1 << 24}]
@@ -117,7 +142,7 @@ target = ROOT / 'devil-chilli-native-ui-runtime.lua'
 target.write_text(output, encoding='utf-8', newline='\n')
 subprocess.run([str(COMPILER), '--null', str(target)], check=True)
 manifest = {
-    'release': 'chilli-halloween-20261019', 'upstream_commit': UPSTREAM,
+    'release': 'steal-panel-rejoin-20261020-1', 'upstream_commit': UPSTREAM,
     'upstream_url': URL, 'upstream_sha256': EXPECTED,
     'upstream_bytes': len(original), 'source_bytes': target.stat().st_size,
     'source_sha256': sha(target.read_bytes()), 'transfer_checksum': checksum(target.read_bytes()),
@@ -126,6 +151,10 @@ manifest = {
     'native_ui_export_count': 1, 'native_patch_groups': len(patches), 'venyx_mode_disabled': True,
     'compression_roundtrip_verified': True, 'complete_vm_devirtualization': False,
     'live_verified': False, 'original_compiler_environment_preserved': True, 'request_lookup_sites': request_lookup_count,
+    'native_menu_hidden_before_parenting': True, 'queued_loader_is_devil_hub': True,
+    'shared_auto_execute_arrival_guard': True, 'pet_artwork_preserved_before_name_randomization': True,
+    'artwork_sha256': sha(artwork.encode()),
+    'adapted_native_sha256': sha(adapted.encode()),
 }
 (ROOT / 'devil-chilli-native-ui-recovery.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
 print(json.dumps(manifest, indent=2))
