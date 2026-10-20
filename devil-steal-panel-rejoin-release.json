@@ -1,11 +1,11 @@
 {
-  "release": "steal-startup-vm-20261020-5",
-  "gui_commit": "3b8999375f0d3d74e44bb551f150265717f7e02d",
-  "gui_sha256": "4ba14e3a6154e162667e13dfa18ed0c78dbfc0b6f3a3ea3b1e73855ceafb0419",
-  "runtime_commit": "80648e24de75f5e587752313911ed23088333ad5",
+  "release": "steal-panel-rejoin-20261020-1",
+  "gui_commit": "4b63c261e4151fe46a5103614c37dcc66628b4b9",
+  "gui_sha256": "c3dffd191f20f4b55bf1d4a63d8cf015d81e8c41ca866fee526142c9c8d871db",
+  "runtime_commit": "7528273904be647ffe2020da866f2d05aaa082fb",
   "live_game_verified": false,
   "game_bytecode_unchanged": true,
-  "delegate_sha256": "64ac48bafbbc391c889b1e63d05570f1e63c3ccea643d102439350d0f7eec8ec",
-  "main_loader_entry_commit": "066e5d83a1d1aebb8f78276bcd7c7f47b58d3283",
-  "main_loader_sha256": "ec42dabf5a48d48fa83b29c85c1ae3ce8f51da66a6b9e2f216bf9d2947498ffb"
+  "delegate_sha256": "a0012807423dff2ffd37e6da000014ebea79cf2565cca091f24e5ddf572ee753",
+  "main_loader_entry_commit": "d7a8c7a622213a90f090635b4fb13c3330548113",
+  "main_loader_sha256": "7a14eadfe837317aa733fdd2e9db8b03a900f00ea70bfb5f552257831b997dee"
 }

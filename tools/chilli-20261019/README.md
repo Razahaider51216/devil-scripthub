@@ -1,58 +1,5 @@
 # Steal an Egg ? Chilli Halloween update (2026-10-19)
 
-Layout/trace follow-up (`steal-startup-layout-20261020-4`): the user still reports
-70% after the compatibility release; the live cause remains unconfirmed. Native
-startup no longer forces or locks ScreenGui.Enabled. The root frame is parented
-under a full-viewport CanvasGroup with GroupTransparency=1 before it can render;
-the early legacy-UI guard exempts this explicitly marked screen. After startup,
-the existing frontend handoff hides native screens as before. CanvasGroup's
-group transparency is documented by [Roblox](https://create.roblox.com/docs/reference/engine/classes/CanvasGroup).
-
-Startup breadcrumbs begin outside the protected bootstrap and continue through
-native layer decode, VM entry, UI write probe, window handle export, engine parts,
-frontend build and Ready. `DevilHub-Steal-Startup.json` stores LastPhase, elapsed
-time, executor identity and basic API flags locally; the console prints the same
-milestones. Diagnostic writes are optional and guarded. No startup data is sent
-over the network. This should distinguish a decoder/VM stall from a native UI or
-frontend stall on the next live run. It is not evidence that the live freeze is
-resolved. All 43 panel/layout/guard/trace checks and 15 cache checks pass, as do
-the unchanged-bootstrap round-trip and public router/delegate checks.
-
-70% compatibility follow-up (`steal-startup-compat-20261020-3`): a live user
-reported the whole game becoming unresponsive at the runtime-start phase after
-the previous release. The cause is not confirmed without executor diagnostics.
-This release removes the added decoder yields/clocks/upvalues and restores the
-original native loading initializer, file diagnostics, flags and 0.05s waits.
-The bootstrap shape is checked against upstream with only payload literals and
-decoded size excluded. The native loading initializer is checked for exact
-parity after reversing its presentation-only changes. Its ScreenGui remains
-disabled and unparented, so the original loading card is never attached to UI.
-DEVIL progress is a separate observer. Icon fixes, the early UI guard and verified
-file caches remain. Tests pass offline; the reported executor freeze is not yet
-verified resolved live.
-
-Launcher/startup follow-up (`steal-panel-startup-20261020-2`): fix the separate
-Steal Panel launcher as well as item-row artwork. The launcher uses the native
-Steal Filter icon until a live item is selected; a blue/white vector egg is shown
-while its texture is unavailable. Native loading now preserves its progress API
-without constructing a loading GUI or writing a progress file for every part.
-The main loader installs the legacy-UI guard before downloading the delegate,
-including nested hidden-UI folders. The frontend reuses that guard. Native menu
-visibility is bound directly, and its hidden controls are excluded from the
-second theme/localization pass.
-
-The delegate and frontend cache immutable, verified GUI/runtime files when the
-executor supports files. Each cache hit checks size and checksum before native
-compilation; corrupt caches redownload, and file API errors are optional. Hashing
-and decompression yield only when their six-millisecond CPU budget is exceeded.
-The existing report records source/cache timing, compilation and runtime seconds.
-No live speed/FPS improvement is claimed: mobile/executor measurements are pending.
-
-Offline follow-up: 33 panel/visibility/guard checks, 15 cache checks, an actual
-public decompressor run with exact native output and an inert game boundary,
-and actual VM-delegate cold/warm/corrupt-cache cases. `test-startup.py` runs the
-cache/decompression checks. Existing router and main-loader checks also pass.
-
 Steal Panel/rejoin fix (2026-10-20): the native queued Auto Load payload now
 opens the DEVIL HUB main loader and shares its duplicate-arrival guard. The
 native Settings ScreenGui is disabled before parenting, preventing an upstream
@@ -165,29 +112,3 @@ with their original identity. The original game instructions/data are unchanged.
 Offline tests check compiler/environment identity, stable request caches, payloads,
 bootstrap compression round-trip and public download integrity. Live Delta startup
 still requires user validation; this is a compatibility fix, not a claimed live pass.
-# Current startup release: steal-startup-vm-20261020-5
-
-The Arceus X 2.3.7 user report reaches `VM startup` after 1.112 seconds,
-before `Native UI write probe`. This rules out decompression as the ongoing
-stall, but does not establish which executor probe or VM instruction fails.
-Earlier UI visibility changes did not resolve the user's report.
-
-Both native interpreters (`6324` and `4201`) contain dispatch loops before UI
-construction. All eight dispatch paths now checkpoint every 512 instructions,
-yield after a 4ms CPU slice, and stop with an explicit error after a 120s startup
-deadline. Checkpoints record method, state, PC, opcode, elapsed time and yield
-count to `DevilHub-Steal-Startup.json`, at most once per second. Successful native
-window export disables the guard so it does not schedule gameplay callbacks.
-The loading screen shows elapsed initialization time without inventing progress.
-The protected bootstrap, original compiler/environment identities, and all
-368,215 game bytecode bytes remain unchanged.
-
-`python tools/chilli-20261019/test-vm-startup.py` exercises all eight inserted
-anchors, scheduler budgets, timeout/error behavior, completion and missing task
-APIs. It also executes the actual released native pre-GUI interpreter against
-an inert host with a simulated clock: over 300,000 instructions yield hundreds
-of times before the intentional unsupported-host timeout. No game/server APIs
-or networking are available in this fixture. This demonstrates bounded CPU
-behavior, not successful initialization on Arceus X. Live executor startup and
-gameplay still require verification; a checkpoint report is now available if
-the executor cannot finish initialization.

@@ -482,13 +482,10 @@ end
 local startNativeUiGuard=(function()
 -- Presentation only: watch the native GUI containers before starting the runtime.
 return function()
-    local scope=type(getgenv)=="function"and getgenv()or _G
-    if type(scope.DevilChilliEarlyGuardStop)=="function"then return scope.DevilChilliEarlyGuardStop end
     local hidden,connections,containers={},{},{}
     local stopped=false
     local markers={}
     local function nativeScreen(screen)
-        if screen:GetAttribute("DevilNativeCanvas")==true then return false end
         if screen.Name=="DEVIL HUB" or screen:GetAttribute("DevilHubPresentation")==true then return false end
         if screen.Name=="ChilliHubLoading" or screen:GetAttribute("ChilliLibraryOwned")==true then return true end
         local mark=markers[screen] or {}
@@ -509,7 +506,6 @@ return function()
     local tracked={}
     local function track(child)
         if not child:IsA("ScreenGui") or tracked[child] then return end
-        if child:GetAttribute("DevilNativeCanvas")==true then return end
         tracked[child]=true
         markers[child]={}
         hide(child)
@@ -540,21 +536,19 @@ return function()
     local function watch(container)
         if typeof(container)~="Instance" or containers[container] then return end
         containers[container]=true
-        table.insert(connections,container.DescendantAdded:Connect(track))
-        for _,child in ipairs(container:GetDescendants()) do track(child) end
+        table.insert(connections,container.ChildAdded:Connect(track))
+        for _,child in ipairs(container:GetChildren()) do track(child) end
     end
     pcall(function()watch(game:GetService("CoreGui"))end)
     pcall(function()if type(gethui)=="function" then watch(gethui()) end end)
     pcall(function()watch(game:GetService("Players").LocalPlayer:FindFirstChildOfClass("PlayerGui"))end)
-    local function stop()
+    return function()
         if stopped then return end
         stopped=true
         for _,connection in ipairs(connections) do connection:Disconnect() end
-        if scope.DevilChilliEarlyGuardStop==stop then scope.DevilChilliEarlyGuardStop=nil end
+        for screen,enabled in pairs(hidden) do pcall(function()screen.Enabled=enabled end) end
         table.clear(connections);table.clear(hidden);table.clear(containers);table.clear(tracked);table.clear(markers)
     end
-    scope.DevilChilliEarlyGuardStop=stop
-    return stop
 end
 
 end)()
@@ -717,85 +711,13 @@ end)()("Steal an Egg")
 
 local restoreStartup
 local function mount()
-    if type(env.DevilStealStartupStage)=="function"then pcall(env.DevilStealStartupStage,"Building DEVIL HUB frontend")end
     loading.Update("Building DEVIL HUB interface...",0.85)
     local session=attach(existingDevilHubLibrary,restoreStartup)
     if session and session.Report and session.Report.status=="Mounted DEVIL HUB main GUI on original Chilli handles" then
-        if type(env.DevilStealStartupStage)=="function"then pcall(env.DevilStealStartupStage,"Ready")end
         loading.Finish()
     else loading.Fail(session and session.Report and (session.Report.error or session.Report.reason) or "UI did not mount") end
     return session
 end
--- BEGIN PINNED SOURCE CACHE
-local loadPinnedSource=(function()
--- Optional immutable-file cache. Every cached/downloaded byte is checked before compilation.
-return function(url,size,expected,filename)
-    local started=os.clock();local info={CacheHit=false,Yields=0}
-    local function valid(source)
-        if type(source)~="string"or #source~=size then return false end
-        local checksum=0;local slice=os.clock()
-        for i=1,#source do
-            checksum=(checksum*33+source:byte(i))%4294967296
-            if i%8192==0 and task and type(task.wait)=="function"and os.clock()-slice>=.006 then
-                info.Yields+=1;task.wait();slice=os.clock()
-            end
-        end
-        return checksum==expected
-    end
-    if type(readfile)=="function"and type(isfile)=="function"then
-        local ok,source=pcall(function()if isfile(filename)then return readfile(filename)end end)
-        if ok and valid(source)then info.CacheHit=true;info.Seconds=os.clock()-started;return source,info end
-    end
-    local source=game:HttpGet(url)
-    assert(valid(source),"Pinned script download checksum mismatch or unexpected size")
-    if type(writefile)=="function"then pcall(writefile,filename,source)end
-    info.Seconds=os.clock()-started
-    return source,info
-end
-
-end)()
-local installStartupTrace=(function()
--- Local startup breadcrumbs; no network reporting, hooks or replacement compiler.
-return function(initialPhase)
-    local scope=type(getgenv)=="function"and getgenv()or _G
-    if scope.DevilStealStartupTrace and scope.DevilStealStartupTrace.Version=="steal-startup-vm-20261020-5"
-        and type(scope.DevilStealStartupStage)=="function"then
-        scope.DevilStealStartupStage(initialPhase or"Native layer decoded")
-        return scope.DevilStealStartupStage
-    end
-    local report={Version="steal-startup-vm-20261020-5",LastPhase="Runtime entry",Steps={},Executor="Unknown",
-        StartedAt=os.clock(),PlaceId=game.PlaceId,Capabilities={Buffer=type(buffer)=="table",Loadstring=type(loadstring)=="function"}}
-    local identify=identifyexecutor or getexecutorname
-    if type(identify)=="function"then
-        local ok,name,version=pcall(identify)
-        if ok then report.Executor=tostring(name)..(version and(" / "..tostring(version))or"")end
-    end
-    scope.DevilStealStartupTrace=report
-    local function stage(name,detail)
-        local changed=report.LastPhase~=name or #report.Steps==0
-        if not changed and not detail then return end
-        if detail then report.VM=detail end
-        report.LastPhase=name;report.Elapsed=os.clock()-report.StartedAt
-        if changed then report.Steps[#report.Steps+1]={Phase=name,At=report.Elapsed}end
-        if #report.Steps>24 then table.remove(report.Steps,1)end
-        if type(writefile)=="function"then pcall(function()
-            writefile("DevilHub-Steal-Startup.json",game:GetService("HttpService"):JSONEncode(report))
-        end)end
-        if changed then warn("DEVIL HUB startup: "..name)end
-        local loading=scope.DevilHubLoadController
-        local message="Steal startup: "..name
-        if name=="VM initialization"and detail then
-            message="Preparing Steal an Egg systems... "..tostring(math.floor(detail.Seconds)).."s"
-        end
-        if loading and type(loading.Update)=="function"then pcall(loading.Update,message,.7)end
-    end
-    scope.DevilStealStartupStage=stage
-    stage(initialPhase or"Native layer decoded")
-    return stage
-end
-
-end)()
--- END PINNED SOURCE CACHE
 local completed=table.pack(pcall(function()
 if task and task.wait then task.wait() end
 loading.Update("Preparing DEVIL HUB logo...",0.05)
@@ -843,7 +765,7 @@ if env.DevilChilliFullRuntimeTest then
 end
 local report={schema="devil-chilli-full-runtime-test-1",release="chilli-full-test-1",map="Steal an Egg",
     placeId=game.PlaceId,universeId=game.GameId,status="Starting",devirtualized=false,
-    frontend="DEVIL HUB / native constructor export",referenceSHA256="f6f4107a790607f6dc8e734040a172dde6b9f52c79351a64fba49555111be989",referenceCommit="03468a41b2ecf2d983b39993ba603c943c140f4f"}
+    frontend="DEVIL HUB / native constructor export",referenceSHA256="4074799ca466527ee037a801f404eb1e1afdddcea1a390016b7b60bf9d0859a8",referenceCommit="03468a41b2ecf2d983b39993ba603c943c140f4f"}
 env.DevilChilliFullRuntimeTest=report
 local function save()
     if type(writefile)=="function"then
@@ -863,22 +785,19 @@ local outcome=table.pack(xpcall(function()
     end
     warn("DEVIL HUB: loading the original systems into the main GUI")
     loading.Update("Downloading systems...",0.15)
-    -- BEGIN VERIFIED RUNTIME LOAD
-local originalGameSource,sourceInfo=loadPinnedSource("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/80648e24de75f5e587752313911ed23088333ad5/devil-chilli-native-ui-runtime.lua",830107,1205108830,"DevilHub_StealRuntime_80648e24de75f5e587752313911ed23088333ad5.lua")
-    report.Source=sourceInfo;loading.Update("Preparing verified systems...",.4)
--- END VERIFIED RUNTIME LOAD
+    local originalGameSource=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/7528273904be647ffe2020da866f2d05aaa082fb/devil-chilli-native-ui-runtime.lua")
+    assert(type(originalGameSource)=="string"and #originalGameSource==827707,"Pinned runtime download has an unexpected size")
+    loading.Update("Checking download...",0.4)
+    local checksum=0
+    for index=1,#originalGameSource do checksum=(checksum*33+string.byte(originalGameSource,index))%4294967296; if index%32768==0 and task and task.wait then task.wait() end end
+    assert(checksum==1143929092,"Pinned runtime download checksum mismatch")
     loading.Update("Compiling systems...",0.55)
-    local compileStarted=os.clock()
-    local run,err=loadstring(originalGameSource,"DEVIL HUB / Steal an Egg / pinned runtime")
-    report.CompileSeconds=os.clock()-compileStarted
+    local run,err=loadstring(originalGameSource,"Chilli / Steal an Egg / pinned runtime")
     assert(run,err)
     report.status="Runtime compiled";report.transferChecksumVerified=true;save()
     loading.Update("Starting original systems...",0.7)
     if task and task.wait then task.wait() end
-    pcall(installStartupTrace,"Protected bootstrap")
-    local runtimeStarted=os.clock();local values=table.pack(run())
-    report.RuntimeSeconds=os.clock()-runtimeStarted
-    return table.unpack(values,1,values.n)
+    return run()
 end,function(err)return debug and type(debug.traceback)=="function"and debug.traceback(tostring(err),2)or tostring(err)end))
 report.ok=outcome[1]
 report.status=report.ok and "Runtime returned; verify original menu and systems in game"or"Failed"

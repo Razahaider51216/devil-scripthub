@@ -1,8 +1,4 @@
 local artwork=makeArtwork()
-local function instanceType(value)
- if type(value)=='table'and value.ClassName then return 'Instance'end
- return typeof(value)
-end
 local core=Instance.new('CoreGui')
 local screen=Instance.new('ScreenGui');screen.Name='DevilHubStealTest';screen.Parent=core
 local root=Instance.new('Frame');root.Name='MainWindow';root.Size=UDim2.fromOffset(880,520);root.Parent=screen
@@ -24,7 +20,7 @@ local game={GetService=function(_,name)
  error(name)
 end}
 local compile=assert(loadstring(themeSource))
-setfenv(compile,setmetatable({game=game,getgenv=function()return env end,task=task,Instance=Instance,typeof=instanceType,
+setfenv(compile,setmetatable({game=game,getgenv=function()return env end,task=task,Instance=Instance,typeof=typeof,
  Color3=Color3,ColorSequence=ColorSequence,Vector2=Vector2,UDim2=UDim2,UDim=UDim,Enum=Enum},{__index=getfenv(0)}))
 local theme=compile();flush()
 check(pet.ImageColor3==Color3.new(1,1,1),'shared theme darkened randomized pet art')
@@ -35,15 +31,6 @@ button.Activated:Fire();check(clicks==1,'artwork fix lost original click handler
 local added=artwork(row,nil)
 check(added:IsA('ImageLabel')and added.Parent==row and added.Visible and added.Size.X.Offset==48,'missing prototype icon not created')
 check(artwork(row,added)==added,'repeated artwork fix duplicated icon')
-local launcher=artwork(button,nil,true)
-check(launcher.Image~=''and launcher:GetAttribute('DevilStealLauncher'),'launcher still lacks default system icon')
-check(launcher.DevilStealFallback.Visible and #launcher.DevilStealFallback:GetChildren()>0,'unloaded icon has no visible vector fallback')
-launcher.IsLoaded=true
-check(not launcher.DevilStealFallback.Visible,'loaded native icon remained covered by fallback')
-launcher.IsLoaded=false;launcher.Image='rbxassetid://999'
-check(launcher.DevilStealFallback.Visible,'changed / failed asset removed fallback')
-local children=#launcher:GetChildren();artwork(button,launcher,true)
-check(#launcher:GetChildren()==children,'launcher redraw duplicated fallback / listeners')
 theme.Destroy()
 do
  local cache={};local data={Assets={Directory={}}}
@@ -59,71 +46,10 @@ do
 end
 do
  local host=Instance.new('Folder');local native=Instance.new('ScreenGui');native.Enabled=true
- local frame=Instance.new('Frame');frame.Size=UDim2.fromScale(.45,.55)
  local flashed=false
- native:GetPropertyChangedSignal('Parent'):Connect(function()
-  for _,child in ipairs(native:GetChildren())do if child:IsA('GuiObject')and not(child:IsA('CanvasGroup')and child.GroupTransparency==1)then flashed=true end end
- end)
- local create=assert(loadstring(createSource));setfenv(create,{F={[19]={obj1=native,obj2=frame},[15]=host},devilKeepNativeHidden=makeVisibility()});create()
- check(native.Parent==host and native.Enabled and not flashed,'startup changed native Enabled state / exposed native pixels')
- check(frame.Parent:IsA('CanvasGroup')and frame.Parent.GroupTransparency==1 and frame.Parent.Parent==native,'root frame bypassed invisible canvas')
- check(frame.Parent.Size.X.Scale==1 and frame.Parent.Size.Y.Scale==1,'native root lost viewport layout size')
- native.Enabled=false;native.Enabled=true;check(native.Enabled,'permanent visibility lock still intercepts engine state')
- check(native:GetAttribute('DevilBlueSettings')==true,'hidden native GUI still incurs a complete theme / localization pass')
-end
-do
- local shared={};local player=Instance.new('Player');local pg=Instance.new('PlayerGui');pg.Parent=player
- local host=setmetatable({getgenv=function()return shared end,typeof=instanceType,
-  game={GetService=function(_,name)if name=='CoreGui'then return core end;return {LocalPlayer=player}end}},{__index=getfenv(0)})
- setfenv(makeGuard,host);local install=makeGuard();local stop=install()
- check(install()==stop,'early and frontend guards installed twice')
- local nested=Instance.new('Folder');nested.Parent=core
- local native=Instance.new('ScreenGui');native.Name='Settings';native.Parent=nested
- native:SetAttribute('ChilliLibraryOwned',true)
- check(not native.Enabled,'early guard missed late ownership under a nested hidden-UI folder')
- native.Enabled=true;check(not native.Enabled,'legacy native GUI reopened under early guard')
- local ours=Instance.new('ScreenGui');ours:SetAttribute('DevilHubPresentation',true);ours.Parent=core
- check(ours.Enabled,'early guard hid the DEVIL HUB frontend')
- local panel=Instance.new('ScreenGui');panel.Name='randomized-steal-panel';panel.Parent=core
- check(panel.Enabled,'early guard hid the separate Steal Panel')
- local quarantined=Instance.new('ScreenGui');makeVisibility()(quarantined);quarantined:SetAttribute('ChilliLibraryOwned',true);quarantined.Parent=core
- check(quarantined.Enabled,'early guard disabled the transparent native layout screen')
- stop();check(shared.DevilChilliEarlyGuardStop==nil and not native.Enabled,'guard cleanup exposed old GUI / kept singleton alive')
-end
-do
- local shared={};local written,warnings={},{};local updates=0
- local host=setmetatable({getgenv=function()return shared end,game={PlaceId=107778070777162,GetService=function()return {JSONEncode=function(_,data)return data.LastPhase end}end},
-  identifyexecutor=function()return 'Offline Executor','1.2'end,
-  writefile=function(path,text)written[path]=text end,warn=function(text)warnings[#warnings+1]=text end},{__index=getfenv(0)})
- shared.DevilHubLoadController={Update=function()updates+=1 end}
- setfenv(makeTrace,host);local stage=makeTrace()()
- check(shared.DevilStealStartupTrace.Executor=='Offline Executor / 1.2','startup trace did not identify executor')
- stage('Native UI write probe');stage('Native UI write probe')
- check(written['DevilHub-Steal-Startup.json']=='Native UI write probe'and #shared.DevilStealStartupTrace.Steps==2,'startup trace missing / repeated phase duplicated breadcrumbs')
- check(updates==2 and #warnings==2,'startup trace did not expose actual stages')
- host.writefile=function()error('file API unavailable')end
- stage('Native handles ready');check(shared.DevilStealStartupTrace.LastPhase=='Native handles ready','failed diagnostic file write interrupted startup')
- local previous=shared.DevilStealStartupTrace
- local resumed=makeTrace()('Protected bootstrap')
- check(resumed==stage and shared.DevilStealStartupTrace==previous and previous.LastPhase=='Protected bootstrap','bootstrap / native transition lost existing trace')
-end
-do
- local shared={};local progress
- shared.DevilHubLoadController={Update=function(text,value)progress=value end}
- local screens,waits={},{}
- local host=setmetatable({getgenv=function()return shared end,task={wait=function(n)waits[#waits+1]=n end,delay=function()end},
-  game={GetService=function()return core end},typeof=instanceType,
-  Instance={new=function(class)local obj=Instance.new(class);if class=='ScreenGui'then screens[#screens+1]=obj end;return obj end},
-  Color3=Color3,ColorSequence=ColorSequence,UDim2=UDim2,UDim=UDim,Vector2=Vector2,Enum=Enum},{__index=getfenv(0)})
- setfenv(makeLoading,host);host.devilNativeProgress=makeLoading()
- local compile=assert(loadstring(nativeLoadingSource));setfenv(compile,host)
- local factory=compile();local initialize=factory()();initialize()
- check(shared.ChilliCanvasHold and type(shared.ChilliHubLoadStep)=='function','original loading lost engine hold / progress API')
- check(#screens==1 and screens[1].Parent==nil and not screens[1].Enabled,'native loading screen was exposed')
- shared.ChilliHubLoadStep(4);check(progress==.74,'native progress did not update DEVIL loading screen')
- check(waits[#waits]==.05,'original initialization wait was changed')
- shared.ChilliHubLoadStep(10)
- check(shared.ChilliCanvasHold==nil and shared.ChilliHubLoadStep==nil and shared.ChilliHubLoading==nil,'loading completion did not release native engine')
+ native:GetPropertyChangedSignal('Parent'):Connect(function()if native.Parent and native.Enabled then flashed=true end end)
+ local create=assert(loadstring(createSource));setfenv(create,{F={[19]={obj1=native},[15]=host}});create()
+ check(native.Parent==host and not native.Enabled and not flashed,'native GUI was enabled when parented')
 end
 for _,enabled in ipairs({true,false})do
  local shared={};local downloads,launches=0,0
