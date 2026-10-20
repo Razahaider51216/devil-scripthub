@@ -1,12 +1,13 @@
 from pathlib import Path
-import subprocess
+import subprocess, json
 root=Path(__file__).resolve().parents[2];repo=root
 def literal(s):
  e='='
  while ']'+e+']' in s:e+='='
  return '['+e+'[\n'+s+']'+e+']'
 public=(repo/'devil-steal-an-egg.lua').read_text(encoding='utf-8');entry=(repo/'devil-steal-an-egg-chilli-recovered-ui-test.lua').read_text(encoding='utf-8')
-if entry.startswith('-- BEGIN SHARED DEVIL BLUE GUI'):entry=entry.split('-- END SHARED DEVIL BLUE GUI\n',1)[1]
+release=json.loads((repo/'devil-steal-update-release.json').read_text())
+
 test='local public='+literal(public)+'\nlocal reference='+literal(entry)+r'''
 local nativeCompile=loadstring
 local function setup(universe,place,corrupt)
@@ -16,11 +17,11 @@ local function setup(universe,place,corrupt)
     function env.game:HttpGet(url)
         table.insert(downloads,url)
         if url:find('/loader?',1,true) then return 'main router source' end
-        assert(url=='https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/8199d2d36f34f81e398dd62df2666062eb285f96/devil-steal-an-egg-chilli-recovered-ui-test.lua','wrong latest entry pin')
+        assert(url=='https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/__GUI_COMMIT__/devil-steal-an-egg-chilli-recovered-ui-test.lua','wrong latest entry pin')
         return corrupt and reference:sub(1,-2)..'x' or reference
     end
     env.loadstring=function(source,label)
-        if label=='Devil VM' then local fn=assert(nativeCompile(source));setfenv(fn,env);return fn end
+        if label=='Devil VM' or label=='DEVIL HUB / startup decoder' or label=='DEVIL HUB / native devil-steal-an-egg.lua' then local fn=assert(nativeCompile(source));setfenv(fn,env);return fn end
         compiled+=1
         assert(source==reference or source=='main router source','unexpected source reached native compiler')
         return function(...)return 'loaded',... end
@@ -42,4 +43,5 @@ local result,arg=run('sentinel')
 assert(result=='loaded' and arg=='sentinel' and downloads[1]:find('/loader?',1,true),'cross-map routing changed')
 print('PASS main Steal an Egg VM delegate: universe/place mapping, native compile boundary, argument forwarding, transfer integrity and cross-map routing')
 '''
+test=test.replace('__GUI_COMMIT__',release['gui_commit'])
 p=Path(__file__).resolve().parent/'test-main-entry.generated.luau';p.write_text(test,encoding='utf-8');subprocess.run([str(root.parent/'luau-tools/luau.exe'),str(p)],check=True)
