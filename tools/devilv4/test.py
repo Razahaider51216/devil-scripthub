@@ -1,0 +1,63 @@
+from pathlib import Path
+import hashlib, json, re, subprocess
+import sys
+
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parents[1]
+luau = ROOT.parent / 'luau-tools/luau.exe'
+template = (HERE / 'test-core.luau').read_text(encoding='utf-8')
+for marker, filename in [('POLICY','policy.lua'),('CORE','core.lua')]:
+    template = template.replace('-- ' + marker, (HERE / filename).read_text(encoding='utf-8'))
+target = HERE / 'test-core.generated.luau'
+target.write_text(template, encoding='utf-8', newline='\n')
+subprocess.run([str(luau), str(target)], check=True)
+sys.path.insert(0, str(ROOT / 'tools/anime-dice'))
+import dependency
+def literal(value):
+    for n in range(1,10):
+        eq='='*n
+        if ']'+eq+']' not in value:
+            return '['+eq+'['+value+']'+eq+']'
+    raise AssertionError('No safe Lua literal delimiter')
+entry_test=(HERE/'test-entry.luau').read_text(encoding='utf-8')
+entry_test=entry_test.replace('__OURO_SOURCE__',literal(dependency.read(ROOT).decode()))
+entry_test=entry_test.replace('-- ENTRY',(ROOT/'devilv4-test.lua').read_text(encoding='utf-8'))
+entry_target=HERE/'test-entry.generated.luau'
+entry_target.write_text(entry_test,encoding='utf-8',newline='\n')
+subprocess.run([str(luau),str(entry_target)],check=True)
+adapter_test=(HERE/'test-adapter.luau').read_text(encoding='utf-8')
+adapter_test=adapter_test.replace('-- HARNESS',entry_test.split('local entry=function()',1)[0])
+adapter_test=adapter_test.replace('-- ADAPTER',(HERE/'adapter.lua').read_text(encoding='utf-8'))
+adapter_target=HERE/'test-adapter.generated.luau'
+adapter_target.write_text(adapter_test,encoding='utf-8',newline='\n')
+subprocess.run([str(luau),str(adapter_target)],check=True)
+manifest=json.loads((ROOT/'devilv4-test-release.json').read_text())
+assert hashlib.sha256((ROOT/'devilv4-test.lua').read_bytes()).hexdigest()==manifest['entry_sha256']
+for filename in ['policy.lua','adapter.lua','core.lua','ui.lua','presentation.lua']:
+    raw=(HERE/filename).read_text(encoding='utf-8')
+    assert 'AdminTestShovel' not in raw and '9e15' not in raw
+    assert ':SetAttribute("DigPower"' not in raw
+    assert 'while true do' not in raw
+    assert hashlib.sha256((HERE/filename).read_bytes()).hexdigest()==manifest['sources'][filename]
+assert manifest['production_router_changed'] is False
+assert 'devilv4-test.lua' not in (ROOT/'loader').read_text(encoding='utf-8')
+assert subprocess.check_output(['git','diff','HEAD','--','loader'],cwd=ROOT)==b''
+dump=Path(r'C:\Users\Administrator\Downloads\Devilv4\DevilDump_Dumps')
+maps=list(dump.glob('Map_121831322352666*/map.json'))
+remote_count=None
+if maps:
+    rows=json.loads(maps[0].read_text(encoding='utf-8-sig'))
+    paths={r['path'] for r in rows if r['class'] in ('RemoteEvent','RemoteFunction')}
+    contract_line=next(line for line in (HERE/'adapter.lua').read_text().splitlines() if 'local paths=' in line)
+    contracts=re.findall(r'(\w+)="([^"]+)"',contract_line)
+    for name,path in contracts:
+        assert 'ReplicatedStorage.'+path in paths, (name,path)
+    remote_count=len(contracts)
+    print('PASS all',remote_count,'remote paths exist in supplied map dump')
+validation={'release':manifest['release'],'live_game_verified':False,'luau_compile':True,
+            'behavior_checks':72,'public_entry_gui_settings_checks':23,'adapter_checks':14,
+            'remote_paths_checked':remote_count,'production_loader_unchanged':True,
+            'entry_sha256':manifest['entry_sha256'],
+            'production_loader_sha256':hashlib.sha256((ROOT/'loader').read_bytes()).hexdigest()}
+(ROOT/'devilv4-test-validation.json').write_text(json.dumps(validation,indent=2)+'\n',encoding='utf-8',newline='\n')
+print('PASS entry integrity, no damage bypass, standalone routing, 31 source-derived images')

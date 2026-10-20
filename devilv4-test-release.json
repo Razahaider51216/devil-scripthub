@@ -1,0 +1,21 @@
+{
+  "release": "devilv4-test-20261020-1",
+  "place_id": 121831322352666,
+  "universe_id": 10765013362,
+  "production_router_changed": false,
+  "live_game_verified": false,
+  "damage_bypass": false,
+  "automation_defaults_off": true,
+  "saved_profile_restores_explicitly_saved_jobs": true,
+  "entry_sha256": "0cb2cf2ee18ac078940f875c9b7b23acae2360a828ae4dc7cd31105db7022bca",
+  "theme_module_commit": "9a9812469df7b5dad2848abb33c5206f7d57e685",
+  "ouroflow_sha256": "0c30762d3c9c3aa7c25ca3aeceab960a771c96b5af290a3b67aed627161385f5",
+  "assets": 31,
+  "sources": {
+    "adapter.lua": "55e6d4c91a0edfc54caf4b0879d6dbb167ce8f94b2092a22f498299d785de503",
+    "core.lua": "37b5ad4956cbf915ca263d35aa1a270c8c517a94052cd8fedf0899ff0a63565a",
+    "policy.lua": "97e8112dc24765490fef26231b54cee294b5e10f7df60ee8dae72c440df154cc",
+    "presentation.lua": "6215cd32e036c3e90b201c44405eff76b81db2d978bbef46e678ec45c141b0bc",
+    "ui.lua": "da00a5d194f58673d2ac674a0174c0b790787085e9071133dbdc130561ed12f4"
+  }
+}

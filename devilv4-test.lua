@@ -1,0 +1,890 @@
+-- DEVIL HUB: standalone prototype for the map recorded in Devilv4.
+assert(game.PlaceId==121831322352666 or game.GameId==10765013362,"Open the Devilv4 mining map before running this test")
+local scope=type(getgenv)=="function"and getgenv()or _G
+if scope.DevilV4Test then scope.DevilV4Test.Destroy()end
+if scope.DevilV4Starting and os.clock()-scope.DevilV4Starting<30 then return end
+scope.DevilV4Starting=os.clock()
+local P=(function()
+local P={}
+P.Jobs={"Dig","FarmFinds","Plant","Hatch","SellLoot","SellEggs","SellPets","BuyShovel","BuyGear","EquipPets","TrainingUpgrade","PlotUpgrade","HoleLuck","AnimalIncome","Rebirth","Potions","Daily","Offline","PetIndex","EventEggs","EventWaves","UseGear","Pumpkin","Train"}
+function P.Defaults()
+    local c={AimRate=20,FastDig=true,Reserve=0,FindKind="All",FindRarity="All",Shovel="Best affordable",Gear="",GearLimit=1,Potion="DigSpeed",UseGearId="",RebirthLimit=1,TrainSeconds=120,DigSeconds=300,Rotate=false}
+    for _,key in ipairs(P.Jobs)do c[key]=false end
+    return c
+end
+function P.Number(v,fallback,lo,hi)
+    v=tonumber(v);if not v or v~=v or math.abs(v)==math.huge then return fallback end
+    return math.clamp(v,lo or 0,hi or 1e30)
+end
+function P.Affordable(cost,cash,reserve)return type(cost)=="number"and cost>=0 and cost<=math.max(0,(tonumber(cash)or 0)-(tonumber(reserve)or 0))end
+function P.ShopChoice(tiers,snapshot,choice,cash,reserve,active)
+    if type(snapshot)~="table"or type(snapshot.Owned)~="table"then return end
+    local best
+    for _,item in ipairs(tiers or{})do
+        if not item.WorldOnly and not item.RobuxOnly and item.Kind~="Drill"and (choice=="Best affordable"or item.Id==choice)then
+            if snapshot.Owned[item.Id]or P.Affordable(item.Cost,cash,reserve)then
+                if not best or (item.Multiplier or 0)>(best.Multiplier or 0)then best=item end
+            end
+        end
+    end
+    if not best or best.Id==active then return end
+    return best,snapshot.Owned[best.Id]and "Equip"or "Buy"
+end
+function P.Quote(snapshot,key)
+    local s=type(snapshot)=="table"and snapshot[key]
+    if type(s)=="table"and (tonumber(s.Count)or 0)>0 and s.Quote~=nil then return s.Quote end
+end
+function P.ReadyEggs(snapshot,now)
+    local ready={};for _,e in ipairs(type(snapshot)=="table"and snapshot.Eggs or{})do
+        if e.Id and type(e.ReadyAt)=="number"and e.ReadyAt<=now and not e.Hatching then ready[#ready+1]=e.Id end
+    end;return ready
+end
+function P.DropEligible(drop,claimed,now,deadline)
+    return type(drop)=="table"and type(drop.Index)=="number"and type(drop.LandTime)=="number"and now>=drop.LandTime and now<deadline and not drop.Claimed and not drop.Expired and not(claimed and claimed[drop.Index])
+end
+function P.Settings(raw)
+    local out=P.Defaults();if type(raw)~="table"then return out end
+    for key,default in pairs(out)do
+        local v=raw[key]
+        if type(default)=="boolean"then if type(v)=="boolean"then out[key]=v end
+        elseif type(default)=="number"then out[key]=P.Number(v,default)
+        elseif type(v)=="string"and #v<=120 then out[key]=v end
+    end
+    out.AimRate=P.Number(out.AimRate,20,5,40);out.GearLimit=math.floor(P.Number(out.GearLimit,1,1,25))
+    out.RebirthLimit=math.floor(P.Number(out.RebirthLimit,1,1,100))
+    out.TrainSeconds=P.Number(out.TrainSeconds,120,15,900);out.DigSeconds=P.Number(out.DigSeconds,300,15,900)
+    return out
+end
+function P.Money(v)
+    v=tonumber(v);if not v then return "?"end
+    for _,pair in ipairs({{1e18,"Qi"},{1e15,"Qa"},{1e12,"T"},{1e9,"B"},{1e6,"M"},{1e3,"K"}})do if v>=pair[1]then return string.format("%.2f%s",v/pair[1],pair[2])end end
+    return string.format("%.0f",v)
+end
+return P
+
+end)()
+local makeAdapter=(function()
+return function(scope)
+    local A={Modules={},Pending=scope.DevilV4Pending or{},Snapshots={},Links={},Finds={},Serials=setmetatable({},{__mode="k"}),NextSerial=0,Alive=true}
+    scope.DevilV4Pending=A.Pending -- A hung InvokeServer retains its lane across reloads.
+    A.Player=game:GetService("Players").LocalPlayer
+    A.RS=game:GetService("ReplicatedStorage");A.Tags=game:GetService("CollectionService");A.Input=game:GetService("UserInputService")
+    A.Http=game:GetService("HttpService");A.Clock=os.clock;A.Spawn=task.spawn;A.Wait=task.wait
+    A.ServerTime=function()return workspace:GetServerTimeNow()end
+    local paths={Mining="DiggingRemotes.Mining",Surface="DiggingRemotes.Surface",Plant="EggRemotes.Plant",Eggs="EggRemotes.EggCollection",Shovels="MarketRemotes.ShovelMarket",Gear="MarketRemotes.GearShop",Sell="MarketRemotes.LootMarket",Pets="PetCollection",Index="PetIndex",Training="UpgradeTraining",Plot="UpgradePlot",Booth="MarketRemotes.BoothUpgrades",Rebirth="Rebirth",Potion="PotionRemotes.Consume",DailyState="DailyRewardsRemotes.GetState",DailyClaim="DailyRewardsRemotes.Claim",Offline="OfflineEarnings",EventState="LiveAdmin.GetState",EggPlan="LiveAdmin.GetEggPlan",ClaimEgg="LiveAdmin.ClaimEgg",ClaimWave="LiveAdmin.ClaimWave",PlaceGear="GearRemotes.Place",Pumpkin="GearRemotes.FirePumpkin"}
+    function A.Remote(key)
+        local node=A.RS
+        for segment in string.gmatch(paths[key]or"","[^.]+")do node=node and node:FindFirstChild(segment)end
+        return node~=A.RS and node or nil
+    end
+    function A.Fire(key,...)
+        if not A.Alive then return false,"Unloaded"end
+        local r=A.Remote(key);if not r or not r:IsA("RemoteEvent")then return false,"Remote unavailable: "..key end
+        return pcall(r.FireServer,r,...)
+    end
+    function A.Invoke(key,...)
+        if not A.Alive then return nil,"Unloaded"end
+        local r=A.Remote(key);if not r or not r:IsA("RemoteFunction")then return nil,"Remote unavailable: "..key end
+        if A.Pending[key]then return nil,"Waiting for previous "..key.." request"end
+        local pending={At=os.clock(),Done=false};A.Pending[key]=pending
+        local args=table.pack(...)
+        task.spawn(function()
+            pending.OK,pending.Value=pcall(r.InvokeServer,r,table.unpack(args,1,args.n));pending.Done=true
+            if A.Pending[key]==pending then A.Pending[key]=nil end
+        end)
+        while not pending.Done and A.Alive and os.clock()-pending.At<8 do task.wait(.05)end
+        if not pending.Done then return nil,"Server timeout: "..key end
+        if not pending.OK then return nil,tostring(pending.Value)end
+        return pending.Value
+    end
+    function A.Character()
+        local c=A.Player.Character;local h=c and c:FindFirstChildOfClass("Humanoid");local r=c and c:FindFirstChild("HumanoidRootPart")
+        if h and r and h.Health>0 then return c,h,r,c:FindFirstChild("Head")or r end
+    end
+    function A.Blocked()
+        return not A.Character()or A.Input:GetFocusedTextBox()~=nil or game:GetService("GuiService").MenuIsOpen or A.Player:GetAttribute("ProductPurchaseOpen")==true or A.Player:GetAttribute("DataResetting")==true
+    end
+    function A.Attr(name,default)local v=A.Player:GetAttribute(name);if v==nil then return default end;return v end
+    function A.Plot()
+        local map=workspace:FindFirstChild("RuntimeMap");local plots=map and map:FindFirstChild("Plots")
+        for _,p in ipairs(plots and plots:GetChildren()or{})do if p:GetAttribute("ClaimedUserId")==A.Player.UserId then return p end end
+    end
+    function A.Owned(node)
+        local plot=A.Plot();return plot and (node==plot or node:IsDescendantOf(plot))
+    end
+    function A.Part(node)
+        if not node then return end
+        if node:IsA("BasePart")then return node end
+        return node:IsA("Model")and(node.PrimaryPart or node:FindFirstChildWhichIsA("BasePart",true))or node:FindFirstChildWhichIsA("BasePart",true)
+    end
+    function A.TaggedOwn(tag)
+        for _,n in ipairs(A.Tags:GetTagged(tag))do if A.Owned(n)then return n end end
+    end
+    function A.Mine()
+        local map=workspace:FindFirstChild("RuntimeMap");return map and map:FindFirstChild("CommunalMine")
+    end
+    function A.ValidFind(n)
+        local mine=A.Mine()
+        return n and n.Parent and n:IsA("BasePart")and mine and n:IsDescendantOf(mine)and(n:GetAttribute("FindId")~=nil or n:GetAttribute("MaterialName")~=nil)and n:GetAttribute("Diggable")==true and not n:GetAttribute("MineBoundary")and not n:GetAttribute("TutorialHidden")and(tonumber(n:GetAttribute("Health"))or 1)>0
+    end
+    function A.Identity(n)
+        if not A.Serials[n]then A.NextSerial+=1;A.Serials[n]=A.NextSerial end;return A.Serials[n]
+    end
+    local function add(n)A.Finds[n]=true;A.Identity(n)end
+    for _,n in ipairs(A.Tags:GetTagged("MineFind"))do add(n)end
+    A.Links[#A.Links+1]=A.Tags:GetInstanceAddedSignal("MineFind"):Connect(add)
+    A.Links[#A.Links+1]=A.Tags:GetInstanceRemovedSignal("MineFind"):Connect(function(n)A.Finds[n]=nil end)
+    function A.FindDefinition(kind,id)
+        local module=A.Modules[({Egg="EggCatalog",Artifact="ArtifactCatalog",Potion="PotionConfig",Material="MaterialCatalog"})[kind]]
+        return module and module.Types and module.Types[id]or{}
+    end
+    function A.Targets(kind,rarity)
+        A.TrackMine()
+        local _,_,root=A.Character();local list={}
+        for n in pairs(A.Finds)do
+            if A.ValidFind(n)then
+                local k=n:GetAttribute("FindKind")or"Material"
+                local id=n:GetAttribute("FindId")or(n:GetAttribute("MaterialName")or n.Name):gsub("%s","");local d=A.FindDefinition(k,id)
+                if(kind=="All"or k==kind)and(rarity=="All"or d.Rarity==rarity)then
+                    list[#list+1]={Instance=n,Kind=k,Id=id,Name=d.Name or tostring(id),Rarity=d.Rarity or"Unknown",Position=n.Position,Serial=A.Identity(n),Distance=root and(root.Position-n.Position).Magnitude or math.huge}
+                end
+            end
+        end
+        table.sort(list,function(a,b)if a.Distance==b.Distance then return a.Serial<b.Serial end;return a.Distance<b.Distance end)
+        return list
+    end
+    function A.Ground(position,exclude,maxDepth)
+        local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Exclude
+        local c=A.Player.Character;params.FilterDescendantsInstances=exclude or(c and{c}or{})
+        params.RespectCanCollide=true
+        return workspace:Raycast(position,Vector3.new(0,-(maxDepth or 24),0),params)
+    end
+    function A.Stand(target)
+        local c,hum,root=A.Character();if not root then return end
+        local p=target.Position;local size=target.Instance and target.Instance.Size or Vector3.new(2,2,2)
+        local radius=math.max(size.X,size.Z)/2+2.5
+        local offsets=target.Training and{Vector3.zero}or{Vector3.new(radius,0,0),Vector3.new(-radius,0,0),Vector3.new(0,0,radius),Vector3.new(0,0,-radius)}
+        for _,offset in ipairs(offsets)do
+            local hit=A.Ground(p+offset+Vector3.new(0,4,0),{c,target.Instance},18)
+            if hit and hit.Normal.Y>.65 and math.abs(hit.Position.Y-p.Y)<=8 then
+                local goal=hit.Position+Vector3.new(0,hum.HipHeight+root.Size.Y/2+.15,0)
+                local box=OverlapParams.new();box.FilterType=Enum.RaycastFilterType.Exclude;box.FilterDescendantsInstances={c};box.RespectCanCollide=true
+                local clear=true;for _,part in ipairs(workspace:GetPartBoundsInBox(CFrame.new(goal),Vector3.new(2,3,2),box))do if part.CanCollide then clear=false;break end end
+                if clear then return goal end
+            end
+        end
+    end
+    function A.Move(target,valid)
+        if A.MoveBusy then return false,"Another movement is active"end
+        if not valid()then return false,"Cancelled"end
+        local c,_,root=A.Character();if not root then return false,"Waiting for character"end
+        if target.Instance and not A.ValidFind(target.Instance)then return false,"Target disappeared"end
+        local goal=A.Stand(target);if not goal then return false,"No clear ground next to target"end
+        A.MoveBusy=true
+        local ok,err=pcall(function()
+            if not valid()then return end
+            root.AssemblyLinearVelocity=Vector3.zero;root.AssemblyAngularVelocity=Vector3.zero
+            c:PivotTo(CFrame.lookAt(goal,Vector3.new(target.Position.X,goal.Y,target.Position.Z)))
+            task.wait(.4)
+        end)
+        A.MoveBusy=false
+        if not ok then return false,tostring(err)end
+        if not valid()then return false,"Cancelled"end
+        local _,_,current=A.Character();if current~=root or(root.Position-goal).Magnitude>7 then return false,"Teleport not confirmed (server correction or respawn)"end
+        return true,"Arrived"
+    end
+    function A.Aim(target)
+        local c,_,root,head=A.Character();if not head then return end
+        local config=A.Modules.DigConfig;local reach=config and config.Reach or 30
+        local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Exclude;params.FilterDescendantsInstances={c}
+        if target then
+            if not A.ValidFind(target.Instance)or(target.Instance.Position-head.Position).Magnitude>reach then return end
+            local delta=target.Instance.Position-head.Position;if delta.Magnitude<.1 then return end
+            local hit=workspace:Raycast(head.Position,delta.Unit*(delta.Magnitude+1),params)
+            if not hit or hit.Instance~=target.Instance then return end
+            return head.Position,delta.Unit,target.Kind=="Material"and"Aim"or"Find",target.Kind~="Material"and target.Instance or nil
+        end
+        local hit=workspace:Raycast(head.Position,Vector3.new(0,-reach,0),params)
+        local mine=A.Mine();if not hit or not mine or not hit.Instance:IsDescendantOf(mine)or hit.Instance:GetAttribute("MineBoundary")or hit.Instance:GetAttribute("Diggable")~=true then return end
+        return head.Position,Vector3.new(0,-1,0),"Down",nil
+    end
+    function A.Tools()
+        local list={};for _,parent in ipairs({A.Player:FindFirstChild("Backpack"),A.Player.Character})do
+            if parent then for _,tool in ipairs(parent:GetChildren())do if tool:IsA("Tool")then list[#list+1]=tool end end end
+        end;return list
+    end
+    function A.Equip(item,attribute,id)
+        local _,h=A.Character();if not h then return end
+        for _,t in ipairs(A.Tools())do if t:GetAttribute("ItemId")==item and(not attribute or t:GetAttribute(attribute)==id)then h:EquipTool(t);return t end end
+    end
+    function A.PlantPosition()
+        local plot=A.Plot();local lawn=plot and plot:FindFirstChild("Lawn");local frame=plot and plot:GetAttribute("PlotFrame")
+        if not lawn or typeof(frame)~="CFrame"then return end
+        local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Include;params.FilterDescendantsInstances={lawn}
+        local spacing=(A.Modules.EggConfig or{}).PlantSpacing or 5.125
+        local planted=workspace:FindFirstChild("RuntimeEggs");planted=planted and planted:FindFirstChild("Planted")
+        local positions={};for _,m in ipairs(planted and planted:GetChildren()or{})do
+            local part=A.Part(m);if part then positions[#positions+1]=part.Position end
+        end
+        for z=-3,3 do for x=-3,3 do
+            local p=frame:PointToWorldSpace(Vector3.new(x*spacing,4,z*spacing));local hit=workspace:Raycast(p,Vector3.new(0,-8,0),params)
+            if hit and hit.Normal.Y>.9 and math.abs(frame:PointToObjectSpace(hit.Position).Y)<.6 then
+                local free=true;for _,pos in ipairs(positions)do if(pos-hit.Position).Magnitude<spacing then free=false;break end end
+                if free then return hit.Position end
+            end
+        end end
+    end
+    function A.Init()
+        local shared=A.RS:FindFirstChild("Shared");if not shared then return end
+        local plant=A.Remote("Plant")
+        if plant and plant:IsA("RemoteEvent")then A.Links[#A.Links+1]=plant.OnClientEvent:Connect(function(success,message)
+            A.Snapshots.LastPlant={At=A.Clock(),Success=success==true,Message=message}
+        end)end
+        for _,name in ipairs({"ShovelCatalog","GearConfig","GearPlacementGrid","EggCatalog","ArtifactCatalog","PotionConfig","MaterialCatalog","DigConfig","EggConfig","TrainingUpgradeConfig","PlotUpgradeConfig","BoothUpgradeConfig","ProgressionConfig","Equipment","ContinuousMiningConfig","RebirthConfig","AbuseEventConfig","AbuseEventRules","AdminAbuseEligibility"})do
+            if not A.Alive then return end
+            local module=shared:FindFirstChild(name)
+            if module and module:IsA("ModuleScript")then task.spawn(function()local ok,v=pcall(require,module);if ok and A.Alive then A.Modules[name]=v end end)end
+            task.wait()
+        end
+        A.TrackMine()
+    end
+    function A.TrackMine()
+        local mine=A.Mine();if not A.Alive or not mine or mine==A.TrackedMine then return end
+        A.TrackedMine=mine
+        local function track(n)if n:IsA("BasePart")then add(n)end end
+        A.Links[#A.Links+1]=mine.DescendantAdded:Connect(track)
+        A.Links[#A.Links+1]=mine.DescendantRemoving:Connect(function(n)A.Finds[n]=nil end)
+        A.Spawn(function()
+            for i,n in ipairs(mine:GetDescendants())do if not A.Alive or A.TrackedMine~=mine then break end;track(n);if i%200==0 then task.wait()end end
+        end)
+    end
+    function A.Destroy()A.Alive=false;for _,c in ipairs(A.Links)do c:Disconnect()end end
+    return A
+end
+
+end)()
+local makeCore=(function()
+return function(A,P)
+    local C={Config=P.Defaults(),Jobs={},Alive=true,Mining=false,Generation=0,Report={Version="devilv4-test-20261020-1",Jobs={},Requests=0,Replies=0,Confirmed=0,Errors={},LiveVerified=false},Target=nil}
+    local cfg=C.Config;local busyMoney=false;local movingJob=nil;local epoch={};local plans={};local collected={};local eventState
+    local function status(key,text)C.Report.Jobs[key]=tostring(text)end
+    local function result(key,data,err)
+        if type(data)=="table"then
+            C.Report.Replies+=1;status(key,data.Code or data.reason or(data.success and"Confirmed")or"Server replied")
+            if data.success or ({Purchased=true,Equipped=true,Upgraded=true,Claimed=true,Rebirthed=true,Sold=true})[data.Code]or(tonumber(data.CashAdded)or 0)>0 then C.Report.Confirmed+=1 end
+        else status(key,err or"Waiting for server state")end
+        return data
+    end
+    function C.Request(key,remote,...)
+        C.Report.Requests+=1;local data,err=A.Invoke(remote,...);return result(key,data,err)
+    end
+    function C.StopMining()
+        if C.Mining then A.Fire("Mining","Stop");C.Mining=false end
+    end
+    function C.Set(key,value)
+        if type(cfg[key])~="boolean"then return end
+        cfg[key]=value==true;epoch[key]=(epoch[key]or 0)+1
+        if not value then status(key,"Off");if key=="Dig"or key=="FarmFinds"or key=="Train"then C.StopMining();C.Target=nil end end
+    end
+    function C.StopAll()
+        C.Generation+=1
+        for _,key in ipairs(P.Jobs)do C.Set(key,false)end
+        C.StopMining();C.Target=nil;status("System","Stopped")
+    end
+    function C.Run(key,fn,manual)
+        if C.Jobs[key]or not C.Alive then return end
+        C.Jobs[key]=true;local generation=C.Generation;local version=epoch[key]or 0
+        local function valid()return C.Alive and C.Generation==generation and(epoch[key]or 0)==version and(manual or cfg[key])and not A.Blocked()end
+        A.Spawn(function()
+            local ok,err=xpcall(function()if valid()then fn(valid)end end,debug.traceback)
+            C.Jobs[key]=nil
+            if not ok then status(key,"Error; retrying");C.Report.Errors[key]=tostring(err)end
+        end)
+    end
+    local function invoke(valid,key,remote,...)
+        if valid()then return C.Request(key,remote,...)end
+    end
+    local function money(valid,key,fn)
+        if busyMoney or not valid()then status(key,"Waiting for purchase queue");return end
+        busyMoney=true
+        local ok,err=xpcall(fn,debug.traceback);busyMoney=false;if not ok then error(err)end
+    end
+    local function move(valid,key,target)
+        if movingJob and movingJob~=key then status(key,"Waiting for movement queue");return false end
+        movingJob=key;C.StopMining()
+        local callOK,ok,msg=pcall(A.Move,target,valid);movingJob=nil
+        if not callOK then error(ok)end
+        status(key,msg);return ok
+    end
+    function C.Teleport(target)
+        C.Run("Teleport",function(valid)C.Target=nil;move(valid,"Teleport",target)end,true)
+    end
+    function C.Surface(mode)
+        C.Run("Travel",function(valid)
+            if movingJob then return end;C.StopMining();C.Target=nil
+            local _,_,r=A.Character();local before=r and r.Position
+            if valid()then A.Fire("Surface",mode);A.Wait(.6)end
+            if not valid()then return end
+            local _,_,now=A.Character();status("Travel",now and before and(now.Position-before).Magnitude>3 and"Travel confirmed"or"Travel requested; check position")
+        end,true)
+    end
+    function C.RefreshShop()
+        C.Run("ShopRefresh",function(valid)
+            local sh=invoke(valid,"ShopRefresh","Shovels","Open");if type(sh)=="table"and sh.Owned then A.Snapshots.Shovels=sh end
+            local gear=invoke(valid,"ShopRefresh","Gear","Open");if type(gear)=="table"and gear.Counts then A.Snapshots.Gear=gear end
+        end,true)
+    end
+    local handlers={}
+    handlers.FarmFinds=function(valid)
+        if C.Jobs.Plant or A.Attr("AfkTraining",false)or(cfg.Train and not cfg.Rotate)then return end
+        local targets=A.Targets(cfg.FindKind,cfg.FindRarity)
+        local target=C.Target
+        if not target or not A.ValidFind(target.Instance)or target.Kind~=cfg.FindKind and cfg.FindKind~="All"or target.Rarity~=cfg.FindRarity and cfg.FindRarity~="All"then target=targets[1];C.Target=target end
+        if not target then status("FarmFinds","Waiting for streamed targets");return end
+        if not A.Aim(target)then move(valid,"FarmFinds",target)end
+        if valid()then status("FarmFinds","Target: "..target.Name.." #"..target.Serial)end
+    end
+    handlers.Plant=function(valid)
+        if movingJob or C.Jobs.Train or A.Attr("AfkTraining",false)then return end
+        local tool;for _,t in ipairs(A.Tools())do if t:GetAttribute("ItemId")=="Egg"then tool=t;break end end
+        if not tool then status("Plant","Waiting for inventory eggs");return end
+        local position=A.PlantPosition();if not position then status("Plant","Waiting for free ground on your plot");return end
+        local _,_,root=A.Character();if not root then return end
+        if(root.Position-position).Magnitude>25 and not move(valid,"Plant",{Position=position})then return end
+        C.StopMining()
+        local _,h=A.Character();if valid()and h then h:EquipTool(tool);A.Wait(.15)end
+        if valid()and tool.Parent==A.Player.Character then
+            A.Fire("Plant",position);status("Plant","Plant requested; waiting for inventory");A.Wait(.5)
+            local reply=A.Snapshots.LastPlant
+            if valid()and reply and A.Clock()-reply.At<2 then status("Plant",reply.Success and"Plant confirmed"or tostring(reply.Message or"Placement rejected"))end
+        end
+    end
+    handlers.Hatch=function(valid)
+        local snapshot=invoke(valid,"Hatch","Eggs","Snapshot");local ready=P.ReadyEggs(snapshot,A.ServerTime())
+        if #ready==0 then status("Hatch","Waiting for ready eggs");return end
+        -- One ready ID per cycle; a rejected hatch cannot block the others forever.
+        C.HatchIndex=(C.HatchIndex or 0)%#ready+1
+        invoke(valid,"Hatch","Eggs","Hatch",ready[C.HatchIndex])
+    end
+    for key,entry in pairs({SellLoot={"SellAll"},SellEggs={"SellSpareEggs","SpareEggs"},SellPets={"SellStoredPets","StoredPets"}})do
+        local job,action,quoteKey=key,entry[1],entry[2]
+        handlers[job]=function(valid)
+            local snap=invoke(valid,job,"Sell","Open");if type(snap)~="table"then return end;A.Snapshots.Sell=snap
+            if quoteKey then local quote=P.Quote(snap,quoteKey);if quote==nil then status(job,"Nothing to sell");return end;invoke(valid,job,"Sell",action,quote)
+            elseif(tonumber(snap.Total)or 0)>0 then invoke(valid,job,"Sell",action)else status(job,"Nothing to sell")end
+        end
+    end
+    function C.BuyShovel(valid,choice)
+        money(valid,"BuyShovel",function()
+            local snap=invoke(valid,"BuyShovel","Shovels","Open");if type(snap)~="table"or not snap.Owned then return end;A.Snapshots.Shovels=snap
+            local catalog=A.Modules.ShovelCatalog;if not catalog then status("BuyShovel","Waiting for shovel catalog");return end
+            local active=catalog.tier(A.Attr("ShovelLevel",1));local item,action=P.ShopChoice(catalog.Tiers,snap,choice or cfg.Shovel,A.Attr("Cash",0),cfg.Reserve,active and active.Id)
+            if not item then status("BuyShovel","Equipped best / saving cash");return end
+            local reply=invoke(valid,"BuyShovel","Shovels",action,item.Id);if type(reply)=="table"and reply.Owned then A.Snapshots.Shovels=reply end
+        end)
+    end
+    handlers.BuyShovel=function(valid)C.BuyShovel(valid)end
+    function C.BuyGear(valid,id)
+        money(valid,"BuyGear",function()
+            local snap=invoke(valid,"BuyGear","Gear","Open");if type(snap)~="table"or not snap.Counts then return end;A.Snapshots.Gear=snap
+            local catalog=A.Modules.ShovelCatalog;local tier=catalog and catalog.index(id);tier=tier and catalog.Tiers[tier]
+            if tier and tier.Kind~="Drill"then return end
+            if tier and snap.Owned and snap.Owned[id]then
+                if A.Attr("ActiveDrillId")~=id then invoke(valid,"BuyGear","Gear","Equip",id,tier.Cost,snap.Stock and snap.Stock.Key)end;return
+            end
+            local def=(A.Modules.GearConfig or{}).Types;def=def and def[id]
+            if not tier and not def then status("BuyGear","Choose gear or a drill");return end
+            if not tier and(tonumber(snap.Counts[id])or 0)>=cfg.GearLimit then status("BuyGear","Inventory limit reached");return end
+            if def and def.SingleOwned and snap.Owned and snap.Owned[id]then status("BuyGear","Already owned");return end
+            local price=tier and tier.Cost or snap.Prices and snap.Prices[id]
+            local stock=snap.Stock
+            if not stock or not stock.Key or not stock.Remaining or(tonumber(stock.Remaining[id])or 0)<=0 then status("BuyGear","Waiting for stock");return end
+            if not P.Affordable(price,A.Attr("Cash",0),cfg.Reserve)then status("BuyGear","Saving cash / waiting for live price");return end
+            local reply=invoke(valid,"BuyGear","Gear","Buy",id,price,stock.Key);if type(reply)=="table"and reply.Counts then A.Snapshots.Gear=reply end
+        end)
+    end
+    handlers.BuyGear=function(valid)C.BuyGear(valid,cfg.Gear)end
+    handlers.EquipPets=function(valid)
+        if A.Attr("PetEquipBestNeeded",false)then invoke(valid,"EquipPets","Pets","EquipBest",nil,1)else status("EquipPets","Best pets already equipped")end
+    end
+    for key,def in pairs({TrainingUpgrade={"TrainingUpgradeConfig","TrainingLevel","Training"},PlotUpgrade={"PlotUpgradeConfig","PlotLevel","Plot"}})do
+        local job,module,attribute,remote=key,def[1],def[2],def[3]
+        handlers[job]=function(valid)money(valid,job,function()
+            local config=A.Modules[module];if not config then return end
+            local level=config.level(A.Attr(attribute));local offer=config.offer(level)
+            if not offer then status(job,"Maximum level");return end
+            if not P.Affordable(offer.CashCost,A.Attr("Cash",0),cfg.Reserve)then status(job,"Saving cash");return end
+            local sign=A.TaggedOwn(config.SignTag)
+            if not sign and remote=="Training"then status(job,"Waiting for your upgrade sign");return end
+            invoke(valid,job,remote,sign,"Cash",level)
+        end)end
+    end
+    for _,key in ipairs({"HoleLuck","AnimalIncome"})do
+        local job=key;handlers[job]=function(valid)money(valid,job,function()
+            local config=A.Modules.BoothUpgradeConfig;if not config or not config.Types[job]then return end
+            local d=config.Types[job];local level=config.level(job,A.Attr(d.Attribute));local cost=config.cost(job,level)
+            if not P.Affordable(cost,A.Attr("Cash",0),cfg.Reserve)then status(job,"Maximum level / saving cash");return end
+            invoke(valid,job,"Booth","Buy",job,level)
+        end)end
+    end
+    handlers.Rebirth=function(valid)
+        local snap=invoke(valid,"Rebirth","Rebirth","Snapshot",A.Attr("Rebirths",0))
+        if type(snap)~="table"then return end
+        if type(snap.Count)~="number"or snap.Count>=cfg.RebirthLimit then status("Rebirth","Rebirth limit reached");return end
+        if not snap.Eligible then status("Rebirth","Waiting for requirements");return end
+        money(valid,"Rebirth",function()C.StopMining();invoke(valid,"Rebirth","Rebirth","Rebirth",snap.Count)end)
+    end
+    handlers.Potions=function(valid)
+        local id=cfg.Potion;local config=A.Modules.PotionConfig
+        if not config or not config.Types[id]then return end
+        if A.Attr("Potion"..id.."Until",0)>A.ServerTime()then status("Potions","Potion is active");return end
+        if A.Attr("DrinkingPotion",false)then return end
+        C.StopMining();local tool=A.Equip("Potion","PotionId",id)
+        if not tool then status("Potions","Waiting for owned potion");return end
+        A.Wait(.2);if valid()and tool.Parent==A.Player.Character then A.Fire("Potion",id);status("Potions","Consume requested")end
+    end
+    handlers.Daily=function(valid)
+        local s=invoke(valid,"Daily","DailyState")
+        if type(s)=="table"and s.CanClaim and type(s.TotalClaims)=="number"then invoke(valid,"Daily","DailyClaim",s.TotalClaims)else status("Daily","Daily reward not ready")end
+    end
+    handlers.Offline=function(valid)
+        local s=invoke(valid,"Offline","Offline","Snapshot")
+        if type(s)=="table"and(tonumber(s.Base)or 0)>0 then invoke(valid,"Offline","Offline","Claim")else status("Offline","No offline earnings")end
+    end
+    handlers.PetIndex=function(valid)
+        local s=invoke(valid,"PetIndex","Index","Snapshot")
+        if type(s)=="table"then invoke(valid,"PetIndex","Index","ClaimAll")end
+    end
+    local function events(valid,key)
+        local s=invoke(valid,key,"EventState");if type(s)=="table"then eventState=s;A.Snapshots.Events=s end;return eventState
+    end
+    local function allowed()
+        local rule=A.Modules.AdminAbuseEligibility;return rule and rule.allowed(A.Player)==true
+    end
+    handlers.EventEggs=function(valid)
+        local s=events(valid,"EventEggs");if not s or not s.live or not allowed()then status("EventEggs","Waiting for eligible event");return end
+        local rains={};if type(s.event)=="table"then rains[#rains+1]=s.event end
+        for _,rain in pairs(s.eggRains or{})do if type(rain)=="table"then rains[#rains+1]=rain end end
+        local now=A.ServerTime();local selected,bestDrop,bestDistance,deadline
+        local _,_,root=A.Character();if not root then return end
+        for _,event in ipairs(rains)do
+            local config=A.Modules.AbuseEventConfig;config=config and config.getEvent(event.kind)
+            if config and config.CollectRadius and type(event.endTime)=="number"and event.id then
+                local limit=event.endTime+(config.CleanupAfterShowerSeconds or 0)
+                if now<limit then
+                    local cache=plans[event.id]
+                    if not cache or now-cache.At>5 then
+                        local plan=invoke(valid,"EventEggs","EggPlan",event.id)
+                        if type(plan)=="table"and type(plan.Drops)=="table"then cache={At=now,Data=plan};plans[event.id]=cache end
+                    end
+                    if not valid()then return end
+                    for _,drop in ipairs(cache and cache.Data.Drops or{})do
+                        local claimed=table.clone(cache and cache.Data.Claimed or{})
+                        for index,value in pairs(collected[event.id]or{})do if value then claimed[index]=true end end
+                        if P.DropEligible(drop,claimed,now,limit)and typeof(drop.Position)=="Vector3"then
+                            local dist=(root.Position-drop.Position).Magnitude
+                            if not bestDistance or dist<bestDistance then selected=event;bestDrop=drop;bestDistance=dist;deadline=limit end
+                        end
+                    end
+                end
+            end
+        end
+        -- Prune finished event plans instead of retaining drops for a long session.
+        for id,cache in pairs(plans)do if now-cache.At>120 then plans[id]=nil;collected[id]=nil end end
+        if not bestDrop then status("EventEggs","Waiting for landed event drops");return end
+        local config=A.Modules.AbuseEventConfig.getEvent(selected.kind);local radius=config.CollectRadius
+        if bestDistance>math.max(2,radius-2)and not move(valid,"EventEggs",{Position=bestDrop.Position})then return end
+        local _,_,current=A.Character()
+        if not valid()or not current or(current.Position-bestDrop.Position).Magnitude>radius or A.ServerTime()>=deadline then return end
+        local reply=invoke(valid,"EventEggs","ClaimEgg",selected.id,bestDrop.Index)
+        if type(reply)=="table"and(reply.success or reply.reason=="already_claimed"or reply.reason=="too_late")then
+            collected[selected.id]=collected[selected.id]or{};collected[selected.id][bestDrop.Index]=true
+        end
+    end
+    handlers.EventWaves=function(valid)
+        local s=events(valid,"EventWaves");local e=s and s.event;local session=s and s.session
+        local config=A.Modules.AbuseEventConfig;local rules=A.Modules.AbuseEventRules
+        if not s or not s.live or not allowed()or not e or e.kind~="CashTsunami"or not session or typeof(session.groundPosition)~="Vector3"or not config or not rules then status("EventWaves","Waiting for Cash Tsunami");return end
+        local _,_,root=A.Character();if not root then return end
+        local d=root.Position-session.groundPosition;local distance=Vector2.new(d.X,d.Z).Magnitude
+        local now=A.ServerTime();local waveConfig=config.getEvent("CashTsunami")
+        for index,offset in ipairs(config.getWaveLaunchOffsets())do
+            local id=tostring(e.id)..":"..index
+            if not collected[id]and rules.waveEligible(now,e.startTime+offset,distance,waveConfig)then
+                local reply=invoke(valid,"EventWaves","ClaimWave",e.id,index)
+                if type(reply)=="table"and(reply.success or reply.reason=="already_claimed")then collected[id]=true end
+                return
+            end
+        end
+        status("EventWaves","Waiting for wave arrival")
+    end
+    handlers.UseGear=function(valid)
+        if movingJob then return end
+        local config=A.Modules.GearConfig;local id=cfg.UseGearId;local d=config and config.Types[id]
+        if not d or d.Kind=="Launcher"then status("UseGear","Select placement gear");return end
+        C.StopMining();local tool=A.Equip("Gear","GearId",id);if not tool then status("UseGear","Waiting for owned gear");return end
+        local c,_,root,head=A.Character();if not head then return end
+        local target
+        if d.Kind=="MoonTotem"then target=A.PlantPosition()
+        else
+            local hit=A.Ground(root.Position+root.CFrame.LookVector*4+Vector3.new(0,2,0),{c},12)
+            local mine=A.Mine();local grid=A.Modules.GearPlacementGrid;local frame=mine and mine:GetAttribute("DigFrame")
+            if hit and hit.Normal.Y>=.65 and mine and hit.Instance:IsDescendantOf(mine)and not hit.Instance:GetAttribute("MineBoundary")and grid and typeof(frame)=="CFrame"then target=grid.snap(frame,hit.Position)end
+        end
+        if not target or(target-head.Position).Magnitude>(config.Reach or 16)then status("UseGear","Move to clear placement ground");return end
+        A.Wait(.15);if valid()then A.Fire("PlaceGear",id,target);status("UseGear","Placement requested")end
+    end
+    handlers.Pumpkin=function(valid)
+        if movingJob then return end
+        local target=C.Target or A.Targets(cfg.FindKind,cfg.FindRarity)[1]
+        if not target or not A.Aim(target)then status("Pumpkin","Waiting for nearby target");return end
+        C.StopMining();local tool=A.Equip("Gear","GearId","PumpkinLauncher")
+        if not tool then status("Pumpkin","Waiting for Pumpkin Launcher");return end
+        A.Wait(.15);if valid()then A.Fire("Pumpkin",target.Instance.Position);status("Pumpkin","Shot requested")end
+    end
+    local trainStarted=0;local miningStarted=A.Clock()
+    handlers.Train=function(valid)
+        local now=A.Clock()
+        if cfg.Rotate and trainStarted>0 and now-trainStarted>=cfg.TrainSeconds then
+            C.StopMining();if valid()then A.Fire("Surface","DigSite")end
+            miningStarted=now;trainStarted=0;status("Train","Mining rotation");return
+        end
+        if cfg.Rotate and trainStarted==0 and now-miningStarted<cfg.DigSeconds then status("Train","Mining rotation");return end
+        if A.Attr("AfkTraining",false)then if trainStarted==0 then trainStarted=now end;status("Train","Training confirmed");return end
+        local plot=A.Plot();local frame=plot and plot:GetAttribute("PlotFrame");local progression=A.Modules.ProgressionConfig
+        if typeof(frame)~="CFrame"or not progression or typeof(progression.TrainingOffset)~="Vector3"then status("Train","Training area not streamed");return end
+        move(valid,"Train",{Position=frame:PointToWorldSpace(progression.TrainingOffset),Training=true})
+        if valid()then status("Train",A.Attr("AfkTraining",false)and"Training confirmed"or"Arrived; waiting for training trigger")end
+    end
+    local intervals={FarmFinds=1,Plant=2,Hatch=2,SellLoot=8,SellEggs=10,SellPets=12,BuyShovel=6,BuyGear=6,EquipPets=4,TrainingUpgrade=6,PlotUpgrade=6,HoleLuck=6,AnimalIncome=6,Rebirth=10,Potions=5,Daily=30,Offline=30,PetIndex=30,EventEggs=.65,EventWaves=.5,UseGear=23,Pumpkin=1,Train=3}
+    local nextAt={};local aimAt=0
+    function C.Tick()
+        if not C.Alive then return end
+        local now=A.Clock()
+        for key,fn in pairs(handlers)do
+            if cfg[key]and now>=(nextAt[key]or 0)then nextAt[key]=now+(intervals[key]or 5);C.Run(key,fn)end
+        end
+        if not(cfg.Dig or cfg.FarmFinds)or movingJob or A.MoveBusy or C.Jobs.Plant or C.Jobs.Potions or C.Jobs.UseGear or C.Jobs.Pumpkin or A.Blocked()or A.Attr("AfkTraining",false)then C.StopMining();return end
+        if now<aimAt then return end
+        local rate=cfg.FastDig and P.Number(cfg.AimRate,20,5,40)or 10;aimAt=now+1/rate
+        local equipment=A.Modules.Equipment
+        if equipment and not equipment.shovel(A.Player.Character)then C.StopMining();status("Dig","Waiting for equipped shovel / drill");return end
+        local origin,direction,mode,selected=A.Aim(cfg.FarmFinds and C.Target or nil)
+        if not origin then C.StopMining();status("Dig","Waiting for reachable diggable ground");return end
+        local sent,err=A.Fire("Mining",C.Mining and"Aim"or"Start",origin,direction,mode,selected)
+        if sent then C.Mining=true;status("Dig",string.format("Continuous mining | %d aim updates/s",rate))else C.Mining=false;status("Dig",err)end
+    end
+    function C.Destroy()C.StopAll();C.Alive=false;A.Destroy()end
+    C.Handlers=handlers
+    return C
+end
+
+end)()
+local makeView=(function()
+return function(window,A,P,assets)
+    local V={Pickers={},Alive=true,Models={},Loading={},PreviewCount=0}
+    local function node(class,parent,props)
+        local n=Instance.new(class);for k,v in pairs(props)do n[k]=v end;n.Parent=parent;return n
+    end
+    function V.Image(parent,item,size)
+        local icon=assets[item.Id]
+        if icon then
+            local n=node("ImageLabel",parent,{Name="DevilItemIcon",Size=UDim2.fromOffset(size,size),BackgroundTransparency=1,Image=icon,ImageColor3=Color3.new(1,1,1),ScaleType=Enum.ScaleType.Fit,ZIndex=parent.ZIndex+1})
+            n:SetAttribute("CustomIcon",true);return n
+        end
+        local view=node("ViewportFrame",parent,{Name="DevilItemModel",Size=UDim2.fromOffset(size,size),BackgroundTransparency=1,Ambient=Color3.new(1,1,1),LightColor=Color3.new(1,1,1),ZIndex=parent.ZIndex+1})
+        view:SetAttribute("CustomIcon",true)
+        A.Spawn(function()
+            if not V.Alive or not view.Parent then return end
+            local model
+            if item.Kind=="Material"and item.Instance then
+                model=Instance.new("Model");local part=item.Instance:Clone();part.Size=Vector3.new(3,3,3);part.CFrame=CFrame.new();part.Transparency=0;part.Parent=model
+            else
+                local name=({Egg="EggModel",Artifact="ArtifactModels",Potion="PotionModel"})[item.Kind]
+                local module=name and A.RS:FindFirstChild("Shared");module=module and module:FindFirstChild(name)
+                if module then
+                    -- Only allowlisted pure model builders; never start native client controllers.
+                    local ok,builder=pcall(require,module)
+                    if ok and V.Alive and view.Parent and type(builder)=="table"and type(builder.create)=="function"then
+                        local good,value=pcall(builder.create,item.Id);if good and typeof(value)=="Instance"then model=value end
+                    end
+                end
+            end
+            if not model then return end
+            if not V.Alive or not view.Parent then model:Destroy();return end
+            for _,n in ipairs(model:GetDescendants())do
+                if n:IsA("BaseScript")or n:IsA("ModuleScript")or n:IsA("ParticleEmitter")or n:IsA("Trail")or n:IsA("Beam")then n:Destroy()
+                elseif n:IsA("BasePart")then n.Anchored=true;n.CanCollide=false;n.CanTouch=false;n.CanQuery=false end
+            end
+            local world=Instance.new("WorldModel");world.Parent=view;model.Parent=world
+            local frame,extent=model:GetBoundingBox();local camera=Instance.new("Camera");camera.FieldOfView=35
+            camera.CFrame=CFrame.lookAt(frame.Position+Vector3.new(1,.55,1).Unit*math.max(1,extent.Magnitude*1.8),frame.Position)
+            camera.Parent=view;view.CurrentCamera=camera
+        end)
+        return view
+    end
+    function V.Picker(host,key,name,callback)
+        local before={};for _,n in ipairs(window.Body:GetChildren())do before[n]=true end
+        local picker={Map={},Rows=setmetatable({},{__mode="k"})}
+        picker.Widget=host:CreateDropdown({Name=name,Options={},AllowNone=true,Searchable=true,PopupWidth=470,Callback=function(label)
+            if type(label)=="table"then label=label[1]end
+            local item=picker.Map[label];if item then callback(item.Id,item)end
+        end})
+        for _,n in ipairs(window.Body:GetChildren())do if not before[n]and n:IsA("Frame")then picker.Popup=n end end
+        V.Pickers[key]=picker;return picker.Widget
+    end
+    function V.Refresh(key,items,selected)
+        local picker=V.Pickers[key];if not picker then return end
+        local names,map={},{}
+        for _,item in ipairs(items)do local label=item.Label or item.Name or item.Id;names[#names+1]=label;map[label]=item end
+        picker.Map=map
+        local signature=table.concat(names,"\0")
+        if signature~=picker.Signature then
+            picker.Widget:Refresh(names,true,true);picker.Signature=signature
+            if selected then for _,name in ipairs(names)do if map[name].Id==selected then picker.Widget:Set(name,true);break end end end
+        end
+        if not picker.Popup then return end
+        for _,label in ipairs(picker.Popup:GetDescendants())do
+            if label:IsA("TextLabel")and label.Parent and label.Parent:IsA("TextButton")and label.Name~="DevilItemPrice"then
+                local plain=label.Text:gsub("<[^>]*>",""):gsub("&amp;","&");local item=map[plain]
+                if item then
+                    local row=picker.Rows[label]
+                    if not row then
+                        row={Label=label,Parent=label.Parent};picker.Rows[label]=row
+                        label.Position=UDim2.fromOffset(44,0);label.Size=UDim2.new(1,-175,1,0)
+                        row.Price=node("TextLabel",label.Parent,{Name="DevilItemPrice",Size=UDim2.fromOffset(118,30),AnchorPoint=Vector2.new(1,.5),Position=UDim2.new(1,-26,.5,0),BackgroundTransparency=1,Font=Enum.Font.Gotham,TextSize=10,TextColor3=Color3.fromRGB(164,221,255),TextXAlignment=Enum.TextXAlignment.Right,ZIndex=label.ZIndex+1,Text=""})
+                    end
+                    row.Item=item;row.Price.Text=item.Detail or""
+                    if assets[item.Id]and not row.Icon then row.Icon=V.Image(row.Parent,item,26);row.Icon.Position=UDim2.new(0,10,.5,-13)end
+                end
+            end
+        end
+    end
+    function V.VisibleModels()
+        -- Bound viewport cost to eight visible rows, even when hundreds of blocks stream in.
+        local count=0
+        for _,picker in pairs(V.Pickers)do
+            for label,row in pairs(picker.Rows)do
+                if row.Item and not assets[row.Item.Id]then
+                    local popup=picker.Popup;local visible=V.Alive and label.Parent and popup and popup.Visible and label.AbsolutePosition.Y>=popup.AbsolutePosition.Y and label.AbsolutePosition.Y<popup.AbsolutePosition.Y+popup.AbsoluteSize.Y
+                    if visible and count<8 then
+                        count+=1;if not row.Icon then row.Icon=V.Image(row.Parent,row.Item,26);row.Icon.Position=UDim2.new(0,10,.5,-13)end
+                    elseif row.Icon then row.Icon:Destroy();row.Icon=nil end
+                end
+            end
+        end
+    end
+    function V.Destroy()V.Alive=false end
+    return V
+end
+
+end)()
+local assets={["Basic"]="rbxassetid://82607806582254",["Grey"]="rbxassetid://84718066117646",["Green"]="rbxassetid://108153605421728",["Blue"]="rbxassetid://88201373524492",["Purple"]="rbxassetid://133348464670729",["Golden"]="rbxassetid://137223701139677",["Red"]="rbxassetid://100868825563504",["Galaxy"]="rbxassetid://124079969014331",["Secret"]="rbxassetid://88306339908791",["Eternal"]="rbxassetid://91735956058773",["Divine"]="rbxassetid://79013272643598",["Godly"]="rbxassetid://132789056550916",["Transcendent"]="rbxassetid://117387295659510",["Primordial"]="rbxassetid://90759316679765",["Astronomical"]="rbxassetid://87920012641201",["IndustrialDrill"]="rbxassetid://127003251000511",["TitaniumDrill"]="rbxassetid://128557810440603",["PlasmaDrill"]="rbxassetid://76715730228084",["TNT1"]="rbxassetid://89598348008470",["TNT2"]="rbxassetid://124515546167383",["TNT3"]="rbxassetid://122561807137176",["Radar1"]="rbxassetid://137161613613305",["Radar2"]="rbxassetid://72044897314343",["Radar3"]="rbxassetid://129979864742344",["MoonTotem"]="rbxassetid://118815397419556",["PumpkinLauncher"]="rbxassetid://107596347538694",["Training"]="rbxassetid://124340074431648",["Cash"]="rbxassetid://84748695520060",["DigSpeed"]="rbxassetid://70443377049090",["HatchLuck"]="rbxassetid://109301581007466",["Growth"]="rbxassetid://139703536386984"}
+local A=makeAdapter(scope);local C=makeCore(A,P);local cfg=C.Config
+local app={Version=C.Report.Version,Core=C,Adapter=A,Config=cfg,Report=C.Report,Stopped=false};scope.DevilV4Test=app
+local window,view,library,logo;local rebuilding=false;local language="EN";local languageOwner,baseSet,wrappedSet
+local statusWidget,detailsWidget,settingsWidget;local controls={};local jobNames={};local selectedTarget;local lastRefresh=0
+local profile="DevilHub_MiningTest_"..A.Player.UserId.."_"..game.PlaceId..".json"
+local settingsStatus="Ready";local buildUI
+local function t(en,th)return language=="TH"and th or en end
+local function languageValue()
+    local owner=scope.DevilHubBlueGui
+    if owner and type(owner.Get)=="function"then local s=owner.Get();if s.Language=="TH"or s.Language=="EN"then return s.Language,owner end end
+    return language
+end
+function app.Destroy()
+    if app.Stopped then return end;app.Stopped=true;C.Destroy()
+    if languageOwner and languageOwner.Set==wrappedSet then languageOwner.Set=baseSet end
+    if view then view.Destroy()end;if window then window:Destroy()end
+    if scope.DevilV4Test==app then scope.DevilV4Test=nil end;scope.DevilV4Starting=nil
+end
+local function loadSettings()
+    assert(type(readfile)=="function","Settings file API unavailable")
+    local text=readfile(profile);assert(#text<=65536,"Settings file too large")
+    local s=A.Http:JSONDecode(text);assert(s.Version==1 and s.UserId==A.Player.UserId and s.PlaceId==game.PlaceId,"Settings belong to another account or map")
+    local restored=P.Settings(s.Config);C.StopAll()
+    for key,value in pairs(restored)do cfg[key]=value end
+    settingsStatus="Settings loaded";if buildUI then buildUI()end
+end
+local function saveSettings()
+    assert(type(writefile)=="function","Settings file API unavailable")
+    writefile(profile,A.Http:JSONEncode({Version=1,UserId=A.Player.UserId,PlaceId=game.PlaceId,Config=P.Settings(cfg)}));settingsStatus="Settings saved"
+end
+local ok,problem=xpcall(function()
+    -- BEGIN SHARED DEVIL BLUE GUI
+do
+    local shared=type(getgenv)=="function"and getgenv()or _G
+    local current=shared.DevilHubBlueGui
+    if not(current and current.Version=="devil-blue-20261019-10"and not current.Stopped)then
+        local ok,problem=pcall(function()
+            local source=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/9a9812469df7b5dad2848abb33c5206f7d57e685/devil-blue-gui.lua")
+            assert(type(source)=="string"and #source==95003,"DEVIL blue GUI download size mismatch")
+            local sum=0
+            for i=1,#source do sum=(sum*33+source:byte(i))%4294967296;if i%32768==0 and task and task.wait then task.wait()end end
+            assert(sum==941138957,"DEVIL blue GUI checksum mismatch")
+            local run,err=loadstring(source,"DEVIL HUB / Blue GUI")
+            assert(run,err)
+            return run()
+        end)
+        if not ok then warn("DEVIL HUB: blue GUI could not start: "..tostring(problem))end
+    end
+end
+-- END SHARED DEVIL BLUE GUI
+
+    local source=game:HttpGet("https://raw.githubusercontent.com/joustingmatch/OuroFlow/c8251f76f74d9942114ebccb0564aa0ac196320a/Source.luau")
+    assert(#source==402130,"GUI download size mismatch")
+    local sum=0;for i=1,#source do sum=(sum*33+source:byte(i))%4294967296 end;assert(sum==1125396239,"GUI download checksum mismatch")
+    library=assert(loadstring(source,"DEVIL HUB / Mining test GUI"))()
+    logo=scope.DevilHubSilverLogo
+    if not logo then pcall(function()
+        local asset=getcustomasset or getsynasset;if type(asset)~="function"or type(writefile)~="function"then return end
+        local bytes=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/9a9812469df7b5dad2848abb33c5206f7d57e685/assets/devil-logo-silver-transparent.png")
+        assert(bytes:sub(1,8)=="\137PNG\13\10\26\10");writefile("DevilHub_Silver_Mining.png",bytes);logo=asset("DevilHub_Silver_Mining.png");scope.DevilHubSilverLogo=logo
+    end)end
+    language=languageValue()
+    local function button(host,en,th,fn)
+        return host:CreateButton({Name=t(en,th),Callback=function()A.Spawn(function()local good,err=xpcall(fn,debug.traceback);if not good then settingsStatus=tostring(err);C.Report.Errors.UI=tostring(err)end end)end})
+    end
+    local function toggle(host,key,en,th)
+        jobNames[key]=t(en,th)
+        controls[key]=host:CreateToggle({Name=jobNames[key],CurrentValue=cfg[key],Callback=function(value)C.Set(key,value)end})
+    end
+    local function slider(host,key,en,th,lo,hi,increment)
+        controls[key]=host:CreateSlider({Name=t(en,th),Range={lo,hi},Increment=increment or 1,CurrentValue=cfg[key],Callback=function(v)cfg[key]=P.Number(v,cfg[key],lo,hi)end})
+    end
+    local function choose(host,key,en,th,options)
+        controls[key]=host:CreateDropdown({Name=t(en,th),Options=options,CurrentOption=cfg[key],Searchable=true,Callback=function(v)if type(v)=="string"then cfg[key]=v end end})
+    end
+    local function group(tab,en,th,side)return tab:CreateGroupbox({Name=t(en,th),Side=side or"Left"})end
+    local function tab(en,th,icon)return window:CreateTab({Name=t(en,th),Icon=icon,Backdrop=false})end
+    buildUI=function()
+        if app.Stopped then return end
+        rebuilding=true;if view then view.Destroy()end;if window then window:Destroy()end;controls={};selectedTarget=nil
+        window=library:CreateWindow({Name="DEVIL HUB",Icon=logo,Theme={Background=Color3.fromRGB(7,9,13),Surface=Color3.fromRGB(11,13,18),Surface2=Color3.fromRGB(16,19,25),Surface3=Color3.fromRGB(32,39,49),Accent=Color3.fromRGB(164,221,255),Text=Color3.new(1,1,1),Muted=Color3.fromRGB(153,169,185),Warning=Color3.fromRGB(164,221,255)},Density="Compact",Profile=true,Search=true,Home=false,Loading=false,Backdrop=false,UnsupportedExecutor=false,Disclaimer=false,Size=UDim2.fromOffset(840,570),ToggleButton={Platform="Both",Icon=logo},IslandDraggable=true,KeepOnScreen=true,ConfigurationSaving={Enabled=false}})
+        window.Gui:SetAttribute("DevilHubPresentation",true);app.Window=window;view=makeView(window,A,P,assets)
+        window.Gui.Destroying:Connect(function()if not rebuilding then app.Destroy()end end)
+        local farm=tab("Farm","ฟาร์ม","pickaxe")
+        local dig=group(farm,"Mining controls","ระบบขุด")
+        toggle(dig,"Dig","Auto Dig","ขุดอัตโนมัติ");toggle(dig,"FarmFinds","Auto Farm Selected Finds","วาร์ปขุดของตามตัวกรอง")
+        toggle(dig,"FastDig","Fast Dig","ขุดต่อเนื่องความเร็วสูง");slider(dig,"AimRate","Aim updates / second","ความถี่อัปเดตเป้าขุด / วินาที",5,40)
+        choose(dig,"FindKind","Target type","ประเภทเป้าหมาย",{"All","Egg","Artifact","Potion","Material"})
+        choose(dig,"FindRarity","Rarity","ระดับความหายาก",{"All","Common","Uncommon","Rare","Epic","Legendary","Mythic","Cosmic","Secret","Eternal","Divine","Godly","Transcendent","Zero","Astronomical"})
+        local grow=group(farm,"Eggs and training","ไข่และการฝึก","Right")
+        toggle(grow,"Plant","Auto Plant Inventory Eggs","วางไข่จากกระเป๋าอัตโนมัติ");toggle(grow,"Hatch","Auto Hatch Ready Eggs","ฟักไข่ที่พร้อมอัตโนมัติ")
+        toggle(grow,"Train","Auto Training","ฝึกอัตโนมัติ");toggle(grow,"Rotate","Rotate Training / Digging","สลับฝึกและขุดตามเวลา")
+        slider(grow,"TrainSeconds","Training seconds","เวลาฝึก (วินาที)",15,900,15);slider(grow,"DigSeconds","Mining seconds","เวลาขุด (วินาที)",15,900,15)
+        grow:CreateLabel({Text=t("Planting needs clear ground on your own plot.","การวางไข่ต้องมีพื้นที่ว่างในฐานของคุณ")})
+        local travel=tab("Teleport","วาร์ป","map-pin");local targetGroup=group(travel,"Live targets","เป้าหมายที่มีอยู่จริง")
+        view.Picker(targetGroup,"Targets",t("Ore / item target","เลือกแร่หรือสิ่งของ"),function(_,item)selectedTarget=item end)
+        button(targetGroup,"Teleport to selected target","วาร์ปไปเป้าหมายที่เลือก",function()if selectedTarget then C.Teleport(selectedTarget)end end)
+        button(targetGroup,"Teleport to nearest matching target","วาร์ปไปเป้าหมายที่ใกล้ที่สุด",function()local target=A.Targets(cfg.FindKind,cfg.FindRarity)[1];if target then C.Teleport(target)end end)
+        targetGroup:CreateLabel({Text=t("Shows the nearest 120 streamed blocks. Filters are in Farm.","แสดง 120 เป้าหมายที่ใกล้ที่สุดและโหลดแล้ว ตั้งตัวกรองในหน้าฟาร์ม")})
+        local destinations=group(travel,"Destinations","สถานที่","Right")
+        for _,dest in ipairs({{"Home","Home","บ้าน"},{"Plot","My plot","ฐานของฉัน"},{"Surface","Surface","พื้นผิว"},{"DigSite","Dig site","จุดขุด"},{"Sell","Sell area","จุดขาย"}})do
+            local mode=dest[1];button(destinations,dest[2],dest[3],function()C.Surface(mode)end)
+        end
+        local shop=tab("Shop","ร้านค้า","shopping-cart");local shovels=group(shop,"Shovels","พลั่ว")
+        view.Picker(shovels,"Shovels",t("Shovel / price / ownership","พลั่ว ราคา และสถานะ"),function(id)cfg.Shovel=id end)
+        toggle(shovels,"BuyShovel","Auto Buy / Equip Shovel","ซื้อและใช้พลั่วอัตโนมัติ")
+        button(shovels,"Buy / Equip Selected Shovel","ซื้อหรือใช้พลั่วที่เลือก",function()C.Run("BuyShovel",function(valid)C.BuyShovel(valid,cfg.Shovel)end,true)end)
+        local gear=group(shop,"Drills and gear","สว่านและอุปกรณ์","Right")
+        view.Picker(gear,"Gear",t("Gear / live price / stock","อุปกรณ์ ราคาปัจจุบัน และสต็อก"),function(id)cfg.Gear=id end)
+        toggle(gear,"BuyGear","Auto Buy / Equip Selected Gear","ซื้อและใช้อุปกรณ์ที่เลือกอัตโนมัติ")
+        slider(gear,"GearLimit","Keep gear quantity","จำนวนอุปกรณ์ที่ซื้อเก็บ",1,25)
+        button(gear,"Buy / Equip Selected Gear","ซื้อหรือใช้อุปกรณ์ที่เลือก",function()C.Run("BuyGear",function(valid)C.BuyGear(valid,cfg.Gear)end,true)end)
+        button(gear,"Refresh prices and stock","อัปเดตราคาและสต็อก",C.RefreshShop)
+        controls.Reserve=shovels:CreateInput({Name=t("Cash reserve","เงินสดสำรอง"),CurrentValue=tostring(cfg.Reserve),Callback=function(v)cfg.Reserve=P.Number(v,cfg.Reserve)end})
+        local inv=tab("Inventory","กระเป๋า","backpack");local sell=group(inv,"Selling","การขาย")
+        toggle(sell,"SellLoot","Auto Sell Loot","ขายของขุดอัตโนมัติ");toggle(sell,"SellEggs","Auto Sell Spare Eggs","ขายไข่สำรองอัตโนมัติ");toggle(sell,"SellPets","Auto Sell Stored Pets","ขายสัตว์ในกระเป๋าอัตโนมัติ")
+        sell:CreateParagraph({Name=t("Stored pet sale","ขายสัตว์ในกระเป๋า"),Content=t("Sells unequipped pets. Placed pets stay. Uses the game's current sale quote.","ขายสัตว์ที่ไม่ได้ใช้งาน เก็บตัวที่วางในฐานไว้ ใช้ใบเสนอราคาล่าสุดจากเกม")})
+        toggle(sell,"EquipPets","Auto Equip Best Pets","ใช้สัตว์ที่ดีที่สุดอัตโนมัติ")
+        local buffs=group(inv,"Potions and gear use","ยาและการใช้อุปกรณ์","Right")
+        view.Picker(buffs,"Potions",t("Potion","ยา"),function(id)cfg.Potion=id end)
+        toggle(buffs,"Potions","Auto Use Potion When Expired","ใช้ยาเมื่อบัฟหมดอัตโนมัติ")
+        view.Picker(buffs,"UseGear",t("Placement gear","อุปกรณ์ที่ต้องการวาง"),function(id)cfg.UseGearId=id end)
+        toggle(buffs,"UseGear","Auto Place Owned Gear","วางอุปกรณ์ที่มีอัตโนมัติ");toggle(buffs,"Pumpkin","Auto Fire Pumpkin Launcher","ยิง Pumpkin Launcher อัตโนมัติ")
+        local upgrade=tab("Upgrades","อัปเกรด","trending-up");local levels=group(upgrade,"Cash upgrades","อัปเกรดด้วยเงินสด")
+        toggle(levels,"TrainingUpgrade","Auto Upgrade Training","อัปเกรดการฝึกอัตโนมัติ");toggle(levels,"PlotUpgrade","Auto Upgrade Plot","อัปเกรดฐานอัตโนมัติ");toggle(levels,"HoleLuck","Auto Upgrade Hatch Luck","อัปเกรดโชคฟักไข่อัตโนมัติ");toggle(levels,"AnimalIncome","Auto Upgrade Pet Income","อัปเกรดรายได้สัตว์อัตโนมัติ")
+        local rebirth=group(upgrade,"Rebirth","รีเบิร์ท","Right")
+        rebirth:CreateLabel({Text=t("Rebirth resets progression specified by the game.","รีเบิร์ทจะรีเซ็ตความคืบหน้าตามระบบเกม")})
+        slider(rebirth,"RebirthLimit","Stop at rebirth count","หยุดเมื่อจำนวนรีเบิร์ทถึง",1,100)
+        toggle(rebirth,"Rebirth","Auto Rebirth","รีเบิร์ทอัตโนมัติ")
+        local events=tab("Events & Rewards","อีเวนต์และรางวัล","gift");local seasonal=group(events,"Active events","อีเวนต์ที่กำลังเกิด")
+        toggle(seasonal,"EventEggs","Auto Collect Event Eggs / Pumpkin Drops","วาร์ปเก็บไข่และของอีเวนต์ฟักทอง")
+        toggle(seasonal,"EventWaves","Auto Claim Cash Tsunami Waves","รับรางวัลคลื่น Cash Tsunami")
+        local rewards=group(events,"Free rewards","รางวัลฟรี","Right")
+        toggle(rewards,"Daily","Auto Claim Daily Rewards","รับรางวัลรายวันอัตโนมัติ");toggle(rewards,"Offline","Auto Claim Offline Earnings","รับรายได้ออฟไลน์อัตโนมัติ");toggle(rewards,"PetIndex","Auto Claim Pet Index Rewards","รับรางวัลสมุดสัตว์อัตโนมัติ")
+        local settings=tab("Settings","ตั้งค่า","settings");local settingsGroup=group(settings,"Settings profile","บันทึกการตั้งค่า")
+        button(settingsGroup,"Save settings","บันทึกการตั้งค่า",saveSettings);button(settingsGroup,"Load settings","โหลดการตั้งค่า",loadSettings)
+        settingsGroup:CreateLabel({Text=t("Saved settings load on the next run for this account and map.","การตั้งค่าที่บันทึกจะโหลดเมื่อรันครั้งถัดไปในบัญชีและแมพนี้")})
+        settingsWidget=settingsGroup:CreateLabel({Text=settingsStatus})
+        local diagnostics=group(settings,"Live status","สถานะการทำงาน","Right")
+        statusWidget=diagnostics:CreateLabel({Text=t("Ready — automation off by default","พร้อมใช้งาน — ออโต้เริ่มต้นปิด")})
+        detailsWidget=diagnostics:CreateParagraph({Name="DEVIL HUB TEST",Content=""})
+        button(diagnostics,"Stop all automation","หยุดออโต้ทั้งหมด",function()C.StopAll();for _,key in ipairs(P.Jobs)do if controls[key]then controls[key]:Set(false,true)end end end)
+        button(diagnostics,"Copy diagnostic report","คัดลอกรายงานทดสอบ",function()
+            local report={Version=app.Version,PlaceId=game.PlaceId,GameId=game.GameId,Report=C.Report,Capabilities={Loadstring=type(loadstring)=="function",Settings=type(writefile)=="function",CustomAsset=type(getcustomasset or getsynasset)=="function"}}
+            local bytes=A.Http:JSONEncode(report);if type(setclipboard)=="function"then setclipboard(bytes)elseif type(writefile)=="function"then writefile("DevilV4Report.json",bytes)else print(bytes)end;settingsStatus="Report copied / exported"
+        end)
+        button(diagnostics,"Unload test","ปิดตัวทดสอบ",app.Destroy)
+        rebuilding=false;lastRefresh=0
+    end
+    buildUI()
+    local _,owner=languageValue()
+    if owner and type(owner.Set)=="function"then
+        languageOwner=owner;baseSet=owner.Set
+        wrappedSet=function(values)
+            local nextLanguage=type(values)=="table"and values.Language
+            if not app.Stopped and(nextLanguage=="TH"or nextLanguage=="EN")and nextLanguage~=language then language=nextLanguage;buildUI()end
+            return baseSet(values)
+        end
+        owner.Set=wrappedSet
+    end
+    scope.DevilV4Starting=nil
+    A.Spawn(A.Init)
+    if type(readfile)=="function"and type(isfile)=="function"and isfile(profile)then
+        local good,err=pcall(loadSettings);if not good then settingsStatus=tostring(err)end
+    end
+    local function refresh()
+        local targets=A.Targets(cfg.FindKind,cfg.FindRarity);local options={}
+        for i=1,math.min(120,#targets)do local item=targets[i];item.Label=item.Name.." #"..item.Serial;item.Detail=item.Rarity.."\n"..math.floor(item.Distance).." studs";options[#options+1]=item end
+        view.Refresh("Targets",options)
+        local shovelOptions={{Id="Best affordable",Name=t("Best affordable","ดีที่สุดที่ซื้อไหว"),Detail=t("Automatic choice","เลือกอัตโนมัติ")}}
+        local gearOptions={};local catalog=A.Modules.ShovelCatalog;local sh=A.Snapshots.Shovels or{};local gs=A.Snapshots.Gear or{}
+        for _,item in ipairs(catalog and catalog.Tiers or{})do
+            if not item.WorldOnly and not item.RobuxOnly then
+                local drill=item.Kind=="Drill";local snap=drill and gs or sh;local owned=snap.Owned and snap.Owned[item.Id]
+                local equipped=drill and A.Attr("ActiveDrillId")==item.Id or not drill and catalog.tier(A.Attr("ShovelLevel",1)).Id==item.Id
+                local state=equipped and t("Equipped","กำลังใช้")or owned and t("Owned","ซื้อแล้ว")or t("Not owned","ยังไม่ซื้อ")
+                local info={Id=item.Id,Name=item.Name,Detail="$"..P.Money(item.Cost).."\n"..state}
+                table.insert(drill and gearOptions or shovelOptions,info)
+            end
+        end
+        local gc=A.Modules.GearConfig
+        for _,id in ipairs(gc and gc.Order or{})do
+            local item=gc.Types[id];local stock=gs.Stock and gs.Stock.Remaining and gs.Stock.Remaining[id]
+            local price=gs.Prices and gs.Prices[id]
+            gearOptions[#gearOptions+1]={Id=id,Name=item.Name,Detail=(price and"$"..P.Money(price)or t("Refresh price","อัปเดตราคา")).."\n"..t("Stock: ","สต็อก: ")..tostring(stock or"?").." | "..t("Owned: ","มี: ")..tostring(gs.Counts and gs.Counts[id]or 0)}
+        end
+        view.Refresh("Shovels",shovelOptions,cfg.Shovel);view.Refresh("Gear",gearOptions,cfg.Gear)
+        local use={};for _,item in ipairs(gearOptions)do local def=gc and gc.Types[item.Id];if def and def.Kind~="Launcher"then use[#use+1]=item end end
+        view.Refresh("UseGear",use,cfg.UseGearId)
+        local potionOptions={};local pc=A.Modules.PotionConfig
+        for _,id in ipairs(pc and pc.Order or{})do potionOptions[#potionOptions+1]={Id=id,Kind="Potion",Name=pc.Types[id].Name or id,Detail=A.Attr("Potion"..id.."Until",0)>A.ServerTime()and t("Active","กำลังทำงาน")or""}end
+        view.Refresh("Potions",potionOptions,cfg.Potion)
+        local active=0;local lines={}
+        for _,key in ipairs(P.Jobs)do if cfg[key]then active+=1;lines[#lines+1]=(jobNames[key]or key)..": "..(C.Report.Jobs[key]or t("Starting","กำลังเริ่ม"))end end
+        statusWidget:Set(string.format("%s %d | %s %d | %s %d",t("Active","เปิด"),active,t("Requests","คำขอ"),C.Report.Requests,t("Confirmed","ยืนยัน"),C.Report.Confirmed),true)
+        detailsWidget:Set(table.concat(lines,"\n"),true);settingsWidget:Set(settingsStatus,true)
+    end
+    A.Spawn(function()
+        while not app.Stopped do
+            local good,err=pcall(C.Tick);if not good then C.Report.Errors.Tick=tostring(err);C.StopMining()end
+            if os.clock()-lastRefresh>=2 then lastRefresh=os.clock();local worked,detail=pcall(refresh);if not worked then C.Report.Errors.Display=tostring(detail)end end
+            if view then pcall(view.VisibleModels)end
+            A.Wait(.025)
+        end
+    end)
+end,debug.traceback)
+if not ok then app.Destroy();error("DEVIL HUB test startup: "..tostring(problem),0)end
+return app

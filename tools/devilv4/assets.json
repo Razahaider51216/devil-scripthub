@@ -1,0 +1,41 @@
+{
+  "images": {
+    "Basic": "rbxassetid://82607806582254",
+    "Grey": "rbxassetid://84718066117646",
+    "Green": "rbxassetid://108153605421728",
+    "Blue": "rbxassetid://88201373524492",
+    "Purple": "rbxassetid://133348464670729",
+    "Golden": "rbxassetid://137223701139677",
+    "Red": "rbxassetid://100868825563504",
+    "Galaxy": "rbxassetid://124079969014331",
+    "Secret": "rbxassetid://88306339908791",
+    "Eternal": "rbxassetid://91735956058773",
+    "Divine": "rbxassetid://79013272643598",
+    "Godly": "rbxassetid://132789056550916",
+    "Transcendent": "rbxassetid://117387295659510",
+    "Primordial": "rbxassetid://90759316679765",
+    "Astronomical": "rbxassetid://87920012641201",
+    "IndustrialDrill": "rbxassetid://127003251000511",
+    "TitaniumDrill": "rbxassetid://128557810440603",
+    "PlasmaDrill": "rbxassetid://76715730228084",
+    "TNT1": "rbxassetid://89598348008470",
+    "TNT2": "rbxassetid://124515546167383",
+    "TNT3": "rbxassetid://122561807137176",
+    "Radar1": "rbxassetid://137161613613305",
+    "Radar2": "rbxassetid://72044897314343",
+    "Radar3": "rbxassetid://129979864742344",
+    "MoonTotem": "rbxassetid://118815397419556",
+    "PumpkinLauncher": "rbxassetid://107596347538694",
+    "Training": "rbxassetid://124340074431648",
+    "Cash": "rbxassetid://84748695520060",
+    "DigSpeed": "rbxassetid://70443377049090",
+    "HatchLuck": "rbxassetid://109301581007466",
+    "Growth": "rbxassetid://139703536386984"
+  },
+  "dump_sources_sha256": {
+    "0509_ShovelAssets.lua": "3769c2fa9d416cdea1c1fe73fe0ae6efc82434562921221f96e9170e891504e4",
+    "0518_DrillAssets.lua": "5a4af51a3e3eae1c9fd6a2c66ca101e89c92257b26c52df56aacc3daeea82467",
+    "0519_GearAssets.lua": "6b1fb846025e3f80d71defbd9f09011fcf7d8c320cbb7ee0d66b92ceb756bfe5",
+    "0191_PotionAssets.lua": "de35269013df71aac2c8e8523dd3ac4b1c39112f070b1f264b856de0deb96fdf"
+  }
+}
