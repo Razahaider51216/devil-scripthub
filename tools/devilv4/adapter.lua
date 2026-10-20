@@ -1,4 +1,4 @@
-return function(scope)
+return function(scope,catalog)
     local A={Modules={},Pending=scope.DevilV4Pending or{},Snapshots={},Links={},Finds={},Serials=setmetatable({},{__mode="k"}),NextSerial=0,Alive=true}
     scope.DevilV4Pending=A.Pending -- A hung InvokeServer retains its lane across reloads.
     A.Player=game:GetService("Players").LocalPlayer
@@ -70,7 +70,8 @@ return function(scope)
     A.Links[#A.Links+1]=A.Tags:GetInstanceRemovedSignal("MineFind"):Connect(function(n)A.Finds[n]=nil end)
     function A.FindDefinition(kind,id)
         local module=A.Modules[({Egg="EggCatalog",Artifact="ArtifactCatalog",Potion="PotionConfig",Material="MaterialCatalog"})[kind]]
-        return module and module.Types and module.Types[id]or{}
+        local d=module and module.Types and module.Types[id]
+        return type(d)=="table"and d or catalog and catalog[kind]and catalog[kind][id]or{}
     end
     function A.Targets(kind,rarity)
         A.TrackMine()
@@ -84,8 +85,37 @@ return function(scope)
                 end
             end
         end
-        table.sort(list,function(a,b)if a.Distance==b.Distance then return a.Serial<b.Serial end;return a.Distance<b.Distance end)
+        table.sort(list,function(a,b)
+            if kind=="All"and(a.Kind=="Material")~=(b.Kind=="Material")then return a.Kind~="Material"end
+            if a.Distance==b.Distance then return a.Serial<b.Serial end;return a.Distance<b.Distance
+        end)
         return list
+    end
+    function A.TeleportOptions(kind)
+        local grouped={}
+        for _,target in ipairs(A.Targets(kind,"All"))do
+            local key=target.Kind..":"..target.Id;local row=grouped[key]
+            if row then row.Count+=1 else row=table.clone(target);row.Key=key;row.Group=true;row.Count=1;grouped[key]=row end
+        end
+        -- Catalog entries remain named even before their instances stream in.
+        if kind=="Egg"or kind=="All"then
+            local types=table.clone(catalog and catalog.Egg or{})
+            for id,d in pairs(A.Modules.EggCatalog and A.Modules.EggCatalog.Types or{})do types[id]=d end
+            for id,d in pairs(types)do local key="Egg:"..id
+                if not grouped[key]then grouped[key]={Id=id,Key=key,Kind="Egg",Name=d.Name or id.." Egg",Rarity=d.Rarity or"Unknown",Group=true,Count=0,Distance=math.huge}end
+            end
+        end
+        local out={};for _,row in pairs(grouped)do out[#out+1]=row end
+        table.sort(out,function(a,b)
+            if(a.Count>0)~=(b.Count>0)then return a.Count>0 end
+            if a.Kind~=b.Kind then return a.Kind=="Egg"or b.Kind~="Egg"and a.Kind<b.Kind end
+            return a.Name==b.Name and a.Key<b.Key or a.Name<b.Name
+        end)
+        return out
+    end
+    function A.ResolveTarget(target)
+        if not target.Group and A.ValidFind(target.Instance)then local t=table.clone(target);t.Position=t.Instance.Position;return t end
+        for _,candidate in ipairs(A.Targets(target.Kind,"All"))do if candidate.Id==target.Id then return candidate end end
     end
     function A.Ground(position,exclude,maxDepth)
         local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Exclude
@@ -94,7 +124,7 @@ return function(scope)
         return workspace:Raycast(position,Vector3.new(0,-(maxDepth or 24),0),params)
     end
     function A.Stand(target)
-        local c,hum,root=A.Character();if not root then return end
+        local c,hum,root,head=A.Character();if not root then return end
         local p=target.Position;local size=target.Instance and target.Instance.Size or Vector3.new(2,2,2)
         local radius=math.max(size.X,size.Z)/2+2.5
         local offsets=target.Training and{Vector3.zero}or{Vector3.new(radius,0,0),Vector3.new(-radius,0,0),Vector3.new(0,0,radius),Vector3.new(0,0,-radius)}
@@ -104,27 +134,66 @@ return function(scope)
                 local goal=hit.Position+Vector3.new(0,hum.HipHeight+root.Size.Y/2+.15,0)
                 local box=OverlapParams.new();box.FilterType=Enum.RaycastFilterType.Exclude;box.FilterDescendantsInstances={c};box.RespectCanCollide=true
                 local clear=true;for _,part in ipairs(workspace:GetPartBoundsInBox(CFrame.new(goal),Vector3.new(2,3,2),box))do if part.CanCollide then clear=false;break end end
-                if clear then return goal end
+                if clear and(not target.Instance or A.CanSee(target.Instance,goal+(head.Position-root.Position)))then return goal end
             end
         end
+        -- Buried targets have no empty adjacent floor. Stand over their top face
+        -- with a scoped character collision lease instead of rejecting the warp.
+        if target.Instance and A.ValidFind(target.Instance)then
+            return p+Vector3.new(0,size.Y/2+hum.HipHeight+root.Size.Y/2+.15,0),true
+        end
     end
-    function A.Move(target,valid)
+    function A.ReleasePhase()
+        local phase=A.Phase;A.Phase=nil;if not phase then return end
+        if phase.Step then phase.Step:Disconnect()end
+        if phase.Hover then phase.Hover:Destroy()end
+        for part,old in pairs(phase.Parts)do if part.Parent then pcall(function()part.CanCollide=old end)end end
+    end
+    function A.PhaseCharacter(character,root,owner,hover)
+        if A.Phase and A.Phase.Character~=character then A.ReleasePhase()end
+        local phase=A.Phase or{Character=character,Root=root,Parts={}};A.Phase=phase;phase.Owner=owner
+        if not phase.Step then phase.Step=game:GetService("RunService").Stepped:Connect(function()if A.Phase==phase then A.UpdatePhase()end end)end
+        for _,part in ipairs(character:GetDescendants())do if part:IsA("BasePart")then
+            if phase.Parts[part]==nil then phase.Parts[part]=part.CanCollide end;part.CanCollide=false
+        end end
+        if hover and not phase.Hover then
+            local force=Instance.new("BodyVelocity");force.Name="DevilTeleportHover";force.MaxForce=Vector3.new(0,1e6,0);force.Velocity=Vector3.zero;force.Parent=root;phase.Hover=force
+        end
+    end
+    function A.SpaceClear(position,character)
+        local box=OverlapParams.new();box.FilterType=Enum.RaycastFilterType.Exclude;box.FilterDescendantsInstances={character};box.RespectCanCollide=true
+        for _,part in ipairs(workspace:GetPartBoundsInBox(CFrame.new(position),Vector3.new(2,3,2),box))do if part.CanCollide then return false end end
+        return true
+    end
+    function A.UpdatePhase()
+        local phase=A.Phase;if not phase then return end
+        local character,_,root=A.Character()
+        if character~=phase.Character or not root or not A.Alive then A.ReleasePhase();return end
+        if not A.MoveBusy and A.SpaceClear(root.Position,character)then A.ReleasePhase();return end
+        A.PhaseCharacter(character,root,phase.Owner,phase.Hover~=nil)
+    end
+    function A.Move(target,valid,owner)
         if A.MoveBusy then return false,"Another movement is active"end
         if not valid()then return false,"Cancelled"end
         local c,_,root=A.Character();if not root then return false,"Waiting for character"end
         if target.Instance and not A.ValidFind(target.Instance)then return false,"Target disappeared"end
-        local goal=A.Stand(target);if not goal then return false,"No clear ground next to target"end
+        target.Position=target.Instance and target.Instance.Position or target.Position
+        local goal,buried=A.Stand(target);if not goal then return false,"No clear ground next to target"end
         A.MoveBusy=true
         local ok,err=pcall(function()
             if not valid()then return end
+            A.PhaseCharacter(c,root,owner,buried)
             root.AssemblyLinearVelocity=Vector3.zero;root.AssemblyAngularVelocity=Vector3.zero
-            c:PivotTo(CFrame.lookAt(goal,Vector3.new(target.Position.X,goal.Y,target.Position.Z)))
-            task.wait(.4)
+            local facing=Vector3.new(target.Position.X,goal.Y,target.Position.Z)
+            if(facing-goal).Magnitude<.01 then facing=goal+Vector3.new(0,0,-1)end
+            c:PivotTo(CFrame.lookAt(goal,facing))
+            task.wait(.06)
         end)
         A.MoveBusy=false
-        if not ok then return false,tostring(err)end
-        if not valid()then return false,"Cancelled"end
-        local _,_,current=A.Character();if current~=root or(root.Position-goal).Magnitude>7 then return false,"Teleport not confirmed (server correction or respawn)"end
+        if not ok then A.ReleasePhase();return false,tostring(err)end
+        if not valid()then A.ReleasePhase();return false,"Cancelled"end
+        local _,_,current=A.Character();if current~=root or(root.Position-goal).Magnitude>7 then A.ReleasePhase();return false,"Teleport not confirmed (server correction or respawn)"end
+        A.UpdatePhase()
         return true,"Arrived"
     end
     function A.Aim(target)
@@ -132,8 +201,9 @@ return function(scope)
         local config=A.Modules.DigConfig;local reach=config and config.Reach or 30
         local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Exclude;params.FilterDescendantsInstances={c}
         if target then
-            if not A.ValidFind(target.Instance)or(target.Instance.Position-head.Position).Magnitude>reach then return end
-            local delta=target.Instance.Position-head.Position;if delta.Magnitude<.1 then return end
+            if not A.ValidFind(target.Instance)then return end
+            local point=target.Instance:GetClosestPointOnSurface(head.Position)
+            local delta=point-head.Position;if delta.Magnitude<.1 or delta.Magnitude>reach then return end
             local hit=workspace:Raycast(head.Position,delta.Unit*(delta.Magnitude+1),params)
             if not hit or hit.Instance~=target.Instance then return end
             return head.Position,delta.Unit,target.Kind=="Material"and"Aim"or"Find",target.Kind~="Material"and target.Instance or nil
@@ -141,6 +211,13 @@ return function(scope)
         local hit=workspace:Raycast(head.Position,Vector3.new(0,-reach,0),params)
         local mine=A.Mine();if not hit or not mine or not hit.Instance:IsDescendantOf(mine)or hit.Instance:GetAttribute("MineBoundary")or hit.Instance:GetAttribute("Diggable")~=true then return end
         return head.Position,Vector3.new(0,-1,0),"Down",nil
+    end
+    function A.CanSee(part,origin)
+        local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Exclude;params.FilterDescendantsInstances={A.Player.Character}
+        local point=part:GetClosestPointOnSurface(origin);local delta=point-origin
+        if delta.Magnitude<.1 then return false end
+        local hit=workspace:Raycast(origin,delta.Unit*(delta.Magnitude+1),params)
+        return hit and hit.Instance==part
     end
     function A.Tools()
         local list={};for _,parent in ipairs({A.Player:FindFirstChild("Backpack"),A.Player.Character})do
@@ -192,6 +269,6 @@ return function(scope)
             for i,n in ipairs(mine:GetDescendants())do if not A.Alive or A.TrackedMine~=mine then break end;track(n);if i%200==0 then task.wait()end end
         end)
     end
-    function A.Destroy()A.Alive=false;for _,c in ipairs(A.Links)do c:Disconnect()end end
+    function A.Destroy()A.ReleasePhase();A.Alive=false;for _,c in ipairs(A.Links)do c:Disconnect()end end
     return A
 end

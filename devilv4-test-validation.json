@@ -1,12 +1,12 @@
 {
-  "release": "devilv4-test-20261020-1",
+  "release": "devilv4-test-20261020-2",
   "live_game_verified": false,
   "luau_compile": true,
-  "behavior_checks": 72,
-  "public_entry_gui_settings_checks": 23,
-  "adapter_checks": 14,
+  "behavior_checks": 82,
+  "public_entry_gui_settings_checks": 28,
+  "adapter_checks": 28,
   "remote_paths_checked": 23,
   "production_loader_unchanged": true,
-  "entry_sha256": "0cb2cf2ee18ac078940f875c9b7b23acae2360a828ae4dc7cd31105db7022bca",
+  "entry_sha256": "8ef37f2dad048626f0bb666ea530bfebec3a0ac34ff6afa3b232e9551e295c49",
   "production_loader_sha256": "c7be3365232748e87776f57731a6e902b7f18296b3d6c0cda50208b63886eb2a"
 }

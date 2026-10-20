@@ -1,10 +1,11 @@
 return function(window,A,P,assets)
     local V={Pickers={},Alive=true,Models={},Loading={},PreviewCount=0}
+    local function imageFor(item)return(item.Kind==nil or item.Kind=="Potion")and assets[item.Id]or nil end
     local function node(class,parent,props)
         local n=Instance.new(class);for k,v in pairs(props)do n[k]=v end;n.Parent=parent;return n
     end
     function V.Image(parent,item,size)
-        local icon=assets[item.Id]
+        local icon=imageFor(item)
         if icon then
             local n=node("ImageLabel",parent,{Name="DevilItemIcon",Size=UDim2.fromOffset(size,size),BackgroundTransparency=1,Image=icon,ImageColor3=Color3.new(1,1,1),ScaleType=Enum.ScaleType.Fit,ZIndex=parent.ZIndex+1})
             n:SetAttribute("CustomIcon",true);return n
@@ -58,7 +59,7 @@ return function(window,A,P,assets)
         local signature=table.concat(names,"\0")
         if signature~=picker.Signature then
             picker.Widget:Refresh(names,true,true);picker.Signature=signature
-            if selected then for _,name in ipairs(names)do if map[name].Id==selected then picker.Widget:Set(name,true);break end end end
+            if selected then for _,name in ipairs(names)do if(map[name].Key or map[name].Id)==selected then picker.Widget:Set(name,true);break end end end
         end
         if not picker.Popup then return end
         for _,label in ipairs(picker.Popup:GetDescendants())do
@@ -68,11 +69,11 @@ return function(window,A,P,assets)
                     local row=picker.Rows[label]
                     if not row then
                         row={Label=label,Parent=label.Parent};picker.Rows[label]=row
-                        label.Position=UDim2.fromOffset(44,0);label.Size=UDim2.new(1,-175,1,0)
+                        label.Position=UDim2.fromOffset(44,0);label.Size=UDim2.new(1,-175,1,0);label.TextColor3=Color3.new(1,1,1);label.TextTransparency=0
                         row.Price=node("TextLabel",label.Parent,{Name="DevilItemPrice",Size=UDim2.fromOffset(118,30),AnchorPoint=Vector2.new(1,.5),Position=UDim2.new(1,-26,.5,0),BackgroundTransparency=1,Font=Enum.Font.Gotham,TextSize=10,TextColor3=Color3.fromRGB(164,221,255),TextXAlignment=Enum.TextXAlignment.Right,ZIndex=label.ZIndex+1,Text=""})
                     end
                     row.Item=item;row.Price.Text=item.Detail or""
-                    if assets[item.Id]and not row.Icon then row.Icon=V.Image(row.Parent,item,26);row.Icon.Position=UDim2.new(0,10,.5,-13)end
+                    if imageFor(item)and not row.Icon then row.Icon=V.Image(row.Parent,item,26);row.Icon.Position=UDim2.new(0,10,.5,-13)end
                 end
             end
         end
@@ -82,7 +83,7 @@ return function(window,A,P,assets)
         local count=0
         for _,picker in pairs(V.Pickers)do
             for label,row in pairs(picker.Rows)do
-                if row.Item and not assets[row.Item.Id]then
+                if row.Item and not imageFor(row.Item)then
                     local popup=picker.Popup;local visible=V.Alive and label.Parent and popup and popup.Visible and label.AbsolutePosition.Y>=popup.AbsolutePosition.Y and label.AbsolutePosition.Y<popup.AbsolutePosition.Y+popup.AbsoluteSize.Y
                     if visible and count<8 then
                         count+=1;if not row.Icon then row.Icon=V.Image(row.Parent,row.Item,26);row.Icon.Position=UDim2.new(0,10,.5,-13)end

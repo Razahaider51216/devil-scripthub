@@ -17,10 +17,11 @@ local makeView=(function()
 -- V4_PRESENTATION
 end)()
 local assets=__ASSETS__
-local A=makeAdapter(scope);local C=makeCore(A,P);local cfg=C.Config
+local catalog=__CATALOG__
+local A=makeAdapter(scope,catalog);local C=makeCore(A,P);local cfg=C.Config
 local app={Version=C.Report.Version,Core=C,Adapter=A,Config=cfg,Report=C.Report,Stopped=false};scope.DevilV4Test=app
 local window,view,library,logo;local rebuilding=false;local language="EN";local languageOwner,baseSet,wrappedSet
-local statusWidget,detailsWidget,settingsWidget;local controls={};local jobNames={};local selectedTarget;local lastRefresh=0
+local statusWidget,detailsWidget,settingsWidget,travelWidget,sellWidget;local controls={};local jobNames={};local selectedTarget;local lastRefresh=0
 local profile="DevilHub_MiningTest_"..A.Player.UserId.."_"..game.PlaceId..".json"
 local settingsStatus="Ready";local buildUI
 local function t(en,th)return language=="TH"and th or en end
@@ -93,10 +94,16 @@ local ok,problem=xpcall(function()
         slider(grow,"TrainSeconds","Training seconds","เวลาฝึก (วินาที)",15,900,15);slider(grow,"DigSeconds","Mining seconds","เวลาขุด (วินาที)",15,900,15)
         grow:CreateLabel({Text=t("Planting needs clear ground on your own plot.","การวางไข่ต้องมีพื้นที่ว่างในฐานของคุณ")})
         local travel=tab("Teleport","วาร์ป","map-pin");local targetGroup=group(travel,"Live targets","เป้าหมายที่มีอยู่จริง")
-        view.Picker(targetGroup,"Targets",t("Ore / item target","เลือกแร่หรือสิ่งของ"),function(_,item)selectedTarget=item end)
-        button(targetGroup,"Teleport to selected target","วาร์ปไปเป้าหมายที่เลือก",function()if selectedTarget then C.Teleport(selectedTarget)end end)
-        button(targetGroup,"Teleport to nearest matching target","วาร์ปไปเป้าหมายที่ใกล้ที่สุด",function()local target=A.Targets(cfg.FindKind,cfg.FindRarity)[1];if target then C.Teleport(target)end end)
-        targetGroup:CreateLabel({Text=t("Shows the nearest 120 streamed blocks. Filters are in Farm.","แสดง 120 เป้าหมายที่ใกล้ที่สุดและโหลดแล้ว ตั้งตัวกรองในหน้าฟาร์ม")})
+        choose(targetGroup,"TeleportKind","Teleport target type","ประเภทเป้าหมายวาร์ป",{"Egg","Artifact","Potion","Material","All"})
+        view.Picker(targetGroup,"Targets",t("Ore / item target","เลือกแร่หรือสิ่งของ"),function(_,item)selectedTarget=item;cfg.TeleportChoice=item.Key end)
+        button(targetGroup,"Teleport to selected target","วาร์ปไปเป้าหมายที่เลือก",function()
+            local target=selectedTarget
+            for _,item in ipairs(A.TeleportOptions(cfg.TeleportKind))do if item.Key==cfg.TeleportChoice then target=item;break end end
+            if target then C.Teleport(target)end
+        end)
+        button(targetGroup,"Teleport to nearest matching target","วาร์ปไปเป้าหมายที่ใกล้ที่สุด",function()local target=A.Targets(cfg.TeleportKind,"All")[1];if target then C.Teleport(target)end end)
+        targetGroup:CreateLabel({Text=t("Egg names are grouped by type. Not loaded = no current target.","แสดงชื่อไข่แยกตามชนิด หากยังไม่โหลดจะยังไม่มีเป้าหมายวาร์ป")})
+        travelWidget=targetGroup:CreateLabel({Text=t("Select an item to teleport through obstacles.","เลือกสิ่งของเพื่อวาร์ปผ่านสิ่งกีดขวาง")})
         local destinations=group(travel,"Destinations","สถานที่","Right")
         for _,dest in ipairs({{"Home","Home","บ้าน"},{"Plot","My plot","ฐานของฉัน"},{"Surface","Surface","พื้นผิว"},{"DigSite","Dig site","จุดขุด"},{"Sell","Sell area","จุดขาย"}})do
             local mode=dest[1];button(destinations,dest[2],dest[3],function()C.Surface(mode)end)
@@ -116,6 +123,7 @@ local ok,problem=xpcall(function()
         toggle(sell,"SellLoot","Auto Sell Loot","ขายของขุดอัตโนมัติ");toggle(sell,"SellEggs","Auto Sell Spare Eggs","ขายไข่สำรองอัตโนมัติ");toggle(sell,"SellPets","Auto Sell Stored Pets","ขายสัตว์ในกระเป๋าอัตโนมัติ")
         sell:CreateParagraph({Name=t("Stored pet sale","ขายสัตว์ในกระเป๋า"),Content=t("Sells unequipped pets. Placed pets stay. Uses the game's current sale quote.","ขายสัตว์ที่ไม่ได้ใช้งาน เก็บตัวที่วางในฐานไว้ ใช้ใบเสนอราคาล่าสุดจากเกม")})
         toggle(sell,"EquipPets","Auto Equip Best Pets","ใช้สัตว์ที่ดีที่สุดอัตโนมัติ")
+        sellWidget=sell:CreateLabel({Text=t("Sale results appear here.","ผลการขายจะแสดงตรงนี้")})
         local buffs=group(inv,"Potions and gear use","ยาและการใช้อุปกรณ์","Right")
         view.Picker(buffs,"Potions",t("Potion","ยา"),function(id)cfg.Potion=id end)
         toggle(buffs,"Potions","Auto Use Potion When Expired","ใช้ยาเมื่อบัฟหมดอัตโนมัติ")
@@ -164,9 +172,15 @@ local ok,problem=xpcall(function()
         local good,err=pcall(loadSettings);if not good then settingsStatus=tostring(err)end
     end
     local function refresh()
-        local targets=A.Targets(cfg.FindKind,cfg.FindRarity);local options={}
-        for i=1,math.min(120,#targets)do local item=targets[i];item.Label=item.Name.." #"..item.Serial;item.Detail=item.Rarity.."\n"..math.floor(item.Distance).." studs";options[#options+1]=item end
-        view.Refresh("Targets",options)
+        local options=A.TeleportOptions(cfg.TeleportKind)
+        for _,item in ipairs(options)do
+            item.Label=item.Name
+            item.Detail=item.Count>0 and(tostring(item.Count)..t(" found"," จุด").."\n"..math.floor(item.Distance).." studs")or t("Not loaded","ยังไม่โหลด")
+        end
+        view.Refresh("Targets",options,cfg.TeleportChoice)
+        travelWidget:Set(C.Report.Jobs.Teleport or C.Report.Jobs.Travel or t("Select an item to teleport through obstacles.","เลือกสิ่งของเพื่อวาร์ปผ่านสิ่งกีดขวาง"),true)
+        local saleLines={};for _,key in ipairs({"SellLoot","SellEggs","SellPets"})do if cfg[key]then saleLines[#saleLines+1]=(jobNames[key]or key)..": "..(C.Report.Jobs[key]or"Starting")end end
+        sellWidget:Set(table.concat(saleLines,"\n"),true)
         local shovelOptions={{Id="Best affordable",Name=t("Best affordable","ดีที่สุดที่ซื้อไหว"),Detail=t("Automatic choice","เลือกอัตโนมัติ")}}
         local gearOptions={};local catalog=A.Modules.ShovelCatalog;local sh=A.Snapshots.Shovels or{};local gs=A.Snapshots.Gear or{}
         for _,item in ipairs(catalog and catalog.Tiers or{})do

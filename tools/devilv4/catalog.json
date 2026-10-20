@@ -1,0 +1,424 @@
+{
+  "Egg": {
+    "Titanic__Nebula": {
+      "Name": "Titanic Nebula Egg",
+      "Rarity": "Eternal",
+      "Tier": 9
+    },
+    "Honey": {
+      "Name": "Honey Egg",
+      "Rarity": "Epic",
+      "Tier": 4
+    },
+    "Titanic__Empyrean": {
+      "Name": "Titanic Empyrean Egg",
+      "Rarity": "Godly",
+      "Tier": 11
+    },
+    "Titanic__Slate": {
+      "Name": "Titanic Slate Egg",
+      "Rarity": "Rare",
+      "Tier": 3
+    },
+    "Huge__Cataclysm": {
+      "Name": "Huge Null Egg",
+      "Rarity": "Zero",
+      "Tier": 13
+    },
+    "Titanic__Fern": {
+      "Name": "Titanic Fern Egg",
+      "Rarity": "Uncommon",
+      "Tier": 2
+    },
+    "Cataclysm": {
+      "Name": "Null Egg",
+      "Rarity": "Zero",
+      "Tier": 13
+    },
+    "Titanic__Void": {
+      "Name": "Titanic Void Egg",
+      "Rarity": "Secret",
+      "Tier": 8
+    },
+    "Relic": {
+      "Name": "Relic Egg",
+      "Rarity": "Mythic",
+      "Tier": 6
+    },
+    "Titanic__Soil": {
+      "Name": "Titanic Soil Egg",
+      "Rarity": "Common",
+      "Tier": 1
+    },
+    "Titanic__Genesis": {
+      "Name": "Titanic Genesis Egg",
+      "Rarity": "Godly",
+      "Tier": 11
+    },
+    "Fossil": {
+      "Name": "Fossil Egg",
+      "Rarity": "Mythic",
+      "Tier": 6
+    },
+    "Titanic__Crystal": {
+      "Name": "Titanic Crystal Egg",
+      "Rarity": "Legendary",
+      "Tier": 5
+    },
+    "Huge__Unfathomable": {
+      "Name": "Huge Unfathomable Egg",
+      "Rarity": "Godly",
+      "Tier": 11
+    },
+    "Huge__Astral": {
+      "Name": "Huge Astral Egg",
+      "Rarity": "Eternal",
+      "Tier": 9
+    },
+    "Titanic__Moss": {
+      "Name": "Titanic Moss Egg",
+      "Rarity": "Uncommon",
+      "Tier": 2
+    },
+    "Titanic__Paradox": {
+      "Name": "Titanic Paradox Egg",
+      "Rarity": "Transcendent",
+      "Tier": 12
+    },
+    "Starlight": {
+      "Name": "Starlight Egg",
+      "Rarity": "Astronomical",
+      "Tier": 14
+    },
+    "Titanic__Magma": {
+      "Name": "Titanic Magma Egg",
+      "Rarity": "Cosmic",
+      "Tier": 7
+    },
+    "Huge__Void": {
+      "Name": "Huge Void Egg",
+      "Rarity": "Secret",
+      "Tier": 8
+    },
+    "Nebula": {
+      "Name": "Nebula Egg",
+      "Rarity": "Eternal",
+      "Tier": 9
+    },
+    "Astral": {
+      "Name": "Astral Egg",
+      "Rarity": "Eternal",
+      "Tier": 9
+    },
+    "Titanic__Zenith": {
+      "Name": "Titanic Zenith Egg",
+      "Rarity": "Transcendent",
+      "Tier": 12
+    },
+    "Titanic__Clay": {
+      "Name": "Titanic Clay Egg",
+      "Rarity": "Common",
+      "Tier": 1
+    },
+    "Huge__Stone": {
+      "Name": "Huge Stone Egg",
+      "Rarity": "Rare",
+      "Tier": 3
+    },
+    "Ember": {
+      "Name": "Ember Egg",
+      "Rarity": "Cosmic",
+      "Tier": 7
+    },
+    "Huge__Fossil": {
+      "Name": "Huge Fossil Egg",
+      "Rarity": "Mythic",
+      "Tier": 6
+    },
+    "Huge__Fern": {
+      "Name": "Huge Fern Egg",
+      "Rarity": "Uncommon",
+      "Tier": 2
+    },
+    "Huge__Nebula": {
+      "Name": "Huge Nebula Egg",
+      "Rarity": "Eternal",
+      "Tier": 9
+    },
+    "Divine": {
+      "Name": "Divine Egg",
+      "Rarity": "Divine",
+      "Tier": 10
+    },
+    "Titanic__Honey": {
+      "Name": "Titanic Honey Egg",
+      "Rarity": "Epic",
+      "Tier": 4
+    },
+    "Huge__Divine": {
+      "Name": "Huge Divine Egg",
+      "Rarity": "Divine",
+      "Tier": 10
+    },
+    "Titanic__Relic": {
+      "Name": "Titanic Relic Egg",
+      "Rarity": "Mythic",
+      "Tier": 6
+    },
+    "Titanic__Unfathomable": {
+      "Name": "Titanic Unfathomable Egg",
+      "Rarity": "Godly",
+      "Tier": 11
+    },
+    "Slate": {
+      "Name": "Slate Egg",
+      "Rarity": "Rare",
+      "Tier": 3
+    },
+    "Titanic__Supernova": {
+      "Name": "Titanic Supernova Egg",
+      "Rarity": "Astronomical",
+      "Tier": 14
+    },
+    "Titanic__Starlight": {
+      "Name": "Titanic Starlight Egg",
+      "Rarity": "Astronomical",
+      "Tier": 14
+    },
+    "Titanic__Cataclysm": {
+      "Name": "Titanic Null Egg",
+      "Rarity": "Zero",
+      "Tier": 13
+    },
+    "Titanic__Seraph": {
+      "Name": "Titanic Seraph Egg",
+      "Rarity": "Divine",
+      "Tier": 10
+    },
+    "Titanic__Amber": {
+      "Name": "Titanic Amber Egg",
+      "Rarity": "Epic",
+      "Tier": 4
+    },
+    "Titanic__Divine": {
+      "Name": "Titanic Divine Egg",
+      "Rarity": "Divine",
+      "Tier": 10
+    },
+    "Seraph": {
+      "Name": "Seraph Egg",
+      "Rarity": "Divine",
+      "Tier": 10
+    },
+    "Titanic__Astral": {
+      "Name": "Titanic Astral Egg",
+      "Rarity": "Eternal",
+      "Tier": 9
+    },
+    "Huge__Crystal": {
+      "Name": "Huge Crystal Egg",
+      "Rarity": "Legendary",
+      "Tier": 5
+    },
+    "Huge__Amber": {
+      "Name": "Huge Amber Egg",
+      "Rarity": "Epic",
+      "Tier": 4
+    },
+    "Huge__Starlight": {
+      "Name": "Huge Starlight Egg",
+      "Rarity": "Astronomical",
+      "Tier": 14
+    },
+    "Unfathomable": {
+      "Name": "Unfathomable Egg",
+      "Rarity": "Godly",
+      "Tier": 11
+    },
+    "Huge__Prism": {
+      "Name": "Huge Prism Egg",
+      "Rarity": "Legendary",
+      "Tier": 5
+    },
+    "Void": {
+      "Name": "Void Egg",
+      "Rarity": "Secret",
+      "Tier": 8
+    },
+    "Huge__Soil": {
+      "Name": "Huge Soil Egg",
+      "Rarity": "Common",
+      "Tier": 1
+    },
+    "Huge__Moss": {
+      "Name": "Huge Moss Egg",
+      "Rarity": "Uncommon",
+      "Tier": 2
+    },
+    "Titanic__Ember": {
+      "Name": "Titanic Ember Egg",
+      "Rarity": "Cosmic",
+      "Tier": 7
+    },
+    "Titanic__Fossil": {
+      "Name": "Titanic Fossil Egg",
+      "Rarity": "Mythic",
+      "Tier": 6
+    },
+    "Empyrean": {
+      "Name": "Empyrean Egg",
+      "Rarity": "Godly",
+      "Tier": 11
+    },
+    "Moss": {
+      "Name": "Moss Egg",
+      "Rarity": "Uncommon",
+      "Tier": 2
+    },
+    "Prism": {
+      "Name": "Prism Egg",
+      "Rarity": "Legendary",
+      "Tier": 5
+    },
+    "Titanic__Eclipse": {
+      "Name": "Titanic Eclipse Egg",
+      "Rarity": "Secret",
+      "Tier": 8
+    },
+    "Eclipse": {
+      "Name": "Eclipse Egg",
+      "Rarity": "Secret",
+      "Tier": 8
+    },
+    "Stone": {
+      "Name": "Stone Egg",
+      "Rarity": "Rare",
+      "Tier": 3
+    },
+    "Huge__Clay": {
+      "Name": "Huge Clay Egg",
+      "Rarity": "Common",
+      "Tier": 1
+    },
+    "Titanic__Stone": {
+      "Name": "Titanic Stone Egg",
+      "Rarity": "Rare",
+      "Tier": 3
+    },
+    "Huge__Empyrean": {
+      "Name": "Huge Empyrean Egg",
+      "Rarity": "Godly",
+      "Tier": 11
+    },
+    "Huge__Ember": {
+      "Name": "Huge Ember Egg",
+      "Rarity": "Cosmic",
+      "Tier": 7
+    },
+    "Huge__Genesis": {
+      "Name": "Huge Genesis Egg",
+      "Rarity": "Godly",
+      "Tier": 11
+    },
+    "Huge__Zenith": {
+      "Name": "Huge Zenith Egg",
+      "Rarity": "Transcendent",
+      "Tier": 12
+    },
+    "Magma": {
+      "Name": "Magma Egg",
+      "Rarity": "Cosmic",
+      "Tier": 7
+    },
+    "Huge__Magma": {
+      "Name": "Huge Magma Egg",
+      "Rarity": "Cosmic",
+      "Tier": 7
+    },
+    "Huge__Slate": {
+      "Name": "Huge Slate Egg",
+      "Rarity": "Rare",
+      "Tier": 3
+    },
+    "Paradox": {
+      "Name": "Paradox Egg",
+      "Rarity": "Transcendent",
+      "Tier": 12
+    },
+    "Crystal": {
+      "Name": "Crystal Egg",
+      "Rarity": "Legendary",
+      "Tier": 5
+    },
+    "Huge__Seraph": {
+      "Name": "Huge Seraph Egg",
+      "Rarity": "Divine",
+      "Tier": 10
+    },
+    "Huge__Honey": {
+      "Name": "Huge Honey Egg",
+      "Rarity": "Epic",
+      "Tier": 4
+    },
+    "Soil": {
+      "Name": "Soil Egg",
+      "Rarity": "Common",
+      "Tier": 1
+    },
+    "Fern": {
+      "Name": "Fern Egg",
+      "Rarity": "Uncommon",
+      "Tier": 2
+    },
+    "Zenith": {
+      "Name": "Zenith Egg",
+      "Rarity": "Transcendent",
+      "Tier": 12
+    },
+    "Huge__Paradox": {
+      "Name": "Huge Paradox Egg",
+      "Rarity": "Transcendent",
+      "Tier": 12
+    },
+    "Huge__Eclipse": {
+      "Name": "Huge Eclipse Egg",
+      "Rarity": "Secret",
+      "Tier": 8
+    },
+    "Clay": {
+      "Name": "Clay Egg",
+      "Rarity": "Common",
+      "Tier": 1
+    },
+    "Amber": {
+      "Name": "Amber Egg",
+      "Rarity": "Epic",
+      "Tier": 4
+    },
+    "Genesis": {
+      "Name": "Genesis Egg",
+      "Rarity": "Godly",
+      "Tier": 11
+    },
+    "Titanic__Prism": {
+      "Name": "Titanic Prism Egg",
+      "Rarity": "Legendary",
+      "Tier": 5
+    },
+    "Huge__Relic": {
+      "Name": "Huge Relic Egg",
+      "Rarity": "Mythic",
+      "Tier": 6
+    },
+    "Huge__Supernova": {
+      "Name": "Huge Supernova Egg",
+      "Rarity": "Astronomical",
+      "Tier": 14
+    },
+    "Supernova": {
+      "Name": "Supernova Egg",
+      "Rarity": "Astronomical",
+      "Tier": 14
+    }
+  }
+}

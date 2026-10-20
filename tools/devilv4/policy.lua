@@ -1,7 +1,7 @@
 local P={}
 P.Jobs={"Dig","FarmFinds","Plant","Hatch","SellLoot","SellEggs","SellPets","BuyShovel","BuyGear","EquipPets","TrainingUpgrade","PlotUpgrade","HoleLuck","AnimalIncome","Rebirth","Potions","Daily","Offline","PetIndex","EventEggs","EventWaves","UseGear","Pumpkin","Train"}
 function P.Defaults()
-    local c={AimRate=20,FastDig=true,Reserve=0,FindKind="All",FindRarity="All",Shovel="Best affordable",Gear="",GearLimit=1,Potion="DigSpeed",UseGearId="",RebirthLimit=1,TrainSeconds=120,DigSeconds=300,Rotate=false}
+    local c={AimRate=20,FastDig=true,Reserve=0,FindKind="All",FindRarity="All",TeleportKind="Egg",TeleportChoice="",Shovel="Best affordable",Gear="",GearLimit=1,Potion="DigSpeed",UseGearId="",RebirthLimit=1,TrainSeconds=120,DigSeconds=300,Rotate=false}
     for _,key in ipairs(P.Jobs)do c[key]=false end
     return c
 end

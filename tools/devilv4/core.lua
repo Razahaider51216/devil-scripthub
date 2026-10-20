@@ -1,6 +1,7 @@
 return function(A,P)
-    local C={Config=P.Defaults(),Jobs={},Alive=true,Mining=false,Generation=0,Report={Version="devilv4-test-20261020-1",Jobs={},Requests=0,Replies=0,Confirmed=0,Errors={},LiveVerified=false},Target=nil}
+    local C={Config=P.Defaults(),Jobs={},Alive=true,Mining=false,Generation=0,Report={Version="devilv4-test-20261020-2",Jobs={},Requests=0,Replies=0,Confirmed=0,Errors={},LiveVerified=false},Target=nil}
     local cfg=C.Config;local busyMoney=false;local movingJob=nil;local epoch={};local plans={};local collected={};local eventState
+    local aimAt,lastAimTarget=0,nil;local nextAt={};local farmRetryAt=0
     local function status(key,text)C.Report.Jobs[key]=tostring(text)end
     local function result(key,data,err)
         if type(data)=="table"then
@@ -13,17 +14,19 @@ return function(A,P)
         C.Report.Requests+=1;local data,err=A.Invoke(remote,...);return result(key,data,err)
     end
     function C.StopMining()
-        if C.Mining then A.Fire("Mining","Stop");C.Mining=false end
+        if C.Mining then A.Fire("Mining","Stop");C.Mining=false end;aimAt=0;lastAimTarget=nil
     end
     function C.Set(key,value)
         if type(cfg[key])~="boolean"then return end
         cfg[key]=value==true;epoch[key]=(epoch[key]or 0)+1
-        if not value then status(key,"Off");if key=="Dig"or key=="FarmFinds"or key=="Train"then C.StopMining();C.Target=nil end end
+        nextAt[key]=nil
+        if not value then status(key,"Off");if key=="Dig"or key=="FarmFinds"or key=="Train"then C.StopMining();C.Target=nil;if A.ReleasePhase then A.ReleasePhase()end end end
     end
     function C.StopAll()
         C.Generation+=1
         for _,key in ipairs(P.Jobs)do C.Set(key,false)end
         C.StopMining();C.Target=nil;status("System","Stopped")
+        if A.ReleasePhase then A.ReleasePhase()end
     end
     function C.Run(key,fn,manual)
         if C.Jobs[key]or not C.Alive then return end
@@ -44,18 +47,23 @@ return function(A,P)
         local ok,err=xpcall(fn,debug.traceback);busyMoney=false;if not ok then error(err)end
     end
     local function move(valid,key,target)
+        if C.Selling and C.Selling~=key then status(key,"Waiting for sale");return false end
         if movingJob and movingJob~=key then status(key,"Waiting for movement queue");return false end
         movingJob=key;C.StopMining()
-        local callOK,ok,msg=pcall(A.Move,target,valid);movingJob=nil
+        local callOK,ok,msg=pcall(A.Move,target,valid,key);movingJob=nil
         if not callOK then error(ok)end
         status(key,msg);return ok
     end
     function C.Teleport(target)
-        C.Run("Teleport",function(valid)C.Target=nil;move(valid,"Teleport",target)end,true)
+        C.Run("Teleport",function(valid)
+            target=A.ResolveTarget(target)
+            if not target then status("Teleport","No loaded instance of the selected item");return end
+            C.Target=nil;move(valid,"Teleport",target)
+        end,true)
     end
     function C.Surface(mode)
         C.Run("Travel",function(valid)
-            if movingJob then return end;C.StopMining();C.Target=nil
+            if movingJob or C.Selling then return end;C.StopMining();C.Target=nil;if A.ReleasePhase then A.ReleasePhase()end
             local _,_,r=A.Character();local before=r and r.Position
             if valid()then A.Fire("Surface",mode);A.Wait(.6)end
             if not valid()then return end
@@ -70,13 +78,18 @@ return function(A,P)
     end
     local handlers={}
     handlers.FarmFinds=function(valid)
-        if C.Jobs.Plant or A.Attr("AfkTraining",false)or(cfg.Train and not cfg.Rotate)then return end
-        local targets=A.Targets(cfg.FindKind,cfg.FindRarity)
+        if C.Selling or C.Jobs.Plant or A.Attr("AfkTraining",false)or(cfg.Train and not cfg.Rotate)then return end
         local target=C.Target
-        if not target or not A.ValidFind(target.Instance)or target.Kind~=cfg.FindKind and cfg.FindKind~="All"or target.Rarity~=cfg.FindRarity and cfg.FindRarity~="All"then target=targets[1];C.Target=target end
+        if not target or not A.ValidFind(target.Instance)or target.Kind~=cfg.FindKind and cfg.FindKind~="All"or target.Rarity~=cfg.FindRarity and cfg.FindRarity~="All"then
+            target=A.Targets(cfg.FindKind,cfg.FindRarity)[1];C.Target=target
+        end
         if not target then status("FarmFinds","Waiting for streamed targets");return end
-        if not A.Aim(target)then move(valid,"FarmFinds",target)end
-        if valid()then status("FarmFinds","Target: "..target.Name.." #"..target.Serial)end
+        if not A.Aim(target)then
+            if A.Clock()<farmRetryAt then return end
+            local arrived=move(valid,"FarmFinds",target)
+            if not arrived then farmRetryAt=A.Clock()+.5;return end
+        end
+        if valid()then status("FarmFinds","Target: "..target.Name.." #"..target.Serial);C.UpdateMining()end
     end
     handlers.Plant=function(valid)
         if movingJob or C.Jobs.Train or A.Attr("AfkTraining",false)then return end
@@ -103,9 +116,41 @@ return function(A,P)
     for key,entry in pairs({SellLoot={"SellAll"},SellEggs={"SellSpareEggs","SpareEggs"},SellPets={"SellStoredPets","StoredPets"}})do
         local job,action,quoteKey=key,entry[1],entry[2]
         handlers[job]=function(valid)
-            local snap=invoke(valid,job,"Sell","Open");if type(snap)~="table"then return end;A.Snapshots.Sell=snap
-            if quoteKey then local quote=P.Quote(snap,quoteKey);if quote==nil then status(job,"Nothing to sell");return end;invoke(valid,job,"Sell",action,quote)
-            elseif(tonumber(snap.Total)or 0)>0 then invoke(valid,job,"Sell",action)else status(job,"Nothing to sell")end
+            if C.Selling or movingJob or A.MoveBusy then nextAt[job]=A.Clock()+.2;return end
+            C.Selling=job;C.StopMining()
+            local ok,err=xpcall(function()
+                local function snapshot()
+                    local snap=invoke(valid,job,"Sell","Open")
+                    if type(snap)=="table"and(snap.Code=="TooFar"or snap.Code=="OutOfRange")and valid()then
+                        if A.ReleasePhase then A.ReleasePhase()end
+                        A.Fire("Surface","Sell");status(job,"Travelling to sell area");A.Wait(.25)
+                        for _=1,3 do
+                            if not valid()then return end
+                            snap=invoke(valid,job,"Sell","Open")
+                            if type(snap)=="table"and type(snap.Items)=="table"then break end
+                            if type(snap)~="table"or(snap.Code~="TooFar"and snap.Code~="OutOfRange")then break end
+                            A.Wait(.2)
+                        end
+                    end
+                    return snap
+                end
+                local snap=snapshot();if type(snap)~="table"then return end
+                if type(snap.Items)~="table"then status(job,snap.Code or"Invalid sale snapshot");return end
+                A.Snapshots.Sell=snap
+                local quote=quoteKey and P.Quote(snap,quoteKey)
+                if quoteKey and quote==nil or not quoteKey and(tonumber(snap.Total)or 0)<=0 then status(job,"Nothing to sell");return end
+                local reply=invoke(valid,job,"Sell",action,quote)
+                if type(reply)=="table"and reply.Code=="Changed"and valid()then
+                    snap=snapshot();quote=quoteKey and P.Quote(snap,quoteKey)
+                    if snap and(quoteKey and quote~=nil or not quoteKey and(tonumber(snap.Total)or 0)>0)then reply=invoke(valid,job,"Sell",action,quote)end
+                end
+                if type(reply)=="table"then
+                    if reply.Items then A.Snapshots.Sell=reply end
+                    local cash=tonumber(reply.CashAdded)or 0
+                    status(job,cash>0 and("Sold +$"..P.Money(cash))or(reply.Code or"Sale not confirmed"))
+                end
+            end,debug.traceback)
+            C.Selling=nil;if not ok then error(err)end
         end
     end
     function C.BuyShovel(valid,choice)
@@ -290,23 +335,30 @@ return function(A,P)
         move(valid,"Train",{Position=frame:PointToWorldSpace(progression.TrainingOffset),Training=true})
         if valid()then status("Train",A.Attr("AfkTraining",false)and"Training confirmed"or"Arrived; waiting for training trigger")end
     end
-    local intervals={FarmFinds=1,Plant=2,Hatch=2,SellLoot=8,SellEggs=10,SellPets=12,BuyShovel=6,BuyGear=6,EquipPets=4,TrainingUpgrade=6,PlotUpgrade=6,HoleLuck=6,AnimalIncome=6,Rebirth=10,Potions=5,Daily=30,Offline=30,PetIndex=30,EventEggs=.65,EventWaves=.5,UseGear=23,Pumpkin=1,Train=3}
-    local nextAt={};local aimAt=0
+    local intervals={FarmFinds=.1,Plant=2,Hatch=2,SellLoot=5,SellEggs=5,SellPets=5,BuyShovel=6,BuyGear=6,EquipPets=4,TrainingUpgrade=6,PlotUpgrade=6,HoleLuck=6,AnimalIncome=6,Rebirth=10,Potions=5,Daily=30,Offline=30,PetIndex=30,EventEggs=.65,EventWaves=.5,UseGear=23,Pumpkin=1,Train=3}
     function C.Tick()
         if not C.Alive then return end
+        if A.UpdatePhase then A.UpdatePhase()end
         local now=A.Clock()
         for key,fn in pairs(handlers)do
-            if cfg[key]and now>=(nextAt[key]or 0)then nextAt[key]=now+(intervals[key]or 5);C.Run(key,fn)end
+            local urgent=key=="FarmFinds"and C.Target and not A.ValidFind(C.Target.Instance)
+            if cfg[key]and(now>=(nextAt[key]or 0)or urgent)then nextAt[key]=now+(intervals[key]or 5);C.Run(key,fn)end
         end
-        if not(cfg.Dig or cfg.FarmFinds)or movingJob or A.MoveBusy or C.Jobs.Plant or C.Jobs.Potions or C.Jobs.UseGear or C.Jobs.Pumpkin or A.Blocked()or A.Attr("AfkTraining",false)then C.StopMining();return end
-        if now<aimAt then return end
+        C.UpdateMining()
+    end
+    function C.UpdateMining()
+        local now=A.Clock()
+        if not C.Alive or not(cfg.Dig or cfg.FarmFinds)or C.Selling or movingJob or A.MoveBusy or C.Jobs.Plant or C.Jobs.Potions or C.Jobs.UseGear or C.Jobs.Pumpkin or A.Blocked()or A.Attr("AfkTraining",false)then C.StopMining();return end
+        if cfg.FarmFinds and not C.Target then C.StopMining();status("Dig","Waiting for selected target");return end
+        local targetKey=cfg.FarmFinds and C.Target and C.Target.Instance or"Down"
+        if now<aimAt and lastAimTarget==targetKey then return end
         local rate=cfg.FastDig and P.Number(cfg.AimRate,20,5,40)or 10;aimAt=now+1/rate
         local equipment=A.Modules.Equipment
         if equipment and not equipment.shovel(A.Player.Character)then C.StopMining();status("Dig","Waiting for equipped shovel / drill");return end
         local origin,direction,mode,selected=A.Aim(cfg.FarmFinds and C.Target or nil)
         if not origin then C.StopMining();status("Dig","Waiting for reachable diggable ground");return end
         local sent,err=A.Fire("Mining",C.Mining and"Aim"or"Start",origin,direction,mode,selected)
-        if sent then C.Mining=true;status("Dig",string.format("Continuous mining | %d aim updates/s",rate))else C.Mining=false;status("Dig",err)end
+        if sent then C.Mining=true;lastAimTarget=targetKey;status("Dig",string.format("Continuous mining | %d aim updates/s",rate))else C.Mining=false;status("Dig",err)end
     end
     function C.Destroy()C.StopAll();C.Alive=false;A.Destroy()end
     C.Handlers=handlers

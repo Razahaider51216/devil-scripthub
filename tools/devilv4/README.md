@@ -6,13 +6,13 @@ This entry does not replace the production main loader or any existing game scri
 ## Included
 
 - DEVIL HUB black translucent GUI, blue/white text, compact layout, existing embedded English/Thai selector.
-- Continuous Auto Dig, Fast Dig aim frequency (5–40 updates/second), live target farming with type/rarity filters.
-- Teleport to loaded materials, eggs, artifacts and potions; duplicate block names retain distinct instance IDs.
+- Continuous Auto Dig, Fast Dig aim frequency (5–40 updates/second), live target farming with type/rarity filters. Retargeting runs on the next scheduler tick after a target disappears; movement settles for 60 ms and mining resumes immediately. Healthy targets do not trigger repeated whole-mine scans. The All filter prioritizes finds over surrounding material blocks.
+- Teleport to loaded materials, eggs, artifacts and potions; duplicate block names retain distinct instance IDs. The separate teleport type selector defaults to eggs, groups by item type, and includes 84 named egg definitions when native catalog loading is unavailable. Types with no streamed instance say Not loaded and resolve again at click time.
 - Item pictures: 31 native image assets for shovels, drills, gear and potions. Eggs/artifacts/materials use actual models in bounded viewport previews.
 - Shovel selection, cash prices and purchased/equipped state. Gear/drill selection, live stock and price, manual purchase/equip and optional auto purchase.
 - Cash reserve and consumable quantity limit. No Robux fallback.
 - Auto plant inventory eggs on clear ground in the player's plot; hatch ready eggs.
-- Auto sell loot, spare eggs or stored pets using fresh server quotes. Stored-pet selling keeps equipped/placed pets according to the native server contract; it can sell valuable unequipped pets.
+- Auto sell loot, spare eggs or stored pets using fresh server quotes. Sale types serialize, pause farm movement, use native travel to the Sell area when the server reports TooFar, refresh changed quotes, and display confirmed CashAdded. Stored-pet selling keeps equipped/placed pets according to the native server contract; it can sell valuable unequipped pets.
 - Auto equip best pets; cash upgrades for training, plot capacity, hatch luck and pet income.
 - Optional rebirth with a stop count; disabled by default. Rebirth uses the game's reset rules.
 - Potion selector and auto use after the selected buff expires; owned gear placement; Pumpkin Launcher use.
@@ -26,7 +26,7 @@ This entry does not replace the production main loader or any existing game scri
 
 This is an offline-validated test, not a live-game compatibility claim. Server checks still decide purchases, rewards, mining and movement. Fast Dig keeps valid continuous mining input; changing aim frequency does not establish a server cooldown bypass. Owned DigSpeed potions and the game's equipment bonuses remain the source of server-authorized speed improvements. No damage bypass, damage-stat mutation, admin/test tool flag, or invulnerability code is included.
 
-Only currently streamed targets can be listed. A teleport needs clear nearby ground and reports server correction. Teleporting beside a block does not grant it; the block still needs mining. Recipes, rarity-selective pet selling, paid growth/reward multipliers, and admin event creation are not invented where the captured client contract does not support them.
+Only currently streamed target instances can be reached. The catalog can display names before an instance is available. Teleports temporarily disable collision on the local character; fully buried targets use a destination over the target's top face and scoped vertical support. Original collisions and support are restored when clear, when stopping, on native travel, or on unload. No world block collision or damage setting is changed. Server correction can still reject movement. Large targets use the closest surface for reach checks. Teleporting beside a block does not grant it; the block still needs mining. Recipes, rarity-selective pet selling, paid growth/reward multipliers, and admin event creation are not invented where the captured client contract does not support them.
 
 All auto jobs start off without a saved profile. To resume a setup, choose the filters/switches, then press **Settings → Save settings**. Use **Stop all automation** before saving an inactive profile.
 

@@ -8,7 +8,7 @@ local P=(function()
 local P={}
 P.Jobs={"Dig","FarmFinds","Plant","Hatch","SellLoot","SellEggs","SellPets","BuyShovel","BuyGear","EquipPets","TrainingUpgrade","PlotUpgrade","HoleLuck","AnimalIncome","Rebirth","Potions","Daily","Offline","PetIndex","EventEggs","EventWaves","UseGear","Pumpkin","Train"}
 function P.Defaults()
-    local c={AimRate=20,FastDig=true,Reserve=0,FindKind="All",FindRarity="All",Shovel="Best affordable",Gear="",GearLimit=1,Potion="DigSpeed",UseGearId="",RebirthLimit=1,TrainSeconds=120,DigSeconds=300,Rotate=false}
+    local c={AimRate=20,FastDig=true,Reserve=0,FindKind="All",FindRarity="All",TeleportKind="Egg",TeleportChoice="",Shovel="Best affordable",Gear="",GearLimit=1,Potion="DigSpeed",UseGearId="",RebirthLimit=1,TrainSeconds=120,DigSeconds=300,Rotate=false}
     for _,key in ipairs(P.Jobs)do c[key]=false end
     return c
 end
@@ -64,7 +64,7 @@ return P
 
 end)()
 local makeAdapter=(function()
-return function(scope)
+return function(scope,catalog)
     local A={Modules={},Pending=scope.DevilV4Pending or{},Snapshots={},Links={},Finds={},Serials=setmetatable({},{__mode="k"}),NextSerial=0,Alive=true}
     scope.DevilV4Pending=A.Pending -- A hung InvokeServer retains its lane across reloads.
     A.Player=game:GetService("Players").LocalPlayer
@@ -136,7 +136,8 @@ return function(scope)
     A.Links[#A.Links+1]=A.Tags:GetInstanceRemovedSignal("MineFind"):Connect(function(n)A.Finds[n]=nil end)
     function A.FindDefinition(kind,id)
         local module=A.Modules[({Egg="EggCatalog",Artifact="ArtifactCatalog",Potion="PotionConfig",Material="MaterialCatalog"})[kind]]
-        return module and module.Types and module.Types[id]or{}
+        local d=module and module.Types and module.Types[id]
+        return type(d)=="table"and d or catalog and catalog[kind]and catalog[kind][id]or{}
     end
     function A.Targets(kind,rarity)
         A.TrackMine()
@@ -150,8 +151,37 @@ return function(scope)
                 end
             end
         end
-        table.sort(list,function(a,b)if a.Distance==b.Distance then return a.Serial<b.Serial end;return a.Distance<b.Distance end)
+        table.sort(list,function(a,b)
+            if kind=="All"and(a.Kind=="Material")~=(b.Kind=="Material")then return a.Kind~="Material"end
+            if a.Distance==b.Distance then return a.Serial<b.Serial end;return a.Distance<b.Distance
+        end)
         return list
+    end
+    function A.TeleportOptions(kind)
+        local grouped={}
+        for _,target in ipairs(A.Targets(kind,"All"))do
+            local key=target.Kind..":"..target.Id;local row=grouped[key]
+            if row then row.Count+=1 else row=table.clone(target);row.Key=key;row.Group=true;row.Count=1;grouped[key]=row end
+        end
+        -- Catalog entries remain named even before their instances stream in.
+        if kind=="Egg"or kind=="All"then
+            local types=table.clone(catalog and catalog.Egg or{})
+            for id,d in pairs(A.Modules.EggCatalog and A.Modules.EggCatalog.Types or{})do types[id]=d end
+            for id,d in pairs(types)do local key="Egg:"..id
+                if not grouped[key]then grouped[key]={Id=id,Key=key,Kind="Egg",Name=d.Name or id.." Egg",Rarity=d.Rarity or"Unknown",Group=true,Count=0,Distance=math.huge}end
+            end
+        end
+        local out={};for _,row in pairs(grouped)do out[#out+1]=row end
+        table.sort(out,function(a,b)
+            if(a.Count>0)~=(b.Count>0)then return a.Count>0 end
+            if a.Kind~=b.Kind then return a.Kind=="Egg"or b.Kind~="Egg"and a.Kind<b.Kind end
+            return a.Name==b.Name and a.Key<b.Key or a.Name<b.Name
+        end)
+        return out
+    end
+    function A.ResolveTarget(target)
+        if not target.Group and A.ValidFind(target.Instance)then local t=table.clone(target);t.Position=t.Instance.Position;return t end
+        for _,candidate in ipairs(A.Targets(target.Kind,"All"))do if candidate.Id==target.Id then return candidate end end
     end
     function A.Ground(position,exclude,maxDepth)
         local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Exclude
@@ -160,7 +190,7 @@ return function(scope)
         return workspace:Raycast(position,Vector3.new(0,-(maxDepth or 24),0),params)
     end
     function A.Stand(target)
-        local c,hum,root=A.Character();if not root then return end
+        local c,hum,root,head=A.Character();if not root then return end
         local p=target.Position;local size=target.Instance and target.Instance.Size or Vector3.new(2,2,2)
         local radius=math.max(size.X,size.Z)/2+2.5
         local offsets=target.Training and{Vector3.zero}or{Vector3.new(radius,0,0),Vector3.new(-radius,0,0),Vector3.new(0,0,radius),Vector3.new(0,0,-radius)}
@@ -170,27 +200,66 @@ return function(scope)
                 local goal=hit.Position+Vector3.new(0,hum.HipHeight+root.Size.Y/2+.15,0)
                 local box=OverlapParams.new();box.FilterType=Enum.RaycastFilterType.Exclude;box.FilterDescendantsInstances={c};box.RespectCanCollide=true
                 local clear=true;for _,part in ipairs(workspace:GetPartBoundsInBox(CFrame.new(goal),Vector3.new(2,3,2),box))do if part.CanCollide then clear=false;break end end
-                if clear then return goal end
+                if clear and(not target.Instance or A.CanSee(target.Instance,goal+(head.Position-root.Position)))then return goal end
             end
         end
+        -- Buried targets have no empty adjacent floor. Stand over their top face
+        -- with a scoped character collision lease instead of rejecting the warp.
+        if target.Instance and A.ValidFind(target.Instance)then
+            return p+Vector3.new(0,size.Y/2+hum.HipHeight+root.Size.Y/2+.15,0),true
+        end
     end
-    function A.Move(target,valid)
+    function A.ReleasePhase()
+        local phase=A.Phase;A.Phase=nil;if not phase then return end
+        if phase.Step then phase.Step:Disconnect()end
+        if phase.Hover then phase.Hover:Destroy()end
+        for part,old in pairs(phase.Parts)do if part.Parent then pcall(function()part.CanCollide=old end)end end
+    end
+    function A.PhaseCharacter(character,root,owner,hover)
+        if A.Phase and A.Phase.Character~=character then A.ReleasePhase()end
+        local phase=A.Phase or{Character=character,Root=root,Parts={}};A.Phase=phase;phase.Owner=owner
+        if not phase.Step then phase.Step=game:GetService("RunService").Stepped:Connect(function()if A.Phase==phase then A.UpdatePhase()end end)end
+        for _,part in ipairs(character:GetDescendants())do if part:IsA("BasePart")then
+            if phase.Parts[part]==nil then phase.Parts[part]=part.CanCollide end;part.CanCollide=false
+        end end
+        if hover and not phase.Hover then
+            local force=Instance.new("BodyVelocity");force.Name="DevilTeleportHover";force.MaxForce=Vector3.new(0,1e6,0);force.Velocity=Vector3.zero;force.Parent=root;phase.Hover=force
+        end
+    end
+    function A.SpaceClear(position,character)
+        local box=OverlapParams.new();box.FilterType=Enum.RaycastFilterType.Exclude;box.FilterDescendantsInstances={character};box.RespectCanCollide=true
+        for _,part in ipairs(workspace:GetPartBoundsInBox(CFrame.new(position),Vector3.new(2,3,2),box))do if part.CanCollide then return false end end
+        return true
+    end
+    function A.UpdatePhase()
+        local phase=A.Phase;if not phase then return end
+        local character,_,root=A.Character()
+        if character~=phase.Character or not root or not A.Alive then A.ReleasePhase();return end
+        if not A.MoveBusy and A.SpaceClear(root.Position,character)then A.ReleasePhase();return end
+        A.PhaseCharacter(character,root,phase.Owner,phase.Hover~=nil)
+    end
+    function A.Move(target,valid,owner)
         if A.MoveBusy then return false,"Another movement is active"end
         if not valid()then return false,"Cancelled"end
         local c,_,root=A.Character();if not root then return false,"Waiting for character"end
         if target.Instance and not A.ValidFind(target.Instance)then return false,"Target disappeared"end
-        local goal=A.Stand(target);if not goal then return false,"No clear ground next to target"end
+        target.Position=target.Instance and target.Instance.Position or target.Position
+        local goal,buried=A.Stand(target);if not goal then return false,"No clear ground next to target"end
         A.MoveBusy=true
         local ok,err=pcall(function()
             if not valid()then return end
+            A.PhaseCharacter(c,root,owner,buried)
             root.AssemblyLinearVelocity=Vector3.zero;root.AssemblyAngularVelocity=Vector3.zero
-            c:PivotTo(CFrame.lookAt(goal,Vector3.new(target.Position.X,goal.Y,target.Position.Z)))
-            task.wait(.4)
+            local facing=Vector3.new(target.Position.X,goal.Y,target.Position.Z)
+            if(facing-goal).Magnitude<.01 then facing=goal+Vector3.new(0,0,-1)end
+            c:PivotTo(CFrame.lookAt(goal,facing))
+            task.wait(.06)
         end)
         A.MoveBusy=false
-        if not ok then return false,tostring(err)end
-        if not valid()then return false,"Cancelled"end
-        local _,_,current=A.Character();if current~=root or(root.Position-goal).Magnitude>7 then return false,"Teleport not confirmed (server correction or respawn)"end
+        if not ok then A.ReleasePhase();return false,tostring(err)end
+        if not valid()then A.ReleasePhase();return false,"Cancelled"end
+        local _,_,current=A.Character();if current~=root or(root.Position-goal).Magnitude>7 then A.ReleasePhase();return false,"Teleport not confirmed (server correction or respawn)"end
+        A.UpdatePhase()
         return true,"Arrived"
     end
     function A.Aim(target)
@@ -198,8 +267,9 @@ return function(scope)
         local config=A.Modules.DigConfig;local reach=config and config.Reach or 30
         local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Exclude;params.FilterDescendantsInstances={c}
         if target then
-            if not A.ValidFind(target.Instance)or(target.Instance.Position-head.Position).Magnitude>reach then return end
-            local delta=target.Instance.Position-head.Position;if delta.Magnitude<.1 then return end
+            if not A.ValidFind(target.Instance)then return end
+            local point=target.Instance:GetClosestPointOnSurface(head.Position)
+            local delta=point-head.Position;if delta.Magnitude<.1 or delta.Magnitude>reach then return end
             local hit=workspace:Raycast(head.Position,delta.Unit*(delta.Magnitude+1),params)
             if not hit or hit.Instance~=target.Instance then return end
             return head.Position,delta.Unit,target.Kind=="Material"and"Aim"or"Find",target.Kind~="Material"and target.Instance or nil
@@ -207,6 +277,13 @@ return function(scope)
         local hit=workspace:Raycast(head.Position,Vector3.new(0,-reach,0),params)
         local mine=A.Mine();if not hit or not mine or not hit.Instance:IsDescendantOf(mine)or hit.Instance:GetAttribute("MineBoundary")or hit.Instance:GetAttribute("Diggable")~=true then return end
         return head.Position,Vector3.new(0,-1,0),"Down",nil
+    end
+    function A.CanSee(part,origin)
+        local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Exclude;params.FilterDescendantsInstances={A.Player.Character}
+        local point=part:GetClosestPointOnSurface(origin);local delta=point-origin
+        if delta.Magnitude<.1 then return false end
+        local hit=workspace:Raycast(origin,delta.Unit*(delta.Magnitude+1),params)
+        return hit and hit.Instance==part
     end
     function A.Tools()
         local list={};for _,parent in ipairs({A.Player:FindFirstChild("Backpack"),A.Player.Character})do
@@ -258,15 +335,16 @@ return function(scope)
             for i,n in ipairs(mine:GetDescendants())do if not A.Alive or A.TrackedMine~=mine then break end;track(n);if i%200==0 then task.wait()end end
         end)
     end
-    function A.Destroy()A.Alive=false;for _,c in ipairs(A.Links)do c:Disconnect()end end
+    function A.Destroy()A.ReleasePhase();A.Alive=false;for _,c in ipairs(A.Links)do c:Disconnect()end end
     return A
 end
 
 end)()
 local makeCore=(function()
 return function(A,P)
-    local C={Config=P.Defaults(),Jobs={},Alive=true,Mining=false,Generation=0,Report={Version="devilv4-test-20261020-1",Jobs={},Requests=0,Replies=0,Confirmed=0,Errors={},LiveVerified=false},Target=nil}
+    local C={Config=P.Defaults(),Jobs={},Alive=true,Mining=false,Generation=0,Report={Version="devilv4-test-20261020-2",Jobs={},Requests=0,Replies=0,Confirmed=0,Errors={},LiveVerified=false},Target=nil}
     local cfg=C.Config;local busyMoney=false;local movingJob=nil;local epoch={};local plans={};local collected={};local eventState
+    local aimAt,lastAimTarget=0,nil;local nextAt={};local farmRetryAt=0
     local function status(key,text)C.Report.Jobs[key]=tostring(text)end
     local function result(key,data,err)
         if type(data)=="table"then
@@ -279,17 +357,19 @@ return function(A,P)
         C.Report.Requests+=1;local data,err=A.Invoke(remote,...);return result(key,data,err)
     end
     function C.StopMining()
-        if C.Mining then A.Fire("Mining","Stop");C.Mining=false end
+        if C.Mining then A.Fire("Mining","Stop");C.Mining=false end;aimAt=0;lastAimTarget=nil
     end
     function C.Set(key,value)
         if type(cfg[key])~="boolean"then return end
         cfg[key]=value==true;epoch[key]=(epoch[key]or 0)+1
-        if not value then status(key,"Off");if key=="Dig"or key=="FarmFinds"or key=="Train"then C.StopMining();C.Target=nil end end
+        nextAt[key]=nil
+        if not value then status(key,"Off");if key=="Dig"or key=="FarmFinds"or key=="Train"then C.StopMining();C.Target=nil;if A.ReleasePhase then A.ReleasePhase()end end end
     end
     function C.StopAll()
         C.Generation+=1
         for _,key in ipairs(P.Jobs)do C.Set(key,false)end
         C.StopMining();C.Target=nil;status("System","Stopped")
+        if A.ReleasePhase then A.ReleasePhase()end
     end
     function C.Run(key,fn,manual)
         if C.Jobs[key]or not C.Alive then return end
@@ -310,18 +390,23 @@ return function(A,P)
         local ok,err=xpcall(fn,debug.traceback);busyMoney=false;if not ok then error(err)end
     end
     local function move(valid,key,target)
+        if C.Selling and C.Selling~=key then status(key,"Waiting for sale");return false end
         if movingJob and movingJob~=key then status(key,"Waiting for movement queue");return false end
         movingJob=key;C.StopMining()
-        local callOK,ok,msg=pcall(A.Move,target,valid);movingJob=nil
+        local callOK,ok,msg=pcall(A.Move,target,valid,key);movingJob=nil
         if not callOK then error(ok)end
         status(key,msg);return ok
     end
     function C.Teleport(target)
-        C.Run("Teleport",function(valid)C.Target=nil;move(valid,"Teleport",target)end,true)
+        C.Run("Teleport",function(valid)
+            target=A.ResolveTarget(target)
+            if not target then status("Teleport","No loaded instance of the selected item");return end
+            C.Target=nil;move(valid,"Teleport",target)
+        end,true)
     end
     function C.Surface(mode)
         C.Run("Travel",function(valid)
-            if movingJob then return end;C.StopMining();C.Target=nil
+            if movingJob or C.Selling then return end;C.StopMining();C.Target=nil;if A.ReleasePhase then A.ReleasePhase()end
             local _,_,r=A.Character();local before=r and r.Position
             if valid()then A.Fire("Surface",mode);A.Wait(.6)end
             if not valid()then return end
@@ -336,13 +421,18 @@ return function(A,P)
     end
     local handlers={}
     handlers.FarmFinds=function(valid)
-        if C.Jobs.Plant or A.Attr("AfkTraining",false)or(cfg.Train and not cfg.Rotate)then return end
-        local targets=A.Targets(cfg.FindKind,cfg.FindRarity)
+        if C.Selling or C.Jobs.Plant or A.Attr("AfkTraining",false)or(cfg.Train and not cfg.Rotate)then return end
         local target=C.Target
-        if not target or not A.ValidFind(target.Instance)or target.Kind~=cfg.FindKind and cfg.FindKind~="All"or target.Rarity~=cfg.FindRarity and cfg.FindRarity~="All"then target=targets[1];C.Target=target end
+        if not target or not A.ValidFind(target.Instance)or target.Kind~=cfg.FindKind and cfg.FindKind~="All"or target.Rarity~=cfg.FindRarity and cfg.FindRarity~="All"then
+            target=A.Targets(cfg.FindKind,cfg.FindRarity)[1];C.Target=target
+        end
         if not target then status("FarmFinds","Waiting for streamed targets");return end
-        if not A.Aim(target)then move(valid,"FarmFinds",target)end
-        if valid()then status("FarmFinds","Target: "..target.Name.." #"..target.Serial)end
+        if not A.Aim(target)then
+            if A.Clock()<farmRetryAt then return end
+            local arrived=move(valid,"FarmFinds",target)
+            if not arrived then farmRetryAt=A.Clock()+.5;return end
+        end
+        if valid()then status("FarmFinds","Target: "..target.Name.." #"..target.Serial);C.UpdateMining()end
     end
     handlers.Plant=function(valid)
         if movingJob or C.Jobs.Train or A.Attr("AfkTraining",false)then return end
@@ -369,9 +459,41 @@ return function(A,P)
     for key,entry in pairs({SellLoot={"SellAll"},SellEggs={"SellSpareEggs","SpareEggs"},SellPets={"SellStoredPets","StoredPets"}})do
         local job,action,quoteKey=key,entry[1],entry[2]
         handlers[job]=function(valid)
-            local snap=invoke(valid,job,"Sell","Open");if type(snap)~="table"then return end;A.Snapshots.Sell=snap
-            if quoteKey then local quote=P.Quote(snap,quoteKey);if quote==nil then status(job,"Nothing to sell");return end;invoke(valid,job,"Sell",action,quote)
-            elseif(tonumber(snap.Total)or 0)>0 then invoke(valid,job,"Sell",action)else status(job,"Nothing to sell")end
+            if C.Selling or movingJob or A.MoveBusy then nextAt[job]=A.Clock()+.2;return end
+            C.Selling=job;C.StopMining()
+            local ok,err=xpcall(function()
+                local function snapshot()
+                    local snap=invoke(valid,job,"Sell","Open")
+                    if type(snap)=="table"and(snap.Code=="TooFar"or snap.Code=="OutOfRange")and valid()then
+                        if A.ReleasePhase then A.ReleasePhase()end
+                        A.Fire("Surface","Sell");status(job,"Travelling to sell area");A.Wait(.25)
+                        for _=1,3 do
+                            if not valid()then return end
+                            snap=invoke(valid,job,"Sell","Open")
+                            if type(snap)=="table"and type(snap.Items)=="table"then break end
+                            if type(snap)~="table"or(snap.Code~="TooFar"and snap.Code~="OutOfRange")then break end
+                            A.Wait(.2)
+                        end
+                    end
+                    return snap
+                end
+                local snap=snapshot();if type(snap)~="table"then return end
+                if type(snap.Items)~="table"then status(job,snap.Code or"Invalid sale snapshot");return end
+                A.Snapshots.Sell=snap
+                local quote=quoteKey and P.Quote(snap,quoteKey)
+                if quoteKey and quote==nil or not quoteKey and(tonumber(snap.Total)or 0)<=0 then status(job,"Nothing to sell");return end
+                local reply=invoke(valid,job,"Sell",action,quote)
+                if type(reply)=="table"and reply.Code=="Changed"and valid()then
+                    snap=snapshot();quote=quoteKey and P.Quote(snap,quoteKey)
+                    if snap and(quoteKey and quote~=nil or not quoteKey and(tonumber(snap.Total)or 0)>0)then reply=invoke(valid,job,"Sell",action,quote)end
+                end
+                if type(reply)=="table"then
+                    if reply.Items then A.Snapshots.Sell=reply end
+                    local cash=tonumber(reply.CashAdded)or 0
+                    status(job,cash>0 and("Sold +$"..P.Money(cash))or(reply.Code or"Sale not confirmed"))
+                end
+            end,debug.traceback)
+            C.Selling=nil;if not ok then error(err)end
         end
     end
     function C.BuyShovel(valid,choice)
@@ -556,23 +678,30 @@ return function(A,P)
         move(valid,"Train",{Position=frame:PointToWorldSpace(progression.TrainingOffset),Training=true})
         if valid()then status("Train",A.Attr("AfkTraining",false)and"Training confirmed"or"Arrived; waiting for training trigger")end
     end
-    local intervals={FarmFinds=1,Plant=2,Hatch=2,SellLoot=8,SellEggs=10,SellPets=12,BuyShovel=6,BuyGear=6,EquipPets=4,TrainingUpgrade=6,PlotUpgrade=6,HoleLuck=6,AnimalIncome=6,Rebirth=10,Potions=5,Daily=30,Offline=30,PetIndex=30,EventEggs=.65,EventWaves=.5,UseGear=23,Pumpkin=1,Train=3}
-    local nextAt={};local aimAt=0
+    local intervals={FarmFinds=.1,Plant=2,Hatch=2,SellLoot=5,SellEggs=5,SellPets=5,BuyShovel=6,BuyGear=6,EquipPets=4,TrainingUpgrade=6,PlotUpgrade=6,HoleLuck=6,AnimalIncome=6,Rebirth=10,Potions=5,Daily=30,Offline=30,PetIndex=30,EventEggs=.65,EventWaves=.5,UseGear=23,Pumpkin=1,Train=3}
     function C.Tick()
         if not C.Alive then return end
+        if A.UpdatePhase then A.UpdatePhase()end
         local now=A.Clock()
         for key,fn in pairs(handlers)do
-            if cfg[key]and now>=(nextAt[key]or 0)then nextAt[key]=now+(intervals[key]or 5);C.Run(key,fn)end
+            local urgent=key=="FarmFinds"and C.Target and not A.ValidFind(C.Target.Instance)
+            if cfg[key]and(now>=(nextAt[key]or 0)or urgent)then nextAt[key]=now+(intervals[key]or 5);C.Run(key,fn)end
         end
-        if not(cfg.Dig or cfg.FarmFinds)or movingJob or A.MoveBusy or C.Jobs.Plant or C.Jobs.Potions or C.Jobs.UseGear or C.Jobs.Pumpkin or A.Blocked()or A.Attr("AfkTraining",false)then C.StopMining();return end
-        if now<aimAt then return end
+        C.UpdateMining()
+    end
+    function C.UpdateMining()
+        local now=A.Clock()
+        if not C.Alive or not(cfg.Dig or cfg.FarmFinds)or C.Selling or movingJob or A.MoveBusy or C.Jobs.Plant or C.Jobs.Potions or C.Jobs.UseGear or C.Jobs.Pumpkin or A.Blocked()or A.Attr("AfkTraining",false)then C.StopMining();return end
+        if cfg.FarmFinds and not C.Target then C.StopMining();status("Dig","Waiting for selected target");return end
+        local targetKey=cfg.FarmFinds and C.Target and C.Target.Instance or"Down"
+        if now<aimAt and lastAimTarget==targetKey then return end
         local rate=cfg.FastDig and P.Number(cfg.AimRate,20,5,40)or 10;aimAt=now+1/rate
         local equipment=A.Modules.Equipment
         if equipment and not equipment.shovel(A.Player.Character)then C.StopMining();status("Dig","Waiting for equipped shovel / drill");return end
         local origin,direction,mode,selected=A.Aim(cfg.FarmFinds and C.Target or nil)
         if not origin then C.StopMining();status("Dig","Waiting for reachable diggable ground");return end
         local sent,err=A.Fire("Mining",C.Mining and"Aim"or"Start",origin,direction,mode,selected)
-        if sent then C.Mining=true;status("Dig",string.format("Continuous mining | %d aim updates/s",rate))else C.Mining=false;status("Dig",err)end
+        if sent then C.Mining=true;lastAimTarget=targetKey;status("Dig",string.format("Continuous mining | %d aim updates/s",rate))else C.Mining=false;status("Dig",err)end
     end
     function C.Destroy()C.StopAll();C.Alive=false;A.Destroy()end
     C.Handlers=handlers
@@ -583,11 +712,12 @@ end)()
 local makeView=(function()
 return function(window,A,P,assets)
     local V={Pickers={},Alive=true,Models={},Loading={},PreviewCount=0}
+    local function imageFor(item)return(item.Kind==nil or item.Kind=="Potion")and assets[item.Id]or nil end
     local function node(class,parent,props)
         local n=Instance.new(class);for k,v in pairs(props)do n[k]=v end;n.Parent=parent;return n
     end
     function V.Image(parent,item,size)
-        local icon=assets[item.Id]
+        local icon=imageFor(item)
         if icon then
             local n=node("ImageLabel",parent,{Name="DevilItemIcon",Size=UDim2.fromOffset(size,size),BackgroundTransparency=1,Image=icon,ImageColor3=Color3.new(1,1,1),ScaleType=Enum.ScaleType.Fit,ZIndex=parent.ZIndex+1})
             n:SetAttribute("CustomIcon",true);return n
@@ -641,7 +771,7 @@ return function(window,A,P,assets)
         local signature=table.concat(names,"\0")
         if signature~=picker.Signature then
             picker.Widget:Refresh(names,true,true);picker.Signature=signature
-            if selected then for _,name in ipairs(names)do if map[name].Id==selected then picker.Widget:Set(name,true);break end end end
+            if selected then for _,name in ipairs(names)do if(map[name].Key or map[name].Id)==selected then picker.Widget:Set(name,true);break end end end
         end
         if not picker.Popup then return end
         for _,label in ipairs(picker.Popup:GetDescendants())do
@@ -651,11 +781,11 @@ return function(window,A,P,assets)
                     local row=picker.Rows[label]
                     if not row then
                         row={Label=label,Parent=label.Parent};picker.Rows[label]=row
-                        label.Position=UDim2.fromOffset(44,0);label.Size=UDim2.new(1,-175,1,0)
+                        label.Position=UDim2.fromOffset(44,0);label.Size=UDim2.new(1,-175,1,0);label.TextColor3=Color3.new(1,1,1);label.TextTransparency=0
                         row.Price=node("TextLabel",label.Parent,{Name="DevilItemPrice",Size=UDim2.fromOffset(118,30),AnchorPoint=Vector2.new(1,.5),Position=UDim2.new(1,-26,.5,0),BackgroundTransparency=1,Font=Enum.Font.Gotham,TextSize=10,TextColor3=Color3.fromRGB(164,221,255),TextXAlignment=Enum.TextXAlignment.Right,ZIndex=label.ZIndex+1,Text=""})
                     end
                     row.Item=item;row.Price.Text=item.Detail or""
-                    if assets[item.Id]and not row.Icon then row.Icon=V.Image(row.Parent,item,26);row.Icon.Position=UDim2.new(0,10,.5,-13)end
+                    if imageFor(item)and not row.Icon then row.Icon=V.Image(row.Parent,item,26);row.Icon.Position=UDim2.new(0,10,.5,-13)end
                 end
             end
         end
@@ -665,7 +795,7 @@ return function(window,A,P,assets)
         local count=0
         for _,picker in pairs(V.Pickers)do
             for label,row in pairs(picker.Rows)do
-                if row.Item and not assets[row.Item.Id]then
+                if row.Item and not imageFor(row.Item)then
                     local popup=picker.Popup;local visible=V.Alive and label.Parent and popup and popup.Visible and label.AbsolutePosition.Y>=popup.AbsolutePosition.Y and label.AbsolutePosition.Y<popup.AbsolutePosition.Y+popup.AbsoluteSize.Y
                     if visible and count<8 then
                         count+=1;if not row.Icon then row.Icon=V.Image(row.Parent,row.Item,26);row.Icon.Position=UDim2.new(0,10,.5,-13)end
@@ -680,10 +810,11 @@ end
 
 end)()
 local assets={["Basic"]="rbxassetid://82607806582254",["Grey"]="rbxassetid://84718066117646",["Green"]="rbxassetid://108153605421728",["Blue"]="rbxassetid://88201373524492",["Purple"]="rbxassetid://133348464670729",["Golden"]="rbxassetid://137223701139677",["Red"]="rbxassetid://100868825563504",["Galaxy"]="rbxassetid://124079969014331",["Secret"]="rbxassetid://88306339908791",["Eternal"]="rbxassetid://91735956058773",["Divine"]="rbxassetid://79013272643598",["Godly"]="rbxassetid://132789056550916",["Transcendent"]="rbxassetid://117387295659510",["Primordial"]="rbxassetid://90759316679765",["Astronomical"]="rbxassetid://87920012641201",["IndustrialDrill"]="rbxassetid://127003251000511",["TitaniumDrill"]="rbxassetid://128557810440603",["PlasmaDrill"]="rbxassetid://76715730228084",["TNT1"]="rbxassetid://89598348008470",["TNT2"]="rbxassetid://124515546167383",["TNT3"]="rbxassetid://122561807137176",["Radar1"]="rbxassetid://137161613613305",["Radar2"]="rbxassetid://72044897314343",["Radar3"]="rbxassetid://129979864742344",["MoonTotem"]="rbxassetid://118815397419556",["PumpkinLauncher"]="rbxassetid://107596347538694",["Training"]="rbxassetid://124340074431648",["Cash"]="rbxassetid://84748695520060",["DigSpeed"]="rbxassetid://70443377049090",["HatchLuck"]="rbxassetid://109301581007466",["Growth"]="rbxassetid://139703536386984"}
-local A=makeAdapter(scope);local C=makeCore(A,P);local cfg=C.Config
+local catalog={["Egg"]={["Titanic__Nebula"]={["Name"]="Titanic Nebula Egg",["Rarity"]="Eternal",["Tier"]=9},["Honey"]={["Name"]="Honey Egg",["Rarity"]="Epic",["Tier"]=4},["Titanic__Empyrean"]={["Name"]="Titanic Empyrean Egg",["Rarity"]="Godly",["Tier"]=11},["Titanic__Slate"]={["Name"]="Titanic Slate Egg",["Rarity"]="Rare",["Tier"]=3},["Huge__Cataclysm"]={["Name"]="Huge Null Egg",["Rarity"]="Zero",["Tier"]=13},["Titanic__Fern"]={["Name"]="Titanic Fern Egg",["Rarity"]="Uncommon",["Tier"]=2},["Cataclysm"]={["Name"]="Null Egg",["Rarity"]="Zero",["Tier"]=13},["Titanic__Void"]={["Name"]="Titanic Void Egg",["Rarity"]="Secret",["Tier"]=8},["Relic"]={["Name"]="Relic Egg",["Rarity"]="Mythic",["Tier"]=6},["Titanic__Soil"]={["Name"]="Titanic Soil Egg",["Rarity"]="Common",["Tier"]=1},["Titanic__Genesis"]={["Name"]="Titanic Genesis Egg",["Rarity"]="Godly",["Tier"]=11},["Fossil"]={["Name"]="Fossil Egg",["Rarity"]="Mythic",["Tier"]=6},["Titanic__Crystal"]={["Name"]="Titanic Crystal Egg",["Rarity"]="Legendary",["Tier"]=5},["Huge__Unfathomable"]={["Name"]="Huge Unfathomable Egg",["Rarity"]="Godly",["Tier"]=11},["Huge__Astral"]={["Name"]="Huge Astral Egg",["Rarity"]="Eternal",["Tier"]=9},["Titanic__Moss"]={["Name"]="Titanic Moss Egg",["Rarity"]="Uncommon",["Tier"]=2},["Titanic__Paradox"]={["Name"]="Titanic Paradox Egg",["Rarity"]="Transcendent",["Tier"]=12},["Starlight"]={["Name"]="Starlight Egg",["Rarity"]="Astronomical",["Tier"]=14},["Titanic__Magma"]={["Name"]="Titanic Magma Egg",["Rarity"]="Cosmic",["Tier"]=7},["Huge__Void"]={["Name"]="Huge Void Egg",["Rarity"]="Secret",["Tier"]=8},["Nebula"]={["Name"]="Nebula Egg",["Rarity"]="Eternal",["Tier"]=9},["Astral"]={["Name"]="Astral Egg",["Rarity"]="Eternal",["Tier"]=9},["Titanic__Zenith"]={["Name"]="Titanic Zenith Egg",["Rarity"]="Transcendent",["Tier"]=12},["Titanic__Clay"]={["Name"]="Titanic Clay Egg",["Rarity"]="Common",["Tier"]=1},["Huge__Stone"]={["Name"]="Huge Stone Egg",["Rarity"]="Rare",["Tier"]=3},["Ember"]={["Name"]="Ember Egg",["Rarity"]="Cosmic",["Tier"]=7},["Huge__Fossil"]={["Name"]="Huge Fossil Egg",["Rarity"]="Mythic",["Tier"]=6},["Huge__Fern"]={["Name"]="Huge Fern Egg",["Rarity"]="Uncommon",["Tier"]=2},["Huge__Nebula"]={["Name"]="Huge Nebula Egg",["Rarity"]="Eternal",["Tier"]=9},["Divine"]={["Name"]="Divine Egg",["Rarity"]="Divine",["Tier"]=10},["Titanic__Honey"]={["Name"]="Titanic Honey Egg",["Rarity"]="Epic",["Tier"]=4},["Huge__Divine"]={["Name"]="Huge Divine Egg",["Rarity"]="Divine",["Tier"]=10},["Titanic__Relic"]={["Name"]="Titanic Relic Egg",["Rarity"]="Mythic",["Tier"]=6},["Titanic__Unfathomable"]={["Name"]="Titanic Unfathomable Egg",["Rarity"]="Godly",["Tier"]=11},["Slate"]={["Name"]="Slate Egg",["Rarity"]="Rare",["Tier"]=3},["Titanic__Supernova"]={["Name"]="Titanic Supernova Egg",["Rarity"]="Astronomical",["Tier"]=14},["Titanic__Starlight"]={["Name"]="Titanic Starlight Egg",["Rarity"]="Astronomical",["Tier"]=14},["Titanic__Cataclysm"]={["Name"]="Titanic Null Egg",["Rarity"]="Zero",["Tier"]=13},["Titanic__Seraph"]={["Name"]="Titanic Seraph Egg",["Rarity"]="Divine",["Tier"]=10},["Titanic__Amber"]={["Name"]="Titanic Amber Egg",["Rarity"]="Epic",["Tier"]=4},["Titanic__Divine"]={["Name"]="Titanic Divine Egg",["Rarity"]="Divine",["Tier"]=10},["Seraph"]={["Name"]="Seraph Egg",["Rarity"]="Divine",["Tier"]=10},["Titanic__Astral"]={["Name"]="Titanic Astral Egg",["Rarity"]="Eternal",["Tier"]=9},["Huge__Crystal"]={["Name"]="Huge Crystal Egg",["Rarity"]="Legendary",["Tier"]=5},["Huge__Amber"]={["Name"]="Huge Amber Egg",["Rarity"]="Epic",["Tier"]=4},["Huge__Starlight"]={["Name"]="Huge Starlight Egg",["Rarity"]="Astronomical",["Tier"]=14},["Unfathomable"]={["Name"]="Unfathomable Egg",["Rarity"]="Godly",["Tier"]=11},["Huge__Prism"]={["Name"]="Huge Prism Egg",["Rarity"]="Legendary",["Tier"]=5},["Void"]={["Name"]="Void Egg",["Rarity"]="Secret",["Tier"]=8},["Huge__Soil"]={["Name"]="Huge Soil Egg",["Rarity"]="Common",["Tier"]=1},["Huge__Moss"]={["Name"]="Huge Moss Egg",["Rarity"]="Uncommon",["Tier"]=2},["Titanic__Ember"]={["Name"]="Titanic Ember Egg",["Rarity"]="Cosmic",["Tier"]=7},["Titanic__Fossil"]={["Name"]="Titanic Fossil Egg",["Rarity"]="Mythic",["Tier"]=6},["Empyrean"]={["Name"]="Empyrean Egg",["Rarity"]="Godly",["Tier"]=11},["Moss"]={["Name"]="Moss Egg",["Rarity"]="Uncommon",["Tier"]=2},["Prism"]={["Name"]="Prism Egg",["Rarity"]="Legendary",["Tier"]=5},["Titanic__Eclipse"]={["Name"]="Titanic Eclipse Egg",["Rarity"]="Secret",["Tier"]=8},["Eclipse"]={["Name"]="Eclipse Egg",["Rarity"]="Secret",["Tier"]=8},["Stone"]={["Name"]="Stone Egg",["Rarity"]="Rare",["Tier"]=3},["Huge__Clay"]={["Name"]="Huge Clay Egg",["Rarity"]="Common",["Tier"]=1},["Titanic__Stone"]={["Name"]="Titanic Stone Egg",["Rarity"]="Rare",["Tier"]=3},["Huge__Empyrean"]={["Name"]="Huge Empyrean Egg",["Rarity"]="Godly",["Tier"]=11},["Huge__Ember"]={["Name"]="Huge Ember Egg",["Rarity"]="Cosmic",["Tier"]=7},["Huge__Genesis"]={["Name"]="Huge Genesis Egg",["Rarity"]="Godly",["Tier"]=11},["Huge__Zenith"]={["Name"]="Huge Zenith Egg",["Rarity"]="Transcendent",["Tier"]=12},["Magma"]={["Name"]="Magma Egg",["Rarity"]="Cosmic",["Tier"]=7},["Huge__Magma"]={["Name"]="Huge Magma Egg",["Rarity"]="Cosmic",["Tier"]=7},["Huge__Slate"]={["Name"]="Huge Slate Egg",["Rarity"]="Rare",["Tier"]=3},["Paradox"]={["Name"]="Paradox Egg",["Rarity"]="Transcendent",["Tier"]=12},["Crystal"]={["Name"]="Crystal Egg",["Rarity"]="Legendary",["Tier"]=5},["Huge__Seraph"]={["Name"]="Huge Seraph Egg",["Rarity"]="Divine",["Tier"]=10},["Huge__Honey"]={["Name"]="Huge Honey Egg",["Rarity"]="Epic",["Tier"]=4},["Soil"]={["Name"]="Soil Egg",["Rarity"]="Common",["Tier"]=1},["Fern"]={["Name"]="Fern Egg",["Rarity"]="Uncommon",["Tier"]=2},["Zenith"]={["Name"]="Zenith Egg",["Rarity"]="Transcendent",["Tier"]=12},["Huge__Paradox"]={["Name"]="Huge Paradox Egg",["Rarity"]="Transcendent",["Tier"]=12},["Huge__Eclipse"]={["Name"]="Huge Eclipse Egg",["Rarity"]="Secret",["Tier"]=8},["Clay"]={["Name"]="Clay Egg",["Rarity"]="Common",["Tier"]=1},["Amber"]={["Name"]="Amber Egg",["Rarity"]="Epic",["Tier"]=4},["Genesis"]={["Name"]="Genesis Egg",["Rarity"]="Godly",["Tier"]=11},["Titanic__Prism"]={["Name"]="Titanic Prism Egg",["Rarity"]="Legendary",["Tier"]=5},["Huge__Relic"]={["Name"]="Huge Relic Egg",["Rarity"]="Mythic",["Tier"]=6},["Huge__Supernova"]={["Name"]="Huge Supernova Egg",["Rarity"]="Astronomical",["Tier"]=14},["Supernova"]={["Name"]="Supernova Egg",["Rarity"]="Astronomical",["Tier"]=14}}}
+local A=makeAdapter(scope,catalog);local C=makeCore(A,P);local cfg=C.Config
 local app={Version=C.Report.Version,Core=C,Adapter=A,Config=cfg,Report=C.Report,Stopped=false};scope.DevilV4Test=app
 local window,view,library,logo;local rebuilding=false;local language="EN";local languageOwner,baseSet,wrappedSet
-local statusWidget,detailsWidget,settingsWidget;local controls={};local jobNames={};local selectedTarget;local lastRefresh=0
+local statusWidget,detailsWidget,settingsWidget,travelWidget,sellWidget;local controls={};local jobNames={};local selectedTarget;local lastRefresh=0
 local profile="DevilHub_MiningTest_"..A.Player.UserId.."_"..game.PlaceId..".json"
 local settingsStatus="Ready";local buildUI
 local function t(en,th)return language=="TH"and th or en end
@@ -775,10 +906,16 @@ end
         slider(grow,"TrainSeconds","Training seconds","เวลาฝึก (วินาที)",15,900,15);slider(grow,"DigSeconds","Mining seconds","เวลาขุด (วินาที)",15,900,15)
         grow:CreateLabel({Text=t("Planting needs clear ground on your own plot.","การวางไข่ต้องมีพื้นที่ว่างในฐานของคุณ")})
         local travel=tab("Teleport","วาร์ป","map-pin");local targetGroup=group(travel,"Live targets","เป้าหมายที่มีอยู่จริง")
-        view.Picker(targetGroup,"Targets",t("Ore / item target","เลือกแร่หรือสิ่งของ"),function(_,item)selectedTarget=item end)
-        button(targetGroup,"Teleport to selected target","วาร์ปไปเป้าหมายที่เลือก",function()if selectedTarget then C.Teleport(selectedTarget)end end)
-        button(targetGroup,"Teleport to nearest matching target","วาร์ปไปเป้าหมายที่ใกล้ที่สุด",function()local target=A.Targets(cfg.FindKind,cfg.FindRarity)[1];if target then C.Teleport(target)end end)
-        targetGroup:CreateLabel({Text=t("Shows the nearest 120 streamed blocks. Filters are in Farm.","แสดง 120 เป้าหมายที่ใกล้ที่สุดและโหลดแล้ว ตั้งตัวกรองในหน้าฟาร์ม")})
+        choose(targetGroup,"TeleportKind","Teleport target type","ประเภทเป้าหมายวาร์ป",{"Egg","Artifact","Potion","Material","All"})
+        view.Picker(targetGroup,"Targets",t("Ore / item target","เลือกแร่หรือสิ่งของ"),function(_,item)selectedTarget=item;cfg.TeleportChoice=item.Key end)
+        button(targetGroup,"Teleport to selected target","วาร์ปไปเป้าหมายที่เลือก",function()
+            local target=selectedTarget
+            for _,item in ipairs(A.TeleportOptions(cfg.TeleportKind))do if item.Key==cfg.TeleportChoice then target=item;break end end
+            if target then C.Teleport(target)end
+        end)
+        button(targetGroup,"Teleport to nearest matching target","วาร์ปไปเป้าหมายที่ใกล้ที่สุด",function()local target=A.Targets(cfg.TeleportKind,"All")[1];if target then C.Teleport(target)end end)
+        targetGroup:CreateLabel({Text=t("Egg names are grouped by type. Not loaded = no current target.","แสดงชื่อไข่แยกตามชนิด หากยังไม่โหลดจะยังไม่มีเป้าหมายวาร์ป")})
+        travelWidget=targetGroup:CreateLabel({Text=t("Select an item to teleport through obstacles.","เลือกสิ่งของเพื่อวาร์ปผ่านสิ่งกีดขวาง")})
         local destinations=group(travel,"Destinations","สถานที่","Right")
         for _,dest in ipairs({{"Home","Home","บ้าน"},{"Plot","My plot","ฐานของฉัน"},{"Surface","Surface","พื้นผิว"},{"DigSite","Dig site","จุดขุด"},{"Sell","Sell area","จุดขาย"}})do
             local mode=dest[1];button(destinations,dest[2],dest[3],function()C.Surface(mode)end)
@@ -798,6 +935,7 @@ end
         toggle(sell,"SellLoot","Auto Sell Loot","ขายของขุดอัตโนมัติ");toggle(sell,"SellEggs","Auto Sell Spare Eggs","ขายไข่สำรองอัตโนมัติ");toggle(sell,"SellPets","Auto Sell Stored Pets","ขายสัตว์ในกระเป๋าอัตโนมัติ")
         sell:CreateParagraph({Name=t("Stored pet sale","ขายสัตว์ในกระเป๋า"),Content=t("Sells unequipped pets. Placed pets stay. Uses the game's current sale quote.","ขายสัตว์ที่ไม่ได้ใช้งาน เก็บตัวที่วางในฐานไว้ ใช้ใบเสนอราคาล่าสุดจากเกม")})
         toggle(sell,"EquipPets","Auto Equip Best Pets","ใช้สัตว์ที่ดีที่สุดอัตโนมัติ")
+        sellWidget=sell:CreateLabel({Text=t("Sale results appear here.","ผลการขายจะแสดงตรงนี้")})
         local buffs=group(inv,"Potions and gear use","ยาและการใช้อุปกรณ์","Right")
         view.Picker(buffs,"Potions",t("Potion","ยา"),function(id)cfg.Potion=id end)
         toggle(buffs,"Potions","Auto Use Potion When Expired","ใช้ยาเมื่อบัฟหมดอัตโนมัติ")
@@ -846,9 +984,15 @@ end
         local good,err=pcall(loadSettings);if not good then settingsStatus=tostring(err)end
     end
     local function refresh()
-        local targets=A.Targets(cfg.FindKind,cfg.FindRarity);local options={}
-        for i=1,math.min(120,#targets)do local item=targets[i];item.Label=item.Name.." #"..item.Serial;item.Detail=item.Rarity.."\n"..math.floor(item.Distance).." studs";options[#options+1]=item end
-        view.Refresh("Targets",options)
+        local options=A.TeleportOptions(cfg.TeleportKind)
+        for _,item in ipairs(options)do
+            item.Label=item.Name
+            item.Detail=item.Count>0 and(tostring(item.Count)..t(" found"," จุด").."\n"..math.floor(item.Distance).." studs")or t("Not loaded","ยังไม่โหลด")
+        end
+        view.Refresh("Targets",options,cfg.TeleportChoice)
+        travelWidget:Set(C.Report.Jobs.Teleport or C.Report.Jobs.Travel or t("Select an item to teleport through obstacles.","เลือกสิ่งของเพื่อวาร์ปผ่านสิ่งกีดขวาง"),true)
+        local saleLines={};for _,key in ipairs({"SellLoot","SellEggs","SellPets"})do if cfg[key]then saleLines[#saleLines+1]=(jobNames[key]or key)..": "..(C.Report.Jobs[key]or"Starting")end end
+        sellWidget:Set(table.concat(saleLines,"\n"),true)
         local shovelOptions={{Id="Best affordable",Name=t("Best affordable","ดีที่สุดที่ซื้อไหว"),Detail=t("Automatic choice","เลือกอัตโนมัติ")}}
         local gearOptions={};local catalog=A.Modules.ShovelCatalog;local sh=A.Snapshots.Shovels or{};local gs=A.Snapshots.Gear or{}
         for _,item in ipairs(catalog and catalog.Tiers or{})do

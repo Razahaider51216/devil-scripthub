@@ -87,7 +87,7 @@ do
     check(#A.Calls==1,"Toggle off/on cancels stale snapshot continuation")
 end
 do
-    local A=context();local C=makeCore(A,P);A.Next.Sell={Total=400,StoredPets={Count=2,Quote="fresh-quote"}};C.Config.SellPets=true
+    local A=context();local C=makeCore(A,P);A.Next.Sell={Items={},Total=400,StoredPets={Count=2,Quote="fresh-quote"}};C.Config.SellPets=true
     C.Run("SellPets",C.Handlers.SellPets);drain()
     check(A.Calls[2].Args[1]=="SellStoredPets"and A.Calls[2].Args[2]=="fresh-quote","Stored pet sale uses fresh quote")
     A.Calls={};A.Pause=true;C.Run("SellPets",C.Handlers.SellPets);pump();C.StopAll();A.Pause=false;drain()
@@ -130,7 +130,7 @@ end
 do
     local A=context();local C=makeCore(A,P);C.Config.SellLoot=true;A.Next.Sell=function()error("Temporary error")end
     C.Run("SellLoot",C.Handlers.SellLoot);drain();check(C.Jobs.SellLoot==nil,"Release job after exception")
-    A.Next.Sell={Total=1};C.Run("SellLoot",C.Handlers.SellLoot);drain();check(#A.Calls==3,"Retry on later cycle after failure")
+    A.Next.Sell={Items={},Total=1};C.Run("SellLoot",C.Handlers.SellLoot);drain();check(#A.Calls==3,"Retry on later cycle after failure")
 end
 do
     local A=context();local C=makeCore(A,P);C.Config.Plant=true
@@ -150,5 +150,50 @@ do
     C.Run("FarmFinds",C.Handlers.FarmFinds);drain();check(searches==0,"Find farming does not pull character away from exclusive training")
     C.Config.Rotate=true;A.Attrs.AfkTraining=true
     C.Run("FarmFinds",C.Handlers.FarmFinds);drain();check(searches==0,"Find farming waits until training rotation actually ends")
+end
+do
+    local A=context();local C=makeCore(A,P);local searches=0
+    local first={Instance={Alive=true},Kind="Egg",Rarity="Common",Name="Soil Egg",Serial=1,Ready=false}
+    local second={Instance={Alive=true},Kind="Egg",Rarity="Common",Name="Clay Egg",Serial=2,Ready=false}
+    A.ValidFind=function(n)return n and n.Alive end
+    A.Targets=function()searches+=1;return first.Instance.Alive and{first,second}or{second}end
+    A.Aim=function(target)if target and target.Instance.Alive and target.Ready then return"origin","direction","Find",target.Instance end end
+    A.Move=function(target,valid)now+=.06;target.Ready=true;return valid(),"Arrived"end
+    C.Set("FarmFinds",true);local started=now;C.Tick();drain()
+    check(C.Target==first and A.Sent[1].Args[1]=="Start"and now-started<=.061,"Farm starts mining immediately after 60 ms movement settle")
+    local before=now;first.Instance.Alive=false;now+=.025;C.Tick();drain()
+    check(C.Target==second and now-before<=.086,"Destroyed target switches on next tick without waiting one second")
+    local scans=searches;for _=1,30 do now+=.025;C.Tick();drain()end
+    check(searches==scans,"Healthy target does not rescan and sort whole mine every poll")
+    C.StopAll()
+end
+do
+    local A=context();local C=makeCore(A,P);C.Config.SellLoot=true;local opens=0
+    A.Next.Sell=function(action)
+        if action=="Open"then opens+=1;if opens==1 then return{Code="TooFar"}end;return{Items={},Total=75}end
+        return{Items={},Total=0,Code="Sold",CashAdded=75}
+    end
+    C.Run("SellLoot",C.Handlers.SellLoot);pump()
+    check(C.Selling=="SellLoot"and A.Sent[1].Remote=="Surface"and A.Sent[1].Args[1]=="Sell","Auto sell travels to native seller when out of range")
+    C.Config.FarmFinds=true;A.Pause=true;local scans=0;A.Targets=function()scans+=1;return{}end
+    C.Run("FarmFinds",C.Handlers.FarmFinds);pump();check(scans==0,"Farm cannot move character away during a sale")
+    A.Pause=false;drain();check(C.Selling==nil and C.Report.Jobs.SellLoot=="Sold +$75","Sale confirms actual server cash and releases lock")
+end
+do
+    local A=context();local C=makeCore(A,P);C.Config.SellEggs=true;local opens=0;local quotes={}
+    A.Next.Sell=function(action,quote)
+        if action=="Open"then opens+=1;return{Items={},SpareEggs={Count=1,Quote="quote-"..opens}}end
+        quotes[#quotes+1]=quote;return #quotes==1 and{Code="Changed"}or{Items={},CashAdded=10}
+    end
+    C.Run("SellEggs",C.Handlers.SellEggs);drain()
+    check(#quotes==2 and quotes[1]=="quote-1"and quotes[2]=="quote-2","Changed quote is refreshed rather than reused")
+    A.Calls={};A.Next.Sell={Code="Restricted"};C.Run("SellEggs",C.Handlers.SellEggs);drain()
+    check(#A.Calls==1 and C.Report.Jobs.SellEggs=="Restricted","Preserve server rejection rather than masking it as empty inventory")
+end
+do
+    local A=context();local C=makeCore(A,P);C.Config.SellLoot=true;C.Config.SellPets=true;A.Pause=true;A.Next.Sell={Items={},Total=1}
+    C.Run("SellLoot",C.Handlers.SellLoot);C.Run("SellPets",C.Handlers.SellPets);pump()
+    check(#A.Calls==1,"Sale types serialize instead of competing for same remote")
+    C.StopAll();A.Pause=false;drain();check(#A.Calls==1 and C.Selling==nil,"Stop cancels sale and clears ownership after pending snapshot")
 end
 print("PASS core/policy behavior checks:",passed)

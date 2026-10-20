@@ -2,7 +2,8 @@ local checks=0
 local function check(v,message)assert(v,message);checks+=1 end
 local clock=10;local os={clock=function()return clock end}
 local queue={}
-local task={spawn=function(fn)local c=coroutine.create(fn);queue[#queue+1]=c;return c end,wait=function()return coroutine.yield()end}
+local task={spawn=function(fn)local c=coroutine.create(fn);queue[#queue+1]=c;return c end}
+task.wait=function(duration)task.LastWait=duration;return coroutine.yield()end
 local function pump()
     local batch=queue;queue={}
     for _,co in ipairs(batch)do local ok,e=coroutine.resume(co);assert(ok,e);if coroutine.status(co)~="dead"then queue[#queue+1]=co end end
@@ -76,7 +77,7 @@ local player=Instance.new("Player");player.UserId=123;local backpack=Instance.ne
 local rs=Instance.new("Folder");local shared=Instance.new("Folder");shared.Name="Shared";shared.Parent=rs
 local fakeJSON={}
 local http={JSONEncode=function(_,value)fakeJSON=value;return"profile-json"end,JSONDecode=function()return fakeJSON end}
-local services={Players={LocalPlayer=player},ReplicatedStorage=rs,CollectionService=tags,HttpService=http,UserInputService={GetFocusedTextBox=function()return nil end},GuiService={MenuIsOpen=false}}
+local services={Players={LocalPlayer=player},ReplicatedStorage=rs,CollectionService=tags,HttpService=http,UserInputService={GetFocusedTextBox=function()return nil end},GuiService={MenuIsOpen=false},RunService={Stepped=signal()}}
 local ouro=__OURO_SOURCE__
 local game={PlaceId=121831322352666,GameId=10765013362,GetService=function(_,name)return assert(services[name],name)end,HttpGet=function()return ouro end}
 local workspace=Instance.new("Folder");workspace.GetServerTimeNow=function()return clock end
@@ -94,6 +95,11 @@ check(app.Window.Spec.Name=="DEVIL HUB","Uses DEVIL HUB branding")
 check(registry["Settings"]~=nil and registry["Teleport"]~=nil and registry["Shop"]~=nil,"Expected tabs exist")
 pump();check(#queue>=1,"Scheduler yields rather than blocking startup")
 local A=app.Adapter
+local eggs=registry["Ore / item target"]
+check(#eggs.Options==84,"Teleport lists all 84 named egg types before native modules load")
+check(table.find(eggs.Options,"Soil Egg")and table.find(eggs.Options,"Titanic Clay Egg"),"Names show regular and sized eggs")
+eggs.Spec.Callback("Soil Egg");check(app.Config.TeleportChoice=="Egg:Soil","Teleport stores stable egg type key")
+check(app.Report.Errors.Display==nil,"Catalog dropdown layout refresh succeeds")
 A.Modules.ShovelCatalog={Tiers={{Id="Basic",Name="Basic Shovel",Cost=0},{Id="Grey",Name="Grey Shovel",Cost=100}},tier=function()return{Id="Basic"}end}
 A.Modules.GearConfig={Order={"TNT1"},Types={TNT1={Name="TNT",Cost=600,Kind="TNT"}}}
 A.Modules.PotionConfig={Order={"DigSpeed"},Types={DigSpeed={Name="Dig Speed Potion"}}}
@@ -115,6 +121,7 @@ for _,n in ipairs(gear.Popup:GetDescendants())do if n.Name=="DevilItemPrice"then
 check(detail:find("$720",1,true)and detail:find("Stock: 4",1,true),"Gear displays live price and stock")
 registry["Save settings"].Spec.Callback();pump();check(fakeJSON.Config.Shovel=="Grey","Save profile stores chosen ID")
 check(fakeJSON.PlaceId==game.PlaceId and fakeJSON.UserId==player.UserId,"Settings scoped to account and place")
+check(fakeJSON.Config.TeleportChoice=="Egg:Soil","Saved selection retains named egg type")
 local old=app.Window;blue.Set({Language="TH"});check(language=="TH"and app.Window~=old and not app.Stopped,"Language change rebuilds GUI without unloading workers")
 check(registry["ตั้งค่า"]~=nil,"Thai native tab text updates")
 blue.Set({Language="EN"});check(registry["Settings"]~=nil and app.Config.Shovel=="Grey","English switch preserves config")
