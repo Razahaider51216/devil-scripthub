@@ -49,6 +49,11 @@ source = source.replace('    local run,err=loadstring(originalGameSource,"Chilli
     '    local compileStarted=os.clock()\n    local run,err=loadstring(originalGameSource,"DEVIL HUB / Steal an Egg / pinned runtime")\n    report.CompileSeconds=os.clock()-compileStarted')
 source = source.replace('    return run()\nend,function(err)',
     '    local runtimeStarted=os.clock();local values=table.pack(run())\n    report.RuntimeSeconds=os.clock()-runtimeStarted\n    return table.unpack(values,1,values.n)\nend,function(err)',1)
+if 'pcall(env.DevilStealStartupStage,"Building DEVIL HUB frontend")' not in source:
+    source=source.replace('local function mount()\n','local function mount()\n    if type(env.DevilStealStartupStage)=="function"then pcall(env.DevilStealStartupStage,"Building DEVIL HUB frontend")end\n',1)
+if 'pcall(env.DevilStealStartupStage,"Ready")' not in source:
+    source=source.replace('        loading.Finish()\n    else loading.Fail(session',
+        '        if type(env.DevilStealStartupStage)=="function"then pcall(env.DevilStealStartupStage,"Ready")end\n        loading.Finish()\n    else loading.Fail(session',1)
 for name in ['devil-steal-an-egg-chilli-recovered-ui-test.lua', 'devil-steal-an-egg-chilli-main-gui.lua']:
     target = root / name
     target.write_text(source, encoding='utf-8', newline='\n')

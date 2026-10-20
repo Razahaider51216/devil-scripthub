@@ -488,6 +488,7 @@ return function()
     local stopped=false
     local markers={}
     local function nativeScreen(screen)
+        if screen:GetAttribute("DevilNativeCanvas")==true then return false end
         if screen.Name=="DEVIL HUB" or screen:GetAttribute("DevilHubPresentation")==true then return false end
         if screen.Name=="ChilliHubLoading" or screen:GetAttribute("ChilliLibraryOwned")==true then return true end
         local mark=markers[screen] or {}
@@ -508,6 +509,7 @@ return function()
     local tracked={}
     local function track(child)
         if not child:IsA("ScreenGui") or tracked[child] then return end
+        if child:GetAttribute("DevilNativeCanvas")==true then return end
         tracked[child]=true
         markers[child]={}
         hide(child)
@@ -715,9 +717,11 @@ end)()("Steal an Egg")
 
 local restoreStartup
 local function mount()
+    if type(env.DevilStealStartupStage)=="function"then pcall(env.DevilStealStartupStage,"Building DEVIL HUB frontend")end
     loading.Update("Building DEVIL HUB interface...",0.85)
     local session=attach(existingDevilHubLibrary,restoreStartup)
     if session and session.Report and session.Report.status=="Mounted DEVIL HUB main GUI on original Chilli handles" then
+        if type(env.DevilStealStartupStage)=="function"then pcall(env.DevilStealStartupStage,"Ready")end
         loading.Finish()
     else loading.Fail(session and session.Report and (session.Report.error or session.Report.reason) or "UI did not mount") end
     return session
@@ -798,7 +802,7 @@ if env.DevilChilliFullRuntimeTest then
 end
 local report={schema="devil-chilli-full-runtime-test-1",release="chilli-full-test-1",map="Steal an Egg",
     placeId=game.PlaceId,universeId=game.GameId,status="Starting",devirtualized=false,
-    frontend="DEVIL HUB / native constructor export",referenceSHA256="9b502ea139263086558d595ac691a192950068d462a72fc920216ae754a36c4d",referenceCommit="03468a41b2ecf2d983b39993ba603c943c140f4f"}
+    frontend="DEVIL HUB / native constructor export",referenceSHA256="edacbe22d00d7f23dd38fc0083a591f20c4c7b0809a9182035df4e82b76e3f8c",referenceCommit="03468a41b2ecf2d983b39993ba603c943c140f4f"}
 env.DevilChilliFullRuntimeTest=report
 local function save()
     if type(writefile)=="function"then
@@ -819,7 +823,7 @@ local outcome=table.pack(xpcall(function()
     warn("DEVIL HUB: loading the original systems into the main GUI")
     loading.Update("Downloading systems...",0.15)
     -- BEGIN VERIFIED RUNTIME LOAD
-local originalGameSource,sourceInfo=loadPinnedSource("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/15de86622d381541c15e4563fb656735de2bbdd6/devil-chilli-native-ui-runtime.lua",828670,3884169547,"DevilHub_StealRuntime_15de86622d381541c15e4563fb656735de2bbdd6.lua")
+local originalGameSource,sourceInfo=loadPinnedSource("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/4707de87af24d43d3e9df1b320856c2db1cea1e0/devil-chilli-native-ui-runtime.lua",829272,34572250,"DevilHub_StealRuntime_4707de87af24d43d3e9df1b320856c2db1cea1e0.lua")
     report.Source=sourceInfo;loading.Update("Preparing verified systems...",.4)
 -- END VERIFIED RUNTIME LOAD
     loading.Update("Compiling systems...",0.55)
