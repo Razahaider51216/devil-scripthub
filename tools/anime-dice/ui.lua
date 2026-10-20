@@ -1,7 +1,8 @@
 -- DEVIL HUB Anime Dice entry, available directly and through the main loader.
 assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
 local scope=type(getgenv)=="function"and getgenv()or _G
-local release="anime-dice-test-20261020-9"
+-- AUTO_EXECUTE_BOOTSTRAP
+local release="anime-dice-test-20261020-10"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end

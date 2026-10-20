@@ -15,6 +15,7 @@ for marker, name in [('ANIME_PLANNER','planner.lua'),('ANIME_ADAPTER','adapter.l
     assert source.count('-- ' + marker) == 1
     source = source.replace('-- ' + marker, (here / name).read_text(encoding='utf-8'))
 source = source.replace('-- SHARED_BLUE_BOOTSTRAP', blue.prefix(module_ref))
+source = source.replace('-- AUTO_EXECUTE_BOOTSTRAP', (root / 'tools/auto-execute/bootstrap.lua').read_text(encoding='utf-8'))
 svg = root / 'assets/devil-candy.svg'
 art = ET.fromstring(svg.read_bytes())
 assert art.attrib['viewBox'] == '0 0 24 24'
@@ -54,12 +55,14 @@ public.write_text(source, encoding='utf-8', newline='\n')
 subprocess.run([str(root.parent / 'luau-tools/luau-compile.exe'), '--null', str(public)], check=True)
 routes = json.loads((root / 'devil-blue-gui-router-audit.json').read_text(encoding='utf-8'))['routes']
 anime_route = next((r for r in routes if r['File'] == 'anime-dice-test.lua'), None)
-manifest = {'release':'anime-dice-test-20261020-9','place_id':113290951185459,'universe_id':10708913337,
+manifest = {'release':'anime-dice-test-20261020-10','place_id':113290951185459,'universe_id':10708913337,
     'production_router_changed':anime_route is not None,'live_game_verified':False,'all_automation_defaults_off':True,
     'theme_module_commit':module_ref,'ouroflow_commit':'c8251f76f74d9942114ebccb0564aa0ac196320a',
     'ouroflow_sha256':hashlib.sha256(ouro).hexdigest(),'entry_sha256':hashlib.sha256(public.read_bytes()).hexdigest(),
     'candy_svg_sha256':hashlib.sha256(svg.read_bytes()).hexdigest(),
     'discord_logo_sha256':hashlib.sha256(discord.read_bytes()).hexdigest(),
+    'auto_execute_enabled':True,
+    'auto_execute_sha256':hashlib.sha256((root / 'tools/auto-execute/bootstrap.lua').read_bytes()).hexdigest(),
     'sources':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in here.glob('*.lua')}}
 if anime_route:
     manifest['main_loader_entry_commit'] = anime_route['Commit']

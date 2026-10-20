@@ -11,12 +11,23 @@ Workspace (3) dump. It reads live game modules and inventory, not captured unit
 IDs. The main loader now supports Anime Dice as its eleventh route, pinned to
 the reviewed entry commit; the previous ten route definitions/pins are retained.
 Roblox/executor behavior has not been verified live. Direct entry remains available
-at `anime-dice-test.lua?v=test-9` for existing direct-loader users.
+at `anime-dice-test.lua?v=test-10` for existing direct-loader users.
 
 The GUI uses the existing black/blue/white presentation, its single EN/Thai
 language menu, blue switches and native minimize/restore controls. No full-screen
 startup dimmer is created. English/Thai labels share the existing language choice.
 All 28 automation switches start OFF and are not restored from saved configs.
+
+Auto Execute is enabled in code, without a GUI switch, for the main loader's
+11 games and the direct Anime Dice entry. It queues the main loader when
+`Player.OnTeleport` reports Started/InProgress. Global `queue_on_teleport` /
+`queueonteleport` and the `syn` / `fluxus` namespaces are supported when provided
+by the executor. Missing or failing APIs do not prevent ordinary startup.
+Duplicate runs share one listener; failed teleports can retry, and destination
+downloads retry three times with a duplicate arrival guard. This reloads the GUI;
+automation still starts OFF. It cannot inject into a newly launched Roblox process
+after a full disconnect, kick or crash; that requires the executor's own autoexec.
+Teleport lifecycle reference: [Roblox Player.OnTeleport](https://create.roblox.com/docs/reference/engine/classes/Player#OnTeleport).
 
 | Tab | Included systems |
 |---|---|

@@ -15,6 +15,15 @@ canonical = root / 'tools/blue-gui/router.lua'
 before = (canonical if canonical.exists() else build / 'loader.native').read_text(encoding='utf-8')
 assert hashlib.sha256(before.encode()).hexdigest() == audit['after_native_sha256']
 source = before
+auto_source = (root / 'tools/auto-execute/bootstrap.lua').read_text(encoding='utf-8').rstrip()
+if '-- BEGIN DEVIL AUTO EXECUTE\n' in source:
+    source, auto_count = re.subn(r'-- BEGIN DEVIL AUTO EXECUTE\n.*?-- END DEVIL AUTO EXECUTE',
+                               lambda _: auto_source, source, count=1, flags=re.S)
+    assert auto_count == 1
+else:
+    marker = 'if selected.File=="ride-a-pet.lua"and'
+    assert source.count(marker) == 1
+    source = source.replace(marker, auto_source + '\n' + marker, 1)
 route = ('    {Name="Anime Dice",Universe=10708913337,Place=113290951185459,'
          f'File="anime-dice-test.lua",Commit="{commit}",Version="{release["release"]}"}},')
 if 'File="anime-dice-test.lua"' in source:
@@ -50,19 +59,20 @@ source = source.rstrip() + '\n'
 canonical.write_text(source, encoding='utf-8', newline='\n')
 (build / 'loader.native').write_text(source, encoding='utf-8', newline='\n')
 subprocess.run([sys.executable, str(build / 'build-router.py'), '--only', 'loader',
-                '--release', 'devil-anime-dice-20261020-9'], cwd=build, check=True)
+                '--release', 'devil-anime-dice-20261020-10'], cwd=build, check=True)
 public = (build / 'candidate/loader').read_bytes()
 (root / 'loader').write_bytes(public)
 row = dict(Name='Anime Dice', Universe=10708913337, Place=113290951185459,
            File='anime-dice-test.lua', Commit=commit, Version=release['release'])
 audit['routes'] = [r for r in audit['routes'] if r['File'] != row['File']] + [row]
-audit.update(release='devil-anime-dice-20261020-9', map_ids_unchanged=False,
+audit.update(release='devil-anime-dice-20261020-10', map_ids_unchanged=False,
     existing_game_routes_unchanged=True,
     native_logic_unchanged_except_presentation_bootstrap_and_entry_pins=False,
     before_native_sha256=hashlib.sha256(before.encode()).hexdigest(),
     after_native_sha256=hashlib.sha256(source.encode()).hexdigest(),
     public_loader_sha256=hashlib.sha256(public).hexdigest(), public_loader_bytes=len(public),
     anime_dice_entry_commit=commit, anime_dice_entry_sha256=release['entry_sha256'],
+    auto_execute_enabled=True, auto_execute_sha256=hashlib.sha256(auto_source.encode()).hexdigest(),
     public_router_universe_place_cases=len(audit['routes'])*3)
 audit_path.write_text(json.dumps(audit, indent=2)+'\n', encoding='utf-8', newline='\n')
 manifest_path = root / 'anime-dice-test-release.json'

@@ -34,7 +34,7 @@ local function setup(universe,place,failures)
  end
  setmetatable(env,{__index=getfenv(0)})
  local fn=assert(nativeCompile(public));setfenv(fn,env)
- return fn,state,downloads
+ return fn,state,downloads,env
 end
 local cases=0
 for _,entry in ipairs(definitions)do
@@ -72,6 +72,19 @@ if anime[3]=='anime-dice-test.lua'then
  run,state,downloads=setup(anime[1],1)
  state.DevilAnimeDiceStarting={At=os.clock()}
  assert(run()==nil and #downloads==0,'Anime startup guard redownloaded')
+end
+do
+ local run,state,downloads,env=setup(definitions[1][1],1)
+ local callback,queued,connections=nil,{},0
+ env.Enum={TeleportState={Started=1,InProgress=4,Failed=3}}
+ env.queue_on_teleport=function(code)queued[#queued+1]=code end
+ env.game.GetService=function()return {LocalPlayer={OnTeleport={Connect=function(_,fn)
+  connections+=1;callback=fn;return {Connected=true}
+ end}}}end
+ assert(run()=='route-ok'and connections==1 and #queued==0,'public loader did not arm Auto Execute')
+ callback(1);callback(4)
+ assert(#queued==1 and queued[1]:find('main/loader?v=vm-1',1,true),'public loader did not queue main entry / queued twice')
+ run();assert(connections==1,'public loader rerun duplicated Auto Execute listener')
 end
 print('PASS actual public router: '..cases..' universe/place cases across '..#definitions..' games, immutable pins, retries, errors, arguments and session guards')
 '''

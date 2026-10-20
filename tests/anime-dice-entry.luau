@@ -216,7 +216,7 @@ do
  local f=setup(113290951185459,false);local destroyed=0
  f.scope.DevilAnimeDiceTest={Version='anime-dice-test-20261020-1',Stopped=false,Destroy=function()destroyed+=1 end}
  local app=f.Run()
- check(destroyed==1 and app.Version=='anime-dice-test-20261020-9','rerun retained previous broken release')
+ check(destroyed==1 and app.Version=='anime-dice-test-20261020-10','rerun retained previous broken release')
  app.Destroy()
 end
 do
@@ -307,6 +307,17 @@ do
  check(copies==1 and #f.remote.Sent==0,'refresh duplicated item icons or started automation')
  app.Destroy()
 end
+do
+ local f=setup(113290951185459,false);local player=f.game:GetService('Players').LocalPlayer
+ player.OnTeleport=signal();local queued={}
+ f.env.queue_on_teleport=function(code)queued[#queued+1]=code end
+ local app=f.Run()
+ check(f.scope.DevilHubAutoExecute.Status=='Ready'and #queued==0,'direct entry did not arm Auto Execute quietly')
+ player.OnTeleport:Fire(Enum.TeleportState.Started);player.OnTeleport:Fire(Enum.TeleportState.InProgress)
+ check(#queued==1 and queued[1]:find('main/loader?v=vm-1',1,true),'direct entry queued wrong / duplicate loader')
+ check(f.Run()==app and #queued==1,'direct entry rerun duplicated Auto Execute')
+ app.Destroy()
+end
 if mainLoaderSource then
  local f=setup(113290951185459,false);local routeRequests=0
  local loading={SetLogo=function()end,Update=function()end,Finish=function()end,Fail=function()end}
@@ -314,7 +325,7 @@ if mainLoaderSource then
  function f.game:IsLoaded()return true end
  f.game.HttpGet=function(self,url)
   if url:find('/anime-dice-test.lua',1,true)then
-   check(url:find('/'..mainEntryCommit..'/anime-dice-test.lua?hub=anime-dice-test-20261020-9',1,true),'main loader fetched wrong entry pin / version')
+   check(url:find('/'..mainEntryCommit..'/anime-dice-test.lua?hub=anime-dice-test-20261020-10',1,true),'main loader fetched wrong entry pin / version')
    routeRequests+=1;return entrySource
   end
   return f.http(self,url)
@@ -329,7 +340,7 @@ if mainLoaderSource then
   local ok,result=coroutine.resume(co);check(ok,'main loader / actual entry failed: '..tostring(result))
   if coroutine.status(co)=='dead'then app=result;break end
  end
- check(app and app==f.scope.DevilAnimeDiceTest and app.Version=='anime-dice-test-20261020-9','main loader did not return the actual Anime Dice GUI')
+ check(app and app==f.scope.DevilAnimeDiceTest and app.Version=='anime-dice-test-20261020-10','main loader did not return the actual Anime Dice GUI')
  check(routeRequests==1 and not f.scope.DevilHubRouterLoading,'main loader duplicated entry download or leaked busy state')
  table.remove(f.work,1)()
  check(not app.Report.InitializationError and f.objects['Quest shop item']and f.objects['Boosts to use']and f.objects['Spins to use']and f.objects['Gear priority'],'main-loaded app did not initialize requested selectors')
