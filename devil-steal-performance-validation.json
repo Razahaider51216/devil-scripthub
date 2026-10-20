@@ -1,5 +1,5 @@
 {
-  "release": "chilli-performance-20261021-1",
+  "release": "chilli-rejoin-clipboard-20261021-2",
   "live_game_verified": false,
   "fps_improvement_measured": false,
   "complete_vm_devirtualization": false,
@@ -16,9 +16,14 @@
   "native_presentation_hidden_hz": 4,
   "background_sync_max_controls": 24,
   "background_sync_time_budget_seconds": 0.002,
-  "runtime_sha256": "a472e94451b2f138fae3bd99340e6c16c195faf4f8255ed71f7e24c129b05eb7",
-  "delegate_sha256": "5e6c6f0d161c8b15bdcb494117e213dc83f29b8537baaa5c1b80c2de245979b5",
-  "main_loader_sha256": "141003b9abf0fc974c9765208bbe67bb0611111fed8fd21d5cd089618db00cf0",
+  "runtime_sha256": "894f9f1a5f0d1f5a73ab173508854c173394f181fe39ac966db0193feefcb068",
+  "delegate_sha256": "fa812cce2e3fed1d696d39ee2b97c1091fd9bce765ac1f65e807151b6289ca91",
+  "main_loader_sha256": "4a5643106e12ec8999828cf2d289d3af2769ae4b85191b9fbc1418c367dd05c8",
   "old_delegate_bytes": 69931,
-  "new_delegate_bytes": 2055
+  "new_delegate_bytes": 2168,
+  "startup_rejoin_clipboard_checks": 14,
+  "startup_discord_clipboard_disabled": true,
+  "rejoin_uses_devil_main_loader": true,
+  "legacy_queued_flag_cleared_before_running_gui_guard": true,
+  "native_window_disabled_before_parenting": true
 }

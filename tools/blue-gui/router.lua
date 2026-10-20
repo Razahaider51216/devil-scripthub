@@ -28,13 +28,13 @@ local games={
     {Name="Climb for Eggs",Universe=10765490774,Place=85738654635245,File="climb-for-eggs.lua",Commit="fa18b61e74e788a1825123d7bf3182b628c3463f",Version="climb-language-sync-20261020-12"},
     {Name="Lift Rock for Eggs",Universe=10768316438,Place=76731343328034,File="lift-rock-for-eggs.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="lift-rock-fly-23"},
     {Name="Ride A Fish",Universe=10766691148,Place=104050046639813,File="aqua-auto-egg.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="aqua-auto-egg-18"},
-    {Name="Steal an Egg",Universe=10563114921,Place=107778070777162,File="devil-steal-an-egg.lua",Commit="aba0c2e270f2b54d82af9c013fcdf1716a75a1b7",Version="chilli-performance-20261021-1"},
+    {Name="Steal an Egg",Universe=10563114921,Place=107778070777162,File="devil-steal-an-egg.lua",Commit="00f5799cc38a04b04dd061a033ae40dbceda4569",Version="chilli-rejoin-clipboard-20261021-2"},
     {Name="Ride a Pet",Universe=10035204815,Place=124216119978534,File="ride-a-pet.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351"},
     {Name="Break and Steal an Egg",Universe=10765288803,Place=114326934417838,File="break-and-steal-an-egg.lua",Commit="a7cf89d5f4aa4cf74d84e12af125cf82b788eae5",Version="break-language-sync-20261020-1"},
     {Name="Loot to Forge",Universe=10684750879,Place=118805555015549,File="loot-to-forge.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="silver-native-1"},
     {Name="Build An Ant Empire",Universe=10436530264,Place=78490532994307,File="build-an-ant-empire.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351"},
 }
-for _,entry in ipairs(games)do entry.Version=entry.File=="devil-steal-an-egg.lua"and"chilli-performance-20261021-1"or entry.File=="mine-auto-test.lua"and"mine-auto-test-4"or entry.File=="tapping-auto-test.lua"and"tapping-auto-test-10"or entry.File=="climb-for-eggs.lua"and"climb-language-sync-20261020-12"or entry.File=="lift-rock-for-eggs.lua"and"lift-rock-fly-23"or entry.File=="aqua-auto-egg.lua"and"aqua-auto-egg-18"or entry.File=="break-and-steal-an-egg.lua"and"break-language-sync-20261020-1"or(entry.File=="ride-a-pet.lua"and"ride-native-obf-18"or"shared-loading-3")end
+for _,entry in ipairs(games)do entry.Version=entry.File=="devil-steal-an-egg.lua"and"chilli-rejoin-clipboard-20261021-2"or entry.File=="mine-auto-test.lua"and"mine-auto-test-4"or entry.File=="tapping-auto-test.lua"and"tapping-auto-test-10"or entry.File=="climb-for-eggs.lua"and"climb-language-sync-20261020-12"or entry.File=="lift-rock-for-eggs.lua"and"lift-rock-fly-23"or entry.File=="aqua-auto-egg.lua"and"aqua-auto-egg-18"or entry.File=="break-and-steal-an-egg.lua"and"break-language-sync-20261020-1"or(entry.File=="ride-a-pet.lua"and"ride-native-obf-18"or"shared-loading-3")end
 -- Anime Dice keeps its own release without changing legacy route versions.
 for _,entry in ipairs(games)do if entry.File=="anime-dice-test.lua"then entry.Version="anime-dice-test-20261020-12"end end
 -- Dig For Eggs keeps its own release after the legacy version normalizer.
@@ -112,6 +112,14 @@ if selected.File=="ride-a-pet.lua"and(env.DevilRideLucyRunning or env.DevilRideL
 if selected.File=="break-and-steal-an-egg.lua"and(env.DevilBreakActive or env.DevilBreakUnpacking)then return end
 if selected.File=="loot-to-forge.lua"and(env.DevilLootStarting or env.DevilLootRunning)then return end
 if selected.File=="build-an-ant-empire.lua"and(env.DevilAntStarting or env.DevilAntRunning)then return end
+-- BEGIN DEVIL STEAL REJOIN MIGRATION
+if selected.File=="devil-steal-an-egg.lua"then
+    -- Cancel an already-queued legacy Chilli payload even if this GUI is running.
+    pcall(function()
+        game:GetService("TeleportService"):SetTeleportSetting("__ChilliAutoLoadScriptEnabled",false)
+    end)
+end
+-- END DEVIL STEAL REJOIN MIGRATION
 if selected.File=="devil-steal-an-egg.lua"and(env.DevilChilliUiStarting or env.DevilChilliPresentation or env.DevilChilliMainUI)then return end
 if selected.File=="anime-dice-test.lua"then
     local app=env.DevilAnimeDiceTest

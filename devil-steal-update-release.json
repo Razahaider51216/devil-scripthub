@@ -9,5 +9,9 @@
   "delegate_extra_vm_removed": true,
   "delegate_bytes": 2168,
   "delegate_sha256": "fa812cce2e3fed1d696d39ee2b97c1091fd9bce765ac1f65e807151b6289ca91",
-  "delegate_native_sha256": "6a6ef0e4c4d4b2b45dbe2e3b921b848762db6de48f48ad9fa4a97534f7cbfb4d"
+  "delegate_native_sha256": "6a6ef0e4c4d4b2b45dbe2e3b921b848762db6de48f48ad9fa4a97534f7cbfb4d",
+  "delegate_commit": "00f5799cc38a04b04dd061a033ae40dbceda4569",
+  "main_loader_sha256": "4a5643106e12ec8999828cf2d289d3af2769ae4b85191b9fbc1418c367dd05c8",
+  "other_game_routes_unchanged": true,
+  "router_baseline_commit": "00f5799cc38a04b04dd061a033ae40dbceda4569"
 }

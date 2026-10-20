@@ -9,6 +9,6 @@
   "gameplay_core_sha256": "abd7bbd3527f6794f5939fd2d05726ec26313b8ef8ace1a28275f905e0ca0032",
   "language_sync": true,
   "runtime_commit": "fa18b61e74e788a1825123d7bf3182b628c3463f",
-  "main_loader_sha256": "141003b9abf0fc974c9765208bbe67bb0611111fed8fd21d5cd089618db00cf0",
+  "main_loader_sha256": "4a5643106e12ec8999828cf2d289d3af2769ae4b85191b9fbc1418c367dd05c8",
   "other_routes_unchanged": true
 }

@@ -1,5 +1,5 @@
 {
-  "release": "chilli-performance-20261021-1",
+  "release": "chilli-rejoin-clipboard-20261021-2",
   "module_commit": "9a9812469df7b5dad2848abb33c5206f7d57e685",
   "game_entries_commit": "e39fb7f24bda4d132f439416c7c68ad7467ff351",
   "map_ids_unchanged": false,
@@ -42,8 +42,8 @@
       "Universe": 10563114921,
       "Place": 107778070777162,
       "File": "devil-steal-an-egg.lua",
-      "Commit": "aba0c2e270f2b54d82af9c013fcdf1716a75a1b7",
-      "Version": "chilli-performance-20261021-1"
+      "Commit": "00f5799cc38a04b04dd061a033ae40dbceda4569",
+      "Version": "chilli-rejoin-clipboard-20261021-2"
     },
     {
       "Name": "Ride a Pet",
@@ -88,11 +88,11 @@
       "Version": "devilv4-test-20261021-1"
     }
   ],
-  "before_native_sha256": "6ec8eb57f92ab75173e18d8f83c7e3548a8e9dadadce6c34f4dfdb48565c045c",
-  "after_native_sha256": "a665e2e57e2d0eb8fe764aa0889f08d2686444a441b0b74ee4b5f154bf52429f",
+  "before_native_sha256": "a665e2e57e2d0eb8fe764aa0889f08d2686444a441b0b74ee4b5f154bf52429f",
+  "after_native_sha256": "5181fde0654d2a6505cb5698a158b1aeed6548080b048db8e3c616c885f18e97",
   "live_rendering_verified": false,
-  "public_loader_sha256": "141003b9abf0fc974c9765208bbe67bb0611111fed8fd21d5cd089618db00cf0",
-  "public_loader_bytes": 137134,
+  "public_loader_sha256": "4a5643106e12ec8999828cf2d289d3af2769ae4b85191b9fbc1418c367dd05c8",
+  "public_loader_bytes": 137954,
   "ui_offline_checks": 165,
   "public_router_universe_place_cases": 36,
   "language_choices": [
@@ -154,8 +154,8 @@
   "auto_execute_sha256": "6b071230dd8fcb24541ac6d8008d9bdeabaf8ea7051d4ca744be1bfbee2700c1",
   "break_language_entry_commit": "a7cf89d5f4aa4cf74d84e12af125cf82b788eae5",
   "non_break_routes_unchanged": true,
-  "steal_entry_commit": "aba0c2e270f2b54d82af9c013fcdf1716a75a1b7",
-  "steal_entry_sha256": "5e6c6f0d161c8b15bdcb494117e213dc83f29b8537baaa5c1b80c2de245979b5",
+  "steal_entry_commit": "00f5799cc38a04b04dd061a033ae40dbceda4569",
+  "steal_entry_sha256": "fa812cce2e3fed1d696d39ee2b97c1091fd9bce765ac1f65e807151b6289ca91",
   "non_steal_routes_unchanged": true,
   "climb_entry_commit": "fa18b61e74e788a1825123d7bf3182b628c3463f",
   "climb_entry_sha256": "cd9a3a277b46ce577b3bba1335eac7b39de3774774f310fdf1005cdb80cd044a",
