@@ -1,5 +1,5 @@
 {
-  "release": "devil-anime-dice-20261020-8",
+  "release": "devil-anime-dice-20261020-9",
   "module_commit": "9a9812469df7b5dad2848abb33c5206f7d57e685",
   "game_entries_commit": "e39fb7f24bda4d132f439416c7c68ad7467ff351",
   "map_ids_unchanged": false,
@@ -70,15 +70,15 @@
       "Universe": 10708913337,
       "Place": 113290951185459,
       "File": "anime-dice-test.lua",
-      "Commit": "8a5fef9f96d9faa8f9b9cb57f38e70bf9f014170",
-      "Version": "anime-dice-test-20261020-8"
+      "Commit": "6bb7714d11666d9bdef0a4bc78459046e75d7056",
+      "Version": "anime-dice-test-20261020-9"
     }
   ],
-  "before_native_sha256": "1b3842fc2fd775470a52f96af6952563fe40bc0da12797cbd5ee9a904da2634a",
-  "after_native_sha256": "f150a8c024baf171921c7fd426d36f19047f99a4b44525698488daf95a8752df",
+  "before_native_sha256": "f150a8c024baf171921c7fd426d36f19047f99a4b44525698488daf95a8752df",
+  "after_native_sha256": "4dd6e64d97238cb17caddfe87288df68c751f11c5eeac2f6935f24b396a5638d",
   "live_rendering_verified": false,
-  "public_loader_sha256": "d6fc572c00a886fd24fc9f16e4e49948ef35e6c5fdfb8a9c159f892e7b80018d",
-  "public_loader_bytes": 128042,
+  "public_loader_sha256": "5cea714dcd46d8950dd876a5e2e4ba4eca9689b7b964e2f0a4b0871df00536e6",
+  "public_loader_bytes": 128043,
   "ui_offline_checks": 165,
   "public_router_universe_place_cases": 33,
   "language_choices": [
@@ -134,6 +134,6 @@
   "late_viewport_and_primary_window_discovery": true,
   "desktop_executor_live_verified": false,
   "existing_game_routes_unchanged": true,
-  "anime_dice_entry_commit": "8a5fef9f96d9faa8f9b9cb57f38e70bf9f014170",
-  "anime_dice_entry_sha256": "1a0b2c31f6b8437c6923ebb9005669a3c3c29ac166c5a40eed455008d7c48df3"
+  "anime_dice_entry_commit": "6bb7714d11666d9bdef0a4bc78459046e75d7056",
+  "anime_dice_entry_sha256": "d8eaf685184007a4966c1f461f0062504b0cc6c383f534850c85671e556adbc8"
 }

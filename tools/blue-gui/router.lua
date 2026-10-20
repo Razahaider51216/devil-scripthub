@@ -21,7 +21,7 @@ end
 local env=type(getgenv)=="function"and getgenv()or _G
 if env.DevilHubRouterLoading then return end
 local games={
-    {Name="Anime Dice",Universe=10708913337,Place=113290951185459,File="anime-dice-test.lua",Commit="8a5fef9f96d9faa8f9b9cb57f38e70bf9f014170",Version="anime-dice-test-20261020-8"},
+    {Name="Anime Dice",Universe=10708913337,Place=113290951185459,File="anime-dice-test.lua",Commit="6bb7714d11666d9bdef0a4bc78459046e75d7056",Version="anime-dice-test-20261020-9"},
     {Name="Mine / Dump23",Universe=10740316645,Place=79389059854988,File="mine-auto-test.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="mine-auto-test-4"},
     {Name="Tap Simulator 2",Universe=10629695169,Place=72858262610964,File="tapping-auto-test.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="tapping-auto-test-10"},
     {Name="Climb for Eggs",Universe=10765490774,Place=85738654635245,File="climb-for-eggs.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="climb-fly-speed-10"},
@@ -35,7 +35,7 @@ local games={
 }
 for _,entry in ipairs(games)do entry.Version=entry.File=="devil-steal-an-egg.lua"and"chilli-startup-fix-20261019"or entry.File=="mine-auto-test.lua"and"mine-auto-test-4"or entry.File=="tapping-auto-test.lua"and"tapping-auto-test-10"or entry.File=="climb-for-eggs.lua"and"climb-fly-speed-10"or entry.File=="lift-rock-for-eggs.lua"and"lift-rock-fly-23"or entry.File=="aqua-auto-egg.lua"and"aqua-auto-egg-18"or entry.File=="break-and-steal-an-egg.lua"and"break-halloween-25"or(entry.File=="ride-a-pet.lua"and"ride-native-obf-18"or"shared-loading-3")end
 -- Anime Dice keeps its own release without changing legacy route versions.
-for _,entry in ipairs(games)do if entry.File=="anime-dice-test.lua"then entry.Version="anime-dice-test-20261020-8"end end
+for _,entry in ipairs(games)do if entry.File=="anime-dice-test.lua"then entry.Version="anime-dice-test-20261020-9"end end
 if not game:IsLoaded()then game.Loaded:Wait()end
 local selected
 for _,entry in ipairs(games)do if game.GameId==entry.Universe then selected=entry break end end
