@@ -99,11 +99,25 @@ return function(scope)
         if not fallbackDoorReady then fallbackDoorReady=ctx.Now()+30 end
         return fallbackDoorReady
     end
+    local streamRequest
+    local function streamAround(position,timeout,valid)
+        -- A pending terrain request must not hold the farming worker forever.
+        -- Keep one outstanding request; use already loaded ground if it stalls.
+        if streamRequest or valid and not valid()then return end
+        local request={Done=false};streamRequest=request
+        ctx.Spawn(function()
+            pcall(player.RequestStreamAroundAsync,player,position,timeout)
+            request.Done=true
+            if streamRequest==request then streamRequest=nil end
+        end)
+        local deadline=os.clock()+timeout
+        while not request.Done and os.clock()<deadline and(not valid or valid())do ctx.Wait(.1)end
+    end
     function ctx.StreamEvent()
         local island=workspace:FindFirstChild("Halloween")
         local arrival=island and island:FindFirstChild("ArrivalPoint",true)
         if arrival and arrival:IsA("BasePart")then
-            pcall(player.RequestStreamAroundAsync,player,arrival.Position,3)
+            streamAround(arrival.Position,3)
         end
     end
     function ctx.InGroup()
@@ -140,7 +154,7 @@ return function(scope)
         local hum=char and char:FindFirstChildOfClass("Humanoid")
         local root=char and char:FindFirstChild("HumanoidRootPart")
         if not hum or not root or hum.Health<=0 then return false,"Character unavailable"end
-        pcall(player.RequestStreamAroundAsync,player,goal,2)
+        streamAround(goal,2,valid)
         if not valid()or player.Character~=char or not root.Parent or hum.Health<=0 then return false,"Cancelled"end
         local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Exclude
         params.FilterDescendantsInstances={char};params.RespectCanCollide=true

@@ -393,4 +393,67 @@ do
  f.ctl.Set('Dice',true);f.step()
  check(#f.packets==1 and f.packets[1].key=='EquipDice'and f.packets[1].args[1]=='Fire','explicit owned lower-luck dice was ignored or repurchased')
 end
+do
+ local f=fixture();f.ctl.BindEvents()
+ local part={Position=V.new(0,0,0)};local door={key=part,position=part.Position,front=V.new(1,0,0),range=14}
+ f.ctx.Doors=function()return {door}end;f.ctx.Position=function()return V.new(30,0,0)end;f.ctx.DoorInitialReady=function()return 0 end
+ local visits=0
+ f.ctx.MoveDoor=function(_,active)
+  if not active()then return false,'Cancelled'end
+  visits+=1
+  if visits%2==0 then
+   f.listeners['TrickOrTreatService/Knocked'](part,1,f.time()+30)
+   f.listeners['TrickOrTreatService/Landed'](part,10)
+  end
+  return true,'Arrived'
+ end
+ f.ctl.Set('Doors',true)
+ for _=1,120 do f.step(31)end
+ check(f.time()>3700 and f.cfg.Doors and f.ctl.Report.Jobs.Doors.Confirmed==120,'long-running door collector stopped after repeated cooldowns')
+ check(f.ctl.Report.Jobs.Doors.Candy==1200 and visits==240,'continuous collector lost confirmed rewards / door visits')
+ local before=visits;f.ctl.Set('Doors',false);f.step(120)
+ check(not f.cfg.Doors and visits==before,'explicit off restarted door collection')
+end
+do
+ local f=fixture();f.ctl.BindEvents()
+ local part={Position=V.new(0,0,0)};local door={key=part,position=part.Position,front=V.new(1,0,0),range=14}
+ f.ctx.Doors=function()return {door}end;f.ctx.Position=function()return V.new(30,0,0)end;f.ctx.DoorInitialReady=function()return 0 end
+ local workers={};local visits=0
+ f.ctx.Spawn=function(fn)
+  local co=coroutine.create(fn);workers[#workers+1]=co;check(coroutine.resume(co),'door worker failed to start')
+ end
+ f.ctx.MoveDoor=function(_,active)
+  visits+=1
+  if visits==1 or visits==3 then coroutine.yield('movement pending')end
+  if not active()then return false,'Cancelled'end
+  if visits==3 then f.listeners['TrickOrTreatService/Knocked'](part,1,f.time()+30)end
+  return true,'Arrived'
+ end
+ f.ctl.Set('Doors',true);f.step()
+ check(f.ctl.Report.Jobs.Doors.Busy and #workers==1,'fixture did not hold the first route worker')
+ f.step(61)
+ check(f.cfg.Doors and f.ctl.Report.Jobs.Doors.Recoveries==1 and not f.ctl.Report.Jobs.Doors.Busy,'stalled route was not retired while keeping automation on')
+ f.step(1)
+ check(#workers==2 and f.ctl.Report.Jobs.Doors.Busy,'collector did not start a replacement route')
+ check(coroutine.resume(workers[1]),'late retired worker failed to finish')
+ check(f.ctl.Report.Jobs.Doors.Busy and #workers==2,'late worker cleared newer worker ownership')
+ check(coroutine.resume(workers[2]),'replacement route failed to finish')
+ check(f.cfg.Doors and f.ctl.Report.Jobs.Doors.Confirmed==1 and not f.ctl.Report.Jobs.Doors.Busy,'replacement route did not continue farming')
+ f.ctl.StopAll();f.step(120)
+ check(not f.cfg.Doors and #workers==2,'watchdog restarted the collector after Stop All')
+end
+do
+ local f=fixture();local workers={}
+ f.ctx.Spawn=function(fn)local co=coroutine.create(fn);workers[#workers+1]=co;check(coroutine.resume(co),'stream worker failed')end
+ f.ctx.Position=function()return V.new(0,0,0)end;f.ctx.Doors=function()return {}end
+ f.ctx.StreamEvent=function()coroutine.yield('stream pending')end
+ f.ctl.Set('Doors',true);f.step()
+ check(f.ctl.Report.Jobs.Doors.Busy,'fixture did not stall event streaming')
+ f.ctl.Set('Doors',false);f.ctl.Set('Doors',true);f.step()
+ check(#workers==2 and f.ctl.Report.Jobs.Doors.Busy,'manual off/on remained blocked by the old worker')
+ f.ctl.Set('Doors',false)
+ for _,co in ipairs(workers)do check(coroutine.resume(co),'cancelled worker failed to finish')end
+ f.step(120)
+ check(not f.cfg.Doors and not f.ctl.Report.Jobs.Doors.Busy and #workers==2,'late workers or recovery ignored explicit off')
+end
 print('PASS Anime Dice planning, network contracts, confirmation, stop and event behavior: '..checks..' checks')

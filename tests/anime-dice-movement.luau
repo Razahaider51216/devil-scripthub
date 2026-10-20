@@ -2,7 +2,10 @@ local checks=0
 local function check(v,message)assert(v,message);checks+=1 end
 local now=0;local afterWait
 local os={clock=function()return now end}
-local task={spawn=function()end,wait=function(n)now+=n;if afterWait then afterWait()end end}
+local spawned={}
+local task={spawn=function(fn)
+ local co=coroutine.create(fn);spawned[#spawned+1]=co;assert(coroutine.resume(co));return co
+end,wait=function(n)now+=n;if afterWait then afterWait()end end}
 local Vector3={};local meta={}
 function Vector3.new(x,y,z)return setmetatable({X=x,Y=y,Z=z,_kind='Vector3'},meta)end
 Vector3.zero=Vector3.new(0,0,0)
@@ -20,8 +23,8 @@ function hum:Move()end
 local char={FindFirstChild=function()return root end,FindFirstChildOfClass=function()return hum end}
 local pivots=0
 function char:PivotTo(frame)pivots+=1;root.Position=frame.Position end
-local readyAttribute;local afterStream
-local player={Character=char,GetAttribute=function()return readyAttribute end,RequestStreamAroundAsync=function()if afterStream then afterStream()end end}
+local readyAttribute;local afterStream;local streamCalls=0
+local player={Character=char,GetAttribute=function()return readyAttribute end,RequestStreamAroundAsync=function()streamCalls+=1;if afterStream then afterStream()end end}
 local hasFloor=true;local groundY=0;local roofY=9;local normalY=1;local rayOrigin
 local workspace={GetServerTimeNow=function()return now end,Raycast=function(_,origin,direction,params)
  rayOrigin=origin
@@ -77,4 +80,16 @@ check(ctx.MoveDoor(Vector3.new(100,24,0),valid,door)and root.Position.Y==23,'ele
 afterWait=function()root.Position=root.Position+Vector3.new(0,30,0)end
 check(not ctx.MoveDoor(Vector3.new(100,24,0),valid,door),'server correction back to roof counted as arrival')
 afterWait=nil;ctx.CancelMovement();check(moving==1,'stop did not cancel active movement')
+local requests,pivotBefore=streamCalls,pivots
+afterStream=function()coroutine.yield('stream pending')end
+local began=now
+check(ctx.MoveDoor(Vector3.new(100,24,0),valid,door),'pending streaming prevented use of loaded ground')
+check(now-began<3 and streamCalls==requests+1,'streaming request did not time out / duplicated requests')
+check(ctx.MoveDoor(Vector3.new(110,24,0),valid,door)and streamCalls==requests+1 and pivots==pivotBefore+2,'stalled stream blocked the next door or accumulated requests')
+check(coroutine.resume(spawned[#spawned]),'late streaming completion failed')
+requests=streamCalls;pivotBefore=pivots
+afterWait=function()live=false end
+check(not ctx.MoveDoor(Vector3.new(100,24,0),valid,door)and pivots==pivotBefore,'stop while streaming still teleported')
+check(streamCalls==requests+1,'cancelled stream started duplicate calls')
+afterWait=nil;check(coroutine.resume(spawned[#spawned]),'cancelled stream could not finish without game actions')
 print('PASS Halloween teleport: roof rejection, door sill, elevation, streaming, death and cancellation: '..checks..' checks')

@@ -142,6 +142,14 @@ gap limits and server knock/candy events; it never sends `Knocked` or `Landed`.
 If the initial cooldown attribute is missing, its fallback deadline stays fixed.
 Manual Island travel resumes an enabled collector; Hub travel stops it.
 Stop All during travel prevents resuming. Rerunning replaces an older test release.
+Release `anime-dice-test-20261020-11` keeps collecting through repeated cooldowns
+until switched off. Terrain-streaming waits are bounded, with only one pending
+stream request. A door attempt stalled for 60 seconds is retired and retried;
+generation checks prevent its late response from moving or clearing a newer run.
+Off/Stop All invalidate pending attempts. GUI-refresh errors are reported separately
+and no longer terminate the automation loop. Regression checks reproduce the
+previous stalled-worker behavior and simulate over an hour of confirmed door
+visits, late completions, stalled streaming, GUI failures and explicit stopping.
 Streaming, server movement corrections and the live map still need Roblox testing.
 
 Auto Trade is not part of this test: the previous analysis identified its remote

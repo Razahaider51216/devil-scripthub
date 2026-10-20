@@ -66,7 +66,7 @@ end
 end
 -- END DEVIL AUTO EXECUTE
 
-local release="anime-dice-test-20261020-10"
+local release="anime-dice-test-20261020-11"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end
@@ -312,11 +312,25 @@ return function(scope)
         if not fallbackDoorReady then fallbackDoorReady=ctx.Now()+30 end
         return fallbackDoorReady
     end
+    local streamRequest
+    local function streamAround(position,timeout,valid)
+        -- A pending terrain request must not hold the farming worker forever.
+        -- Keep one outstanding request; use already loaded ground if it stalls.
+        if streamRequest or valid and not valid()then return end
+        local request={Done=false};streamRequest=request
+        ctx.Spawn(function()
+            pcall(player.RequestStreamAroundAsync,player,position,timeout)
+            request.Done=true
+            if streamRequest==request then streamRequest=nil end
+        end)
+        local deadline=os.clock()+timeout
+        while not request.Done and os.clock()<deadline and(not valid or valid())do ctx.Wait(.1)end
+    end
     function ctx.StreamEvent()
         local island=workspace:FindFirstChild("Halloween")
         local arrival=island and island:FindFirstChild("ArrivalPoint",true)
         if arrival and arrival:IsA("BasePart")then
-            pcall(player.RequestStreamAroundAsync,player,arrival.Position,3)
+            streamAround(arrival.Position,3)
         end
     end
     function ctx.InGroup()
@@ -353,7 +367,7 @@ return function(scope)
         local hum=char and char:FindFirstChildOfClass("Humanoid")
         local root=char and char:FindFirstChild("HumanoidRootPart")
         if not hum or not root or hum.Health<=0 then return false,"Character unavailable"end
-        pcall(player.RequestStreamAroundAsync,player,goal,2)
+        streamAround(goal,2,valid)
         if not valid()or player.Character~=char or not root.Parent or hum.Health<=0 then return false,"Cancelled"end
         local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Exclude
         params.FilterDescendantsInstances={char};params.RespectCanCollide=true
@@ -391,7 +405,7 @@ return function(ctx,P)
         TraitTargets={},GradeTargets={},QuirkTargets={},BoostNames={},SpinNames={},GearPriority="Luck",PumpkinCount=1,
         PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true}
     local clock=ctx.Clock or os.clock
-    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-10",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
+    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-11",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
     local states,handlers,pending,spend={}, {}, {}, {}
     local towerOwned=false;local towerName;local towerEpoch=0;local originalRoll,rollOwned=nil,false
     local doorReady=setmetatable({},{__mode="k"});local lastKnock;local nextIslandTravel=0;local stopEpoch=0
@@ -452,7 +466,10 @@ return function(ctx,P)
         if value and(name=="Trait"or name=="Grade"or name=="Quirk")then states[name].Attempts=0 end
         if value and(name=="CandyShop"or name=="QuestShop")then states[name].Purchases=0 end
         if value and name=="Tower"then ctl.Set("Haunted",false)elseif value and name=="Haunted"then ctl.Set("Tower",false)end
-        if not value and name=="Doors"then ctx.CancelMovement()end
+        if not value and name=="Doors"then
+            states[name].Busy=false;states[name].RunToken=nil
+            ctx.CancelMovement()
+        end
         if not value and name=="Roll"and rollOwned then
             rollOwned=false;pcall(ctx.Fire,"RollService","SetAutoRoll",originalRoll==true)
         end
@@ -790,7 +807,8 @@ return function(ctx,P)
         assert(config,"TrickOrTreat configuration unavailable")
         states[name].LoadedDoors=#doors
         local now=ctx.Now();local best,distance;local nearest=math.huge;local nextReady=math.huge
-        local active=function()return valid(name,token)end
+        local deadline=clock()+60
+        local active=function()return valid(name,token)and clock()<deadline end
         for _,door in ipairs(doors)do
             local dist=(door.position-pos).Magnitude;nearest=math.min(nearest,dist)
             local ready=doorReady[door.key]or ctx.DoorInitialReady();nextReady=math.min(nextReady,ready)
@@ -805,25 +823,33 @@ return function(ctx,P)
                 if not active()then return end
                 ctx.StreamEvent();return 2
             end
-            ctx.StreamEvent();status(name,"Waiting for streamed event doors ("..#doors.." loaded)");return 2
+            ctx.StreamEvent()
+            if not active()then return end
+            status(name,"Waiting for streamed event doors ("..#doors.." loaded)");return 2
         end
         if not best then status(name,"Door cooldown: "..math.max(0,math.ceil(nextReady-now)).."s | Loaded: "..#doors);return 1 end
         -- Exit the door volume first so the server can arm a previous visit.
         status(name,"Teleporting to door")
         local outside=best.position+best.front*(best.range+10)
         local ok,why=ctx.MoveDoor(outside,active,best)
+        if not active()then return end
         if not ok then status(name,why);doorReady[best.key]=now+5;return 2 end
         ctx.Wait(.4) -- Allow the server's door check to observe the outside position.
         local latest=lastKnock
         if latest and latest.position then
-            local earliest=latest.at+math.max(config.MIN_KNOCK_GAP,(best.position-latest.position).Magnitude/config.MAX_TRAVEL_SPEED)
-            while active()and ctx.Now()<earliest do ctx.Wait(.1)end
+            local speed=P.Number(config.MAX_TRAVEL_SPEED,60);if speed<=0 then speed=60 end
+            local earliest=latest.at+math.max(P.Number(config.MIN_KNOCK_GAP,2),(best.position-latest.position).Magnitude/speed)
+            while active()and ctx.Now()<earliest do
+                status(name,"Door travel cooldown: "..math.ceil(earliest-ctx.Now()).."s")
+                ctx.Wait(.1)
+            end
         end
         if not active()then return end
         ok,why=ctx.MoveDoor(best.position+best.front*math.min(best.range*.6,6),active,best)
+        if not active()then return end
         if not ok then status(name,why);doorReady[best.key]=ctx.Now()+5;return 2 end
         status(name,"Waiting for server knock")
-        local deadline=clock()+8
+        deadline=math.min(deadline,clock()+8)
         local function knocked()return lastKnock and lastKnock.part==best.key and lastKnock.at>=now end
         while active()and clock()<deadline and not knocked()do ctx.Wait(.1)end
         if active()and not knocked()then
@@ -854,18 +880,27 @@ return function(ctx,P)
             Candy=P.Amount(d,(ctx.Catalog.Halloween or{}).CANDY or"Candy"),Pumpkins=P.Amount(d,(ctx.Catalog.Halloween or{}).PUMPKINS or"Pumpkins"),Rebirth=d.Rebirth}
         for _,name in ipairs(jobs)do
             local state=states[name];local waitFor=pending[name]
+            if name=="Doors"and cfg[name]and state.Busy and clock()-state.Started>=60 then
+                -- Retire a yielded attempt. Its generation check prevents it
+                -- from moving or clearing a newer worker when it returns.
+                ctl.Generation[name]+=1;state.RunToken=nil;state.Busy=false
+                state.Recoveries=(state.Recoveries or 0)+1;state.Next=clock()+1
+                pcall(ctx.CancelMovement)
+                status(name,"Door route stalled; retrying automatically")
+                log(name,state.Status)
+            end
             if cfg[name]and waitFor then
                 local ok,confirmed=pcall(waitFor.Check,d)
                 if ok and confirmed then pending[name]=nil;finish(name,"Confirmed by live data")
                 elseif clock()>waitFor.Until then pending[name]=nil;status(name,"No confirmation yet; rechecking live state");state.Next=clock()+3 end
             end
             if cfg[name]and not state.Busy and not pending[name]and clock()>=state.Next then
-                local token=ctl.Generation[name];state.Busy=true;state.Started=clock()
+                local token=ctl.Generation[name];state.Busy=true;state.Started=clock();state.RunToken=token
                 ctx.Spawn(function()
-                    state.RunToken=token
                     local result=table.pack(xpcall(function()
                         if valid(name,token)then return handlers[name](name,token,data())end
                     end,debug.traceback))
+                    if state.RunToken~=token then return end
                     state.Busy=false;state.Next=clock()+math.max(.25,P.Number(result[2],2))
                     if not result[1]and valid(name,token)then
                         state.Errors+=1;state.LastError=tostring(result[2]):sub(1,700);state.Status="Error: "..state.LastError:match("^[^\n]+")
@@ -1693,21 +1728,24 @@ end
         while not app.Stopped do
             local worked,err=xpcall(core.Tick,debug.traceback)
             if not worked then core.Report.LastTickError=tostring(err)end
-            local r=core.Report.Summary
-            if r then
-                summary:Set(string.format("Money: %.4g | Units: %d / %d\nRolls: %s | Rebirth: %s\nCandy: %.4g | Pumpkins: %.4g",r.Money,r.Units,r.Storage,tostring(r.Rolls),tostring(r.Rebirth),r.Candy,r.Pumpkins))
-                sellStatus:Set(core.SellSummary())
-            end
-            local enabled=0
-            for name,widget in pairs(widgets)do if cfg[name]then enabled+=1 end;widget:Set(cfg[name],true)end
-            resultLabel:Set("Enabled: "..enabled.." / "..#core.Jobs)
-            for name,label in pairs(statuses)do local s=core.Report.Jobs[name];label:Set(name..": "..s.Status.." | "..s.Requests.." requests / "..s.Confirmed.." confirmed")end
-            if os.clock()>refreshAt and ctx.Ready then
-                refreshAt=os.clock()+8
-                local success,err=pcall(refreshOptions);if not success then core.Report.ChoicesError=tostring(err)end
-            end
-            refreshLanguage()
-            presentation.SetLanguage(currentLanguage,ctx.Ready and ctx.Snapshot()or nil);presentation.Tick(os.clock())
+            local rendered,renderError=xpcall(function()
+                local r=core.Report.Summary
+                if r then
+                    summary:Set(string.format("Money: %.4g | Units: %d / %d\nRolls: %s | Rebirth: %s\nCandy: %.4g | Pumpkins: %.4g",r.Money,r.Units,r.Storage,tostring(r.Rolls),tostring(r.Rebirth),r.Candy,r.Pumpkins))
+                    sellStatus:Set(core.SellSummary())
+                end
+                local enabled=0
+                for name,widget in pairs(widgets)do if cfg[name]then enabled+=1 end;widget:Set(cfg[name],true)end
+                resultLabel:Set("Enabled: "..enabled.." / "..#core.Jobs)
+                for name,label in pairs(statuses)do local s=core.Report.Jobs[name];label:Set(name..": "..s.Status.." | "..s.Requests.." requests / "..s.Confirmed.." confirmed")end
+                if os.clock()>refreshAt and ctx.Ready then
+                    refreshAt=os.clock()+8
+                    local success,err=pcall(refreshOptions);if not success then core.Report.ChoicesError=tostring(err)end
+                end
+                refreshLanguage()
+                presentation.SetLanguage(currentLanguage,ctx.Ready and ctx.Snapshot()or nil);presentation.Tick(os.clock())
+            end,debug.traceback)
+            if not rendered then core.Report.LastRenderError=tostring(renderError)end
             ctx.Wait(.5)
         end
     end)

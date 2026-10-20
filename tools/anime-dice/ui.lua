@@ -2,7 +2,7 @@
 assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
 local scope=type(getgenv)=="function"and getgenv()or _G
 -- AUTO_EXECUTE_BOOTSTRAP
-local release="anime-dice-test-20261020-10"
+local release="anime-dice-test-20261020-11"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end
@@ -340,21 +340,24 @@ local ok,problem=xpcall(function()
         while not app.Stopped do
             local worked,err=xpcall(core.Tick,debug.traceback)
             if not worked then core.Report.LastTickError=tostring(err)end
-            local r=core.Report.Summary
-            if r then
-                summary:Set(string.format("Money: %.4g | Units: %d / %d\nRolls: %s | Rebirth: %s\nCandy: %.4g | Pumpkins: %.4g",r.Money,r.Units,r.Storage,tostring(r.Rolls),tostring(r.Rebirth),r.Candy,r.Pumpkins))
-                sellStatus:Set(core.SellSummary())
-            end
-            local enabled=0
-            for name,widget in pairs(widgets)do if cfg[name]then enabled+=1 end;widget:Set(cfg[name],true)end
-            resultLabel:Set("Enabled: "..enabled.." / "..#core.Jobs)
-            for name,label in pairs(statuses)do local s=core.Report.Jobs[name];label:Set(name..": "..s.Status.." | "..s.Requests.." requests / "..s.Confirmed.." confirmed")end
-            if os.clock()>refreshAt and ctx.Ready then
-                refreshAt=os.clock()+8
-                local success,err=pcall(refreshOptions);if not success then core.Report.ChoicesError=tostring(err)end
-            end
-            refreshLanguage()
-            presentation.SetLanguage(currentLanguage,ctx.Ready and ctx.Snapshot()or nil);presentation.Tick(os.clock())
+            local rendered,renderError=xpcall(function()
+                local r=core.Report.Summary
+                if r then
+                    summary:Set(string.format("Money: %.4g | Units: %d / %d\nRolls: %s | Rebirth: %s\nCandy: %.4g | Pumpkins: %.4g",r.Money,r.Units,r.Storage,tostring(r.Rolls),tostring(r.Rebirth),r.Candy,r.Pumpkins))
+                    sellStatus:Set(core.SellSummary())
+                end
+                local enabled=0
+                for name,widget in pairs(widgets)do if cfg[name]then enabled+=1 end;widget:Set(cfg[name],true)end
+                resultLabel:Set("Enabled: "..enabled.." / "..#core.Jobs)
+                for name,label in pairs(statuses)do local s=core.Report.Jobs[name];label:Set(name..": "..s.Status.." | "..s.Requests.." requests / "..s.Confirmed.." confirmed")end
+                if os.clock()>refreshAt and ctx.Ready then
+                    refreshAt=os.clock()+8
+                    local success,err=pcall(refreshOptions);if not success then core.Report.ChoicesError=tostring(err)end
+                end
+                refreshLanguage()
+                presentation.SetLanguage(currentLanguage,ctx.Ready and ctx.Snapshot()or nil);presentation.Tick(os.clock())
+            end,debug.traceback)
+            if not rendered then core.Report.LastRenderError=tostring(renderError)end
             ctx.Wait(.5)
         end
     end)

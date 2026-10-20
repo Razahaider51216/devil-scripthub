@@ -15,6 +15,12 @@ def execute(path):
     results.append(result.stdout.strip())
 checks = (root / 'tests/anime-dice-core.luau').read_text(encoding='utf-8')
 checks = checks.replace('-- TEST_PLANNER', (here / 'planner.lua').read_text(encoding='utf-8'))
+baseline=subprocess.check_output(['git','show','f54cc8e866b50ecfe74c228a0922f7b785309657:tools/anime-dice/core.lua'],cwd=root).decode('utf-8')
+baseline_path=here/'door-recovery-baseline.generated.luau'
+baseline_path.write_text(checks.replace('-- TEST_CORE',baseline),encoding='utf-8',newline='\n')
+prior=subprocess.run([str(root.parent/'luau-tools/luau.exe'),str(baseline_path)],capture_output=True,text=True,encoding='utf-8',timeout=25)
+assert prior.returncode!=0 and 'stalled route was not retired while keeping automation on' in prior.stderr,prior.stdout+prior.stderr
+print('PASS reproduced previous release: a stalled door worker never resumed collection')
 checks = checks.replace('-- TEST_CORE', (here / 'core.lua').read_text(encoding='utf-8'))
 path = here / 'test.generated.luau'
 path.write_text(checks, encoding='utf-8', newline='\n')
@@ -45,18 +51,23 @@ ouro = dependency.read(root).decode('utf-8')
 fixture = mocks + '\nlocal entrySource=' + literal(entry) + '\nlocal ouroSource=' + literal(ouro) + '\n'
 router = json.loads((root / 'devil-blue-gui-router-audit.json').read_text(encoding='utf-8'))
 anime_route = next((r for r in router['routes'] if r['File'] == 'anime-dice-test.lua'), None)
-if anime_route:
+entry_release=json.loads((root/'anime-dice-test-release.json').read_text(encoding='utf-8'))['release']
+main_matches=anime_route is not None and anime_route.get('Version')==entry_release
+if main_matches:
     fixture += 'local mainLoaderSource=' + literal((root / 'loader').read_text(encoding='utf-8')) + '\n'
     fixture += 'local mainEntryCommit=' + json.dumps(anime_route['Commit']) + '\n'
+elif anime_route:
+    print('SKIP main-loader integration until the new entry release is pinned; testing standalone entry')
 fixture += (root / 'tests/anime-dice-entry.luau').read_text(encoding='utf-8')
 path = here / 'entry-test.generated.luau'
 path.write_text(fixture, encoding='utf-8', newline='\n')
 execute(path)
-validation = {'release':'anime-dice-test-20261020-10','live_game_verified':False,
+validation = {'release':'anime-dice-test-20261020-11','live_game_verified':False,
     'entry_sha256':hashlib.sha256((root / 'anime-dice-test.lua').read_bytes()).hexdigest(),
     'checks':sum(int(n) for result in results for n in re.findall(r'(\d+) checks', result)),
     'literal_remote_contract_checks':count,'results':results,
-    'main_loader_sha256':hashlib.sha256((root / 'loader').read_bytes()).hexdigest() if anime_route else None,
+    'main_loader_sha256':hashlib.sha256((root / 'loader').read_bytes()).hexdigest() if main_matches else None,
+    'main_loader_integration_verified':main_matches,
     'pinned_gui_sha256':dependency.SHA256,
     'fixtures':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (root / 'tests').glob('anime-dice-*.luau')}}
 (root / 'anime-dice-test-validation.json').write_text(json.dumps(validation,indent=2)+'\n',encoding='utf-8',newline='\n')
