@@ -40,6 +40,13 @@ if steal.get('Version','')!='chilli-fishing-rotation-20261020-1':
     normalized=normalized.replace('entry.File=="devil-steal-an-egg.lua"and"'+steal['Version']+'"','entry.File=="devil-steal-an-egg.lua"and"chilli-fishing-rotation-20261020-1"',1)
     migration=(ROOT/'tools/chilli-20261019/rejoin-migration.lua')
     if migration.exists():normalized=normalized.replace(migration.read_text().rstrip()+'\n','',1)
+if audit.get('anime_router_baseline_commit'):
+    import re
+    anime=next(r for r in audit['routes'] if r['File']=='anime-dice-test.lua')
+    old_row=re.search(r'^    \{Name="Anime Dice"[^\n]+',expected,re.M)[0]
+    old_version=re.search(r'entry.File=="anime-dice-test.lua"then entry.Version="([^"]+)"',expected)[1]
+    normalized=re.sub(r'^    \{Name="Anime Dice"[^\n]+',lambda _:old_row,normalized,flags=re.M)
+    normalized=normalized.replace('entry.File=="anime-dice-test.lua"then entry.Version="'+anime['Version']+'"','entry.File=="anime-dice-test.lua"then entry.Version="'+old_version+'"',1)
 assert expected==normalized,'Changes outside the declared game entry pins and Dig For Eggs additions'
 assert hashlib.sha256(current.encode()).hexdigest()==audit['after_native_sha256']
 print('PASS Climb immutable entry/main-loader hashes; all other router bytes preserved')

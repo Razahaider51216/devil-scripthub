@@ -66,7 +66,7 @@ end
 end
 -- END DEVIL AUTO EXECUTE
 
-local release="anime-dice-test-20261020-12"
+local release="anime-dice-tower-cards-20261021-1"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end
@@ -407,7 +407,7 @@ return function(ctx,P)
         PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true,
         ProtectedTraits={},ProtectedGrades={},ProtectedQuirks={}}
     local clock=ctx.Clock or os.clock
-    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-12",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
+    local ctl={Config=cfg,Report={Version="anime-dice-tower-cards-20261021-1",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
     local states,handlers,pending,spend={}, {}, {}, {}
     local towerOwned=false;local towerName;local towerEpoch=0;local originalRoll,rollOwned=nil,false
     local doorReady=setmetatable({},{__mode="k"});local lastKnock;local nextIslandTravel=0;local stopEpoch=0
@@ -1059,6 +1059,75 @@ return function(window,ctx,app,logo)
     local function plainText(text)
         return text:gsub("<[^>]*>",""):gsub("&amp;","&"):gsub("&lt;","<"):gsub("&gt;",">")
     end
+    local towerPickers={}
+    local difficultyTH={Easy="ง่าย",Medium="ปานกลาง",Hard="ยาก",Extreme="ยากมาก",Nightmare="ฝันร้าย",Abyssal="ห้วงลึก",Infinity="ไม่สิ้นสุด"}
+    local function towerText(row)
+        local spec=row.Spec;local wing=spec.wing or{}
+        local difficulty=type(spec.difficulty)=="table"and spec.difficulty.name or spec.difficulty
+        difficulty=type(difficulty)=="string"and difficulty or"—"
+        row.Difficulty.Text=view.Language=="TH"and(difficultyTH[difficulty]or difficulty:gsub("^Floors ","ชั้น "):gsub("^Floor ","ชั้น "))or difficulty
+        local count=tonumber(spec.maxFloors);local first=tonumber(wing.firstFloor)
+        local endless=wing.endless==true or difficulty=="Infinity"or row.Name=="Infinity Tower"
+        if endless then
+            row.Floors.Text=first and((view.Language=="TH"and"ชั้น "or"Floor ")..first.."+")or(view.Language=="TH"and"ไม่จำกัดชั้น"or"Endless floors")
+        elseif count and count>0 and count<math.huge then
+            row.Floors.Text=first and((view.Language=="TH"and"ชั้น "or"Floors ")..first.."–"..(first+count-1))or(tostring(count)..(view.Language=="TH"and" ชั้น"or" floors"))
+        else row.Floors.Text=view.Language=="TH"and"ยังไม่มีข้อมูลชั้น"or"Floors unavailable"end
+    end
+    function view.CreateTowers(host,key,name,selected,default)
+        local widget,popup=picker(host,name,selected,default)
+        towerPickers[key]={Widget=widget,Popup=popup,Rows=setmetatable({},{__mode="k"})}
+        return widget
+    end
+    local function refreshTowerPicker(key,names,specs)
+        local info=towerPickers[key];if not info then return end
+        info.Widget:Refresh(names,true,true)
+        if not info.Popup then return end
+        local wanted={};for _,name in ipairs(names)do wanted[name]=true end
+        for _,text in ipairs(info.Popup:GetDescendants())do
+            if text:IsA("TextLabel")and text.Parent and text.Parent:IsA("TextButton")then
+                local name=plainText(text.Text);local spec=wanted[name]and specs[name]
+                if spec then
+                    local row=info.Rows[text]
+                    if not row then
+                        row={Name=name};info.Rows[text]=row
+                        text.Position=UDim2.fromOffset(48,0);text.Size=UDim2.new(1,-210,1,0)
+                        row.Icon=node("ImageLabel","TowerIcon",text.Parent,{AnchorPoint=Vector2.new(0,.5),Position=UDim2.new(0,12,.5,0),
+                            Size=UDim2.fromOffset(28,28),ImageColor3=white,BackgroundTransparency=1,ScaleType=Enum.ScaleType.Fit,ZIndex=text.ZIndex+1})
+                        row.Icon:SetAttribute("CustomIcon",true)
+                        row.Fallback=label("TowerIconFallback",text.Parent,{Text="◇",TextColor3=blue,TextSize=22,TextXAlignment=Enum.TextXAlignment.Center,
+                            AnchorPoint=Vector2.new(0,.5),Position=UDim2.new(0,12,.5,0),Size=UDim2.fromOffset(28,28),ZIndex=text.ZIndex+1})
+                        local detail=node("Frame","TowerDetails",text.Parent,{AnchorPoint=Vector2.new(1,.5),Position=UDim2.new(1,-29,.5,0),
+                            Size=UDim2.fromOffset(126,28),BackgroundTransparency=1,ZIndex=text.ZIndex+1})
+                        row.Difficulty=label("TowerDifficulty",detail,{Size=UDim2.new(1,0,0,14),TextColor3=blue,TextSize=11,
+                            TextXAlignment=Enum.TextXAlignment.Right,ZIndex=text.ZIndex+1})
+                        row.Floors=label("TowerFloors",detail,{Position=UDim2.fromOffset(0,14),Size=UDim2.new(1,0,0,14),TextColor3=white,TextSize=10,
+                            TextXAlignment=Enum.TextXAlignment.Right,ZIndex=text.ZIndex+1})
+                    end
+                    row.Spec=spec
+                    local image=spec.image
+                    if type(image)=="number"then image="rbxassetid://"..image end
+                    row.Icon.Visible=type(image)=="string"and image~=""
+                    row.Icon.Image=row.Icon.Visible and image or"";row.Fallback.Visible=not row.Icon.Visible
+                    towerText(row)
+                end
+            end
+        end
+    end
+    function view.RefreshTowers(catalog,haunted)
+        local specs={};for name,spec in pairs(catalog and catalog.GetAll()or{})do specs[name]=spec end
+        local towers,wings={},{}
+        for name,spec in pairs(specs)do if not spec.event then towers[#towers+1]=name end end
+        table.sort(towers,function(a,b)
+            local x,y=tonumber(specs[a].order)or math.huge,tonumber(specs[b].order)or math.huge
+            return x==y and a<b or x<y
+        end)
+        for _,wing in ipairs(haunted and haunted.Wings or{})do
+            wings[#wings+1]=wing.name
+            if not specs[wing.name]then specs[wing.name]={image=wing.image,wing=wing,maxFloors=not wing.endless and haunted.WING_FLOORS or nil}end
+        end
+        refreshTowerPicker("TowerChoice",towers,specs);refreshTowerPicker("WingChoice",wings,specs)
+    end
     local itemPickers={}
     function view.CreateItems(host,key,name,selected,multiple,default)
         local widget,popup=picker(host,name,selected,default,multiple)
@@ -1214,6 +1283,7 @@ return function(window,ctx,app,logo)
     end
     function view.SetLanguage(language,data)
         view.Language=language=="TH"and"TH"or"EN"
+        for _,info in pairs(towerPickers)do for _,row in pairs(info.Rows)do towerText(row)end end
         for _,card in ipairs(view.Cards)do updateText(card)end
         view.UpdateDiceState(data or diceData)
     end
@@ -1545,7 +1615,7 @@ end
     materials:CreateParagraph({Name="Material filters",Content="Locked, plotted, team and kept units are excluded. Fusion consumes three units. Set chance limits before enabling."})
     local towerTab=tab("Towers","swords")
     local towers=group(towerTab,"Tower farming")
-    dropdown(towers,"TowerChoice","Tower selection",{},nil)
+    optionWidgets.TowerChoice=presentation.CreateTowers(towers,"TowerChoice","Tower selection",function(v)changed();cfg.TowerChoice=v end)
     toggle(towers,"Tower","Auto Tower")
     button(towers,"Equip Best Tower Team",function()ctx.Fire("Towers","EquipBestTowerTeam")end)
     towers:CreateParagraph({Name="Tower timing",Content="Uses the actual server battle results and game timing. Only one Tower or Haunted House runs at a time."})
@@ -1614,7 +1684,7 @@ end
     dropdown(eventFarm,"PumpkinSellNames","Pumpkin units to auto sell",{},nil,true)
     button(eventFarm,"Apply Pumpkin sell filter",function()core.PumpkinFilter(cfg.PumpkinSellNames)end)
     local eventTower=group(halloween,"Haunted House","Right")
-    dropdown(eventTower,"WingChoice","Haunted wing",{},"Front Yard")
+    optionWidgets.WingChoice=presentation.CreateTowers(eventTower,"WingChoice","Haunted wing",function(v)changed();cfg.WingChoice=v end,"Front Yard")
     toggle(eventTower,"Haunted","Auto Haunted House")
     button(eventTower,"Travel to Halloween Island",function()core.Teleport("Island")end)
     button(eventTower,"Return to Hub",function()core.Teleport("Hub")end)
@@ -1679,10 +1749,7 @@ end
             if optionWidgets[key]then optionWidgets[key]:Refresh(values,true,true)end
         end
         presentation.RefreshDice(c.Dice,d)
-        local towerNames,wingNames={},{}
-        if c.Towers then for name,tower in pairs(c.Towers.GetAll())do if not tower.event then towerNames[#towerNames+1]=name end end end;table.sort(towerNames)
-        for _,wing in ipairs(c.HauntedHouse and c.HauntedHouse.Wings or{})do wingNames[#wingNames+1]=wing.name end
-        options("TowerChoice",towerNames);options("WingChoice",wingNames)
+        presentation.RefreshTowers(c.Towers,c.HauntedHouse)
         for _,kind in ipairs({"Trait","Grade","Quirk"})do
             local values=keys(c[kind=="Trait"and"Traits"or kind=="Grade"and"Grades"or"Quirks"])
             options(kind.."Targets",values);protectionWidgets[kind]:Refresh(values,true,true)

@@ -34,7 +34,15 @@ local function setup(place,corrupt,storage)
  local offers={{name='Pumpkin Spin',candy=2500},{name='Candy Pot I',candy=500},{name="Witch's Jackpot",candy=50000}}
  module('Rolling','Dice',{GetAll=function()return dice end,GetDefault=function()return 'Basic'end})
  module('Halloween','HalloweenShop',offers)
- module('Towers','Towers',{GetAll=function()return {Test={},['Front Yard']={event=true}}end})
+ local wings={WING_FLOORS=50,Wings={{name='Front Yard',firstFloor=1,image='rbxassetid://125258111031038'},
+  {name='The Abyss',firstFloor=251,endless=true,image='rbxassetid://95391097280127'}}}
+ local towerSpecs={Test={},['Dragon Tower']={order=1,image='rbxassetid://85435271739310',difficulty={name='Easy'},maxFloors=100},
+  ['Cursed Tower']={order=2,image='rbxassetid://104197656322827',difficulty={name='Medium'},maxFloors=100},
+  ['Shadow Tower']={order=6,image='rbxassetid://103129754283172',difficulty={name='Abyssal'},maxFloors=150},
+  ['Infinity Tower']={order=99,image='rbxassetid://89992622754247',difficulty={name='Infinity'}},
+  ['Front Yard']={event='Halloween',image=wings.Wings[1].image,wing=wings.Wings[1],maxFloors=50,difficulty={name='Floors 1-50'}}}
+ module('Halloween','HauntedHouse',wings)
+ module('Towers','Towers',{GetAll=function()return towerSpecs end})
  module('Towers','TowerRefs',{ActionWaitTime={floorCompleted=.24,ended=0}})
  local network=node('Folder','Network',rs)
  local roll=node('Folder','RollService',network)
@@ -143,7 +151,7 @@ local function setup(place,corrupt,storage)
  end
  local originalCompiler=env.loadstring;local originalHttp=game.HttpGet
  local fn=assert(nativeCompile(entrySource));setfenv(fn,env)
- return {Run=fn,scope=scope,work=work,objects=objects,remote=remote,env=env,data=data,offers=offers,dice=dice,
+ return {Run=fn,scope=scope,work=work,objects=objects,remote=remote,env=env,data=data,offers=offers,dice=dice,towerSpecs=towerSpecs,wings=wings,
   advance=function(n)clockNow+=n end,now=function()return clockNow end,actions=function(value)floorActions=value end,
   compiler=originalCompiler,http=originalHttp,game=game,language=function(v)language=v end,
   counts=function()return downloads,libraryCalls end,window=function()return window end}
@@ -287,7 +295,7 @@ do
  local f=setup(113290951185459,false);local destroyed=0
  f.scope.DevilAnimeDiceTest={Version='anime-dice-test-20261020-1',Stopped=false,Destroy=function()destroyed+=1 end}
  local app=f.Run()
- check(destroyed==1 and app.Version=='anime-dice-test-20261020-12','rerun retained previous broken release')
+ check(destroyed==1 and app.Version=='anime-dice-tower-cards-20261021-1','rerun retained previous broken release')
  app.Destroy()
 end
 do
@@ -410,7 +418,7 @@ if mainLoaderSource then
  function f.game:IsLoaded()return true end
  f.game.HttpGet=function(self,url)
   if url:find('/anime-dice-test.lua',1,true)then
-   check(url:find('/'..mainEntryCommit..'/anime-dice-test.lua?hub=anime-dice-test-20261020-12',1,true),'main loader fetched wrong entry pin / version')
+   check(url:find('/'..mainEntryCommit..'/anime-dice-test.lua?hub=anime-dice-tower-cards-20261021-1',1,true),'main loader fetched wrong entry pin / version')
    routeRequests+=1;return entrySource
   end
   return f.http(self,url)
@@ -425,7 +433,7 @@ if mainLoaderSource then
   local ok,result=coroutine.resume(co);check(ok,'main loader / actual entry failed: '..tostring(result))
   if coroutine.status(co)=='dead'then app=result;break end
  end
- check(app and app==f.scope.DevilAnimeDiceTest and app.Version=='anime-dice-test-20261020-12','main loader did not return the actual Anime Dice GUI')
+ check(app and app==f.scope.DevilAnimeDiceTest and app.Version=='anime-dice-tower-cards-20261021-1','main loader did not return the actual Anime Dice GUI')
  check(routeRequests==1 and not f.scope.DevilHubRouterLoading,'main loader duplicated entry download or leaked busy state')
  table.remove(f.work,1)()
  check(not app.Report.InitializationError and f.objects['Quest shop item']and f.objects['Boosts to use']and f.objects['Spins to use']and f.objects['Gear priority'],'main-loaded app did not initialize requested selectors')
@@ -435,6 +443,33 @@ if mainLoaderSource then
   if coroutine.status(duplicate)=='dead'then repeated=result;break end
  end
  check(repeated==app and routeRequests==1,'running main loader twice duplicated GUI / download')
+ app.Destroy()
+end
+do
+ local f=setup(113290951185459,false);local app=f.Run();table.remove(f.work,1)()
+ local picker=f.objects['Tower selection'];local haunted=f.objects['Haunted wing'];local p=app.Presentation
+ check(picker.Options[1]=='Dragon Tower'and picker.Options[2]=='Cursed Tower','Tower choices do not follow native progression order')
+ check(not table.find(picker.Options,'Front Yard')and table.find(haunted.Options,'Front Yard'),'event wings leaked into normal Tower selector')
+ local dragon=picker.Rows['Dragon Tower'];local shadow=picker.Rows['Shadow Tower'];local infinity=picker.Rows['Infinity Tower']
+ check(dragon.TowerIcon.Image==f.towerSpecs['Dragon Tower'].image and dragon.TowerIcon:GetAttribute('CustomIcon'),'Tower image is not the native untinted artwork')
+ check(dragon.TowerDetails.TowerDifficulty.Text=='Easy'and dragon.TowerDetails.TowerFloors.Text=='100 floors','Tower difficulty / floor count missing')
+ check(shadow.TowerDetails.TowerDifficulty.Text=='Abyssal'and shadow.TowerDetails.TowerFloors.Text=='150 floors','Shadow Tower floors were assumed to be 100')
+ check(infinity.TowerDetails.TowerDifficulty.Text=='Infinity'and infinity.TowerDetails.TowerFloors.Text=='Endless floors','Infinity Tower shown with a made-up floor cap')
+ check(haunted.Rows['Front Yard'].TowerIcon.Image==f.wings.Wings[1].image and haunted.Rows['Front Yard'].TowerDetails.TowerFloors.Text=='Floors 1–50','Haunted wing artwork or native floor range is wrong')
+ check(haunted.Rows['The Abyss'].TowerIcon.Image==f.wings.Wings[2].image and haunted.Rows['The Abyss'].TowerDetails.TowerFloors.Text=='Floor 251+','endless wing fallback loses its native starting floor')
+ picker.Callback('Dragon Tower');haunted.Callback('The Abyss')
+ check(app.Config.TowerChoice=='Dragon Tower'and app.Config.WingChoice=='The Abyss','decorated Tower labels changed gameplay IDs')
+ local count=#dragon:GetChildren();p.RefreshTowers(app.Core and {GetAll=function()return f.towerSpecs end},f.wings)
+ check(#dragon:GetChildren()==count and app.Config.TowerChoice=='Dragon Tower','Tower refresh duplicates rows or clears selected Tower')
+ p.SetLanguage('TH')
+ check(dragon.TowerDetails.TowerDifficulty.Text=='ง่าย'and dragon.TowerDetails.TowerFloors.Text=='100 ชั้น','Tower metadata did not switch to Thai')
+ p.SetLanguage('EN')
+ check(dragon.TowerDetails.TowerDifficulty.Text=='Easy','Tower difficulty did not switch back to English')
+ local unknown=picker.Rows.Test
+ check(not unknown.TowerIcon.Visible and unknown.TowerIconFallback.Visible and unknown.TowerDetails.TowerFloors.Text=='Floors unavailable','missing Tower art / levels shows a blank icon or invented data')
+ f.towerSpecs.Test.image='rbxassetid://456';f.towerSpecs.Test.difficulty={name='Hard'};f.towerSpecs.Test.maxFloors=20
+ p.RefreshTowers({GetAll=function()return f.towerSpecs end},f.wings)
+ check(unknown.TowerIcon.Visible and not unknown.TowerIconFallback.Visible and unknown.TowerIcon.Image=='rbxassetid://456'and unknown.TowerDetails.TowerDifficulty.Text=='Hard','late metadata does not refresh existing Tower rows')
  app.Destroy()
 end
 print('PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: '..checks..' checks')

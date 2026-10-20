@@ -1,4 +1,4 @@
-"""Add/update Anime Dice while retaining the existing 10 route bodies and pins."""
+"""Update Anime Dice while preserving every other route and router code."""
 from pathlib import Path
 import hashlib, json, re, subprocess, sys
 
@@ -15,6 +15,10 @@ canonical = root / 'tools/blue-gui/router.lua'
 before = (canonical if canonical.exists() else build / 'loader.native').read_text(encoding='utf-8')
 assert hashlib.sha256(before.encode()).hexdigest() == audit['after_native_sha256']
 source = before
+baseline_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip()
+assert subprocess.check_output(['git','show',baseline_commit+':tools/blue-gui/router.lua'],cwd=root).decode()==before
+old_row=re.search(r'^    \{Name="Anime Dice"[^\n]+',before,re.M)[0]
+old_version=re.search(r'for _,entry in ipairs\(games\)do if entry.File=="anime-dice-test.lua"then entry.Version="([^"]+)"',before)[1]
 auto_source = (root / 'tools/auto-execute/bootstrap.lua').read_text(encoding='utf-8').rstrip()
 if '-- BEGIN DEVIL AUTO EXECUTE\n' in source:
     source, auto_count = re.subn(r'-- BEGIN DEVIL AUTO EXECUTE\n.*?-- END DEVIL AUTO EXECUTE',
@@ -54,29 +58,38 @@ if count == 0:
 assert count == 1
 legacy_before = re.findall(r'^    \{(?!Name="Anime Dice")[^\n]+', before, re.M)
 legacy_after = re.findall(r'^    \{(?!Name="Anime Dice")[^\n]+', source, re.M)
-assert legacy_before == legacy_after and len(legacy_after) == 10
+assert legacy_before == legacy_after and len(legacy_after) == len(audit['routes'])-1
+restored=source.replace(route,old_row,1).replace('entry.File=="anime-dice-test.lua"then entry.Version="'+release['release']+'"','entry.File=="anime-dice-test.lua"then entry.Version="'+old_version+'"',1)
+assert restored==before,'Changes outside the Anime Dice pin/version'
 source = source.rstrip() + '\n'
 canonical.write_text(source, encoding='utf-8', newline='\n')
 (build / 'loader.native').write_text(source, encoding='utf-8', newline='\n')
 subprocess.run([sys.executable, str(build / 'build-router.py'), '--only', 'loader',
-                '--release', 'devil-anime-dice-20261020-12'], cwd=build, check=True)
+                '--release', release['release']], cwd=build, check=True)
 public = (build / 'candidate/loader').read_bytes()
 (root / 'loader').write_bytes(public)
 row = dict(Name='Anime Dice', Universe=10708913337, Place=113290951185459,
            File='anime-dice-test.lua', Commit=commit, Version=release['release'])
-audit['routes'] = [r for r in audit['routes'] if r['File'] != row['File']] + [row]
-audit.update(release='devil-anime-dice-20261020-12', map_ids_unchanged=False,
+audit['routes'] = [row if r['File']==row['File'] else r for r in audit['routes']]
+previous_loader_sha=audit['public_loader_sha256']
+audit.update(release=release['release'], map_ids_unchanged=True,
     existing_game_routes_unchanged=True,
     native_logic_unchanged_except_presentation_bootstrap_and_entry_pins=False,
     before_native_sha256=hashlib.sha256(before.encode()).hexdigest(),
     after_native_sha256=hashlib.sha256(source.encode()).hexdigest(),
     public_loader_sha256=hashlib.sha256(public).hexdigest(), public_loader_bytes=len(public),
     anime_dice_entry_commit=commit, anime_dice_entry_sha256=release['entry_sha256'],
+    anime_router_baseline_commit=baseline_commit,
     auto_execute_enabled=True, auto_execute_sha256=hashlib.sha256(auto_source.encode()).hexdigest(),
     public_router_universe_place_cases=len(audit['routes'])*3)
 audit_path.write_text(json.dumps(audit, indent=2)+'\n', encoding='utf-8', newline='\n')
 manifest_path = root / 'anime-dice-test-release.json'
 manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
-manifest.update(production_router_changed=True, main_loader_entry_commit=commit)
+manifest.update(production_router_changed=True, main_loader_entry_commit=commit,main_loader_sha256=audit['public_loader_sha256'])
 manifest_path.write_text(json.dumps(manifest, indent=2)+'\n', encoding='utf-8', newline='\n')
-print('PASS main loader: Anime Dice pinned, all 10 existing route entries preserved')
+for filename in ['climb-eggs-release.json','devilv4-test-release.json','devil-steal-update-release.json']:
+    path=root/filename;metadata=json.loads(path.read_text())
+    if metadata.get('main_loader_sha256')==previous_loader_sha:
+        metadata['main_loader_sha256']=audit['public_loader_sha256']
+        path.write_text(json.dumps(metadata,indent=2)+'\n',encoding='utf-8',newline='\n')
+print('PASS main loader: Anime Dice pinned, all',len(legacy_after),'other entries and router code preserved')

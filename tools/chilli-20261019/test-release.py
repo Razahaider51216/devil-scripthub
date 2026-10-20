@@ -33,5 +33,12 @@ expected,count=re.subn(r'(entry.File=="devil-steal-an-egg.lua"and")[^"]+',lambda
 if '-- BEGIN DEVIL STEAL REJOIN MIGRATION'not in expected:
     migration=(root/'tools/chilli-20261019/rejoin-migration.lua').read_text().rstrip()+'\n'
     expected=expected.replace('if selected.File=="devil-steal-an-egg.lua"and',migration+'if selected.File=="devil-steal-an-egg.lua"and',1)
-assert count==1 and current==expected,'Changes outside the Steal pin/version'
+normalized=current
+if audit.get('anime_router_baseline_commit'):
+    anime=next(r for r in audit['routes'] if r['File']=='anime-dice-test.lua')
+    old_row=re.search(r'^    \{Name="Anime Dice"[^\n]+',expected,re.M)[0]
+    old_version=re.search(r'entry.File=="anime-dice-test.lua"then entry.Version="([^"]+)"',expected)[1]
+    normalized=re.sub(r'^    \{Name="Anime Dice"[^\n]+',lambda _:old_row,normalized,flags=re.M)
+    normalized=normalized.replace('entry.File=="anime-dice-test.lua"then entry.Version="'+anime['Version']+'"','entry.File=="anime-dice-test.lua"then entry.Version="'+old_version+'"',1)
+assert count==1 and normalized==expected,'Changes outside the declared Steal/Anime pins and Steal migration'
 print('PASS complete immutable chain: loader -> delegate -> GUI -> adapted runtime; current Steal pin preserved; publication router verified')

@@ -8,7 +8,7 @@ return function(ctx,P)
         PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true,
         ProtectedTraits={},ProtectedGrades={},ProtectedQuirks={}}
     local clock=ctx.Clock or os.clock
-    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-12",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
+    local ctl={Config=cfg,Report={Version="anime-dice-tower-cards-20261021-1",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
     local states,handlers,pending,spend={}, {}, {}, {}
     local towerOwned=false;local towerName;local towerEpoch=0;local originalRoll,rollOwned=nil,false
     local doorReady=setmetatable({},{__mode="k"});local lastKnock;local nextIslandTravel=0;local stopEpoch=0

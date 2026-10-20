@@ -2,7 +2,7 @@
 assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
 local scope=type(getgenv)=="function"and getgenv()or _G
 -- AUTO_EXECUTE_BOOTSTRAP
-local release="anime-dice-test-20261020-12"
+local release="anime-dice-tower-cards-20261021-1"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end
@@ -164,7 +164,7 @@ local ok,problem=xpcall(function()
     materials:CreateParagraph({Name="Material filters",Content="Locked, plotted, team and kept units are excluded. Fusion consumes three units. Set chance limits before enabling."})
     local towerTab=tab("Towers","swords")
     local towers=group(towerTab,"Tower farming")
-    dropdown(towers,"TowerChoice","Tower selection",{},nil)
+    optionWidgets.TowerChoice=presentation.CreateTowers(towers,"TowerChoice","Tower selection",function(v)changed();cfg.TowerChoice=v end)
     toggle(towers,"Tower","Auto Tower")
     button(towers,"Equip Best Tower Team",function()ctx.Fire("Towers","EquipBestTowerTeam")end)
     towers:CreateParagraph({Name="Tower timing",Content="Uses the actual server battle results and game timing. Only one Tower or Haunted House runs at a time."})
@@ -233,7 +233,7 @@ local ok,problem=xpcall(function()
     dropdown(eventFarm,"PumpkinSellNames","Pumpkin units to auto sell",{},nil,true)
     button(eventFarm,"Apply Pumpkin sell filter",function()core.PumpkinFilter(cfg.PumpkinSellNames)end)
     local eventTower=group(halloween,"Haunted House","Right")
-    dropdown(eventTower,"WingChoice","Haunted wing",{},"Front Yard")
+    optionWidgets.WingChoice=presentation.CreateTowers(eventTower,"WingChoice","Haunted wing",function(v)changed();cfg.WingChoice=v end,"Front Yard")
     toggle(eventTower,"Haunted","Auto Haunted House")
     button(eventTower,"Travel to Halloween Island",function()core.Teleport("Island")end)
     button(eventTower,"Return to Hub",function()core.Teleport("Hub")end)
@@ -298,10 +298,7 @@ local ok,problem=xpcall(function()
             if optionWidgets[key]then optionWidgets[key]:Refresh(values,true,true)end
         end
         presentation.RefreshDice(c.Dice,d)
-        local towerNames,wingNames={},{}
-        if c.Towers then for name,tower in pairs(c.Towers.GetAll())do if not tower.event then towerNames[#towerNames+1]=name end end end;table.sort(towerNames)
-        for _,wing in ipairs(c.HauntedHouse and c.HauntedHouse.Wings or{})do wingNames[#wingNames+1]=wing.name end
-        options("TowerChoice",towerNames);options("WingChoice",wingNames)
+        presentation.RefreshTowers(c.Towers,c.HauntedHouse)
         for _,kind in ipairs({"Trait","Grade","Quirk"})do
             local values=keys(c[kind=="Trait"and"Traits"or kind=="Grade"and"Grades"or"Quirks"])
             options(kind.."Targets",values);protectionWidgets[kind]:Refresh(values,true,true)
