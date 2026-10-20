@@ -21,6 +21,7 @@ end
 local env=type(getgenv)=="function"and getgenv()or _G
 if env.DevilHubRouterLoading then return end
 local games={
+    {Name="Dig For Eggs",Universe=10765013362,Place=121831322352666,File="devilv4-test.lua",Commit="6e9145a78f93d7dee2ce0647b50174ab8f944d43",Version="devilv4-test-20261021-1"},
     {Name="Anime Dice",Universe=10708913337,Place=113290951185459,File="anime-dice-test.lua",Commit="ea790b8bfd404e47512b95d9a8d650628dd246fe",Version="anime-dice-test-20261020-12"},
     {Name="Mine / Dump23",Universe=10740316645,Place=79389059854988,File="mine-auto-test.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="mine-auto-test-4"},
     {Name="Tap Simulator 2",Universe=10629695169,Place=72858262610964,File="tapping-auto-test.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="tapping-auto-test-10"},
@@ -36,11 +37,13 @@ local games={
 for _,entry in ipairs(games)do entry.Version=entry.File=="devil-steal-an-egg.lua"and"chilli-fishing-rotation-20261020-1"or entry.File=="mine-auto-test.lua"and"mine-auto-test-4"or entry.File=="tapping-auto-test.lua"and"tapping-auto-test-10"or entry.File=="climb-for-eggs.lua"and"climb-language-sync-20261020-12"or entry.File=="lift-rock-for-eggs.lua"and"lift-rock-fly-23"or entry.File=="aqua-auto-egg.lua"and"aqua-auto-egg-18"or entry.File=="break-and-steal-an-egg.lua"and"break-language-sync-20261020-1"or(entry.File=="ride-a-pet.lua"and"ride-native-obf-18"or"shared-loading-3")end
 -- Anime Dice keeps its own release without changing legacy route versions.
 for _,entry in ipairs(games)do if entry.File=="anime-dice-test.lua"then entry.Version="anime-dice-test-20261020-12"end end
+-- Dig For Eggs keeps its own release after the legacy version normalizer.
+for _,entry in ipairs(games)do if entry.File=="devilv4-test.lua"then entry.Version="devilv4-test-20261021-1"end end
 if not game:IsLoaded()then game.Loaded:Wait()end
 local selected
 for _,entry in ipairs(games)do if game.GameId==entry.Universe then selected=entry break end end
 if not selected then for _,entry in ipairs(games)do if game.PlaceId==entry.Place then selected=entry break end end end
-assert(selected,"DEVIL HUB supports Mine / Dump23, Tap Simulator 2, Climb for Eggs, Lift Rock for Eggs, Ride A Fish, Steal an Egg, Ride a Pet, Break and Steal an Egg, Loot to Forge, Build An Ant Empire, and Anime Dice. This map is not supported yet. GameId="..tostring(game.GameId).." PlaceId="..tostring(game.PlaceId).."")
+assert(selected,"DEVIL HUB supports Mine / Dump23, Tap Simulator 2, Climb for Eggs, Lift Rock for Eggs, Ride A Fish, Steal an Egg, Ride a Pet, Break and Steal an Egg, Loot to Forge, Build An Ant Empire, Anime Dice, and Dig For Eggs. This map is not supported yet. GameId="..tostring(game.GameId).." PlaceId="..tostring(game.PlaceId).."")
 -- BEGIN DEVIL AUTO EXECUTE
 do
     local scope=type(getgenv)=="function"and getgenv()or _G
@@ -114,6 +117,11 @@ if selected.File=="anime-dice-test.lua"then
     local app=env.DevilAnimeDiceTest
     if app and not app.Stopped and app.Version==selected.Version then return app end
     if env.DevilAnimeDiceStarting and os.clock()-env.DevilAnimeDiceStarting.At<30 then return end
+end
+if selected.File=="devilv4-test.lua"then
+    local app=env.DevilV4Test
+    if app and not app.Stopped and app.Version==selected.Version then return app end
+    if type(env.DevilV4Starting)=="number"and os.clock()-env.DevilV4Starting<30 then return end
 end
 assert(type(loadstring)=="function","Executor loadstring support is required.")
 env.DevilHubRouterLoading=true

@@ -61,8 +61,12 @@ assert(run()==nil and #downloads==0,'busy router relaunched')
 run,state,downloads=setup(10563114921,1)
 state.DevilChilliMainUI={}
 assert(run()==nil and #downloads==0,'existing Steal GUI relaunched')
-local anime=definitions[#definitions]
-if anime[3]=='anime-dice-test.lua'then
+local anime,dig
+for _,entry in ipairs(definitions)do
+ if entry[3]=='anime-dice-test.lua'then anime=entry end
+ if entry[3]=='devilv4-test.lua'then dig=entry end
+end
+if anime then
  run,state,downloads=setup(anime[1],1)
  local app={Version=anime[5],Stopped=false};state.DevilAnimeDiceTest=app
  assert(run()==app and #downloads==0,'current Anime GUI relaunched / redownloaded')
@@ -72,6 +76,23 @@ if anime[3]=='anime-dice-test.lua'then
  run,state,downloads=setup(anime[1],1)
  state.DevilAnimeDiceStarting={At=os.clock()}
  assert(run()==nil and #downloads==0,'Anime startup guard redownloaded')
+end
+if dig then
+ run,state,downloads=setup(dig[1],1)
+ local app={Version=dig[5],Stopped=false};state.DevilV4Test=app
+ assert(run()==app and #downloads==0,'current Dig For Eggs GUI relaunched')
+ run,state,downloads=setup(dig[1],1)
+ state.DevilV4Test={Version='older-release',Stopped=false}
+ assert(run()=='route-ok'and #downloads==1,'older Dig For Eggs release blocked an update')
+ run,state,downloads=setup(dig[1],1)
+ state.DevilV4Starting=os.clock()
+ assert(run()==nil and #downloads==0,'numeric Dig For Eggs startup guard redownloaded')
+ run,state,downloads=setup(dig[1],1)
+ state.DevilV4Starting=os.clock()-31
+ assert(run()=='route-ok'and #downloads==1,'stale Dig For Eggs startup guard blocks retries')
+ run,state,downloads=setup(dig[1],1)
+ state.DevilV4Test={Version=dig[5],Stopped=true}
+ assert(run()=='route-ok'and #downloads==1,'stopped Dig For Eggs app blocks reload')
 end
 do
  local run,state,downloads,env=setup(definitions[1][1],1)

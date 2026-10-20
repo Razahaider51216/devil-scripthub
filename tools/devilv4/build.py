@@ -60,5 +60,11 @@ manifest = {'release': 'devilv4-test-20261021-1', 'place_id': 121831322352666, '
             'catalog_sha256':hashlib.sha256((HERE/'catalog.json').read_bytes()).hexdigest(),
             'mining_progress_watchdog':True,'buried_egg_teleport':True,
             'sources': {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in HERE.glob('*.lua')}}
+audit=json.loads((ROOT/'devil-blue-gui-router-audit.json').read_text(encoding='utf-8'))
+route=next((r for r in audit['routes'] if r['File']=='devilv4-test.lua'),None)
+if route:
+    manifest.update(production_router_changed=True,main_loader_entry_commit=route['Commit'],
+        main_loader_entry_sha256=audit['dig_for_eggs_entry_sha256'],
+        main_loader_sha256=audit['public_loader_sha256'],existing_routes_unchanged=True)
 (ROOT / 'devilv4-test-release.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8', newline='\n')
-print('PASS compiled standalone Devilv4 test:', entry.stat().st_size, 'bytes;', len(assets), 'native icons')
+print('PASS compiled Dig For Eggs entry:', entry.stat().st_size, 'bytes;', len(assets), 'native icons')

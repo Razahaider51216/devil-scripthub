@@ -1,7 +1,7 @@
 # DEVIL HUB — Devilv4 mining test
 
-Standalone prototype for Place `121831322352666`, Universe `10765013362`.
-This entry does not replace the production main loader or any existing game script.
+Dig For Eggs entry for Place `121831322352666`, Universe `10765013362`.
+The production main loader routes this game to an immutable, tested entry commit. All eleven existing game routes and their release pins are preserved.
 
 ## Included
 

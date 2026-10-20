@@ -26,6 +26,12 @@ if baseline.returncode==0:
     assert old_result.returncode!=0 and 'Input timeout rearms with Start' in old_result.stderr,old_result.stderr
     regression_reproduced=True
     print('PASS reproduced stale mining session against published v2; new version recovers')
+shop_baseline=subprocess.check_output(['git','show','a381f1d700cc6abb5b1317f8cbc6d63d4f888bd8:tools/devilv4/core.lua'],cwd=ROOT).decode()
+old_shop=(HERE/'test-core.luau').read_text(encoding='utf-8').replace('-- POLICY',(HERE/'policy.lua').read_text(encoding='utf-8')).replace('-- CORE',shop_baseline)
+shop_path=HERE/'test-shop-baseline.generated.luau';shop_path.write_text(old_shop,encoding='utf-8',newline='\n')
+shop_result=subprocess.run([str(luau),str(shop_path)],capture_output=True,text=True,encoding='utf-8')
+assert shop_result.returncode!=0 and 'TooFar travels, reopens and purchases' in shop_result.stderr,shop_result.stderr
+print('PASS reproduced remote-shop failure against published v3; new version travels and buys')
 sys.path.insert(0, str(ROOT / 'tools/anime-dice'))
 import dependency
 def literal(value):
@@ -54,10 +60,17 @@ for filename in ['policy.lua','adapter.lua','core.lua','ui.lua','presentation.lu
     assert ':SetAttribute("DigPower"' not in raw
     assert 'while true do' not in raw
     assert hashlib.sha256((HERE/filename).read_bytes()).hexdigest()==manifest['sources'][filename]
-assert manifest['production_router_changed'] is False
+if manifest['production_router_changed']:
+    audit=json.loads((ROOT/'devil-blue-gui-router-audit.json').read_text(encoding='utf-8'))
+    route=next(r for r in audit['routes'] if r['File']=='devilv4-test.lua')
+    assert route['Commit']==manifest['main_loader_entry_commit'] and route['Version']==manifest['release']
+    pinned=subprocess.check_output(['git','show',route['Commit']+':devilv4-test.lua'],cwd=ROOT)
+    assert hashlib.sha256(pinned).hexdigest()==manifest['entry_sha256']==manifest['main_loader_entry_sha256']
+    assert hashlib.sha256((ROOT/'loader').read_bytes()).hexdigest()==manifest['main_loader_sha256']==audit['public_loader_sha256']
+else:
+    assert subprocess.check_output(['git','diff','HEAD','--','loader'],cwd=ROOT)==b''
 assert hashlib.sha256((HERE/'catalog.json').read_bytes()).hexdigest()==manifest['catalog_sha256']
 assert 'devilv4-test.lua' not in (ROOT/'loader').read_text(encoding='utf-8')
-assert subprocess.check_output(['git','diff','HEAD','--','loader'],cwd=ROOT)==b''
 dump=Path(r'C:\Users\Administrator\Downloads\Devilv4\DevilDump_Dumps')
 maps=list(dump.glob('Map_121831322352666*/map.json'))
 remote_count=None
@@ -72,9 +85,10 @@ if maps:
     print('PASS all',remote_count,'remote paths exist in supplied map dump')
 validation={'release':manifest['release'],'live_game_verified':False,'luau_compile':True,
             'behavior_checks':behavior_checks,'public_entry_gui_settings_checks':gui_checks,'adapter_checks':adapter_checks,
-            'remote_paths_checked':remote_count,'production_loader_unchanged':True,
+            'remote_paths_checked':remote_count,'production_loader_unchanged':not manifest['production_router_changed'],
             'published_v2_stall_reproduced':regression_reproduced,
+            'published_v3_shop_failure_reproduced':True,
             'entry_sha256':manifest['entry_sha256'],
             'production_loader_sha256':hashlib.sha256((ROOT/'loader').read_bytes()).hexdigest()}
 (ROOT/'devilv4-test-validation.json').write_text(json.dumps(validation,indent=2)+'\n',encoding='utf-8',newline='\n')
-print('PASS entry integrity, no damage bypass, standalone routing, 31 source-derived images')
+print('PASS entry integrity, no damage bypass, routing metadata, 31 source-derived images')
