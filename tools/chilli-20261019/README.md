@@ -52,6 +52,9 @@ Three native presentation callbacks are limited to 30 Hz while displayed and
 animation timers. Movement, combat, input and farming signals are unchanged.
 All six VM environment-read sites bypass the webhook helper for ordinary names;
 request aliases retain their existing branding adapter and function identities.
+The Steal-only public delegate is native Lua, removing its redundant Fiu startup
+interpreter and payload decoder. The shared main router and original game VM are
+separate layers and remain intact.
 
 AST inspection found 215 top-level native function entries, including a 65,612
 byte dispatcher. Generic devirtualization was attempted with both the recovered

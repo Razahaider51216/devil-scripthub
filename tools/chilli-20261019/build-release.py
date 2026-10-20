@@ -33,7 +33,8 @@ assert(run,err);return run(...)
     name='devil-steal-an-egg.lua'
     (WORK/'delegate.lua').write_text(native,encoding='utf-8',newline='\n')
     prefix=(ROOT/name).read_text(encoding='utf-8').split('-- END SHARED DEVIL BLUE GUI\n',1)[0]+'-- END SHARED DEVIL BLUE GUI\n'
-    manifest={'release':RELEASE,'gui_commit':commit,'gui_bytes':len(entry),'gui_sha256':sha(entry),'gui_checksum':checksum(entry),'live_verified':False}
+    manifest={'release':RELEASE,'gui_commit':commit,'gui_bytes':len(entry),'gui_sha256':sha(entry),'gui_checksum':checksum(entry),'live_verified':False,
+              'delegate_native_startup':True,'delegate_extra_vm_removed':True}
 elif mode=='router':
     entry=gitfile('devil-steal-an-egg.lua')
     canonical=ROOT/'tools/blue-gui/router.lua'
@@ -47,14 +48,24 @@ elif mode=='router':
     other=lambda s:re.findall(r'^    \{(?!Name="Steal an Egg")[^\n]+',s,re.M)
     assert other(source)==other(before) and len(other(source))==len(audit['routes'])-1
     router_baseline=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
-    assert subprocess.check_output(['git','show',router_baseline+':tools/blue-gui/router.lua'],cwd=ROOT).decode()==before
+    baseline=subprocess.check_output(['git','show',router_baseline+':tools/blue-gui/router.lua'],cwd=ROOT).decode()
+    def without_steal_pin(text):
+        text=re.sub(r'(^    \{Name="Steal an Egg"[^\n]*Commit=")[0-9a-f]+("[^\n]*Version=")[^"]+',lambda m:m[1]+'PIN'+m[2]+'VERSION',text,flags=re.M)
+        return re.sub(r'(entry.File=="devil-steal-an-egg.lua"and")[^"]+',lambda m:m[1]+'VERSION',text)
+    assert without_steal_pin(baseline)==without_steal_pin(before)
     canonical.write_text(source,encoding='utf-8',newline='\n')
     native=source;name='loader';prefix=''
 else:raise ValueError(mode)
 (BUILD/(name+'.native')).write_text(native,encoding='utf-8',newline='\n')
-subprocess.run([sys.executable,str(BUILD/'build-router.py'),'--only',name,'--release',RELEASE],cwd=BUILD,check=True)
-public=prefix.encode()+(BUILD/'candidate'/name).read_bytes()
+if mode=='delegate':
+    # This is a verified HTTP delegate, not game logic. A second interpreter here
+    # only adds another decoding/compilation step before the real native runtime.
+    public=prefix.encode()+native.encode()
+else:
+    subprocess.run([sys.executable,str(BUILD/'build-router.py'),'--only',name,'--release',RELEASE],cwd=BUILD,check=True)
+    public=prefix.encode()+(BUILD/'candidate'/name).read_bytes()
 (ROOT/name).write_bytes(public)
+subprocess.run([str(ROOT.parent/'luau-tools/luau-compile.exe'),'--null',str(ROOT/name)],check=True,capture_output=True)
 if mode=='delegate':
     manifest.update(delegate_bytes=len(public),delegate_sha256=sha(public),delegate_native_sha256=sha(native.encode()))
     (ROOT/'devil-steal-update-release.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8',newline='\n')

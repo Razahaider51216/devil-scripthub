@@ -5,7 +5,9 @@
   "gui_sha256": "9cf959d21d9517b8054d7d637f0e11ef4a2a7c59b648f1811e348c7ebfd53396",
   "gui_checksum": 2108406679,
   "live_verified": false,
-  "delegate_bytes": 69926,
-  "delegate_sha256": "39d5fdab0b29eb408613147e7f139efa099e18f77c5862d01df72e263fe7d6b1",
+  "delegate_native_startup": true,
+  "delegate_extra_vm_removed": true,
+  "delegate_bytes": 2055,
+  "delegate_sha256": "5e6c6f0d161c8b15bdcb494117e213dc83f29b8537baaa5c1b80c2de245979b5",
   "delegate_native_sha256": "b54c0396884ab273901f5094c03f0c6662553fae54957632d7568e76d76848ac"
 }

@@ -7,6 +7,8 @@ def literal(s):
  return '['+e+'[\n'+s+']'+e+']'
 public=(repo/'devil-steal-an-egg.lua').read_text(encoding='utf-8');entry=(repo/'devil-steal-an-egg-chilli-recovered-ui-test.lua').read_text(encoding='utf-8')
 release=json.loads((repo/'devil-steal-update-release.json').read_text())
+assert release['delegate_native_startup'] and release['delegate_extra_vm_removed']
+assert 'Includes modified Fiu' not in public and 'return make(' not in public
 
 test='local public='+literal(public)+'\nlocal reference='+literal(entry)+r'''
 local nativeCompile=loadstring
