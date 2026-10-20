@@ -14,9 +14,11 @@ local config=P.Defaults()
 local Http=game:GetService("HttpService")
 local player=game:GetService("Players").LocalPlayer
 local prefsFile="DevilClimbEggSettings_"..player.UserId..".json"
-local controller={Config=config}
+local controller={Config=config,Version="climb-language-sync-20261020-12"}
 local core,library,window,statusWidget,totalsWidget,jobWidgets,prefsWidget
 local destroyed,rebuilding=false,false
+local languageOwner,originalLanguageSet,originalLanguageDestroy,languageSet,languageDestroy
+local changingLanguage=false
 local controls={}
 local prefsStatus="No saved settings yet"
 local translations={
@@ -24,9 +26,10 @@ local translations={
     ["Waiting for daytime"]="รอกลางคืนสิ้นสุด",
     ["Waiting for selected eggs"]="รอไข่ตามระดับที่เลือก",
     ["Waiting for your own base"]="รอฐานของคุณโหลด",
-    ["Waiting for landing"]="?????????????????????",
-    ["No safe standing point near egg"]="????????????????????????????",
-    ["Waiting for previous prompt activation"]="???????????????????????",
+    ["Report copied: DevilClimbEggReport.json"]="คัดลอกรายงานแล้ว: DevilClimbEggReport.json",
+    ["Waiting for landing"]="รอลงพื้นก่อนกดเก็บไข่",
+    ["No safe standing point near egg"]="ยังไม่มีจุดยืนปลอดภัยใกล้ไข่",
+    ["Waiting for previous prompt activation"]="รอการกดครั้งก่อนสิ้นสุด",
     ["Holding Steal prompt"]="กำลังกดขโมยไข่",
     ["Jumping back to Lobby"]="กำลังลอยออกเหนือ Lobby เพื่อกลับจุดเริ่มต้น",
     ["Waiting for a clear platform edge"]="รอเส้นทางออกจากขอบชั้น",
@@ -87,6 +90,60 @@ local function refresh(report)
     if prefsWidget then prefsWidget:Set(translate(prefsStatus),true) end
 end
 local buildUI
+local function validLanguage(value)return value=="EN"or value=="TH"end
+local function sharedLanguage()
+    local owner=env.DevilHubBlueGui
+    if type(owner)~="table"or owner.Stopped or type(owner.Get)~="function"then return end
+    local ok,settings=pcall(owner.Get)
+    local value=ok and type(settings)=="table"and settings.Language
+    if validLanguage(value)then return value,owner end
+end
+local function detachLanguage()
+    if languageOwner then
+        if languageOwner.Set==languageSet then languageOwner.Set=originalLanguageSet end
+        if languageOwner.Destroy==languageDestroy then languageOwner.Destroy=originalLanguageDestroy end
+    end
+    languageOwner,originalLanguageSet,originalLanguageDestroy,languageSet,languageDestroy=nil,nil,nil,nil,nil
+end
+local function applyLanguage(value)
+    if destroyed or not validLanguage(value)or value==config.Language then return end
+    config.Language=value
+    -- Rebuilding presentation keeps the same core/config and active jobs.
+    if window and library then buildUI()end
+end
+local function bindLanguage()
+    local value,owner=sharedLanguage()
+    if not owner or type(owner.Set)~="function"then return false end
+    if owner==languageOwner and owner.Set==languageSet then applyLanguage(value);return true end
+    detachLanguage()
+    languageOwner,originalLanguageSet,originalLanguageDestroy=owner,owner.Set,owner.Destroy
+    local nativeSet,baseSet,baseDestroy=applyLanguage,originalLanguageSet,originalLanguageDestroy
+    languageSet=function(values)
+        local nextLanguage=type(values)=="table"and values.Language
+        if destroyed or changingLanguage or not validLanguage(nextLanguage)then return baseSet(values)end
+        changingLanguage=true
+        local nativeOk,nativeError=pcall(nativeSet,nextLanguage)
+        -- Refresh shared overlays AFTER the native English/Thai source text.
+        local result=table.pack(pcall(baseSet,values))
+        changingLanguage=false
+        controller.LanguageError=not nativeOk and tostring(nativeError)or nil
+        if not result[1]then error(result[2],0)end
+        return table.unpack(result,2,result.n)
+    end
+    owner.Set=languageSet
+    languageDestroy=function(...)
+        detachLanguage()
+        if type(baseDestroy)=="function"then return baseDestroy(...)end
+    end
+    if type(baseDestroy)=="function"then owner.Destroy=languageDestroy end
+    applyLanguage(value)
+    return true
+end
+function controller.SetLanguage(value)
+    if destroyed or not validLanguage(value)then return false end
+    if bindLanguage()then languageOwner.Set({Language=value})else applyLanguage(value)end
+    return true
+end
 local function readSaved()
     if type(readfile)~="function" then return nil,"Settings file API unavailable" end
     if type(isfile)=="function" and not isfile(prefsFile) then return nil,"No saved settings yet" end
@@ -103,6 +160,10 @@ local function restoreSettings(startup)
     -- All filters and numbers are restored before enabled workers can run again.
     for key,value in pairs(restored) do if type(value)~="boolean" or not (key=="Farm" or key:match("^Auto")) then config[key]=value end end
     for key,value in pairs(restored) do if type(value)=="boolean" and (key=="Farm" or key:match("^Auto")) then config[key]=value end end
+    -- A saved game profile cannot override the selection shown in the shared
+    -- language menu. SaveSettings writes this synchronized value back as well.
+    local selectedLanguage=sharedLanguage()
+    if selectedLanguage then config.Language=selectedLanguage end
     prefsStatus="Saved settings loaded"
     if not startup then buildUI() end
     refresh(core and core.Report)
@@ -121,6 +182,7 @@ end
 function controller.Destroy()
     if destroyed then return end
     destroyed=true
+    detachLanguage()
     if core then core.Destroy() end
     if window then local old=window;window=nil;old:Destroy() end
     if env.DevilClimbEggs==controller then env.DevilClimbEggs=nil end
@@ -148,7 +210,7 @@ buildUI=function()
     end
     local function reportButton(parent)
         parent:CreateButton({Name=t("Copy / Save Report","คัดลอก / บันทึกรายงาน"),Callback=function()
-            local ok,problem=pcall(core.SaveReport);prefsStatus=ok and t("Report copied: DevilClimbEggReport.json","คัดลอกรายงานแล้ว: DevilClimbEggReport.json") or tostring(problem);refresh(core.Report)
+            local ok,problem=pcall(core.SaveReport);prefsStatus=ok and "Report copied: DevilClimbEggReport.json" or tostring(problem);refresh(core.Report)
         end})
     end
     local main=tab("Auto Egg","เก็บไข่อัตโนมัติ","egg")
@@ -235,14 +297,14 @@ buildUI=function()
     social:CreateImage({Name="DEVIL HUB",Image=image,Height=140,ScaleType="Fit"})
     social:CreateParagraph({Name=t("Join Discord","เข้าร่วม Discord"),Content="DEVIL HUB\nhttps://discord.gg/ZY7PRcVJe2"})
     social:CreateButton({Name=t("Copy Invite Link","คัดลอกลิงก์เชิญ"),Callback=function() if type(setclipboard)=="function" then setclipboard("https://discord.gg/ZY7PRcVJe2") end end})
-    if window.MinimizeButton then
+    if window.MinimizeButton and not sharedLanguage()then
         local minimize=window.MinimizeButton
         local button=Instance.new("TextButton");button.Name="DevilLanguageButton";button.AnchorPoint=Vector2.new(1,0)
         button.Position=minimize.Position-UDim2.fromOffset(40,0);button.Size=UDim2.fromOffset(78,34)
         button.BackgroundColor3=Color3.fromRGB(45,23,30);button.BorderSizePixel=0;button.Text="ไทย / EN"
         button.TextColor3=Color3.new(1,1,1);button.TextSize=13;button.Font=Enum.Font.GothamSemibold;button.Parent=minimize.Parent
         local round=Instance.new("UICorner");round.CornerRadius=UDim.new(0,8);round.Parent=button
-        button.Activated:Connect(function() config.Language=config.Language=="TH" and "EN" or "TH";task.defer(buildUI) end)
+        button.Activated:Connect(function() controller.SetLanguage(config.Language=="TH" and "EN" or "TH")end)
     end
     rebuilding=false;refresh(core.Report)
 end
@@ -252,6 +314,7 @@ local ok,problem=xpcall(function()
     local run,compileError=loadstring(source,"DEVIL HUB / OuroFlow");assert(run,compileError);library=run()
     core=make(config,refresh,P);controller.Core=core
     restoreSettings(true)
+    bindLanguage()
     buildUI()
 end,debug.traceback)
 if not ok then controller.Destroy();error("DEVIL HUB Egg Map: "..tostring(problem),0) end

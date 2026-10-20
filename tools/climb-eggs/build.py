@@ -4,7 +4,7 @@ ROOT=Path(__file__).resolve().parents[2]
 WORK=Path(__file__).resolve().parent
 VMROOT=ROOT.parent/'devil-vm-build'
 COMPILER=ROOT.parent/'luau-tools/luau-compile.exe'
-RELEASE='climb-steal-control-20261020-11'
+RELEASE='climb-language-sync-20261020-12'
 planner=(WORK/'planner.lua').read_text(encoding='utf-8')
 core=(WORK/'core.lua').read_text(encoding='utf-8')
 ui=(WORK/'ui.lua').read_text(encoding='utf-8')
@@ -28,6 +28,6 @@ prefix=current.split('-- END SHARED DEVIL BLUE GUI\n',1)[0]+'-- END SHARED DEVIL
 public=(prefix+artifact).encode()
 (ROOT/'climb-for-eggs.lua').write_bytes(public)
 subprocess.run([str(COMPILER),'--null',str(ROOT/'climb-for-eggs.lua')],check=True)
-manifest=dict(release=RELEASE,placeId=85738654635245,universeId=10765490774,source_sha256=hashlib.sha256(source.encode()).hexdigest(),entry_sha256=hashlib.sha256(public).hexdigest(),bytes=len(public),live_verified=False)
+manifest=dict(release=RELEASE,placeId=85738654635245,universeId=10765490774,source_sha256=hashlib.sha256(source.encode()).hexdigest(),entry_sha256=hashlib.sha256(public).hexdigest(),bytes=len(public),live_verified=False,gameplay_core_sha256=hashlib.sha256(core.encode()).hexdigest(),language_sync=True)
 (ROOT/'climb-eggs-release.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8',newline='\n')
 print('Built Climb entry with native callbacks and existing shared GUI prefix')

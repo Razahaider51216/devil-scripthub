@@ -1,8 +1,27 @@
-# Climb for Eggs ? Steal control repair
+# Climb for Eggs — Steal control and language synchronization
 
-Release `climb-steal-control-20261020-11`, universe 10765490774,
+Release `climb-language-sync-20261020-12`, universe 10765490774,
 place 85738654635245. Keeps the existing DEVIL HUB interface, blue/white
 presentation, saved settings, filtering, return, claiming and other jobs.
+The gameplay core is byte-identical to the Steal control repair in
+`cfb08293efa6ea72e12c76f12a3e11d7ce007364`.
+
+The shared language selector previously changed its own language while the
+native Climb renderer kept its independently saved Thai value. The native UI
+now binds to the shared selection. Native labels/statuses rebuild first, then
+shared overlays refresh; active core, automation and filter values are retained.
+Startup and manual profile restore respect the language currently shown in the
+shared selector. Saving a profile records that synchronized language.
+There is one shared selector; standalone operation retains its fallback button.
+Native SetLanguage calls update the shared selection, and unload/shared-module
+teardown restore the original presentation methods without stacking bindings.
+Report messages retain a canonical English source for switching back from Thai.
+The added Thai status strings are preserved as UTF-8 instead of question marks.
+
+`python tools/climb-eggs/test-language.py` reproduces the old split using the
+actual previous UI, then exercises the actual shared dropdown and new native
+renderer: 33 checks covering startup, repeated EN/TH changes, dynamic statuses,
+Thai text encoding, saved profiles, native API, automation preservation and cleanup.
 
 The prior published artifact's exact native compilation input is recovered
 without invoking Roblox/game code in `test-boundary.py`. Its source SHA256 is
