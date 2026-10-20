@@ -16,5 +16,8 @@
       "engine_body_sha256": "0484a89304a64852ca6324dc4c633148ee55f11d24976c2b078b123c4b601215",
       "public_sha256": "6778573e9d62f1d8a96ddd6ecb8503b1733c39f8c57cb88cdaa44e670d544bb6"
     }
-  }
+  },
+  "main_entry_commit": "a7cf89d5f4aa4cf74d84e12af125cf82b788eae5",
+  "main_loader_sha256": "837bc3f04242d7d820da9450bb071a6413da50252568b3406ec6fa8ab2f3d662",
+  "non_break_routes_unchanged": true
 }

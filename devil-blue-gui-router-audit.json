@@ -1,5 +1,5 @@
 {
-  "release": "devil-anime-dice-20261020-10",
+  "release": "break-language-sync-20261020-1",
   "module_commit": "9a9812469df7b5dad2848abb33c5206f7d57e685",
   "game_entries_commit": "e39fb7f24bda4d132f439416c7c68ad7467ff351",
   "map_ids_unchanged": false,
@@ -51,7 +51,9 @@
       "Name": "Break and Steal an Egg",
       "Universe": 10765288803,
       "Place": 114326934417838,
-      "File": "break-and-steal-an-egg.lua"
+      "File": "break-and-steal-an-egg.lua",
+      "Commit": "a7cf89d5f4aa4cf74d84e12af125cf82b788eae5",
+      "Version": "break-language-sync-20261020-1"
     },
     {
       "Name": "Loot to Forge",
@@ -74,11 +76,11 @@
       "Version": "anime-dice-test-20261020-10"
     }
   ],
-  "before_native_sha256": "4dd6e64d97238cb17caddfe87288df68c751f11c5eeac2f6935f24b396a5638d",
-  "after_native_sha256": "95513e7642193b445bcc967292ea36a6c8ff539f8d9fd6ac134927651b7ac70c",
+  "before_native_sha256": "95513e7642193b445bcc967292ea36a6c8ff539f8d9fd6ac134927651b7ac70c",
+  "after_native_sha256": "71f838c738dd29430c3f84d1cbac3df69c4614b47561beeda9ff16159a114acc",
   "live_rendering_verified": false,
-  "public_loader_sha256": "8fd56f261a29a7b327c793aea4ea2544d1342c88d519052fa7f7db6072ea2aa8",
-  "public_loader_bytes": 135419,
+  "public_loader_sha256": "837bc3f04242d7d820da9450bb071a6413da50252568b3406ec6fa8ab2f3d662",
+  "public_loader_bytes": 135546,
   "ui_offline_checks": 165,
   "public_router_universe_place_cases": 33,
   "language_choices": [
@@ -137,5 +139,7 @@
   "anime_dice_entry_commit": "dd943c7f97b7c8dec9a8637b4a28bb74679da972",
   "anime_dice_entry_sha256": "672c6d1c0bd824f4ecac6fe2873024af72010bcf0307eee71f7fd5b4b2ddb802",
   "auto_execute_enabled": true,
-  "auto_execute_sha256": "6b071230dd8fcb24541ac6d8008d9bdeabaf8ea7051d4ca744be1bfbee2700c1"
+  "auto_execute_sha256": "6b071230dd8fcb24541ac6d8008d9bdeabaf8ea7051d4ca744be1bfbee2700c1",
+  "break_language_entry_commit": "a7cf89d5f4aa4cf74d84e12af125cf82b788eae5",
+  "non_break_routes_unchanged": true
 }
