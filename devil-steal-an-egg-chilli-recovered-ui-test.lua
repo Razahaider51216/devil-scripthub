@@ -754,6 +754,41 @@ return function(url,size,expected,filename)
 end
 
 end)()
+local installStartupTrace=(function()
+-- Local startup breadcrumbs; no network reporting, hooks or replacement compiler.
+return function(initialPhase)
+    local scope=type(getgenv)=="function"and getgenv()or _G
+    if scope.DevilStealStartupTrace and scope.DevilStealStartupTrace.Version=="steal-startup-layout-20261020-4"
+        and type(scope.DevilStealStartupStage)=="function"then
+        scope.DevilStealStartupStage(initialPhase or"Native layer decoded")
+        return scope.DevilStealStartupStage
+    end
+    local report={Version="steal-startup-layout-20261020-4",LastPhase="Runtime entry",Steps={},Executor="Unknown",
+        StartedAt=os.clock(),PlaceId=game.PlaceId,Capabilities={Buffer=type(buffer)=="table",Loadstring=type(loadstring)=="function"}}
+    local identify=identifyexecutor or getexecutorname
+    if type(identify)=="function"then
+        local ok,name,version=pcall(identify)
+        if ok then report.Executor=tostring(name)..(version and(" / "..tostring(version))or"")end
+    end
+    scope.DevilStealStartupTrace=report
+    local function stage(name)
+        if report.LastPhase==name and #report.Steps>0 then return end
+        report.LastPhase=name;report.Elapsed=os.clock()-report.StartedAt
+        report.Steps[#report.Steps+1]={Phase=name,At=report.Elapsed}
+        if #report.Steps>24 then table.remove(report.Steps,1)end
+        if type(writefile)=="function"then pcall(function()
+            writefile("DevilHub-Steal-Startup.json",game:GetService("HttpService"):JSONEncode(report))
+        end)end
+        warn("DEVIL HUB startup: "..name)
+        local loading=scope.DevilHubLoadController
+        if loading and type(loading.Update)=="function"then pcall(loading.Update,"Steal startup: "..name,.7)end
+    end
+    scope.DevilStealStartupStage=stage
+    stage(initialPhase or"Native layer decoded")
+    return stage
+end
+
+end)()
 -- END PINNED SOURCE CACHE
 local completed=table.pack(pcall(function()
 if task and task.wait then task.wait() end
@@ -802,7 +837,7 @@ if env.DevilChilliFullRuntimeTest then
 end
 local report={schema="devil-chilli-full-runtime-test-1",release="chilli-full-test-1",map="Steal an Egg",
     placeId=game.PlaceId,universeId=game.GameId,status="Starting",devirtualized=false,
-    frontend="DEVIL HUB / native constructor export",referenceSHA256="edacbe22d00d7f23dd38fc0083a591f20c4c7b0809a9182035df4e82b76e3f8c",referenceCommit="03468a41b2ecf2d983b39993ba603c943c140f4f"}
+    frontend="DEVIL HUB / native constructor export",referenceSHA256="74cbab9a79ebb8d163aa335b222fe5a06c2fa897f0577178d0868a6ea1e6eea8",referenceCommit="03468a41b2ecf2d983b39993ba603c943c140f4f"}
 env.DevilChilliFullRuntimeTest=report
 local function save()
     if type(writefile)=="function"then
@@ -823,7 +858,7 @@ local outcome=table.pack(xpcall(function()
     warn("DEVIL HUB: loading the original systems into the main GUI")
     loading.Update("Downloading systems...",0.15)
     -- BEGIN VERIFIED RUNTIME LOAD
-local originalGameSource,sourceInfo=loadPinnedSource("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/4707de87af24d43d3e9df1b320856c2db1cea1e0/devil-chilli-native-ui-runtime.lua",829272,34572250,"DevilHub_StealRuntime_4707de87af24d43d3e9df1b320856c2db1cea1e0.lua")
+local originalGameSource,sourceInfo=loadPinnedSource("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/8fbab06f609f0431b3ddde6f329b4d7ec2070d1a/devil-chilli-native-ui-runtime.lua",829357,1940549892,"DevilHub_StealRuntime_8fbab06f609f0431b3ddde6f329b4d7ec2070d1a.lua")
     report.Source=sourceInfo;loading.Update("Preparing verified systems...",.4)
 -- END VERIFIED RUNTIME LOAD
     loading.Update("Compiling systems...",0.55)
@@ -834,6 +869,7 @@ local originalGameSource,sourceInfo=loadPinnedSource("https://raw.githubusercont
     report.status="Runtime compiled";report.transferChecksumVerified=true;save()
     loading.Update("Starting original systems...",0.7)
     if task and task.wait then task.wait() end
+    pcall(installStartupTrace,"Protected bootstrap")
     local runtimeStarted=os.clock();local values=table.pack(run())
     report.RuntimeSeconds=os.clock()-runtimeStarted
     return table.unpack(values,1,values.n)
