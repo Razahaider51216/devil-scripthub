@@ -28,6 +28,6 @@
     "translations.lua": "735438aef10d1517e51d7f628348745d9a724f56481d8c176d583411e3af559a",
     "ui.lua": "ce7a72a98be21d9426aa90537ac22541caaf1f5ea0f847b21e13b6d60a54f581"
   },
-  "main_loader_entry_commit": "36dde420404c7712f118c720b60912b24270adfb",
-  "main_loader_sha256": "9b6fe3b1d0cc84b2a9ff31bb9ff8e978bad9b5ae3500f600f4048bcfc21f7d43"
+  "main_loader_entry_commit": "1fe83cf2a3bc135f323451e206ace55f34eecb53",
+  "main_loader_sha256": "28690e4bf5a91f702cc421d3c221adb128796a02fcf5cef4449b23138226e069"
 }

@@ -10,5 +10,5 @@
   "published_v2_stall_reproduced": true,
   "published_v3_shop_failure_reproduced": true,
   "entry_sha256": "724f9638e70b0218e09e5b027d9f5cca01ed2916f57e6c544de24dca9a5f768e",
-  "production_loader_sha256": "9b6fe3b1d0cc84b2a9ff31bb9ff8e978bad9b5ae3500f600f4048bcfc21f7d43"
+  "production_loader_sha256": "28690e4bf5a91f702cc421d3c221adb128796a02fcf5cef4449b23138226e069"
 }

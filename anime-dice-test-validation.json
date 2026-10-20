@@ -2,16 +2,16 @@
   "release": "anime-dice-halloween-icons-20261021-2",
   "live_game_verified": false,
   "entry_sha256": "06f149252d5c93f35dd02d5b71b3ce42d4f44e30311870345fa9814bb18dcf86",
-  "checks": 884,
+  "checks": 928,
   "literal_remote_contract_checks": 24,
   "results": [
     "PASS Anime Dice planning, network contracts, confirmation, stop and event behavior: 216 checks",
     "PASS saved settings: schema, identity, validation, ordering, lists, false values, reset, API failures and readiness: 41 checks",
     "PASS Halloween teleport: roof rejection, door sill, elevation, streaming, death and cancellation: 32 checks",
-    "PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: 595 checks"
+    "PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: 639 checks"
   ],
-  "main_loader_sha256": null,
-  "main_loader_integration_verified": false,
+  "main_loader_sha256": "28690e4bf5a91f702cc421d3c221adb128796a02fcf5cef4449b23138226e069",
+  "main_loader_integration_verified": true,
   "pinned_gui_sha256": "0c30762d3c9c3aa7c25ca3aeceab960a771c96b5af290a3b67aed627161385f5",
   "fixtures": {
     "anime-dice-core.luau": "c9cbecb236d62ce08d1886ce7858cb5078a1da4e68b66884b9c730aa63f3ab2f",
