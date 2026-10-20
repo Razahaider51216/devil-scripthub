@@ -1,17 +1,13 @@
 {
-  "release": "chilli-performance-20261021-1",
-  "gui_commit": "c46380dda2b652a5dfc6c53e45112000912e9421",
-  "gui_bytes": 450394,
-  "gui_sha256": "9cf959d21d9517b8054d7d637f0e11ef4a2a7c59b648f1811e348c7ebfd53396",
-  "gui_checksum": 2108406679,
+  "release": "chilli-rejoin-clipboard-20261021-2",
+  "gui_commit": "c7b0b616bd7bed1af17b584c640859d1a887d42e",
+  "gui_bytes": 450399,
+  "gui_sha256": "86f7ce565a6924ab65623a10355b2c332b557ac880da673be123662b940e865c",
+  "gui_checksum": 3211915546,
   "live_verified": false,
   "delegate_native_startup": true,
   "delegate_extra_vm_removed": true,
-  "delegate_bytes": 2055,
-  "delegate_sha256": "5e6c6f0d161c8b15bdcb494117e213dc83f29b8537baaa5c1b80c2de245979b5",
-  "delegate_native_sha256": "b54c0396884ab273901f5094c03f0c6662553fae54957632d7568e76d76848ac",
-  "delegate_commit": "aba0c2e270f2b54d82af9c013fcdf1716a75a1b7",
-  "main_loader_sha256": "141003b9abf0fc974c9765208bbe67bb0611111fed8fd21d5cd089618db00cf0",
-  "other_game_routes_unchanged": true,
-  "router_baseline_commit": "aba0c2e270f2b54d82af9c013fcdf1716a75a1b7"
+  "delegate_bytes": 2168,
+  "delegate_sha256": "fa812cce2e3fed1d696d39ee2b97c1091fd9bce765ac1f65e807151b6289ca91",
+  "delegate_native_sha256": "6a6ef0e4c4d4b2b45dbe2e3b921b848762db6de48f48ad9fa4a97534f7cbfb4d"
 }
