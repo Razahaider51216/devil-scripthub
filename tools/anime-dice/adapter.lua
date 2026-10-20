@@ -1,7 +1,8 @@
 return function(scope)
     local rs=game:GetService("ReplicatedStorage")
     local player=game:GetService("Players").LocalPlayer
-    local ctx={Catalog={},Ready=false,Warnings={},Links={},Spawn=task.spawn,Wait=task.wait,WallTime=os.time}
+    local ctx={Catalog={},Ready=false,Warnings={},Links={},Spawn=task.spawn,Wait=task.wait,WallTime=os.time,
+        UserId=player and player.UserId,PlaceId=game.PlaceId}
     local flights=scope.DevilAnimeDiceFlights or{};scope.DevilAnimeDiceFlights=flights
     local requireModule=require
     local paths={

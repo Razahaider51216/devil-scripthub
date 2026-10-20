@@ -11,7 +11,16 @@ Workspace (3) dump. It reads live game modules and inventory, not captured unit
 IDs. The main loader now supports Anime Dice as its eleventh route, pinned to
 the reviewed entry commit; the previous ten route definitions/pins are retained.
 Roblox/executor behavior has not been verified live. Direct entry remains available
-at `anime-dice-test.lua?v=test-10` for existing direct-loader users.
+at `anime-dice-test.lua?v=test-12` for existing direct-loader users.
+
+In **Settings > Saved settings**, use **Save Settings** after choosing filters,
+items and automation switches. The next run automatically restores that profile
+after player data is available, with filters applied before enabled automation
+resumes. **Load Saved Settings** reapplies it now; **Reset Saved Settings** saves
+the defaults and turns current automation off. Preferences are local to the
+executor's files and separated by Roblox user and place. Missing/corrupt files
+and unavailable file APIs leave the current configuration intact. Stop All or
+manual option changes during startup take precedence over automatic restoration.
 
 The GUI uses the existing black/blue/white presentation, its single EN/Thai
 language menu, blue switches and native minimize/restore controls. No full-screen

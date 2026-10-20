@@ -5,9 +5,10 @@ return function(ctx,P)
         FuseChanceMax=0,LockChanceMin=0,UpgradeBranch="All",DiceChoice="Best affordable",LevelCap=100,
         TowerChoice="",WingChoice="Front Yard",RebirthLimit=1,StatChoice="Luck",SelectedUnit="",RerollLimit=50,
         TraitTargets={},GradeTargets={},QuirkTargets={},BoostNames={},SpinNames={},GearPriority="Luck",PumpkinCount=1,
-        PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true}
+        PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true,
+        ProtectedTraits={},ProtectedGrades={},ProtectedQuirks={}}
     local clock=ctx.Clock or os.clock
-    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-11",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
+    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-12",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
     local states,handlers,pending,spend={}, {}, {}, {}
     local towerOwned=false;local towerName;local towerEpoch=0;local originalRoll,rollOwned=nil,false
     local doorReady=setmetatable({},{__mode="k"});local lastKnock;local nextIslandTravel=0;local stopEpoch=0

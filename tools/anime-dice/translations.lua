@@ -1,5 +1,16 @@
 -- Reuse the single language menu provided by the shared DEVIL HUB presentation.
 local translations={
+    ["Settings"]="ตั้งค่า",["Saved settings"]="ค่าที่บันทึก",["Restore settings"]="คืนค่าตั้งค่า",
+    ["Save Settings"]="บันทึกตั้งค่า",["Load Saved Settings"]="โหลดตั้งค่าที่บันทึก",["Reset Saved Settings"]="รีเซ็ตตั้งค่าที่บันทึก",
+    ["Save filters, item choices and enabled automation. Saved settings load automatically next run."]="บันทึกฟิลเตอร์ รายการที่เลือก และออโต้ที่เปิดไว้ รันครั้งถัดไปจะโหลดค่าเดิมอัตโนมัติ",
+    ["Automation starts off without a saved profile. Saved settings restore after game data is ready."]="หากยังไม่มีค่าที่บันทึก ออโต้จะเริ่มปิดไว้ หากบันทึกแล้วจะโหลดค่าเดิมเมื่อข้อมูลเกมพร้อม",
+    ["No saved settings loaded yet."]="ยังไม่ได้โหลดค่าที่บันทึก",["No saved settings found."]="ยังไม่มีค่าที่บันทึก",
+    ["Settings saved. They will load next run."]="บันทึกตั้งค่าแล้ว รันครั้งถัดไปจะโหลดให้อัตโนมัติ",
+    ["Saved settings loaded."]="โหลดตั้งค่าที่บันทึกแล้ว",["Saved settings reset."]="รีเซ็ตตั้งค่าที่บันทึกแล้ว",
+    ["Waiting for player identity."]="กำลังรอข้อมูลผู้เล่น",["Waiting for game data."]="กำลังรอข้อมูลเกม",
+    ["Saving unavailable on this executor."]="ตัวรันนี้ไม่รองรับการบันทึกไฟล์",["Loading unavailable on this executor."]="ตัวรันนี้ไม่รองรับการอ่านไฟล์",
+    ["Settings could not be saved."]="บันทึกตั้งค่าไม่สำเร็จ",["Settings could not be applied."]="นำค่าที่บันทึกมาใช้ไม่สำเร็จ",
+    ["Saved settings could not be read."]="อ่านไฟล์ตั้งค่าไม่สำเร็จ",
     ["DEVIL HUB Community"]="ชุมชน DEVIL HUB",
     ["Join our Discord"]="เข้าร่วม Discord ของเรา",
     ["Updates, announcements and community support."]="อัปเดต ประกาศ และความช่วยเหลือจากชุมชน",

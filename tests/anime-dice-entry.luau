@@ -1,5 +1,5 @@
 local nativeCompile=loadstring
-local function setup(place,corrupt)
+local function setup(place,corrupt,storage)
  local work={};local downloads=0;local libraryCalls=0
  local clockNow=100
  local scope={DevilHubSilverLogo='devil-logo.png',DevilHubBlueGui={Version='devil-blue-20261019-10',Stopped=false}}
@@ -50,11 +50,20 @@ local function setup(place,corrupt)
   self.Sent[#self.Sent+1]=table.pack(...)
   if self==remote then data.AutoRoll=(...)end
  end
- local player=node('Player','Player')
+ local player=node('Player','Player');player.UserId=storage and storage.UserId or 77
+ local function copy(value)
+  if type(value)~='table'then return value end
+  local result={};for k,v in pairs(value)do result[k]=copy(v)end;return result
+ end
+ local http={JSONEncode=function(_,value)
+  if not storage then return '{}'end
+  storage.Serial=(storage.Serial or 0)+1;local token='json'..storage.Serial
+  storage.Encoded[token]=copy(value);return token
+ end,JSONDecode=function(_,text)return copy(assert(storage and storage.Encoded[text],'invalid JSON'))end}
  local game={GameId=place==113290951185459 and 10708913337 or 1,PlaceId=place,
   GetService=function(_,name)
    if name=='ReplicatedStorage'then return rs elseif name=='Players'then return {LocalPlayer=player}
-   elseif name=='HttpService'then return {JSONEncode=function()return '{}'end}end
+    elseif name=='HttpService'then return http end
    error('Unexpected service '..name)
   end}
  function game:HttpGet(url)
@@ -90,6 +99,7 @@ local function setup(place,corrupt)
   end
   function widget:Destroy()frame:Destroy()end
   objects[info.Name or info.Text or class]=widget
+   if storage and storage.InitialCallbacks and class=='Toggle'and info.Callback then info.Callback(info.CurrentValue)end
   return widget
  end
  local function group(parent,name)
@@ -122,6 +132,11 @@ local function setup(place,corrupt)
    local obj=Instance.new(class);if class=='TextButton'then obj.MouseButton1Click=signal()end;return obj
   end},Color3=Color3,ColorSequence=ColorSequence,UDim2=UDim2,UDim=UDim,Vector2=Vector2,Enum=Enum,
   warn=function()end,print=function()end},{__index=getfenv(0)})
+ if storage then
+  env.isfile=function(name)return storage.Files[name]~=nil end
+  env.readfile=function(name)return assert(storage.Files[name],'file missing')end
+  env.writefile=function(name,text)storage.Files[name]=text end
+ end
  env.loadstring=function(source,label)
   assert(source==ouroSource and label=='DEVIL HUB / Anime Dice GUI','entry changed native compile boundary')
   return function()return library end
@@ -132,6 +147,62 @@ local function setup(place,corrupt)
   advance=function(n)clockNow+=n end,now=function()return clockNow end,actions=function(value)floorActions=value end,
   compiler=originalCompiler,http=originalHttp,game=game,language=function(v)language=v end,
   counts=function()return downloads,libraryCalls end,window=function()return window end}
+end
+do
+ local storage={Files={},Encoded={}}
+ local f=setup(113290951185459,false,storage);local app=f.Run()
+ table.remove(f.work,1)()
+ check(not app.Report.InitializationError and app.Settings.Report.Status=='No saved settings found.','missing settings failed startup')
+ check(app.Window.Body:FindFirstChild('Settings')~=nil,'settings controls were not placed in Settings tab')
+ f.objects['Money reserve'].Callback('4321')
+ f.objects['Rarities to sell (empty = all)'].Callback({'Rare'})
+ f.objects['Keep mutated / variant units for fusion'].Callback(false)
+ f.objects['Use game Auto Roll'].Callback(false)
+ f.objects['Codes (comma separated)'].Callback('CODE1, CODE2')
+ f.objects['Gear priority'].Callback('Damage')
+ f.objects['Auto Trick or Treat'].Callback(true)
+ app.Config.KeepIds={['unit-stable-id']=true};app.Config.SelectedUnit='unit-stable-id'
+ f.objects['Save Settings'].Callback();table.remove(f.work,#f.work)()
+ check(storage.Files[app.Settings.Report.File]~=nil and app.Settings.Report.Status=='Settings saved. They will load next run.','Save Settings button did not persist profile')
+ app.Destroy()
+ storage.InitialCallbacks=true
+ local g=setup(113290951185459,false,storage);local restored=g.Run()
+ check(not restored.Config.Doors,'saved automation started before game data was ready')
+ table.remove(g.work,1)()
+ check(not restored.Report.InitializationError and restored.Settings.Restored,'saved profile was not automatically restored')
+ check(restored.Config.MoneyReserve==4321 and restored.Config.SellRarities.Rare and restored.Config.Doors,'numeric / rarity / enabled feature preferences not restored')
+ check(restored.Config.SelectedUnit=='unit-stable-id'and restored.Config.KeepIds['unit-stable-id'],'inventory IDs were replaced by labels / missing inventory dropped protection')
+ check(g.objects['Money reserve'].Value=='4321'and g.objects['Auto Trick or Treat'].Value==true,'visible settings disagreed with restored config')
+ check(g.objects['Keep mutated / variant units for fusion'].Value==false and g.objects['Use game Auto Roll'].Value==false,'false boolean setting restored as a true string')
+ check(g.objects['Codes (comma separated)'].Value=='CODE1, CODE2'and g.objects['Gear priority'].Value=='Damage','code list / item choice not restored to widgets')
+ check(#g.remote.Sent==0,'silent settings restoration invoked feature callbacks')
+ g.objects['Money reserve'].Callback('9999');g.objects['Load Saved Settings'].Callback();table.remove(g.work,#g.work)()
+ check(restored.Config.MoneyReserve==4321 and restored.Config.Doors,'manual Load Saved Settings missed saved state')
+ g.objects['Reset Saved Settings'].Callback();table.remove(g.work,#g.work)()
+ check(restored.Config.MoneyReserve==0 and not restored.Config.Doors and g.objects['Auto Trick or Treat'].Value==false,'Reset Saved Settings did not clear current automation / filters')
+ restored.Destroy()
+ local h=setup(113290951185459,false,storage);local reset=h.Run();table.remove(h.work,1)()
+ check(reset.Config.MoneyReserve==0 and not reset.Config.Doors,'reset profile did not persist across restart')
+ reset.Destroy()
+ -- Re-save an enabled feature, then explicitly stop while the next run loads.
+ local seed=setup(113290951185459,false,storage);local first=seed.Run();table.remove(seed.work,1)()
+ first.Core.Set('Doors',true);check(first.Settings.Save(),'failed to prepare enabled profile');first.Destroy()
+ local stopped=setup(113290951185459,false,storage);local second=stopped.Run()
+ stopped.objects['Stop all automation'].Callback();table.remove(stopped.work,#stopped.work)()
+ table.remove(stopped.work,1)()
+ check(not second.Config.Doors and not second.Settings.Restored,'automatic restore ignored Stop All during startup')
+ second.Destroy()
+ local late=setup(113290951185459,false,storage);late.data.Money=nil
+ local waiting=late.Run();table.remove(late.work,1)()
+ check(not waiting.Config.Doors and not waiting.Settings.Restored,'saved automation started before the first player snapshot')
+ late.data.Money=1000
+ local loop=coroutine.create(table.remove(late.work,1));check(coroutine.resume(loop),'late data restore failed')
+ check(waiting.Settings.Restored and waiting.Config.Doors,'saved settings did not resume when player data arrived')
+ waiting.Destroy();check(coroutine.resume(loop),'late-data loop did not stop')
+ storage.UserId=88
+ local other=setup(113290951185459,false,storage);local isolated=other.Run();table.remove(other.work,1)()
+ check(not isolated.Settings.Restored and not isolated.Config.Doors,'another account inherited saved automation')
+ isolated.Destroy()
 end
 do
  local f=setup(1,false);local ok=pcall(f.Run)
@@ -216,7 +287,7 @@ do
  local f=setup(113290951185459,false);local destroyed=0
  f.scope.DevilAnimeDiceTest={Version='anime-dice-test-20261020-1',Stopped=false,Destroy=function()destroyed+=1 end}
  local app=f.Run()
- check(destroyed==1 and app.Version=='anime-dice-test-20261020-11','rerun retained previous broken release')
+ check(destroyed==1 and app.Version=='anime-dice-test-20261020-12','rerun retained previous broken release')
  app.Destroy()
 end
 do
@@ -339,7 +410,7 @@ if mainLoaderSource then
  function f.game:IsLoaded()return true end
  f.game.HttpGet=function(self,url)
   if url:find('/anime-dice-test.lua',1,true)then
-   check(url:find('/'..mainEntryCommit..'/anime-dice-test.lua?hub=anime-dice-test-20261020-11',1,true),'main loader fetched wrong entry pin / version')
+   check(url:find('/'..mainEntryCommit..'/anime-dice-test.lua?hub=anime-dice-test-20261020-12',1,true),'main loader fetched wrong entry pin / version')
    routeRequests+=1;return entrySource
   end
   return f.http(self,url)
@@ -354,7 +425,7 @@ if mainLoaderSource then
   local ok,result=coroutine.resume(co);check(ok,'main loader / actual entry failed: '..tostring(result))
   if coroutine.status(co)=='dead'then app=result;break end
  end
- check(app and app==f.scope.DevilAnimeDiceTest and app.Version=='anime-dice-test-20261020-11','main loader did not return the actual Anime Dice GUI')
+ check(app and app==f.scope.DevilAnimeDiceTest and app.Version=='anime-dice-test-20261020-12','main loader did not return the actual Anime Dice GUI')
  check(routeRequests==1 and not f.scope.DevilHubRouterLoading,'main loader duplicated entry download or leaked busy state')
  table.remove(f.work,1)()
  check(not app.Report.InitializationError and f.objects['Quest shop item']and f.objects['Boosts to use']and f.objects['Spins to use']and f.objects['Gear priority'],'main-loaded app did not initialize requested selectors')

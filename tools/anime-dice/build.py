@@ -11,7 +11,7 @@ blue = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(blue)
 module_ref = json.loads((root / 'devil-blue-gui-release.json').read_text())['module_commit']
 source = (here / 'ui.lua').read_text(encoding='utf-8')
-for marker, name in [('ANIME_PLANNER','planner.lua'),('ANIME_ADAPTER','adapter.lua'),('ANIME_CORE','core.lua'),('ANIME_PRESENTATION','presentation.lua'),('TEST_TRANSLATIONS','translations.lua')]:
+for marker, name in [('ANIME_PLANNER','planner.lua'),('ANIME_ADAPTER','adapter.lua'),('ANIME_CORE','core.lua'),('ANIME_PRESENTATION','presentation.lua'),('ANIME_SETTINGS','settings.lua'),('TEST_TRANSLATIONS','translations.lua')]:
     assert source.count('-- ' + marker) == 1
     source = source.replace('-- ' + marker, (here / name).read_text(encoding='utf-8'))
 source = source.replace('-- SHARED_BLUE_BOOTSTRAP', blue.prefix(module_ref))
@@ -55,8 +55,9 @@ public.write_text(source, encoding='utf-8', newline='\n')
 subprocess.run([str(root.parent / 'luau-tools/luau-compile.exe'), '--null', str(public)], check=True)
 routes = json.loads((root / 'devil-blue-gui-router-audit.json').read_text(encoding='utf-8'))['routes']
 anime_route = next((r for r in routes if r['File'] == 'anime-dice-test.lua'), None)
-manifest = {'release':'anime-dice-test-20261020-11','place_id':113290951185459,'universe_id':10708913337,
+manifest = {'release':'anime-dice-test-20261020-12','place_id':113290951185459,'universe_id':10708913337,
     'production_router_changed':anime_route is not None,'live_game_verified':False,'all_automation_defaults_off':True,
+    'saved_settings_auto_load':True,'saved_automation_restored_after_initialization':True,
     'theme_module_commit':module_ref,'ouroflow_commit':'c8251f76f74d9942114ebccb0564aa0ac196320a',
     'ouroflow_sha256':hashlib.sha256(ouro).hexdigest(),'entry_sha256':hashlib.sha256(public.read_bytes()).hexdigest(),
     'candy_svg_sha256':hashlib.sha256(svg.read_bytes()).hexdigest(),

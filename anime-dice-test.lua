@@ -66,7 +66,7 @@ end
 end
 -- END DEVIL AUTO EXECUTE
 
-local release="anime-dice-test-20261020-11"
+local release="anime-dice-test-20261020-12"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end
@@ -214,7 +214,8 @@ local makeAdapter=(function()
 return function(scope)
     local rs=game:GetService("ReplicatedStorage")
     local player=game:GetService("Players").LocalPlayer
-    local ctx={Catalog={},Ready=false,Warnings={},Links={},Spawn=task.spawn,Wait=task.wait,WallTime=os.time}
+    local ctx={Catalog={},Ready=false,Warnings={},Links={},Spawn=task.spawn,Wait=task.wait,WallTime=os.time,
+        UserId=player and player.UserId,PlaceId=game.PlaceId}
     local flights=scope.DevilAnimeDiceFlights or{};scope.DevilAnimeDiceFlights=flights
     local requireModule=require
     local paths={
@@ -403,9 +404,10 @@ return function(ctx,P)
         FuseChanceMax=0,LockChanceMin=0,UpgradeBranch="All",DiceChoice="Best affordable",LevelCap=100,
         TowerChoice="",WingChoice="Front Yard",RebirthLimit=1,StatChoice="Luck",SelectedUnit="",RerollLimit=50,
         TraitTargets={},GradeTargets={},QuirkTargets={},BoostNames={},SpinNames={},GearPriority="Luck",PumpkinCount=1,
-        PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true}
+        PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true,
+        ProtectedTraits={},ProtectedGrades={},ProtectedQuirks={}}
     local clock=ctx.Clock or os.clock
-    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-11",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
+    local ctl={Config=cfg,Report={Version="anime-dice-test-20261020-12",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
     local states,handlers,pending,spend={}, {}, {}, {}
     local towerOwned=false;local towerName;local towerEpoch=0;local originalRoll,rollOwned=nil,false
     local doorReady=setmetatable({},{__mode="k"});local lastKnock;local nextIslandTravel=0;local stopEpoch=0
@@ -1283,12 +1285,119 @@ return function(window,ctx,app,logo)
 end
 
 end)()
+local makeSettings=(function()
+-- Local, account/map-specific configuration. No remote storage or executable data.
+return function(core,ctx)
+    local cfg=core.Config
+    local function copy(value)
+        if type(value)~="table"then return value end
+        local out={};for k,v in pairs(value)do out[k]=copy(v)end;return out
+    end
+    local defaults=copy(cfg);local jobs={}
+    for _,name in ipairs(core.Jobs)do jobs[name]=true end
+    local userId,placeId=tonumber(ctx.UserId),tonumber(ctx.PlaceId)
+    local identity=userId and userId>0 and placeId and placeId>0
+    local file=identity and("DevilHub-AnimeDice-"..userId.."-"..placeId..".json")or nil
+    local http=game:GetService("HttpService")
+    local api={Report={Status="No saved settings loaded yet.",File=file},Restored=false}
+    core.Report.SavedSettings=api.Report
+    local function report(ok,message,detail)
+        api.Report.Status=message;api.Report.Error=detail and tostring(detail)or nil
+        return ok,message
+    end
+    local function values(input)
+        assert(type(input)=="table","Invalid settings values")
+        local result=copy(defaults)
+        for key,default in pairs(defaults)do
+            local value=input[key]
+            if value~=nil then
+                local kind=type(default)
+                assert(type(value)==kind,"Invalid setting type: "..key)
+                if kind=="number"then
+                    assert(value==value and value>=0 and value<math.huge,"Invalid number: "..key)
+                elseif kind=="string"then
+                    assert(#value<=4096,"Setting too long: "..key)
+                elseif kind=="table"then
+                    local count=0
+                    for k,v in pairs(value)do
+                        count+=1;assert(count<=4096,"Too many selections: "..key)
+                        if key=="CodeList"then
+                            assert(type(k)=="number"and k>=1 and k%1==0 and k<=#value and type(v)=="string"and #v<=4096,"Invalid code list")
+                        else
+                            assert(type(k)=="string"and #k<=4096 and type(v)=="boolean","Invalid selection: "..key)
+                        end
+                    end
+                    if key=="CodeList"then assert(count==#value,"Invalid code list")end
+                end
+                result[key]=copy(value)
+            end
+        end
+        return result
+    end
+    local function write(input)
+        if not file then return report(false,"Waiting for player identity.")end
+        if type(writefile)~="function"then return report(false,"Saving unavailable on this executor.")end
+        local ok,err=pcall(function()
+            local text=http:JSONEncode({Schema=1,UserId=userId,PlaceId=placeId,Values=values(input)})
+            assert(#text<=1048576,"Settings file too large")
+            writefile(file,text)
+        end)
+        if not ok then return report(false,"Settings could not be saved.",err)end
+        return report(true,"Settings saved. They will load next run.")
+    end
+    local function apply(input,afterValues,reset)
+        if not ctx.Ready and not reset then return report(false,"Waiting for game data.")end
+        local ok,err=pcall(function()
+            core.StopAll()
+            for key,value in pairs(input)do if not jobs[key]then cfg[key]=copy(value)end end
+            if afterValues then afterValues()end
+            for _,name in ipairs(core.Jobs)do core.Set(name,input[name]==true)end
+            api.Restored=true
+        end)
+        if not ok then return report(false,"Settings could not be applied.",err)end
+        return report(true,"Saved settings loaded.")
+    end
+    function api.Save()return write(cfg)end
+    function api.Load(afterValues)
+        if not ctx.Ready or type(ctx.Snapshot)=="function"and not ctx.Snapshot()then return report(false,"Waiting for game data.")end
+        if not file then return report(false,"Waiting for player identity.")end
+        if type(readfile)~="function"then return report(false,"Loading unavailable on this executor.")end
+        if type(isfile)=="function"then
+            local ok,exists=pcall(isfile,file)
+            if ok and not exists then return report(false,"No saved settings found.")end
+        end
+        local ok,input=pcall(function()
+            local text=readfile(file)
+            assert(type(text)=="string"and #text<=1048576,"Invalid settings file")
+            local saved=http:JSONDecode(text)
+            assert(type(saved)=="table"and saved.Schema==1,"Unknown settings format")
+            assert(saved.UserId==userId and saved.PlaceId==placeId,"Settings belong to another player or map")
+            return values(saved.Values)
+        end)
+        if not ok then return report(false,"Saved settings could not be read.",input)end
+        return apply(input,afterValues)
+    end
+    function api.Reset(afterValues)
+        local ok,message=write(defaults)
+        if not ok then return ok,message end
+        ok,message=apply(copy(defaults),afterValues,true)
+        if not ok then return ok,message end
+        return report(true,"Saved settings reset.")
+    end
+    return api
+end
+
+end)()
 local ctx=makeAdapter(scope)
 local core=makeCore(ctx,planner)
 local cfg=core.Config
+local saved=makeSettings(core,ctx)
 local app={Core=core,Config=cfg,Report=core.Report,Version=core.Report.Version,Stopped=false}
 local window,library,presentation
-local links,widgets,optionWidgets={}, {}, {}
+local links,widgets,optionWidgets,valueWidgets={}, {}, {}, {}
+local autoLoadPending=true
+local controlsReady=false
+local function changed()if controlsReady then autoLoadPending=false end end
 local function destroy()
     if app.Stopped then return end
     app.Stopped=true;core.Destroy()
@@ -1349,14 +1458,16 @@ end
     local function group(tab,name,side)return tab:CreateGroupbox({Name=name,Side=side or"Left"})end
     local function tab(name,icon)return window:CreateTab({Name=name,Icon=icon,Backdrop=false})end
     local function toggle(host,key,name)
-        local widget=host:CreateToggle({Name=name,CurrentValue=false,Callback=function(v)core.Set(key,v)end})
+        local widget=host:CreateToggle({Name=name,CurrentValue=false,Callback=function(v)changed();core.Set(key,v)end})
         widgets[key]=widget;return widget
     end
     local function input(host,key,name,default)
-        return host:CreateInput({Name=name,CurrentValue=tostring(default or cfg[key]),Callback=function(v)
+        local widget=host:CreateInput({Name=name,CurrentValue=tostring(default or cfg[key]),Callback=function(v)
+            changed()
             local parse=key:find("Chance",1,true)and planner.Chance or planner.Number
             cfg[key]=parse(v,cfg[key])
         end})
+        valueWidgets[key]=widget;return widget
     end
     local function multi(value)
         local set={};for k,v in pairs(value or{})do local name=type(k)=="number"and v or v==true and k;if type(name)=="string"then set[name]=true end end
@@ -1365,6 +1476,7 @@ end
     local function dropdown(host,key,name,options,default,multiple,convert)
         local widget=host:CreateDropdown({Name=name,Options=options or{},CurrentOption=multiple and{}or default,MultipleOptions=multiple,
             AllowNone=multiple==true,Searchable=true,Callback=function(v)
+                changed()
                 if multiple then cfg[key]=multi(v)else cfg[key]=convert and convert(v)or v end
             end})
         optionWidgets[key]=widget;return widget
@@ -1386,14 +1498,15 @@ end
     input(farm,"LevelCap","Maximum unit level")
     local buy=group(main,"Dice and upgrades","Right")
     toggle(buy,"Dice","Auto Buy / Equip Dice")
-    optionWidgets.DiceChoice=presentation.CreateDice(buy,function(name)cfg.DiceChoice=name end)
+    optionWidgets.DiceChoice=presentation.CreateDice(buy,function(name)changed();cfg.DiceChoice=name end)
     toggle(buy,"Upgrade","Auto Upgrade Tree")
     dropdown(buy,"UpgradeBranch","Upgrade branch",{"All","Money","Luck","Damage","Health","Unit Storage","Roll","Trait","Grade"},"All")
     input(buy,"MoneyReserve","Money reserve")
     local overview=group(main,"Live status","Right")
     local summary=overview:CreateLabel({Text="Connecting game modules..."})
     local resultLabel=overview:CreateLabel({Text="All automation starts off."})
-    button(overview,"Stop all automation",core.StopAll)
+    local function stopAll()changed();core.StopAll()end
+    button(overview,"Stop all automation",stopAll)
     local inventory=tab("Inventory","backpack")
     local sell=group(inventory,"Sell and protect")
     toggle(sell,"Sell","Auto Sell All Unused Units")
@@ -1404,6 +1517,7 @@ end
     local keepIdLabels={}
     -- The callback maps friendly labels back to current live inventory IDs.
     local function mapIds(selected)
+        changed()
         local set={};for label in pairs(multi(selected))do if keepIdLabels[label]then set[keepIdLabels[label]]=true end end;cfg.KeepIds=set
     end
     local keepWidget=sell:CreateDropdown({Name="Keep specific units",Options={},CurrentOption={},MultipleOptions=true,AllowNone=true,Searchable=true,Callback=mapIds})
@@ -1422,7 +1536,7 @@ end
     input(materials,"FuseChanceMax","Fuse maximum chance (0 = off)")
     input(materials,"KeepBest","Keep best units for fusion")
     input(materials,"KeepCopies","Keep copies per character for fusion")
-    materials:CreateToggle({Name="Keep mutated / variant units for fusion",CurrentValue=true,Callback=function(v)cfg.SkipMutations=v end})
+    valueWidgets.SkipMutations=materials:CreateToggle({Name="Keep mutated / variant units for fusion",CurrentValue=true,Callback=function(v)changed();cfg.SkipMutations=v end})
     button(materials,"Preview fusion",function()
         local items=core.Preview("Fuse");local names={}
         for i=1,math.min(3,#items)do names[#names+1]=items[i].name.." | "..items[i].id:sub(1,8)end
@@ -1450,6 +1564,7 @@ end
     local target=group(rerollTab,"Selected unit")
     local unitLabels={}
     local unitPicker=target:CreateDropdown({Name="Unit selection",Options={},AllowNone=true,Searchable=true,Callback=function(v)
+        changed()
         core.Set("Trait",false);core.Set("Grade",false);core.Set("Quirk",false);cfg.SelectedUnit=unitLabels[v]or""
     end})
     input(target,"RerollLimit","Reroll request limit")
@@ -1461,11 +1576,11 @@ end
         toggle(rolls,kind,"Auto "..kind)
     end
     local protection=group(rerollTab,"Game protection")
-    local protectedChoices={Trait={},Grade={},Quirk={}}
+    local protectedChoices={Trait=cfg.ProtectedTraits,Grade=cfg.ProtectedGrades,Quirk=cfg.ProtectedQuirks}
     local protectionWidgets={}
     for _,kind in ipairs({"Trait","Grade","Quirk"})do
         protectionWidgets[kind]=protection:CreateDropdown({Name="Protect "..kind,Options={},CurrentOption={},MultipleOptions=true,AllowNone=true,Searchable=true,
-            Callback=function(v)protectedChoices[kind]=multi(v)end})
+            Callback=function(v)changed();protectedChoices[kind]=multi(v);cfg['Protected'..kind..'s']=protectedChoices[kind]end})
         button(protection,"Apply "..kind.." protection",function()
             local c=ctx.Catalog[kind=="Trait"and"Traits"or kind=="Grade"and"Grades"or"Quirks"]or{}
             local values={};for name in pairs(c)do values[name]=protectedChoices[kind][name]==true end;core.Protect(kind,values)
@@ -1473,11 +1588,11 @@ end
     end
     local items=tab("Items and rewards","gift")
     local use=group(items,"Items and gear")
-    optionWidgets.BoostNames=presentation.CreateItems(use,"BoostNames","Boosts to use",function(v)cfg.BoostNames=multi(v)end,true)
+    optionWidgets.BoostNames=presentation.CreateItems(use,"BoostNames","Boosts to use",function(v)changed();cfg.BoostNames=multi(v)end,true)
     toggle(use,"Boost","Auto Use Selected Boosts")
-    optionWidgets.SpinNames=presentation.CreateItems(use,"SpinNames","Spins to use",function(v)cfg.SpinNames=multi(v)end,true)
+    optionWidgets.SpinNames=presentation.CreateItems(use,"SpinNames","Spins to use",function(v)changed();cfg.SpinNames=multi(v)end,true)
     toggle(use,"Spin","Auto Use Selected Spins")
-    optionWidgets.GearPriority=presentation.CreateItems(use,"GearPriority","Gear priority",function(v)cfg.GearPriority=v end,false,"Luck")
+    optionWidgets.GearPriority=presentation.CreateItems(use,"GearPriority","Gear priority",function(v)changed();cfg.GearPriority=v end,false,"Luck")
     toggle(use,"Gear","Auto Equip Gear")
     local rewards=group(items,"Rewards and codes","Right")
     toggle(rewards,"Rewards","Auto Claim Daily / Group / Offline")
@@ -1486,7 +1601,8 @@ end
     input(rewards,"QuestLimit","Quest purchase limit")
     input(rewards,"TicketReserve","Tickets reserve")
     toggle(rewards,"QuestShop","Auto Buy Quest Shop Item")
-    rewards:CreateInput({Name="Codes (comma separated)",CurrentValue="",Callback=function(v)
+    valueWidgets.CodeList=rewards:CreateInput({Name="Codes (comma separated)",CurrentValue="",Callback=function(v)
+        changed()
         cfg.CodeList={};for code in tostring(v):gmatch("[^,%s]+")do cfg.CodeList[#cfg.CodeList+1]=code end
     end})
     toggle(rewards,"Codes","Auto Redeem Entered Codes")
@@ -1505,9 +1621,11 @@ end
     local candy=group(halloween,"Trick or Treat")
     toggle(candy,"Doors","Auto Trick or Treat")
     button(candy,"Start Event Collection",function()
+        changed()
         for _,key in ipairs({"Doors","Pass","EventQuests"})do core.Set(key,true);widgets[key]:Set(true,true)end
     end)
     button(candy,"Stop Event Collection",function()
+        changed()
         for _,key in ipairs({"Doors","Pass","EventQuests"})do core.Set(key,false);widgets[key]:Set(false,true)end
     end)
     candy:CreateParagraph({Name="Door route",Content="Teleports to ground at each event door and waits for server travel limits, cooldown and confirmed rewards."})
@@ -1515,25 +1633,28 @@ end
     toggle(pass,"Pass","Auto Claim Pumpkin Pass")
     toggle(pass,"EventQuests","Auto Claim Halloween Quests")
     local shop=group(halloween,"Candy shop")
-    optionWidgets.OfferChoice=presentation.CreateShop(shop,function(name)cfg.OfferChoice=name end)
+    optionWidgets.OfferChoice=presentation.CreateShop(shop,function(name)changed();cfg.OfferChoice=name end)
     input(shop,"OfferLimit","Purchase limit")
     input(shop,"CandyReserve","Candy reserve")
     toggle(shop,"CandyShop","Auto Buy Candy Shop Item")
-    local settings=tab("Status","activity")
+    local settings=tab("Settings","settings")
+    local savedGroup=group(settings,"Saved settings")
+    local savedStatus=savedGroup:CreateLabel({Text="No saved settings loaded yet."})
+    savedGroup:CreateParagraph({Name="Restore settings",Content="Save filters, item choices and enabled automation. Saved settings load automatically next run."})
     local reportGroup=group(settings,"Test report")
     local statuses={}
     for _,name in ipairs(core.Jobs)do statuses[name]=reportGroup:CreateLabel({Text=name..": Off"})end
     local actions=group(settings,"Test controls","Right")
-    button(actions,"Stop all automation",core.StopAll)
+    button(actions,"Stop all automation",stopAll)
     button(actions,"Copy / save test report",function()
         local text=game:GetService("HttpService"):JSONEncode(core.Report)
         if type(setclipboard)=="function"then pcall(setclipboard,text)end
         if type(writefile)=="function"then pcall(writefile,"DevilHub-AnimeDice-test-report.json",text)end
         print(text)
     end)
-    actions:CreateToggle({Name="Use game Auto Roll",CurrentValue=true,Callback=function(v)core.Set("Roll",false);cfg.UseNativeRoll=v end})
+    valueWidgets.UseNativeRoll=actions:CreateToggle({Name="Use game Auto Roll",CurrentValue=true,Callback=function(v)changed();core.Set("Roll",false);cfg.UseNativeRoll=v end})
     button(actions,"Close test",destroy)
-    actions:CreateParagraph({Name="Anime Dice",Content="All automation starts off. Launch directly or through the DEVIL HUB main loader. Game rules, balances and inventory updates decide the result."})
+    actions:CreateParagraph({Name="Anime Dice",Content="Automation starts off without a saved profile. Saved settings restore after game data is ready."})
     local discord=tab("Discord","users")
     local community=group(discord,"DEVIL HUB Community")
     presentation.Community(community)
@@ -1570,6 +1691,7 @@ end
                 for name,value in pairs(d["Protected"..(kind=="Trait"and"Traits"or kind=="Grade"and"Grades"or"Quirks")]or{})do
                     if value then chosen[#chosen+1]=name;protectedChoices[kind][name]=true end
                 end
+                cfg['Protected'..kind..'s']=protectedChoices[kind]
                 protectionWidgets[kind]:Set(chosen,true)
             end
         end
@@ -1602,9 +1724,57 @@ end
         for label,id in pairs(unitLabels)do if id==cfg.SelectedUnit then selected=label end;if cfg.KeepIds[id]then kept[#kept+1]=label end end
         unitPicker:Set(selected,true);keepWidget:Set(kept,true)
     end
+    local function selected(values)
+        local names={};for name,value in pairs(values)do if value then names[#names+1]=name end end;table.sort(names);return names
+    end
+    local function restoreWidgets()
+        -- Populate choices before setting them silently. Inventory IDs remain IDs.
+        pumpkinFilterInitialized=true
+        for _,kind in ipairs({"Trait","Grade","Quirk"})do
+            protectionInitialized[kind]=true;protectedChoices[kind]=cfg['Protected'..kind..'s']
+        end
+        refreshOptions()
+        for key,widget in pairs(valueWidgets)do
+            local value=cfg[key]
+            if key=="CodeList"then value=table.concat(value,", ")
+            elseif type(value)~="boolean"then value=tostring(value)end
+            widget:Set(value,true)
+        end
+        for key,widget in pairs(optionWidgets)do if key~="KeepIds"then
+            local value=cfg[key]
+            widget:Set(type(value)=="table"and selected(value)or key=="PumpkinCount"and tostring(value)or value,true)
+        end end
+        for kind,widget in pairs(protectionWidgets)do widget:Set(selected(protectedChoices[kind]),true)end
+    end
+    local function settingsResult(ok,message)
+        savedStatus:Set(message)
+        for key,widget in pairs(widgets)do widget:Set(cfg[key],true)end
+        return ok,message
+    end
+    app.Settings=saved
+    button(savedGroup,"Save Settings",function()changed();settingsResult(saved.Save())end)
+    button(savedGroup,"Load Saved Settings",function()changed();settingsResult(saved.Load(restoreWidgets))end)
+    button(savedGroup,"Reset Saved Settings",function()changed();settingsResult(saved.Reset(restoreWidgets))end)
+    local function autoLoad()
+        if not autoLoadPending or not ctx.Ready then return false end
+        if not ctx.Snapshot()then savedStatus:Set("Waiting for game data.");return false end
+        autoLoadPending=false
+        return settingsResult(saved.Load(restoreWidgets))
+    end
     button(actions,"Refresh inventory and choices",refreshOptions)
     -- Reuse the single language menu provided by the shared DEVIL HUB presentation.
 local translations={
+    ["Settings"]="ตั้งค่า",["Saved settings"]="ค่าที่บันทึก",["Restore settings"]="คืนค่าตั้งค่า",
+    ["Save Settings"]="บันทึกตั้งค่า",["Load Saved Settings"]="โหลดตั้งค่าที่บันทึก",["Reset Saved Settings"]="รีเซ็ตตั้งค่าที่บันทึก",
+    ["Save filters, item choices and enabled automation. Saved settings load automatically next run."]="บันทึกฟิลเตอร์ รายการที่เลือก และออโต้ที่เปิดไว้ รันครั้งถัดไปจะโหลดค่าเดิมอัตโนมัติ",
+    ["Automation starts off without a saved profile. Saved settings restore after game data is ready."]="หากยังไม่มีค่าที่บันทึก ออโต้จะเริ่มปิดไว้ หากบันทึกแล้วจะโหลดค่าเดิมเมื่อข้อมูลเกมพร้อม",
+    ["No saved settings loaded yet."]="ยังไม่ได้โหลดค่าที่บันทึก",["No saved settings found."]="ยังไม่มีค่าที่บันทึก",
+    ["Settings saved. They will load next run."]="บันทึกตั้งค่าแล้ว รันครั้งถัดไปจะโหลดให้อัตโนมัติ",
+    ["Saved settings loaded."]="โหลดตั้งค่าที่บันทึกแล้ว",["Saved settings reset."]="รีเซ็ตตั้งค่าที่บันทึกแล้ว",
+    ["Waiting for player identity."]="กำลังรอข้อมูลผู้เล่น",["Waiting for game data."]="กำลังรอข้อมูลเกม",
+    ["Saving unavailable on this executor."]="ตัวรันนี้ไม่รองรับการบันทึกไฟล์",["Loading unavailable on this executor."]="ตัวรันนี้ไม่รองรับการอ่านไฟล์",
+    ["Settings could not be saved."]="บันทึกตั้งค่าไม่สำเร็จ",["Settings could not be applied."]="นำค่าที่บันทึกมาใช้ไม่สำเร็จ",
+    ["Saved settings could not be read."]="อ่านไฟล์ตั้งค่าไม่สำเร็จ",
     ["DEVIL HUB Community"]="ชุมชน DEVIL HUB",
     ["Join our Discord"]="เข้าร่วม Discord ของเรา",
     ["Updates, announcements and community support."]="อัปเดต ประกาศ และความช่วยเหลือจากชุมชน",
@@ -1713,20 +1883,23 @@ local function refreshLanguage()
     end
 end
 
+    controlsReady=true
     scope.DevilAnimeDiceTest=app
     scope.DevilAnimeDiceStarting=nil
     ctx.Spawn(function()
         local initialized,err=xpcall(function()
             ctx.Initialize(function()return not app.Stopped end)
             if app.Stopped then return end
-            core.BindEvents();refreshOptions()
+            core.BindEvents()
+            local restored=autoLoad()
+            if not restored then refreshOptions()end
         end,debug.traceback)
         if not initialized and not app.Stopped then core.Report.InitializationError=tostring(err);summary:Set("Connection failed; copy the test report");warn(err)end
     end)
     ctx.Spawn(function()
         local refreshAt=0
         while not app.Stopped do
-            local worked,err=xpcall(core.Tick,debug.traceback)
+            local worked,err=xpcall(function()autoLoad();core.Tick()end,debug.traceback)
             if not worked then core.Report.LastTickError=tostring(err)end
             local rendered,renderError=xpcall(function()
                 local r=core.Report.Summary

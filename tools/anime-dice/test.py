@@ -25,6 +25,12 @@ checks = checks.replace('-- TEST_CORE', (here / 'core.lua').read_text(encoding='
 path = here / 'test.generated.luau'
 path.write_text(checks, encoding='utf-8', newline='\n')
 execute(path)
+settings=(root/'tests/anime-dice-settings.luau').read_text(encoding='utf-8')
+settings=settings.replace('-- TEST_CORE',(here/'core.lua').read_text(encoding='utf-8'))
+settings_helper=json.dumps((here/'settings.lua').read_text(encoding='utf-8'),ensure_ascii=True)
+settings_path=here/'settings-test.generated.luau'
+settings_path.write_text('local settingsSource='+settings_helper+'\n'+settings,encoding='utf-8',newline='\n')
+execute(settings_path)
 movement = (root / 'tests/anime-dice-movement.luau').read_text(encoding='utf-8')
 movement = movement.replace('-- TEST_ADAPTER', (here / 'adapter.lua').read_text(encoding='utf-8'))
 movement_path = here / 'movement-test.generated.luau'
@@ -62,7 +68,7 @@ fixture += (root / 'tests/anime-dice-entry.luau').read_text(encoding='utf-8')
 path = here / 'entry-test.generated.luau'
 path.write_text(fixture, encoding='utf-8', newline='\n')
 execute(path)
-validation = {'release':'anime-dice-test-20261020-11','live_game_verified':False,
+validation = {'release':'anime-dice-test-20261020-12','live_game_verified':False,
     'entry_sha256':hashlib.sha256((root / 'anime-dice-test.lua').read_bytes()).hexdigest(),
     'checks':sum(int(n) for result in results for n in re.findall(r'(\d+) checks', result)),
     'literal_remote_contract_checks':count,'results':results,
