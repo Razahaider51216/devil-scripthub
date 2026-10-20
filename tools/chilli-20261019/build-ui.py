@@ -18,6 +18,7 @@ if cache_begin in source:
     last = source.index(cache_end,first)+len(cache_end)
     source = source[:first]+source[last:]
 cache = 'local loadPinnedSource=(function()\n'+(here/'pinned-source.lua').read_text(encoding='utf-8')+'\nend)()\n'
+cache += 'local installStartupTrace=(function()\n'+(here/'startup-trace.lua').read_text(encoding='utf-8')+'\nend)()\n'
 source = source.replace('local completed=table.pack(pcall(function()',cache_begin+cache+cache_end+'local completed=table.pack(pcall(function()',1)
 start = source.index('local attach=(function()') + len('local attach=(function()\n')
 end = source.index('\nend)()\nlocal function existingDevilHubLibrary', start)
@@ -54,6 +55,9 @@ if 'pcall(env.DevilStealStartupStage,"Building DEVIL HUB frontend")' not in sour
 if 'pcall(env.DevilStealStartupStage,"Ready")' not in source:
     source=source.replace('        loading.Finish()\n    else loading.Fail(session',
         '        if type(env.DevilStealStartupStage)=="function"then pcall(env.DevilStealStartupStage,"Ready")end\n        loading.Finish()\n    else loading.Fail(session',1)
+if 'pcall(installStartupTrace,"Protected bootstrap")' not in source:
+    source=source.replace('    local runtimeStarted=os.clock();local values=table.pack(run())',
+        '    pcall(installStartupTrace,"Protected bootstrap")\n    local runtimeStarted=os.clock();local values=table.pack(run())',1)
 for name in ['devil-steal-an-egg-chilli-recovered-ui-test.lua', 'devil-steal-an-egg-chilli-main-gui.lua']:
     target = root / name
     target.write_text(source, encoding='utf-8', newline='\n')

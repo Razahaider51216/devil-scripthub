@@ -103,6 +103,9 @@ do
  check(updates==2 and #warnings==2,'startup trace did not expose actual stages')
  host.writefile=function()error('file API unavailable')end
  stage('Native handles ready');check(shared.DevilStealStartupTrace.LastPhase=='Native handles ready','failed diagnostic file write interrupted startup')
+ local previous=shared.DevilStealStartupTrace
+ local resumed=makeTrace()('Protected bootstrap')
+ check(resumed==stage and shared.DevilStealStartupTrace==previous and previous.LastPhase=='Protected bootstrap','bootstrap / native transition lost existing trace')
 end
 do
  local shared={};local progress
