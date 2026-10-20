@@ -61,6 +61,17 @@ assert(run()==nil and #downloads==0,'busy router relaunched')
 run,state,downloads=setup(10563114921,1)
 state.DevilChilliMainUI={}
 assert(run()==nil and #downloads==0,'existing Steal GUI relaunched')
+run,state,downloads,env=setup(10563114921,1)
+state.DevilChilliMainUI={}
+local legacyEnabled=true
+env.game.GetService=function(_,name)
+ assert(name=='TeleportService','Steal migration touched an unrelated service')
+ return{SetTeleportSetting=function(_,key,value)
+  assert(key=='__ChilliAutoLoadScriptEnabled','Steal migration changed an unrelated setting')
+  legacyEnabled=value
+ end}
+end
+assert(run()==nil and #downloads==0 and legacyEnabled==false,'running Steal GUI blocks legacy rejoin queue migration')
 local anime,dig
 for _,entry in ipairs(definitions)do
  if entry[3]=='anime-dice-test.lua'then anime=entry end

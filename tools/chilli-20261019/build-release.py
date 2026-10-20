@@ -4,7 +4,7 @@ import hashlib, json, re, subprocess, sys
 ROOT=Path(__file__).resolve().parents[2]
 WORK=Path(__file__).resolve().parent
 BUILD=ROOT.parent/'steal-chilli-build-20261019'
-RELEASE='chilli-performance-20261021-1'
+RELEASE='chilli-rejoin-clipboard-20261021-2'
 mode,commit=sys.argv[1:3]
 assert re.fullmatch('[0-9a-f]{40}',commit)
 def gitfile(name):
@@ -21,6 +21,7 @@ if game.GameId~=10563114921 and game.PlaceId~=107778070777162 then
  local run,err=loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?v=vm-1"))
  assert(run,err);return run(...)
 end
+pcall(function()game:GetService("TeleportService"):SetTeleportSetting("__ChilliAutoLoadScriptEnabled",false)end)
 if env.DevilChilliUiStarting or env.DevilChilliPresentation or env.DevilChilliMainUI then return env.DevilChilliMainUI end
 local source=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/GUI_COMMIT/devil-steal-an-egg-chilli-recovered-ui-test.lua")
 assert(type(source)=="string"and #source==GUI_BYTES,"Pinned script download checksum mismatch or unexpected size")
@@ -43,6 +44,11 @@ elif mode=='router':
     assert sha(before.encode())==audit['after_native_sha256']
     source,count=re.subn(r'(^    \{Name="Steal an Egg"[^\n]*Commit=")[0-9a-f]+("[^\n]*Version=")[^"]+',lambda m:m[1]+commit+m[2]+RELEASE,before,flags=re.M)
     assert count==1
+    migration=(WORK/'rejoin-migration.lua').read_text(encoding='utf-8').rstrip()+'\n'
+    if '-- BEGIN DEVIL STEAL REJOIN MIGRATION'not in source:
+        marker='if selected.File=="devil-steal-an-egg.lua"and'
+        assert source.count(marker)==1
+        source=source.replace(marker,migration+marker,1)
     source,count=re.subn(r'(entry.File=="devil-steal-an-egg.lua"and")[^"]+',lambda m:m[1]+RELEASE,source)
     assert count==1
     other=lambda s:re.findall(r'^    \{(?!Name="Steal an Egg")[^\n]+',s,re.M)
@@ -50,6 +56,7 @@ elif mode=='router':
     router_baseline=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
     baseline=subprocess.check_output(['git','show',router_baseline+':tools/blue-gui/router.lua'],cwd=ROOT).decode()
     def without_steal_pin(text):
+        text=re.sub(r'-- BEGIN DEVIL STEAL REJOIN MIGRATION\n.*?-- END DEVIL STEAL REJOIN MIGRATION\n','',text,flags=re.S)
         text=re.sub(r'(^    \{Name="Steal an Egg"[^\n]*Commit=")[0-9a-f]+("[^\n]*Version=")[^"]+',lambda m:m[1]+'PIN'+m[2]+'VERSION',text,flags=re.M)
         return re.sub(r'(entry.File=="devil-steal-an-egg.lua"and")[^"]+',lambda m:m[1]+'VERSION',text)
     assert without_steal_pin(baseline)==without_steal_pin(before)

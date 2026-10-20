@@ -30,5 +30,8 @@ old=blob(release['router_baseline_commit'],'tools/blue-gui/router.lua').decode()
 expected,count=re.subn(r'(^    \{Name="Steal an Egg"[^\n]*Commit=")[0-9a-f]+("[^\n]*Version=")[^"]+',lambda m:m[1]+release['delegate_commit']+m[2]+release['release'],old,flags=re.M)
 assert count==1
 expected,count=re.subn(r'(entry.File=="devil-steal-an-egg.lua"and")[^"]+',lambda m:m[1]+release['release'],expected)
+if '-- BEGIN DEVIL STEAL REJOIN MIGRATION'not in expected:
+    migration=(root/'tools/chilli-20261019/rejoin-migration.lua').read_text().rstrip()+'\n'
+    expected=expected.replace('if selected.File=="devil-steal-an-egg.lua"and',migration+'if selected.File=="devil-steal-an-egg.lua"and',1)
 assert count==1 and current==expected,'Changes outside the Steal pin/version'
 print('PASS complete immutable chain: loader -> delegate -> GUI -> adapted runtime; current Steal pin preserved; publication router verified')

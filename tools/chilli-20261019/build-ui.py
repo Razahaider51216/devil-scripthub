@@ -31,7 +31,7 @@ source, count = re.subn(r'referenceSHA256="[0-9a-f]+"', 'referenceSHA256="' + ma
 assert count == 1
 source,count=re.subn(r'referenceCommit="[0-9a-f]+"','referenceCommit="'+runtime_ref+'"',source)
 assert count==1
-source=re.sub(r'release="chilli-full-test-1"','release="'+manifest['release']+'"',source)
+source=re.sub(r'(schema="devil-chilli-full-runtime-test-1",release=")[^"]+',lambda m:m[1]+manifest['release'],source)
 for name in ['devil-steal-an-egg-chilli-recovered-ui-test.lua', 'devil-steal-an-egg-chilli-main-gui.lua']:
     target = root / name
     target.write_text(source, encoding='utf-8', newline='\n')

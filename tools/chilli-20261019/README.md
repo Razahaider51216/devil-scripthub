@@ -1,6 +1,6 @@
 # Steal an Egg upstream integration ? 2026-10-20
 
-Release: `chilli-performance-20261021-1`.
+Release: `chilli-rejoin-clipboard-20261021-2`.
 Chilli.lua routes this game to `tienkhanh1/Chilli-Hub-Script/StealAnEggg`.
 The immutable upstream commit is `7b9215d199e43d7dda2569a8cf84477c77552630`;
 its 811,078 bytes must match SHA256
@@ -65,6 +65,23 @@ reported lag still require a live Roblox/executor measurement.
 
 Run `test-performance.py`, `test-integration.py`, and `test-customization.py`
 before building/pinning the GUI and public wrappers.
+
+## Rejoin and clipboard regression
+
+The native Auto Load Script fallback now queues the DEVIL main loader, using its
+own teleport-setting and queued-state names. When the main Auto Execute listener
+is already armed or queued, the fallback does not enqueue a second loader. The
+main router and direct Steal delegate disable the legacy Chilli teleport setting
+before their running-GUI guards, allowing an existing session to invalidate its
+already queued upstream payload before rejoining.
+
+The original Settings ScreenGui starts disabled before parenting, and the native
+Open path does not enable it. DEVIL HUB still owns all visible presentation.
+The startup Discord initializer is a no-op; the Discord panel's explicit Copy
+Link callback is retained. `test-rejoin-clipboard.py` executes the actual native
+initializers and queued payload with mocked executor/services, checks that startup
+does not copy/download Discord, and verifies fallback, disable and duplicate-queue
+behavior. These are offline regressions, not a live Roblox rejoin claim.
 
 Build runtime: `python tools/chilli-20261019/build-update.py`.
 Run `test-integration.py`: actual latest option methods and exported constructor,

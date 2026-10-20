@@ -65,7 +65,21 @@ replace('Text="<b>Chilli Hub</b>",Gradient=a', 'Text="<b>DEVIL HUB</b>",Gradient
 replace('"rbxassetid://128961717706452","180K+"',
         '((type(getgenv)=="function"and getgenv()or _G).DevilChilliBrandLogo or "https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png"),"180K+"')
 replace('loadstring(game:HttpGet("https://raw.githubusercontent.com/tienkhanh1/spicy/refs/heads/main/DiscordLink"))()',
-        'local copy=setclipboard or toclipboard;if type(copy)=="function"then copy("https://discord.gg/fDwPCmpkkh");end')
+        'do end')
+# The upstream rejoin queue must never fetch a separate Chilli engine.
+replace('https://raw.githubusercontent.com/tienkhanh1/spicy/main/Chilli.lua',
+        'https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/refs/heads/main/loader?v=vm-1')
+replace('__ChilliAutoLoadScriptEnabled','__DevilHubStealAutoLoadEnabled',adapted.count('__ChilliAutoLoadScriptEnabled'))
+replace('__ChilliAutoLoadQueued','__DevilHubStealAutoLoadQueued',adapted.count('__ChilliAutoLoadQueued'))
+replace('return function()local G,n="__DevilHubStealAutoLoadEnabled",',
+        'return function()pcall(function()w:SetTeleportSetting("__ChilliAutoLoadScriptEnabled",false);end);local G,n="__DevilHubStealAutoLoadEnabled",')
+replace('if rawget(_G,"__DevilHubStealAutoLoadQueued")~=true then',
+        'local own=(type(getgenv)=="function"and getgenv()or _G).DevilHubAutoExecute;if own and own.Version=="devil-auto-execute-1"and(own.Link or own.Queued)then return true;end;if rawget(_G,"__DevilHubStealAutoLoadQueued")~=true then')
+# Disable native windows before parenting; a post-creation GUI watcher can flash.
+replace('M[38]=(Instance.new("ScreenGui"));M[19].obj1=M[38];',
+        'M[38]=(Instance.new("ScreenGui"));M[38].Enabled=false;M[19].obj1=M[38];')
+replace('h.Enabled=true;task.spawn(function()for n=1,4,1 do',
+        'h.Enabled=false;task.spawn(function()for n=1,4,1 do')
 # Disable the upstream promotional mode before it creates controls or callbacks.
 replace('return function()local E=G:CreateTab({Name="Venyx"',
         'return function()do return end;local E=G:CreateTab({Name="Venyx"')
@@ -131,7 +145,7 @@ target.write_text(output, encoding='utf-8', newline='\n')
 (WORK / 'native-layer.generated.luau').write_text(adapted, encoding='utf-8')
 subprocess.run([str(COMPILER), '--null', str(target)], check=True)
 manifest = {
-    'release': 'chilli-performance-20261021-1', 'upstream_commit': UPSTREAM,
+    'release': 'chilli-rejoin-clipboard-20261021-2', 'upstream_commit': UPSTREAM,
     'features': ['Farm Monsters While Fishing', 'Fishing History',
         'Fishing/Treadmill rotation: Timer or Every Day', 'Teleport To Monsters',
         'Teleport To Pumpkins', 'Teleport To Ghosts', 'Continuous monster/pumpkin target loops'],
@@ -146,6 +160,8 @@ manifest = {
     'live_verified': False, 'original_compiler_environment_preserved': True, 'request_lookup_sites': request_lookup_count,
     'vm_non_request_global_reads_skip_branding_call': True,
     'presentation_callbacks_throttled': 3, 'visible_ui_max_hz': 30, 'hidden_ui_max_hz': 4,
+    'startup_discord_clipboard_disabled': True, 'rejoin_uses_devil_main_loader': True,
+    'native_window_disabled_before_parenting': True,
 }
 (ROOT / 'devil-chilli-native-ui-recovery.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
 print(json.dumps(manifest, indent=2))

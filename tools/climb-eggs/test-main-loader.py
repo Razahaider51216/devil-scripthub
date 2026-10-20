@@ -32,12 +32,14 @@ end
     expected=expected.replace('assert(type(loadstring)=="function"',guard+'assert(type(loadstring)=="function"',1)
 normalized=current
 steal=next(r for r in audit['routes'] if r['File']=='devil-steal-an-egg.lua')
-if steal.get('Version','').startswith('chilli-performance-'):
+if steal.get('Version','')!='chilli-fishing-rotation-20261020-1':
     import re
     baseline_row=re.search(r'^    \{Name="Steal an Egg"[^\n]+',expected,re.M)[0]
     normalized,count=re.subn(r'^    \{Name="Steal an Egg"[^\n]+',lambda _:baseline_row,normalized,flags=re.M)
     assert count==1
     normalized=normalized.replace('entry.File=="devil-steal-an-egg.lua"and"'+steal['Version']+'"','entry.File=="devil-steal-an-egg.lua"and"chilli-fishing-rotation-20261020-1"',1)
+    migration=(ROOT/'tools/chilli-20261019/rejoin-migration.lua')
+    if migration.exists():normalized=normalized.replace(migration.read_text().rstrip()+'\n','',1)
 assert expected==normalized,'Changes outside the declared game entry pins and Dig For Eggs additions'
 assert hashlib.sha256(current.encode()).hexdigest()==audit['after_native_sha256']
 print('PASS Climb immutable entry/main-loader hashes; all other router bytes preserved')
