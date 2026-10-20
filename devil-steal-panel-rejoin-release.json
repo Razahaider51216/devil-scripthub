@@ -5,5 +5,12 @@
   "runtime_commit": "b320e2f390b7cac6b30755e8f97312ccc5d750f6",
   "live_game_verified": false,
   "game_bytecode_unchanged": true,
-  "delegate_sha256": "124c152af13cfe59b7a56a99dcf32ca3dc6a84ba05d49ddfd54d2a8c971f0d32"
+  "delegate_sha256": "124c152af13cfe59b7a56a99dcf32ca3dc6a84ba05d49ddfd54d2a8c971f0d32",
+  "main_loader_entry_commit": "f6336729057870d5587a41ea75c9bcfbebb2b5b2",
+  "main_loader_sha256": "10fd039a1cf42d62e43746c38f2f75b583308d79fb97c1164d83f809216b6198",
+  "verified_immutable_cache": true,
+  "native_loading_widget_removed": true,
+  "early_native_guard": true,
+  "startup_slice_budget_seconds": 0.006,
+  "live_startup_performance_verified": false
 }

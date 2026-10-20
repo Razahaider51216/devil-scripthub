@@ -27,13 +27,13 @@ local games={
     {Name="Climb for Eggs",Universe=10765490774,Place=85738654635245,File="climb-for-eggs.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="climb-fly-speed-10"},
     {Name="Lift Rock for Eggs",Universe=10768316438,Place=76731343328034,File="lift-rock-for-eggs.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="lift-rock-fly-23"},
     {Name="Ride A Fish",Universe=10766691148,Place=104050046639813,File="aqua-auto-egg.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="aqua-auto-egg-18"},
-    {Name="Steal an Egg",Universe=10563114921,Place=107778070777162,File="devil-steal-an-egg.lua",Commit="d7a8c7a622213a90f090635b4fb13c3330548113",Version="steal-panel-rejoin-20261020-1"},
+    {Name="Steal an Egg",Universe=10563114921,Place=107778070777162,File="devil-steal-an-egg.lua",Commit="f6336729057870d5587a41ea75c9bcfbebb2b5b2",Version="steal-panel-startup-20261020-2"},
     {Name="Ride a Pet",Universe=10035204815,Place=124216119978534,File="ride-a-pet.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351"},
     {Name="Break and Steal an Egg",Universe=10765288803,Place=114326934417838,File="break-and-steal-an-egg.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351"},
     {Name="Loot to Forge",Universe=10684750879,Place=118805555015549,File="loot-to-forge.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="silver-native-1"},
     {Name="Build An Ant Empire",Universe=10436530264,Place=78490532994307,File="build-an-ant-empire.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351"},
 }
-for _,entry in ipairs(games)do entry.Version=entry.File=="devil-steal-an-egg.lua"and"steal-panel-rejoin-20261020-1"or entry.File=="mine-auto-test.lua"and"mine-auto-test-4"or entry.File=="tapping-auto-test.lua"and"tapping-auto-test-10"or entry.File=="climb-for-eggs.lua"and"climb-fly-speed-10"or entry.File=="lift-rock-for-eggs.lua"and"lift-rock-fly-23"or entry.File=="aqua-auto-egg.lua"and"aqua-auto-egg-18"or entry.File=="break-and-steal-an-egg.lua"and"break-halloween-25"or(entry.File=="ride-a-pet.lua"and"ride-native-obf-18"or"shared-loading-3")end
+for _,entry in ipairs(games)do entry.Version=entry.File=="devil-steal-an-egg.lua"and"steal-panel-startup-20261020-2"or entry.File=="mine-auto-test.lua"and"mine-auto-test-4"or entry.File=="tapping-auto-test.lua"and"tapping-auto-test-10"or entry.File=="climb-for-eggs.lua"and"climb-fly-speed-10"or entry.File=="lift-rock-for-eggs.lua"and"lift-rock-fly-23"or entry.File=="aqua-auto-egg.lua"and"aqua-auto-egg-18"or entry.File=="break-and-steal-an-egg.lua"and"break-halloween-25"or(entry.File=="ride-a-pet.lua"and"ride-native-obf-18"or"shared-loading-3")end
 -- Anime Dice keeps its own release without changing legacy route versions.
 for _,entry in ipairs(games)do if entry.File=="anime-dice-test.lua"then entry.Version="anime-dice-test-20261020-10"end end
 if not game:IsLoaded()then game.Loaded:Wait()end
@@ -41,6 +41,88 @@ local selected
 for _,entry in ipairs(games)do if game.GameId==entry.Universe then selected=entry break end end
 if not selected then for _,entry in ipairs(games)do if game.PlaceId==entry.Place then selected=entry break end end end
 assert(selected,"DEVIL HUB supports Mine / Dump23, Tap Simulator 2, Climb for Eggs, Lift Rock for Eggs, Ride A Fish, Steal an Egg, Ride a Pet, Break and Steal an Egg, Loot to Forge, Build An Ant Empire, and Anime Dice. This map is not supported yet. GameId="..tostring(game.GameId).." PlaceId="..tostring(game.PlaceId).."")
+-- BEGIN EARLY STEAL UI GUARD
+if selected.File=="devil-steal-an-egg.lua"then
+local install=(function()
+-- Presentation only: watch the native GUI containers before starting the runtime.
+return function()
+    local scope=type(getgenv)=="function"and getgenv()or _G
+    if type(scope.DevilChilliEarlyGuardStop)=="function"then return scope.DevilChilliEarlyGuardStop end
+    local hidden,connections,containers={},{},{}
+    local stopped=false
+    local markers={}
+    local function nativeScreen(screen)
+        if screen.Name=="DEVIL HUB" or screen:GetAttribute("DevilHubPresentation")==true then return false end
+        if screen.Name=="ChilliHubLoading" or screen:GetAttribute("ChilliLibraryOwned")==true then return true end
+        local mark=markers[screen] or {}
+        if mark.brand then return true end
+        -- Exact footprint of the native random-name performance screen.
+        return mark.fps and mark.ms and screen.DisplayOrder==58 and screen.Archivable==false and screen.ResetOnSpawn==false
+    end
+    local function hide(screen)
+        if stopped or not screen:IsA("ScreenGui") then return end
+        if hidden[screen]~=nil then return end
+        if not nativeScreen(screen) then return end
+        hidden[screen]=screen.Enabled
+        screen.Enabled=false
+        table.insert(connections,screen:GetPropertyChangedSignal("Enabled"):Connect(function()
+            if not stopped and screen.Enabled and screen.Name~="DEVIL HUB" and screen:GetAttribute("DevilHubPresentation")~=true then screen.Enabled=false end
+        end))
+    end
+    local tracked={}
+    local function track(child)
+        if not child:IsA("ScreenGui") or tracked[child] then return end
+        tracked[child]=true
+        markers[child]={}
+        hide(child)
+        if hidden[child]~=nil or child:GetAttribute("DevilHubPresentation")==true then return end
+        table.insert(connections,child:GetPropertyChangedSignal("Name"):Connect(function()hide(child)end))
+        table.insert(connections,child:GetAttributeChangedSignal("ChilliLibraryOwned"):Connect(function()hide(child)end))
+        local function inspect(node)
+            if stopped or hidden[child]~=nil or child.Name=="DEVIL HUB" or child:GetAttribute("DevilHubPresentation")==true then return end
+            local property=(node:IsA("TextLabel") or node:IsA("TextButton")) and "Text"
+                or (node:IsA("ImageLabel") or node:IsA("ImageButton")) and "Image"
+            if not property then return end
+            local function checkNode()
+                local mark=markers[child];local value=node[property]
+                if property=="Text" then
+                    mark.brand=mark.brand or value=="Chilli Hub"
+                    mark.fps=mark.fps or value=="FPS";mark.ms=mark.ms or value=="ms"
+                else mark.brand=mark.brand or value=="rbxassetid://128961717706452" end
+                if mark.brand or (mark.fps and mark.ms) then hide(child) end
+            end
+            checkNode()
+            if node[property]=="" and hidden[child]==nil then
+                table.insert(connections,node:GetPropertyChangedSignal(property):Connect(checkNode))
+            end
+        end
+        table.insert(connections,child.DescendantAdded:Connect(inspect))
+        for _,node in ipairs(child:GetDescendants()) do inspect(node) end
+    end
+    local function watch(container)
+        if typeof(container)~="Instance" or containers[container] then return end
+        containers[container]=true
+        table.insert(connections,container.DescendantAdded:Connect(track))
+        for _,child in ipairs(container:GetDescendants()) do track(child) end
+    end
+    pcall(function()watch(game:GetService("CoreGui"))end)
+    pcall(function()if type(gethui)=="function" then watch(gethui()) end end)
+    pcall(function()watch(game:GetService("Players").LocalPlayer:FindFirstChildOfClass("PlayerGui"))end)
+    local function stop()
+        if stopped then return end
+        stopped=true
+        for _,connection in ipairs(connections) do connection:Disconnect() end
+        if scope.DevilChilliEarlyGuardStop==stop then scope.DevilChilliEarlyGuardStop=nil end
+        table.clear(connections);table.clear(hidden);table.clear(containers);table.clear(tracked);table.clear(markers)
+    end
+    scope.DevilChilliEarlyGuardStop=stop
+    return stop
+end
+
+end)()
+install()
+end
+-- END EARLY STEAL UI GUARD
 -- BEGIN DEVIL AUTO EXECUTE
 do
     local scope=type(getgenv)=="function"and getgenv()or _G

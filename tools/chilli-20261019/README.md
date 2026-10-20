@@ -1,5 +1,27 @@
 # Steal an Egg ? Chilli Halloween update (2026-10-19)
 
+Launcher/startup follow-up (`steal-panel-startup-20261020-2`): fix the separate
+Steal Panel launcher as well as item-row artwork. The launcher uses the native
+Steal Filter icon until a live item is selected; a blue/white vector egg is shown
+while its texture is unavailable. Native loading now preserves its progress API
+without constructing a loading GUI or writing a progress file for every part.
+The main loader installs the legacy-UI guard before downloading the delegate,
+including nested hidden-UI folders. The frontend reuses that guard. Native menu
+visibility is bound directly, and its hidden controls are excluded from the
+second theme/localization pass.
+
+The delegate and frontend cache immutable, verified GUI/runtime files when the
+executor supports files. Each cache hit checks size and checksum before native
+compilation; corrupt caches redownload, and file API errors are optional. Hashing
+and decompression yield only when their six-millisecond CPU budget is exceeded.
+The existing report records source/cache timing, compilation and runtime seconds.
+No live speed/FPS improvement is claimed: mobile/executor measurements are pending.
+
+Offline follow-up: 33 panel/visibility/guard checks, 15 cache checks, an actual
+public decompressor run with exact native output and an inert game boundary,
+and actual VM-delegate cold/warm/corrupt-cache cases. `test-startup.py` runs the
+cache/decompression checks. Existing router and main-loader checks also pass.
+
 Steal Panel/rejoin fix (2026-10-20): the native queued Auto Load payload now
 opens the DEVIL HUB main loader and shares its duplicate-arrival guard. The
 native Settings ScreenGui is disabled before parenting, preventing an upstream
