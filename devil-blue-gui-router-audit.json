@@ -1,5 +1,5 @@
 {
-  "release": "steal-startup-layout-20261020-4",
+  "release": "steal-startup-vm-20261020-5",
   "module_commit": "9a9812469df7b5dad2848abb33c5206f7d57e685",
   "game_entries_commit": "e39fb7f24bda4d132f439416c7c68ad7467ff351",
   "map_ids_unchanged": false,
@@ -40,8 +40,8 @@
       "Universe": 10563114921,
       "Place": 107778070777162,
       "File": "devil-steal-an-egg.lua",
-      "Commit": "6a05b830d808b9c553bfec70198024fbe9b3500e",
-      "Version": "steal-startup-layout-20261020-4"
+      "Commit": "066e5d83a1d1aebb8f78276bcd7c7f47b58d3283",
+      "Version": "steal-startup-vm-20261020-5"
     },
     {
       "Name": "Ride a Pet",
@@ -76,11 +76,11 @@
       "Version": "anime-dice-test-20261020-10"
     }
   ],
-  "before_native_sha256": "719e8c6a5dfa3579b0e02b903a5f63ee14720b4f0ab44098a7589758c8bc74cb",
-  "after_native_sha256": "974096d37d7a91cfece3e649f4abafb2e72000f66bed62d4358ca84892bf9184",
+  "before_native_sha256": "974096d37d7a91cfece3e649f4abafb2e72000f66bed62d4358ca84892bf9184",
+  "after_native_sha256": "efee8dc92a05b9a92ac97d33ffedd35fca054d1c5db9fa119642c0ab6bff3f69",
   "live_rendering_verified": false,
-  "public_loader_sha256": "5847baaa003885b85cb6b8eddc33c54742b5c0795af3822dc81c91a98be050b8",
-  "public_loader_bytes": 146175,
+  "public_loader_sha256": "ec42dabf5a48d48fa83b29c85c1ae3ce8f51da66a6b9e2f216bf9d2947498ffb",
+  "public_loader_bytes": 146146,
   "ui_offline_checks": 165,
   "public_router_universe_place_cases": 33,
   "language_choices": [
@@ -140,6 +140,6 @@
   "anime_dice_entry_sha256": "672c6d1c0bd824f4ecac6fe2873024af72010bcf0307eee71f7fd5b4b2ddb802",
   "auto_execute_enabled": true,
   "auto_execute_sha256": "6b071230dd8fcb24541ac6d8008d9bdeabaf8ea7051d4ca744be1bfbee2700c1",
-  "steal_panel_entry_commit": "6a05b830d808b9c553bfec70198024fbe9b3500e",
+  "steal_panel_entry_commit": "066e5d83a1d1aebb8f78276bcd7c7f47b58d3283",
   "non_steal_routes_unchanged": true
 }

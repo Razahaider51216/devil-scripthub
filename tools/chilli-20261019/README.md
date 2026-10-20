@@ -191,4 +191,3 @@ or networking are available in this fixture. This demonstrates bounded CPU
 behavior, not successful initialization on Arceus X. Live executor startup and
 gameplay still require verification; a checkpoint report is now available if
 the executor cannot finish initialization.
-

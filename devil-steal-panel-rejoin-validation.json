@@ -7,5 +7,8 @@
   "checks": 43,
   "vm_startup_checks": 15,
   "vm_startup_result": "PASS actual pre-GUI VM: 307200 dispatches, 599 scheduler yields, bounded timeout; CPU 0.206s\nPASS VM startup scheduler: 15 checks; live Arceus X remains unverified",
-  "live_arceus_verified": false
+  "live_arceus_verified": false,
+  "startup_cache_checks": 15,
+  "main_router_cases": 33,
+  "main_loader_sha256": "ec42dabf5a48d48fa83b29c85c1ae3ce8f51da66a6b9e2f216bf9d2947498ffb"
 }
