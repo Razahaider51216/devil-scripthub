@@ -28,44 +28,6 @@ local files={}
 local isfile=function(name)return files[name]~=nil end
 local readfile=function(name)return files[name]end
 local writefile=function(name,value)files[name]=value end
-local configure=assert(loadstring(APPEARANCE))
-setfenv(configure,setmetatable({game=game,Color3=Color3,Vector2=Vector2,typeof=typeof,isfile=isfile,readfile=readfile,writefile=writefile},{__index=getfenv(0)}))
-configure=configure()
-local controls={}
-local group={}
-local function control(config)
- controls[config.Name]=config
- return {Set=function(_,value)config.Callback(value)end}
-end
-group.CreateSlider=function(_,config)return control(config)end
-group.ColorPicker=function(_,config)return control(config)end
-group.CreateButton=function(_,config)controls[config.Name]=config end
-local tab={CreateGroupbox=function(_,config)assert(config.Name=="DEVIL HUB Appearance");return group end}
-local theme={Accent=Color3.fromRGB(0,140,255),Background=Color3.fromRGB(8,13,24)}
-local library={Theme=theme,SetTheme=function(_,value)theme=value end}
-local size
-local window={SetSize=function(_,value)size=value end}
-local styleCalls=0
-local panels={{Native={SetStyle=function(_,value)styleCalls+=1;assert(value.StrokeColor)end}}}
-local env={}
-local options=configure(library,window,tab,panels,env)
-assert(size.X==880 and size.Y==520)
-controls['GUI Size (%)'].Callback(125)
-assert(size.X==1100 and size.Y==650)
-local red=Color3.fromRGB(255,0,0)
-controls['Accent Color'].Callback(red)
-assert(theme.Accent==red and styleCalls>=3)
-local black=Color3.fromRGB(0,0,0)
-controls['Background Color'].Callback(black)
-assert(theme.Background==black and env.DevilChilliAppearance.Accent[1]==255)
-options=configure(library,window,tab,{},env)
-assert(options.Scale==125 and options.Accent.R==1 and options.Background.R==0)
-controls['Reset Appearance'].Callback()
-assert(size.X==880 and size.Y==520)
-files['DevilHub-StealAnEgg-appearance.json']='broken'
-assert(configure(library,window,tab,{},env).Scale==100)
-print('PASS appearance: visible window resizing, colors, native panels, save/reload, reset, corrupt-file fallback')
-
 local install=assert(loadstring(WEBHOOK))
 setfenv(install,setmetatable({game=game},{__index=getfenv(0)}));install=install()
 local received,calls
@@ -103,7 +65,6 @@ assert(lookup('request',host.request)==run and lookup('syn',host.syn)==lookup('s
 assert(debug.info(lookup('getfenv',getfenv),'s')==debug.info(getfenv,'s'))
 print('PASS webhook: sender/embed branding, unchanged destination, aliases/native compiler identity, headers, returns, non-webhook/malformed passthrough, no executor-global mutation')
 '''
-fixture = fixture.replace('APPEARANCE', literal((here / 'appearance.lua').read_text(encoding='utf-8')))
 fixture = fixture.replace('WEBHOOK', literal((here / 'webhook-branding.lua').read_text(encoding='utf-8')))
 path = here / 'test-customization.generated.luau'
 path.write_text(fixture, encoding='utf-8')

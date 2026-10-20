@@ -765,7 +765,7 @@ if env.DevilChilliFullRuntimeTest then
 end
 local report={schema="devil-chilli-full-runtime-test-1",release="chilli-full-test-1",map="Steal an Egg",
     placeId=game.PlaceId,universeId=game.GameId,status="Starting",devirtualized=false,
-    frontend="DEVIL HUB / native constructor export",referenceSHA256="3c6ec4e142be6603a8cc822fdd6f65e535dab1429b45632a31574368d365da0a",referenceCommit="03468a41b2ecf2d983b39993ba603c943c140f4f"}
+    frontend="DEVIL HUB / native constructor export",referenceSHA256="a761fae7ed9e555cf19fdb199e600297e3c77c8a93da42c3751d3694be3a77d0",referenceCommit="03468a41b2ecf2d983b39993ba603c943c140f4f"}
 env.DevilChilliFullRuntimeTest=report
 local function save()
     if type(writefile)=="function"then
@@ -785,12 +785,12 @@ local outcome=table.pack(xpcall(function()
     end
     warn("DEVIL HUB: loading the original systems into the main GUI")
     loading.Update("Downloading systems...",0.15)
-    local originalGameSource=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/573e0604ec48339c6f841ed2146e959300c73954/devil-chilli-native-ui-runtime.lua")
-    assert(type(originalGameSource)=="string"and #originalGameSource==827210,"Pinned runtime download has an unexpected size")
+    local originalGameSource=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/869d9fbb4313ac47bcff5362554049bd98ae5ee7/devil-chilli-native-ui-runtime.lua")
+    assert(type(originalGameSource)=="string"and #originalGameSource==812281,"Pinned runtime download has an unexpected size")
     loading.Update("Checking download...",0.4)
     local checksum=0
     for index=1,#originalGameSource do checksum=(checksum*33+string.byte(originalGameSource,index))%4294967296; if index%32768==0 and task and task.wait then task.wait() end end
-    assert(checksum==3204656553,"Pinned runtime download checksum mismatch")
+    assert(checksum==4279649682,"Pinned runtime download checksum mismatch")
     loading.Update("Compiling systems...",0.55)
     local run,err=loadstring(originalGameSource,"Chilli / Steal an Egg / pinned runtime")
     assert(run,err)
