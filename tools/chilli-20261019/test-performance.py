@@ -8,6 +8,9 @@ assert native.count('devilUiBeat(')==3
 assert native.count('(devilWebhookNames[')==6
 assert manifest['game_bytecode_unchanged'] and not manifest['complete_vm_devirtualization']
 helper=(WORK/'ui-performance.lua').read_text()
+pattern=r'\(devilWebhookNames\[(?P<name>[obwS]\[G\])\]and devilWebhookLookup\((?P=name),E\[(?P=name)\]\)or E\[(?P=name)\]\)'
+expressions=list(re.finditer(pattern,native));assert len(expressions)==6
+actual_expression=expressions[0][0].replace(expressions[0]['name'],'name').replace('E[','host[')
 fixture='local makeBeat=(function()\n'+helper+'\nend)()\n'+r'''
 local checks=0
 local function check(v,m)assert(v,m);checks+=1 end
@@ -48,7 +51,7 @@ local webhookCalls=0
 local devilWebhookNames={request=true,http_request=true,httprequest=true,syn=true,http=true,fluxus=true}
 local function devilWebhookLookup(name,value)webhookCalls+=1;return value end
 local host={game={},flag=false,request=function()return 'ok' end}
-local function guarded(name)return devilWebhookNames[name]and devilWebhookLookup(name,host[name])or host[name]end
+local function guarded(name)return __ACTUAL_VM_READ__ end
 local identity=true
 for _=1,100000 do if guarded('game')~=host.game then identity=false end end
 check(identity,'normal VM global identity changed')
@@ -57,6 +60,7 @@ check(guarded('flag')==false and guarded('missing')==nil,'false or nil VM global
 check(guarded('request')==host.request and webhookCalls==1,'request alias bypasses branding adapter')
 print('PASS presentation scheduling / VM read fast path checks:',checks)
 '''
+fixture=fixture.replace('__ACTUAL_VM_READ__',actual_expression)
 path=WORK/'test-performance.generated.luau';path.write_text(fixture,encoding='utf-8',newline='\n')
 subprocess.run([str(ROOT.parent/'luau-tools/luau.exe'),str(path)],check=True)
 print('PASS three scoped presentation hooks, six VM global fast paths; native game-data bytes preserved')
