@@ -1,0 +1,9 @@
+{
+  "release": "steal-panel-rejoin-20261020-1",
+  "gui_commit": "4b63c261e4151fe46a5103614c37dcc66628b4b9",
+  "gui_sha256": "c3dffd191f20f4b55bf1d4a63d8cf015d81e8c41ca866fee526142c9c8d871db",
+  "runtime_commit": "7528273904be647ffe2020da866f2d05aaa082fb",
+  "live_game_verified": false,
+  "game_bytecode_unchanged": true,
+  "delegate_sha256": "a0012807423dff2ffd37e6da000014ebea79cf2565cca091f24e5ddf572ee753"
+}
