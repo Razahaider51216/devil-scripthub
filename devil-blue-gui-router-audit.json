@@ -1,5 +1,5 @@
 {
-  "release": "break-language-sync-20261020-1",
+  "release": "devil-anime-dice-20261020-11",
   "module_commit": "9a9812469df7b5dad2848abb33c5206f7d57e685",
   "game_entries_commit": "e39fb7f24bda4d132f439416c7c68ad7467ff351",
   "map_ids_unchanged": false,
@@ -72,15 +72,15 @@
       "Universe": 10708913337,
       "Place": 113290951185459,
       "File": "anime-dice-test.lua",
-      "Commit": "dd943c7f97b7c8dec9a8637b4a28bb74679da972",
-      "Version": "anime-dice-test-20261020-10"
+      "Commit": "b556c7e5ffd93a274ee889ab1a157844c0831089",
+      "Version": "anime-dice-test-20261020-11"
     }
   ],
-  "before_native_sha256": "95513e7642193b445bcc967292ea36a6c8ff539f8d9fd6ac134927651b7ac70c",
-  "after_native_sha256": "71f838c738dd29430c3f84d1cbac3df69c4614b47561beeda9ff16159a114acc",
+  "before_native_sha256": "71f838c738dd29430c3f84d1cbac3df69c4614b47561beeda9ff16159a114acc",
+  "after_native_sha256": "1fa7343fee1e4478d1e900d262e0cd891cd2857286d56545aed62d5b48a12369",
   "live_rendering_verified": false,
-  "public_loader_sha256": "837bc3f04242d7d820da9450bb071a6413da50252568b3406ec6fa8ab2f3d662",
-  "public_loader_bytes": 135546,
+  "public_loader_sha256": "89c43b7e52a02d28d81a74c2857ac0828e6ce055a491118aff7c609525110287",
+  "public_loader_bytes": 135548,
   "ui_offline_checks": 165,
   "public_router_universe_place_cases": 33,
   "language_choices": [
@@ -136,8 +136,8 @@
   "late_viewport_and_primary_window_discovery": true,
   "desktop_executor_live_verified": false,
   "existing_game_routes_unchanged": true,
-  "anime_dice_entry_commit": "dd943c7f97b7c8dec9a8637b4a28bb74679da972",
-  "anime_dice_entry_sha256": "672c6d1c0bd824f4ecac6fe2873024af72010bcf0307eee71f7fd5b4b2ddb802",
+  "anime_dice_entry_commit": "b556c7e5ffd93a274ee889ab1a157844c0831089",
+  "anime_dice_entry_sha256": "db98d1c6ff2340693211cd49293ff40e8dd20f4868d77a67f02bf26fa2b195cc",
   "auto_execute_enabled": true,
   "auto_execute_sha256": "6b071230dd8fcb24541ac6d8008d9bdeabaf8ea7051d4ca744be1bfbee2700c1",
   "break_language_entry_commit": "a7cf89d5f4aa4cf74d84e12af125cf82b788eae5",
