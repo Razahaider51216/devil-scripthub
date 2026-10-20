@@ -86,12 +86,18 @@ end
 do
  local shared={};local progress
  shared.DevilHubLoadController={Update=function(text,value)progress=value end}
- local fn=makeLoading
- setfenv(fn,setmetatable({getgenv=function()return shared end,task={wait=function()end},
-  Instance={new=function()error('native loading GUI must never be constructed')end}},{__index=getfenv(0)}))
- fn()()
- check(shared.ChilliCanvasHold and type(shared.ChilliHubLoadStep)=='function','headless loading lost engine hold / progress API')
+ local screens,waits={},{}
+ local host=setmetatable({getgenv=function()return shared end,task={wait=function(n)waits[#waits+1]=n end,delay=function()end},
+  game={GetService=function()return core end},typeof=instanceType,
+  Instance={new=function(class)local obj=Instance.new(class);if class=='ScreenGui'then screens[#screens+1]=obj end;return obj end},
+  Color3=Color3,ColorSequence=ColorSequence,UDim2=UDim2,UDim=UDim,Vector2=Vector2,Enum=Enum},{__index=getfenv(0)})
+ setfenv(makeLoading,host);host.devilNativeProgress=makeLoading()
+ local compile=assert(loadstring(nativeLoadingSource));setfenv(compile,host)
+ local factory=compile();local initialize=factory()();initialize()
+ check(shared.ChilliCanvasHold and type(shared.ChilliHubLoadStep)=='function','original loading lost engine hold / progress API')
+ check(#screens==1 and screens[1].Parent==nil and not screens[1].Enabled,'native loading screen was exposed')
  shared.ChilliHubLoadStep(4);check(progress==.74,'native progress did not update DEVIL loading screen')
+ check(waits[#waits]==.05,'original initialization wait was changed')
  shared.ChilliHubLoadStep(10)
  check(shared.ChilliCanvasHold==nil and shared.ChilliHubLoadStep==nil and shared.ChilliHubLoading==nil,'loading completion did not release native engine')
 end

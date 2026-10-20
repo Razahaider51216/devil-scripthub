@@ -51,7 +51,7 @@ print('PASS verified startup cache: cold/warm/poisoned files, failed APIs, bad d
 path=here/'startup-cache.generated.luau';path.write_text(fixture,encoding='utf-8',newline='\n')
 subprocess.run([str(root.parent/'luau-tools/luau.exe'),str(path)],check=True)
 
-# Execute the actual public decompressor with inert compilation; never run the game VM.
+# Execute the original protected bootstrap with inert compilation; never run the game VM.
 public=(root/'devil-chilli-native-ui-runtime.lua').read_text(encoding='utf-8')
 native=(here/'native-layer.generated.luau').read_text(encoding='utf-8')
 fixture='local expected='+literal(native)+'\n'
@@ -60,17 +60,17 @@ local slices,tick,compiled=0,0,0
 local os={clock=function()tick+=.007;return tick end}
 local task={wait=function()slices+=1 end}
 local function capture(source)
- compiled+=1;assert(source==expected,'cooperative decoder changed native source')
+ compiled+=1;assert(source==expected,'decoder changed native source')
  return function(data)
-  assert(buffer.len(data)==368215,'cooperative decoder changed game data size')
+  assert(buffer.len(data)==368215,'decoder changed game data size')
   return function()return 'inert' end
  end
 end
 local function execute(...)
 '''+public.replace('[76]=loadstring','[76]=capture',1)+r'''
 end
-assert(execute()=='inert'and compiled==1 and slices>10,'actual decoder failed to yield / entered game VM')
-print('PASS actual cooperative decompressor: exact native output, inert game boundary, '..slices..' budget checkpoints yielded')
+assert(execute()=='inert'and compiled==1 and slices==0,'protected bootstrap gained yield points / entered game VM')
+print('PASS original protected bootstrap: exact native output, inert game boundary, no added yields')
 '''
 path=here/'startup-decode.generated.luau';path.write_text(fixture,encoding='utf-8',newline='\n')
 subprocess.run([str(root.parent/'luau-tools/luau.exe'),str(path)],check=True,timeout=30)

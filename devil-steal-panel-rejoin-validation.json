@@ -1,8 +1,8 @@
 {
-  "release": "steal-panel-startup-20261020-2",
+  "release": "steal-startup-compat-20261020-3",
   "live_game_verified": false,
-  "runtime_sha256": "0f44580b855c26de5ac84ca337be8bab742b2951e25c3b52817673b7fbe97fe9",
+  "runtime_sha256": "9b502ea139263086558d595ac691a192950068d462a72fc920216ae754a36c4d",
   "game_bytecode_unchanged": true,
-  "result": "PASS Steal Panel artwork, live catalog refresh, shared theme, native startup and exact rejoin payload: 33 checks",
-  "checks": 33
+  "result": "PASS Steal Panel artwork, live catalog refresh, shared theme, native startup and exact rejoin payload: 35 checks",
+  "checks": 35
 }

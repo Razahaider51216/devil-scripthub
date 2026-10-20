@@ -6,7 +6,7 @@ root = Path(__file__).resolve().parents[2]
 build = root.parent / 'steal-chilli-build-20261019'
 mode, commit = sys.argv[1:3]
 assert re.fullmatch('[0-9a-f]{40}', commit)
-release = 'steal-panel-startup-20261020-2'
+release = 'steal-startup-compat-20261020-3'
 manifest_path = root / 'devil-steal-panel-rejoin-release.json'
 
 def blob(name):

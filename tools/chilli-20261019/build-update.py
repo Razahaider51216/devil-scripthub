@@ -46,6 +46,7 @@ original = cached.read_bytes() if cached.is_file() and sha(cached.read_bytes()) 
 assert sha(original) == EXPECTED, 'Upstream pin/hash mismatch'
 source = original.decode('utf-8').replace('\r\n', '\n')
 native, game_data = decode(source, 'upstream')
+(WORK / 'upstream-native.generated.luau').write_text(native,encoding='utf-8',newline='\n')
 adapted = native
 patches = []
 
@@ -63,11 +64,12 @@ replace('F.Name="ChilliHubLoading";F.ResetOnSpawn=false;',
 # during the handoff to DEVIL HUB, including a rejoin into a fresh client.
 replace('F[40]=F[19].obj1;F[40].Parent=F[15];',
         'F[40]=F[19].obj1;F[40].Enabled=false;devilKeepNativeHidden(F[40]);F[40].Parent=F[15];')
-# Replace the old loading widget with the same progress/hold API and no GUI.
-loading_start = adapted.index('[117]=function')
-loading_end = adapted.index('end,[', loading_start) + len('end')
-replace(adapted[loading_start:loading_end],
-        '[117]=function(N,N,N,N)return function()return devilNativeLoading;end;end')
+# Keep the original loading initializer, flags, file diagnostics and .05s wait.
+# Its screen stays unparented, so it cannot appear in CoreGui/hidden UI.
+replace('F.Parent=Q;local Q,e="ChilliLibrary/SAE_LoadProgress.txt";',
+        'F.Parent=nil;local Q,e="ChilliLibrary/SAE_LoadProgress.txt";')
+replace('N.ChilliHubLoadStep=function(Q)local t=math.clamp(math.floor(tonumber(Q)or 0),0,10);U(t);',
+        'N.ChilliHubLoadStep=function(Q)local t=math.clamp(math.floor(tonumber(Q)or 0),0,10);devilNativeProgress(t);U(t);')
 # The native auto-load queue used to download Chilli.lua independently of our
 # main loader. Share its destination guard with the always-enabled hub queue.
 queue_match = re.search(r'local Q,r="__ChilliAutoLoadScriptEnabled",("(?:\\.|[^"\\])*");local function k\(\)', adapted)
@@ -119,7 +121,7 @@ helper = (WORK / 'webhook-branding.lua').read_text(encoding='utf-8')
 adapted = 'local devilWebhookLookup=(function()\n' + helper + '\nend)()()\n' + adapted
 artwork = (WORK / 'panel-artwork.lua').read_text(encoding='utf-8')
 adapted = 'local devilStealArtwork=(function()\n' + artwork + '\nend)()\n' + adapted
-for variable,filename in [('devilNativeLoading','native-loading.lua'),('devilKeepNativeHidden','native-visibility.lua')]:
+for variable,filename in [('devilNativeProgress','native-loading.lua'),('devilKeepNativeHidden','native-visibility.lua')]:
     adapted = 'local ' + variable + '=(function()\n' + (WORK / filename).read_text(encoding='utf-8') + '\nend)()\n' + adapted
 (WORK / 'native-layer.generated.luau').write_text(adapted, encoding='utf-8', newline='\n')
 
@@ -144,13 +146,14 @@ while ']' + eq + ']' in payload:
 output = source[:runtime_block.start()] + '[' + eq + '[' + payload + ']' + eq + ']' + source[runtime_block.end():]
 assert output.count('Z(m,H,1285437)') == 1
 output = output.replace('Z(m,H,1285437)', f'Z(m,H,{len(adapted.encode())})')
-slice_source = (WORK / 'startup-slice.lua').read_text(encoding='utf-8')
-decode_anchor = 'm[59],1;while true do local z;'
-assert output.count(decode_anchor) == 1
-output = output.replace(decode_anchor,'m[59],1;local devilDecodeTicks=0;while true do devilDecodeTicks+=1;if devilDecodeTicks%1024==0 then devilStartupSlice()end;local z;')
-lzma_anchor = 'while e<a do if D(q,h)==0 then'
-assert output.count(lzma_anchor) == 1
-output = slice_source + '\n' + output.replace(lzma_anchor,'local devilNextSlice=0;while e<a do if e>=devilNextSlice then devilNextSlice=e+8192;devilStartupSlice()end;if D(q,h)==0 then')
+# The protected bootstrap runs without new upvalues, clocks or yield points.
+# After removing its two payload literals and decoded-size constant it must be
+# identical to upstream. Presentation/cache optimizations live outside it.
+def bootstrap_shape(text):
+    for block in reversed(list(re.finditer(r'\[(=*)\[(.*?)\]\1\]',text,re.S))):
+        text=text[:block.start()]+'"PAYLOAD"'+text[block.end():]
+    return re.sub(r'Z\(m,H,\d+\)','Z(m,H,NATIVE_SIZE)',text)
+assert bootstrap_shape(output) == bootstrap_shape(source), 'Protected bootstrap structure changed'
 result_native, result_data = decode(output, 'candidate')
 assert result_native == adapted
 assert result_data == game_data, 'Game bytecode must be identical to upstream'
@@ -158,7 +161,7 @@ target = ROOT / 'devil-chilli-native-ui-runtime.lua'
 target.write_text(output, encoding='utf-8', newline='\n')
 subprocess.run([str(COMPILER), '--null', str(target)], check=True)
 manifest = {
-    'release': 'steal-panel-startup-20261020-2', 'upstream_commit': UPSTREAM,
+    'release': 'steal-startup-compat-20261020-3', 'upstream_commit': UPSTREAM,
     'upstream_url': URL, 'upstream_sha256': EXPECTED,
     'upstream_bytes': len(original), 'source_bytes': target.stat().st_size,
     'source_sha256': sha(target.read_bytes()), 'transfer_checksum': checksum(target.read_bytes()),
@@ -171,8 +174,9 @@ manifest = {
     'shared_auto_execute_arrival_guard': True, 'pet_artwork_preserved_before_name_randomization': True,
     'artwork_sha256': sha(artwork.encode()),
     'adapted_native_sha256': sha(adapted.encode()),
-    'steal_launcher_icon_supported':True,'native_loading_widget_removed':True,
-    'native_visibility_lock':True,'cooperative_decompression':True,
+    'steal_launcher_icon_supported':True,'native_loading_screen_unparented':True,
+    'native_visibility_lock':True,'cooperative_decompression':False,
+    'protected_bootstrap_structure_unchanged':True,'original_loading_initializer_and_timing_preserved':True,
 }
 (ROOT / 'devil-chilli-native-ui-recovery.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
 print(json.dumps(manifest, indent=2))
