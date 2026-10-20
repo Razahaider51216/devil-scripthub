@@ -30,6 +30,14 @@ end
     expected=expected.replace('if not game:IsLoaded()then game.Loaded:Wait()end',override+'if not game:IsLoaded()then game.Loaded:Wait()end',1)
     expected=expected.replace('and Anime Dice. This map','Anime Dice, and Dig For Eggs. This map',1)
     expected=expected.replace('assert(type(loadstring)=="function"',guard+'assert(type(loadstring)=="function"',1)
-assert expected==current,'Changes outside the Climb pin/version and explicit Dig For Eggs additions'
+normalized=current
+steal=next(r for r in audit['routes'] if r['File']=='devil-steal-an-egg.lua')
+if steal.get('Version','').startswith('chilli-performance-'):
+    import re
+    baseline_row=re.search(r'^    \{Name="Steal an Egg"[^\n]+',expected,re.M)[0]
+    normalized,count=re.subn(r'^    \{Name="Steal an Egg"[^\n]+',lambda _:baseline_row,normalized,flags=re.M)
+    assert count==1
+    normalized=normalized.replace('entry.File=="devil-steal-an-egg.lua"and"'+steal['Version']+'"','entry.File=="devil-steal-an-egg.lua"and"chilli-fishing-rotation-20261020-1"',1)
+assert expected==normalized,'Changes outside the declared game entry pins and Dig For Eggs additions'
 assert hashlib.sha256(current.encode()).hexdigest()==audit['after_native_sha256']
 print('PASS Climb immutable entry/main-loader hashes; all other router bytes preserved')

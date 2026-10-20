@@ -4,7 +4,7 @@ import hashlib, json, re, subprocess, sys
 ROOT=Path(__file__).resolve().parents[2]
 WORK=Path(__file__).resolve().parent
 BUILD=ROOT.parent/'steal-chilli-build-20261019'
-RELEASE='chilli-fishing-rotation-20261020-1'
+RELEASE='chilli-performance-20261021-1'
 mode,commit=sys.argv[1:3]
 assert re.fullmatch('[0-9a-f]{40}',commit)
 def gitfile(name):
@@ -45,7 +45,9 @@ elif mode=='router':
     source,count=re.subn(r'(entry.File=="devil-steal-an-egg.lua"and")[^"]+',lambda m:m[1]+RELEASE,source)
     assert count==1
     other=lambda s:re.findall(r'^    \{(?!Name="Steal an Egg")[^\n]+',s,re.M)
-    assert other(source)==other(before) and len(other(source))==10
+    assert other(source)==other(before) and len(other(source))==len(audit['routes'])-1
+    router_baseline=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
+    assert subprocess.check_output(['git','show',router_baseline+':tools/blue-gui/router.lua'],cwd=ROOT).decode()==before
     canonical.write_text(source,encoding='utf-8',newline='\n')
     native=source;name='loader';prefix=''
 else:raise ValueError(mode)
@@ -57,6 +59,7 @@ if mode=='delegate':
     manifest.update(delegate_bytes=len(public),delegate_sha256=sha(public),delegate_native_sha256=sha(native.encode()))
     (ROOT/'devil-steal-update-release.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8',newline='\n')
 else:
+    previous_loader_sha=audit['public_loader_sha256']
     for row in audit['routes']:
         if row['File']=='devil-steal-an-egg.lua':row.update(Commit=commit,Version=RELEASE)
     audit.update(release=RELEASE,before_native_sha256=sha(before.encode()),after_native_sha256=sha(native.encode()),
@@ -64,6 +67,12 @@ else:
                  steal_entry_sha256=sha(entry),non_steal_routes_unchanged=True)
     (ROOT/'devil-blue-gui-router-audit.json').write_text(json.dumps(audit,indent=2)+'\n',encoding='utf-8',newline='\n')
     manifest=json.loads((ROOT/'devil-steal-update-release.json').read_text())
-    manifest.update(delegate_commit=commit,main_loader_sha256=sha(public),other_game_routes_unchanged=True)
+    manifest.update(delegate_commit=commit,main_loader_sha256=sha(public),other_game_routes_unchanged=True,
+                    router_baseline_commit=router_baseline)
     (ROOT/'devil-steal-update-release.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8',newline='\n')
+    for filename in ['climb-eggs-release.json','devilv4-test-release.json']:
+        path=ROOT/filename;metadata=json.loads(path.read_text())
+        if metadata.get('main_loader_sha256')==previous_loader_sha:
+            metadata['main_loader_sha256']=sha(public)
+            path.write_text(json.dumps(metadata,indent=2)+'\n',encoding='utf-8',newline='\n')
 print('PASS built',mode,commit)

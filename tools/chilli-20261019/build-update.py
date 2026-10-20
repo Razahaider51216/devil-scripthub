@@ -72,6 +72,13 @@ replace('return function()local E=G:CreateTab({Name="Venyx"',
 # Preserve the existing blue Steal Panel header without modifying game actions.
 replace('Rq.Color=I({{0,W(200,18,24)},{0.53,W(255,88,90)},{1,W(214,28,34)}});',
         'Rq.Color=I({{0,W(8,18,35)},{0.53,W(0,140,255)},{1,W(16,42,70)}});')
+# Bound only presentation updates; keep movement, combat, farming and RPC cadence intact.
+replace('local Lq=M[5].Heartbeat:Connect(function(Wq)',
+        'local Lq=devilUiBeat(M[5].Heartbeat,Gy,function(Wq)')
+replace('local g=M[5].Heartbeat:Connect(function(j)',
+        'local g=devilUiBeat(M[5].Heartbeat,gq,function(j)')
+replace('N[#N+1]=V.RenderStepped:Connect(function(B)if not(G.Enabled)',
+        'N[#N+1]=devilUiBeat(V.RenderStepped,G,function(B)if not(G.Enabled)')
 
 restored = adapted
 for before, after, count in reversed(patches):
@@ -87,11 +94,13 @@ vm_section = adapted[vm_start:vm_end]
 # This revision has six environment READ opcodes in this dispatcher. Do not
 # wrap environment writes or the interpreter's own constant/register tables.
 vm_section, request_lookup_count = re.subn(r'(L\[[^;=]+\]=)E\[([obwS]\[G\])\]',
-    lambda m: m[1] + 'devilWebhookLookup(' + m[2] + ',E[' + m[2] + '])', vm_section)
+    lambda m: m[1] + '(devilWebhookNames[' + m[2] + ']and devilWebhookLookup(' + m[2] + ',E[' + m[2] + '])or E[' + m[2] + '])', vm_section)
 assert request_lookup_count == 6, 'Native global-read opcodes changed'
 adapted = adapted[:vm_start] + vm_section + adapted[vm_end:]
 helper = (WORK / 'webhook-branding.lua').read_text(encoding='utf-8')
-adapted = 'local devilWebhookLookup=(function()\n' + helper + '\nend)()()\n' + adapted
+adapted = ('local devilWebhookNames={request=true,http_request=true,httprequest=true,syn=true,http=true,fluxus=true}\n'
+    'local devilWebhookLookup=(function()\n'+helper+'\nend)()()\n'
+    'local devilUiBeat=(function()\n'+(WORK/'ui-performance.lua').read_text(encoding='utf-8')+'\nend)()\n'+adapted)
 
 
 filters = [{'id': lzma.FILTER_LZMA1, 'lc': 3, 'lp': 0, 'pb': 0, 'dict_size': 1 << 24}]
@@ -122,7 +131,7 @@ target.write_text(output, encoding='utf-8', newline='\n')
 (WORK / 'native-layer.generated.luau').write_text(adapted, encoding='utf-8')
 subprocess.run([str(COMPILER), '--null', str(target)], check=True)
 manifest = {
-    'release': 'chilli-fishing-rotation-20261020-1', 'upstream_commit': UPSTREAM,
+    'release': 'chilli-performance-20261021-1', 'upstream_commit': UPSTREAM,
     'features': ['Farm Monsters While Fishing', 'Fishing History',
         'Fishing/Treadmill rotation: Timer or Every Day', 'Teleport To Monsters',
         'Teleport To Pumpkins', 'Teleport To Ghosts', 'Continuous monster/pumpkin target loops'],
@@ -135,6 +144,8 @@ manifest = {
     'native_ui_export_count': 1, 'native_patch_groups': len(patches), 'venyx_mode_disabled': True,
     'compression_roundtrip_verified': True, 'complete_vm_devirtualization': False,
     'live_verified': False, 'original_compiler_environment_preserved': True, 'request_lookup_sites': request_lookup_count,
+    'vm_non_request_global_reads_skip_branding_call': True,
+    'presentation_callbacks_throttled': 3, 'visible_ui_max_hz': 30, 'hidden_ui_max_hz': 4,
 }
 (ROOT / 'devil-chilli-native-ui-recovery.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
 print(json.dumps(manifest, indent=2))

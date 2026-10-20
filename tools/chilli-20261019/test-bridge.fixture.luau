@@ -1028,7 +1028,7 @@ check(historyText.Text=='Ghost Fish +1' and not historyRow.destroyed,'Fishing Hi
 local before=gameCalls
 ui.Destroy()
 check(lastLibrary.destroyed and originalConnection.Connected and gameCalls==before,'UI unload modified native engine/events')
-check(opened==1 and objects.obj1.Enabled and nativeLauncher.Enabled,'original menu / launcher was not restored')
+check(opened==0 and objects.obj1.destroyed and nativeLauncher.destroyed,'unload restored the removed original GUI')
 check(richRow.Parent==originalRichParent and petImage.Parent==richRow and not richRow.destroyed,'GUI unload destroyed original rich panel')
 check(richRow.Size.Y.Offset==240,'native panel geometry not restored')
 check(historyRow.Parent==historyParent and not historyRow.destroyed,'Fishing History destroyed on unload')
@@ -1042,5 +1042,25 @@ local direct=attach(factory)
 check(direct.Report.status=='Mounted DEVIL HUB main GUI on original Chilli handles' and direct.Report.discovery=='Recovered native UI constructor export (no getgc required)','direct export did not mount without GC tables')
 check(direct.Report.boundOptions==11 and direct.Report.embeddedPanels==2,'direct export lost native controls')
 check(gameCalls==before,'direct discovery executed gameplay callbacks')
+check(direct.Report.originalGuiRemoved and direct.NativeState.Parent==nil,'original ScreenGuis were not removed')
+check(not richRow.destroyed and richRow.Parent.Name=='DevilNativePanel','removing original chrome destroyed the Steal Panel')
+local scans=direct.Report.performance.DropdownScans
+local writes=direct.Report.performance.VisibilityWrites
+for _=1,40 do direct.Sync()end
+check(direct.Report.performance.DropdownScans==scans,'unchanged dropdowns rescan descendant trees')
+check(direct.Report.performance.VisibilityWrites==writes,'unchanged visibility repeatedly writes GUI state')
+local item=direct.Items[toggle];local page=Instance.new('Frame');page.Visible=false;item.Tab._page=page
+local reads=direct.Report.performance.ControlsRead
+direct.Sync(true)
+check(direct.Report.performance.ControlsRead==reads,'background sync reads controls in hidden tabs')
+page.Visible=true;direct.Sync(true)
+check(direct.Report.performance.ControlsRead>reads,'visible tab does not resume synchronization')
+check(not objects.obj1.Parent and not nativeLauncher.Parent,'original GUI remains attached after remount')
+for i=1,60 do
+ local v=false
+ addOption('toggle','Budget '..i,{GetValue=function()return v end,SetValue=function(x)v=x end})
+end
+direct.Sync();reads=direct.Report.performance.ControlsRead;direct.Sync(true)
+check(direct.Report.performance.ControlsRead-reads<=24,'background sync reads an unbounded number of controls')
 direct.Destroy();env.DevilChilliNativeWindow=nil
 print('PASS existing main-GUI bridge: '..checks..' checks; protected gameplay runtime not executed')

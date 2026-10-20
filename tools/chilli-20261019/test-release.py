@@ -24,14 +24,11 @@ assert release['delegate_sha256']==sha((root/'devil-steal-an-egg.lua').read_byte
 assert sha((root/'loader').read_bytes())==audit['public_loader_sha256']
 # The Steal manifest records its publication, while later map-only releases
 # may legitimately repin another route in the current root loader.
-steal_publication='78b26f780aa2fcb0992aab82640aa3f94f32a1aa'
-assert sha(blob(steal_publication,'loader'))==release['main_loader_sha256']
+assert sha((root/'loader').read_bytes())==release['main_loader_sha256']
 current=(root/'tools/blue-gui/router.lua').read_text(encoding='utf-8')
-old=blob('e4c2fe339b3c5fd26c9ec45467120307a430b31d','tools/blue-gui/router.lua').decode()
-old=old.replace('e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="chilli-startup-fix-20261019',release['delegate_commit']+'",Version="'+release['release'])
-old=old.replace('entry.File=="devil-steal-an-egg.lua"and"chilli-startup-fix-20261019','entry.File=="devil-steal-an-egg.lua"and"'+release['release'])
-published=blob(steal_publication,'tools/blue-gui/router.lua').decode()
-assert published==old,'Unexpected router changes in the Steal publication'
-steal_row=lambda text:re.search(r'^    \{Name="Steal an Egg"[^\n]+',text,re.M)[0]
-assert steal_row(current)==steal_row(published),'Current Steal dependency chain changed'
+old=blob(release['router_baseline_commit'],'tools/blue-gui/router.lua').decode()
+expected,count=re.subn(r'(^    \{Name="Steal an Egg"[^\n]*Commit=")[0-9a-f]+("[^\n]*Version=")[^"]+',lambda m:m[1]+release['delegate_commit']+m[2]+release['release'],old,flags=re.M)
+assert count==1
+expected,count=re.subn(r'(entry.File=="devil-steal-an-egg.lua"and")[^"]+',lambda m:m[1]+release['release'],expected)
+assert count==1 and current==expected,'Changes outside the Steal pin/version'
 print('PASS complete immutable chain: loader -> delegate -> GUI -> adapted runtime; current Steal pin preserved; publication router verified')

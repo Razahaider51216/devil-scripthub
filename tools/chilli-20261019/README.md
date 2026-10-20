@@ -1,6 +1,6 @@
 # Steal an Egg upstream integration ? 2026-10-20
 
-Release: `chilli-fishing-rotation-20261020-1`.
+Release: `chilli-performance-20261021-1`.
 Chilli.lua routes this game to `tienkhanh1/Chilli-Hub-Script/StealAnEggg`.
 The immutable upstream commit is `7b9215d199e43d7dda2569a8cf84477c77552630`;
 its 811,078 bytes must match SHA256
@@ -28,7 +28,40 @@ This is native-layer recovery, not complete devirtualization of the protected VM
 The previously requested startup rollback is retained: no VM timeout/watchdog,
 injected VM instruction yielding, compiler/environment replacement, loading-module
 replacement, native GUI quarantine, or pet-icon startup patches are reintroduced.
-`bridge.lua` is unchanged. Upstream seasonal behavior follows the current game.
+Upstream seasonal behavior follows the current game.
+
+## Performance and original GUI removal
+
+The original `Settings` and `ChilliLeftCenter` ScreenGuis are destroyed after the
+DEVIL frontend mounts. Native handle/controller backing instances are retained
+in an unparented Folder, outside every ScreenGui, so state bindings and original
+game callbacks remain usable. Interactive rich panels are moved into DEVIL HUB
+before the original shell is removed. Unload does not resurrect the Chilli GUI;
+remount uses the exported controller store without re-running the game engine.
+This removes the original visible shell; it does not claim to eliminate every
+legacy controller object or prevent their initial construction.
+
+The bridge caches dropdown descendant indexes, writes visibility only when it
+changes, discovers new options at most once every two seconds in background,
+skips hidden tabs, and reads at most 24 controls or approximately 2 ms per
+background pass. User-triggered synchronization remains immediate. Report counters
+record scans, reads, visibility writes and maximum synchronization duration.
+
+Three native presentation callbacks are limited to 30 Hz while displayed and
+4 Hz while hidden/unparented; accumulated elapsed time is passed through for
+animation timers. Movement, combat, input and farming signals are unchanged.
+All six VM environment-read sites bypass the webhook helper for ordinary names;
+request aliases retain their existing branding adapter and function identities.
+
+AST inspection found 215 top-level native function entries, including a 65,612
+byte dispatcher. Generic devirtualization was attempted with both the recovered
+chunk and its real bound game-data buffer; neither produced executable recovered
+game source (the lifter reported an IndexError). No behaviour trace is substituted
+for the game engine. The protected VM remains; FPS improvement and the original
+reported lag still require a live Roblox/executor measurement.
+
+Run `test-performance.py`, `test-integration.py`, and `test-customization.py`
+before building/pinning the GUI and public wrappers.
 
 Build runtime: `python tools/chilli-20261019/build-update.py`.
 Run `test-integration.py`: actual latest option methods and exported constructor,
