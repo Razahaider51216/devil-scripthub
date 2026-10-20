@@ -56,7 +56,7 @@ subprocess.run([str(root.parent / 'luau-tools/luau-compile.exe'), '--null', str(
 audit = json.loads((root / 'devil-blue-gui-router-audit.json').read_text(encoding='utf-8'))
 routes = audit['routes']
 anime_route = next((r for r in routes if r['File'] == 'anime-dice-test.lua'), None)
-manifest = {'release':'anime-dice-tower-cards-20261021-1','place_id':113290951185459,'universe_id':10708913337,
+manifest = {'release':'anime-dice-halloween-icons-20261021-2','place_id':113290951185459,'universe_id':10708913337,
     'production_router_changed':anime_route is not None,'live_game_verified':False,'all_automation_defaults_off':True,
     'saved_settings_auto_load':True,'saved_automation_restored_after_initialization':True,
     'theme_module_commit':module_ref,'ouroflow_commit':'c8251f76f74d9942114ebccb0564aa0ac196320a',
@@ -65,6 +65,7 @@ manifest = {'release':'anime-dice-tower-cards-20261021-1','place_id':11329095118
     'discord_logo_sha256':hashlib.sha256(discord.read_bytes()).hexdigest(),
     'auto_execute_enabled':True,
     'tower_selection_native_images_difficulty_floors':True,
+    'pumpkin_unit_native_model_previews':True,'pumpkin_preview_limit':6,'pumpkin_preview_creations_per_tick':1,
     'auto_execute_sha256':hashlib.sha256((root / 'tools/auto-execute/bootstrap.lua').read_bytes()).hexdigest(),
     'sources':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in here.glob('*.lua')}}
 if anime_route:

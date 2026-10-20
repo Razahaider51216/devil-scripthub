@@ -170,17 +170,27 @@ return function(window,ctx,app,logo)
         end
     end
     function view.RefreshTowers(catalog,haunted)
-        local specs={};for name,spec in pairs(catalog and catalog.GetAll()or{})do specs[name]=spec end
+        local specs={};for name,spec in pairs(catalog and catalog.GetAll()or{})do specs[name]=table.clone(spec)end
         local towers,wings={},{}
-        for name,spec in pairs(specs)do if not spec.event then towers[#towers+1]=name end end
+        for name,spec in pairs(specs)do if not spec.event and not spec.wing then towers[#towers+1]=name end end
         table.sort(towers,function(a,b)
             local x,y=tonumber(specs[a].order)or math.huge,tonumber(specs[b].order)or math.huge
             return x==y and a<b or x<y
         end)
+        local seen={}
         for _,wing in ipairs(haunted and haunted.Wings or{})do
-            wings[#wings+1]=wing.name
-            if not specs[wing.name]then specs[wing.name]={image=wing.image,wing=wing,maxFloors=not wing.endless and haunted.WING_FLOORS or nil}end
+            wings[#wings+1]=wing.name;seen[wing.name]=true
+            local spec=specs[wing.name]or{};specs[wing.name]=spec
+            if spec.image==nil or spec.image==""then spec.image=wing.image end
+            spec.wing=spec.wing or wing;spec.event=spec.event or"Halloween"
+            spec.maxFloors=spec.maxFloors or(not wing.endless and haunted.WING_FLOORS or nil)
+            if not spec.difficulty and wing.firstFloor then
+                spec.difficulty={name=wing.endless and("Floor "..wing.firstFloor.."+")or spec.maxFloors and("Floors "..wing.firstFloor.."-"..(wing.firstFloor+spec.maxFloors-1))or"—"}
+            end
         end
+        local extra={};for name,spec in pairs(specs)do if not seen[name]and(spec.event=="Halloween"or spec.wing)then extra[#extra+1]=name end end
+        table.sort(extra,function(a,b)local x,y=tonumber(specs[a].order)or math.huge,tonumber(specs[b].order)or math.huge;return x==y and a<b or x<y end)
+        for _,name in ipairs(extra)do wings[#wings+1]=name end
         refreshTowerPicker("TowerChoice",towers,specs);refreshTowerPicker("WingChoice",wings,specs)
     end
     local itemPickers={}
@@ -188,6 +198,92 @@ return function(window,ctx,app,logo)
         local widget,popup=picker(host,name,selected,default,multiple)
         itemPickers[key]={Widget=widget,Popup=popup,Multiple=multiple,Rows=setmetatable({},{__mode="k"})}
         return widget
+    end
+    local function powerText(row)
+        local power=tonumber(row.Power);local text="—"
+        if power and power==power and power>=0 and power<math.huge then
+            text=string.format("%.3g",power)
+            for _,entry in ipairs({{1e30,"No"},{1e27,"Oc"},{1e24,"Sp"},{1e21,"Sx"},{1e18,"Qi"},{1e15,"Qa"},{1e12,"T"},{1e9,"B"},{1e6,"M"},{1e3,"K"}})do
+                if power>=entry[1]then text=string.format("%.3g",power/entry[1])..entry[2];break end
+            end
+        end
+        row.PowerLabel.Text=(view.Language=="TH"and"พลัง "or"Power ")..text
+        row.RarityLabel.Text=type(row.Rarity)=="string"and row.Rarity or""
+    end
+    function view.RefreshPumpkinUnits(catalog)
+        local info=itemPickers.PumpkinSellNames;if not info then return end
+        local names,specs={},{}
+        for _,unit in ipairs(catalog and catalog.Units or{})do names[#names+1]=unit.id;specs[unit.id]=unit end
+        info.Widget:Refresh(names,true,true);if not info.Popup then return end
+        for _,text in ipairs(info.Popup:GetDescendants())do
+            if text:IsA("TextLabel")and text.Parent and text.Parent:IsA("TextButton")then
+                local name=plainText(text.Text);local unit=specs[name]
+                if unit then
+                    local row=info.Rows[text]
+                    if not row then
+                        row={Name=name,Label=text};info.Rows[text]=row
+                        text.Position=UDim2.fromOffset(68,0);text.Size=UDim2.new(1,-205,1,0)
+                        row.Icon=node("ImageLabel","PumpkinUnitIcon",text.Parent,{AnchorPoint=Vector2.new(0,.5),Position=UDim2.new(0,34,.5,0),
+                            Size=UDim2.fromOffset(28,28),ImageColor3=white,BackgroundTransparency=1,ScaleType=Enum.ScaleType.Fit,ZIndex=text.ZIndex+1})
+                        row.Icon:SetAttribute("CustomIcon",true)
+                        row.Fallback=label("PumpkinUnitFallback",text.Parent,{Text="◇",TextColor3=blue,TextSize=22,TextXAlignment=Enum.TextXAlignment.Center,
+                            AnchorPoint=Vector2.new(0,.5),Position=UDim2.new(0,34,.5,0),Size=UDim2.fromOffset(28,28),ZIndex=text.ZIndex+1})
+                        local detail=node("Frame","PumpkinUnitDetails",text.Parent,{AnchorPoint=Vector2.new(1,.5),Position=UDim2.new(1,-29,.5,0),
+                            Size=UDim2.fromOffset(100,28),BackgroundTransparency=1,ZIndex=text.ZIndex+1})
+                        row.PowerLabel=label("UnitPower",detail,{Size=UDim2.new(1,0,0,14),TextColor3=blue,TextSize=10,TextXAlignment=Enum.TextXAlignment.Right,ZIndex=text.ZIndex+1})
+                        row.RarityLabel=label("UnitRarity",detail,{Position=UDim2.fromOffset(0,14),Size=UDim2.new(1,0,0,14),TextColor3=white,TextSize=10,TextXAlignment=Enum.TextXAlignment.Right,ZIndex=text.ZIndex+1})
+                    end
+                    local ok,spec=pcall(function()return ctx.Catalog.Registry.getEntryConfig(name)end);spec=ok and spec or{}
+                    row.Power=unit.power;row.Rarity=spec.rarity
+                    if row.Maker~=spec.model then if row.Model then row.Model:Destroy();row.Model=nil end;row.ModelRetryAt=0 end
+                    row.Maker=spec.model;row.Template=typeof(spec.model)=="Instance"and spec.model or nil
+                    local image=imageFor(name);row.Icon.Visible=type(image)=="string"and image~="";row.Icon.Image=row.Icon.Visible and image or""
+                    row.HasImage=row.Icon.Visible;row.Fallback.Visible=not row.HasImage and not row.Model
+                    if row.HasImage and row.Model then row.Model:Destroy();row.Model=nil end
+                    powerText(row)
+                end
+            end
+        end
+    end
+    local function previewVisible(row,popup)
+        if app.Stopped or not popup or not popup.Visible or not row.Label.Parent then return false end
+        local node=row.Label
+        while node do
+            if node:IsA("GuiObject")and not node.Visible or node:IsA("ScreenGui")and not node.Enabled then return false end
+            node=node.Parent
+        end
+        return row.Label.AbsolutePosition.Y+row.Label.AbsoluteSize.Y>popup.AbsolutePosition.Y and row.Label.AbsolutePosition.Y<popup.AbsolutePosition.Y+popup.AbsoluteSize.Y
+    end
+    local function pumpkinPreviews(now)
+        local info=itemPickers.PumpkinSellNames;if not info then return end
+        local count,created=0,false
+        for _,row in pairs(info.Rows)do
+            local show=not row.HasImage and previewVisible(row,info.Popup)
+            if show and count<6 and(row.Model or type(row.Maker)=="function"or row.Template)then
+                count+=1
+                if not row.Model and not created and now>=(row.ModelRetryAt or 0)and(type(row.Maker)=="function"or row.Template)then
+                    created=true;row.ModelRetryAt=now+8
+                    local model,viewport
+                    local ok,previewError=pcall(function()
+                        model=row.Template and row.Template:Clone()or row.Maker({})
+                        assert(typeof(model)=="Instance"and model:IsA("Model"),"Unit preview model unavailable")
+                        for _,part in ipairs(model:GetDescendants())do
+                            if part:IsA("LuaSourceContainer")or part:IsA("ParticleEmitter")or part:IsA("Trail")or part:IsA("Beam")or part:IsA("Sound")then part:Destroy()
+                            elseif part:IsA("BasePart")then part.Anchored=true;part.CanCollide=false;part.CanTouch=false;part.CanQuery=false end
+                        end
+                        viewport=node("ViewportFrame","PumpkinUnitModel",row.Label.Parent,{AnchorPoint=Vector2.new(0,.5),Position=UDim2.new(0,34,.5,0),
+                            Size=UDim2.fromOffset(28,28),BackgroundTransparency=1,Ambient=white,LightColor=white,ZIndex=row.Label.ZIndex+1})
+                        viewport:SetAttribute("CustomIcon",true)
+                        local world=node("WorldModel","Preview",viewport,{});model.Parent=world;model:PivotTo(CFrame.Angles(0,math.pi,0))
+                        local frame,size=model:GetBoundingBox();local distance=math.max(size.X,size.Y)/(2*math.tan(math.rad(35)/2))*1.15+size.Z*.5
+                        local camera=node("Camera","PreviewCamera",viewport,{FieldOfView=35,CFrame=CFrame.lookAt(frame.Position+Vector3.new(0,0,math.max(1,distance)),frame.Position)})
+                        viewport.CurrentCamera=camera
+                    end)
+                    if ok then row.Model=viewport;row.Fallback.Visible=false
+                    else app.Report.LastPreviewError=row.Name..": "..tostring(previewError);if viewport then viewport:Destroy()end;if typeof(model)=="Instance"then model:Destroy()end;row.Fallback.Visible=true end
+                end
+            elseif row.Model then row.Model:Destroy();row.Model=nil;row.Fallback.Visible=not row.HasImage end
+        end
     end
     local priorityBuffs={Luck="Luck",Money="Money Multiplier",Damage="Damage Multiplier",Health="Health Multiplier",
         Roll="Roll Duration",Candy="Candy Gain",Pumpkin="Pumpkin Gain"}
@@ -339,11 +435,13 @@ return function(window,ctx,app,logo)
     function view.SetLanguage(language,data)
         view.Language=language=="TH"and"TH"or"EN"
         for _,info in pairs(towerPickers)do for _,row in pairs(info.Rows)do towerText(row)end end
+        local pumpkins=itemPickers.PumpkinSellNames;if pumpkins then for _,row in pairs(pumpkins.Rows)do powerText(row)end end
         for _,card in ipairs(view.Cards)do updateText(card)end
         view.UpdateDiceState(data or diceData)
     end
     function view.Tick(now)
         if app.Stopped then return end
+        pumpkinPreviews(now)
         for i=#view.Cards,1,-1 do if view.Cards[i].Expires<=now then remove(i)end end
         local screen=viewport();local maxCards=(screen.X<500 or screen.Y<500)and 1 or 2
         while #view.Cards>maxCards do remove(#view.Cards)end
@@ -402,6 +500,7 @@ return function(window,ctx,app,logo)
         table.insert(view.Cards,1,card);updateText(card);view.Tick(os.clock())
     end
     function view.Destroy()
+        local pumpkins=itemPickers.PumpkinSellNames;if pumpkins then for _,row in pairs(pumpkins.Rows)do if row.Model then row.Model:Destroy();row.Model=nil end end end
         for i=#view.Cards,1,-1 do remove(i)end
         view.Root:Destroy();ctx.OnTowerReward=nil
     end

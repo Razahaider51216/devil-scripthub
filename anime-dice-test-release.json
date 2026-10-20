@@ -1,5 +1,5 @@
 {
-  "release": "anime-dice-tower-cards-20261021-1",
+  "release": "anime-dice-halloween-icons-20261021-2",
   "place_id": 113290951185459,
   "universe_id": 10708913337,
   "production_router_changed": true,
@@ -10,20 +10,23 @@
   "theme_module_commit": "9a9812469df7b5dad2848abb33c5206f7d57e685",
   "ouroflow_commit": "c8251f76f74d9942114ebccb0564aa0ac196320a",
   "ouroflow_sha256": "0c30762d3c9c3aa7c25ca3aeceab960a771c96b5af290a3b67aed627161385f5",
-  "entry_sha256": "e15ffb2be3fa6e1ed6cfe571765655ef195c274b380b8f8099b7bafaad5f5f54",
+  "entry_sha256": "06f149252d5c93f35dd02d5b71b3ce42d4f44e30311870345fa9814bb18dcf86",
   "candy_svg_sha256": "c7025836ff6cd9849344697ffbd5f8ff5961a23c812cb85c5abe1ec9ecdc5a43",
   "discord_logo_sha256": "b7a9ed687893fc4f3d4da99bbd8819b10216b7b42d2b8acbda0bc015b6a41cbf",
   "auto_execute_enabled": true,
   "tower_selection_native_images_difficulty_floors": true,
+  "pumpkin_unit_native_model_previews": true,
+  "pumpkin_preview_limit": 6,
+  "pumpkin_preview_creations_per_tick": 1,
   "auto_execute_sha256": "2b70bea941088a517ac97d84864fdd1cbc8ea4c7656cc7cead0f176b1f6d5399",
   "sources": {
     "adapter.lua": "8921376f7c2e503d8107017eb4aa83968b01d52fd5cc9e41319e40e566ed72c6",
-    "core.lua": "b61b20079e709614842a0e22b04cdd2aa5bfa152303796fc712a2196b5eb4e94",
+    "core.lua": "60c4aa6fce24a3ecf1975dd0e63896e952d41273c0dd596ac10e2a4666f695a1",
     "planner.lua": "f85810afe30a9714d877caf19bc4d141c4b907790f8d70c0e1626a6e6c301211",
-    "presentation.lua": "506e5b4f450f18060edf9ca467b6898a4b26bebf57aa889b384ca6931265d017",
+    "presentation.lua": "73fa6edbce9234c7a6437140aeb25e1e98b54b5c6bc91d53e7823f71e656b431",
     "settings.lua": "40bef211a24ac11c252d6f1f600f594b5c270e10966fd7d75b049ccbed9a0d76",
     "translations.lua": "735438aef10d1517e51d7f628348745d9a724f56481d8c176d583411e3af559a",
-    "ui.lua": "9bd759812c95ae3c0cb192dc6aefe2930b3e96bd2f336a59f6e6676157bb0b9c"
+    "ui.lua": "ce7a72a98be21d9426aa90537ac22541caaf1f5ea0f847b21e13b6d60a54f581"
   },
   "main_loader_entry_commit": "36dde420404c7712f118c720b60912b24270adfb",
   "main_loader_sha256": "9b6fe3b1d0cc84b2a9ff31bb9ff8e978bad9b5ae3500f600f4048bcfc21f7d43"

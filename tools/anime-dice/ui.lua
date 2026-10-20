@@ -2,7 +2,7 @@
 assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
 local scope=type(getgenv)=="function"and getgenv()or _G
 -- AUTO_EXECUTE_BOOTSTRAP
-local release="anime-dice-tower-cards-20261021-1"
+local release="anime-dice-halloween-icons-20261021-2"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end
@@ -230,7 +230,7 @@ local ok,problem=xpcall(function()
     toggle(eventFarm,"Pumpkin","Auto Pumpkin Dice")
     dropdown(eventFarm,"PumpkinCount","Roll count",{"1","5"},"1",false,tonumber)
     input(eventFarm,"PumpkinReserve","Pumpkins reserve")
-    dropdown(eventFarm,"PumpkinSellNames","Pumpkin units to auto sell",{},nil,true)
+    optionWidgets.PumpkinSellNames=presentation.CreateItems(eventFarm,"PumpkinSellNames","Pumpkin units to auto sell",function(v)changed();cfg.PumpkinSellNames=multi(v)end,true)
     button(eventFarm,"Apply Pumpkin sell filter",function()core.PumpkinFilter(cfg.PumpkinSellNames)end)
     local eventTower=group(halloween,"Haunted House","Right")
     optionWidgets.WingChoice=presentation.CreateTowers(eventTower,"WingChoice","Haunted wing",function(v)changed();cfg.WingChoice=v end,"Front Yard")
@@ -315,7 +315,7 @@ local ok,problem=xpcall(function()
         local questOffers={};for _,offer in ipairs(c.Quest and c.Quest.Shop or{})do questOffers[#questOffers+1]=offer.name end
         presentation.RefreshItems("QuestOffer",questOffers,c.Quest and c.Quest.Shop or{})
         presentation.RefreshItems("GearPriority",{"Luck","Money","Damage","Health","Roll","Candy","Pumpkin"})
-        local pumpkinNames={};for _,unit in ipairs(c.PumpkinDice and c.PumpkinDice.Units or{})do pumpkinNames[#pumpkinNames+1]=unit.id end;options("PumpkinSellNames",pumpkinNames)
+        presentation.RefreshPumpkinUnits(c.PumpkinDice)
         if not pumpkinFilterInitialized then
             pumpkinFilterInitialized=true;local chosen={}
             for name,value in pairs(d.Halloween and d.Halloween.DiceAutoSell or{})do if value then cfg.PumpkinSellNames[name]=true;chosen[#chosen+1]=name end end

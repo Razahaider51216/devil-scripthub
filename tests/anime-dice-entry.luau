@@ -22,7 +22,9 @@ local function setup(place,corrupt,storage)
  module('Unit','UnitController',{EquippedUnit=function()return data.CarriedId end})
  local rarityModule=node('ModuleScript','Rarities',node('Folder','Other',features.Parent))
  rarityModule.Export={Refs={Common='Common',Rare='Rare',Secret1='Secret I'},Get=function(name)return {sortOrder=({Common=1,Rare=3,['Secret I']=10})[name]}end}
+ local unitSpecs={}
  module('Inventory','EntryRegistry',{getEntryConfig=function(name)
+  if unitSpecs[name]then return unitSpecs[name]end
   if name=='Weak'then return {kind='Unit',chance=function()return 10 end,income=function()return 1 end,getRarity=function(a)return a.mutation=='Gold'and'Rare'or'Common'end}end
   if name=='Pumpkin Spin'or name=="Witch's Jackpot"or name=='Candy Pot I'or name=='Gems'then return {kind='Boost',image='rbxassetid://123456'}end
   if name=='Lucky Spin'then return {kind='Spin',image='rbxassetid://654321'}end
@@ -44,11 +46,14 @@ local function setup(place,corrupt,storage)
  module('Halloween','HauntedHouse',wings)
  module('Towers','Towers',{GetAll=function()return towerSpecs end})
  module('Towers','TowerRefs',{ActionWaitTime={floorCompleted=.24,ended=0}})
+ local pumpkin={Units={{id='Mummy Loffy',power=5e9},{id='Skeleton Sanjo',power=78e9},{id='Vampire Gujo',power=1e29}}}
+ module('Halloween','PumpkinDice',pumpkin)
  local network=node('Folder','Network',rs)
  local roll=node('Folder','RollService',network)
  local remote=node('RemoteEvent','SetAutoRoll',node('Folder','RE',roll));remote.Sent={}
  local towers=node('Folder','Towers',network);local towerEvents=node('Folder','RE',towers);local towerFunctions=node('Folder','RF',towers)
  local equip=node('RemoteEvent','EquipBestTowerTeam',towerEvents);equip.Sent={}
+ local pumpkinRemote=node('RemoteEvent','SetAutoSell',node('Folder','RE',node('Folder','PumpkinDiceService',network)));pumpkinRemote.Sent={}
  for _,name in ipairs({'PlayTower','CompleteTowerFloor','CancelTower'})do node('RemoteFunction',name,towerFunctions)end
  local floorActions={{action='floorCompleted',floor=9,rewards={Gems=3,['Unknown Relic']=1}}}
  function methods:InvokeServer(...)
@@ -151,7 +156,7 @@ local function setup(place,corrupt,storage)
  end
  local originalCompiler=env.loadstring;local originalHttp=game.HttpGet
  local fn=assert(nativeCompile(entrySource));setfenv(fn,env)
- return {Run=fn,scope=scope,work=work,objects=objects,remote=remote,env=env,data=data,offers=offers,dice=dice,towerSpecs=towerSpecs,wings=wings,
+ return {Run=fn,scope=scope,work=work,objects=objects,remote=remote,env=env,data=data,offers=offers,dice=dice,towerSpecs=towerSpecs,wings=wings,unitSpecs=unitSpecs,pumpkin=pumpkin,pumpkinRemote=pumpkinRemote,
   advance=function(n)clockNow+=n end,now=function()return clockNow end,actions=function(value)floorActions=value end,
   compiler=originalCompiler,http=originalHttp,game=game,language=function(v)language=v end,
   counts=function()return downloads,libraryCalls end,window=function()return window end}
@@ -295,7 +300,7 @@ do
  local f=setup(113290951185459,false);local destroyed=0
  f.scope.DevilAnimeDiceTest={Version='anime-dice-test-20261020-1',Stopped=false,Destroy=function()destroyed+=1 end}
  local app=f.Run()
- check(destroyed==1 and app.Version=='anime-dice-tower-cards-20261021-1','rerun retained previous broken release')
+ check(destroyed==1 and app.Version=='anime-dice-halloween-icons-20261021-2','rerun retained previous broken release')
  app.Destroy()
 end
 do
@@ -418,7 +423,7 @@ if mainLoaderSource then
  function f.game:IsLoaded()return true end
  f.game.HttpGet=function(self,url)
   if url:find('/anime-dice-test.lua',1,true)then
-   check(url:find('/'..mainEntryCommit..'/anime-dice-test.lua?hub=anime-dice-tower-cards-20261021-1',1,true),'main loader fetched wrong entry pin / version')
+   check(url:find('/'..mainEntryCommit..'/anime-dice-test.lua?hub=anime-dice-halloween-icons-20261021-2',1,true),'main loader fetched wrong entry pin / version')
    routeRequests+=1;return entrySource
   end
   return f.http(self,url)
@@ -433,7 +438,7 @@ if mainLoaderSource then
   local ok,result=coroutine.resume(co);check(ok,'main loader / actual entry failed: '..tostring(result))
   if coroutine.status(co)=='dead'then app=result;break end
  end
- check(app and app==f.scope.DevilAnimeDiceTest and app.Version=='anime-dice-tower-cards-20261021-1','main loader did not return the actual Anime Dice GUI')
+ check(app and app==f.scope.DevilAnimeDiceTest and app.Version=='anime-dice-halloween-icons-20261021-2','main loader did not return the actual Anime Dice GUI')
  check(routeRequests==1 and not f.scope.DevilHubRouterLoading,'main loader duplicated entry download or leaked busy state')
  table.remove(f.work,1)()
  check(not app.Report.InitializationError and f.objects['Quest shop item']and f.objects['Boosts to use']and f.objects['Spins to use']and f.objects['Gear priority'],'main-loaded app did not initialize requested selectors')
@@ -470,6 +475,62 @@ do
  f.towerSpecs.Test.image='rbxassetid://456';f.towerSpecs.Test.difficulty={name='Hard'};f.towerSpecs.Test.maxFloors=20
  p.RefreshTowers({GetAll=function()return f.towerSpecs end},f.wings)
  check(unknown.TowerIcon.Visible and not unknown.TowerIconFallback.Visible and unknown.TowerIcon.Image=='rbxassetid://456'and unknown.TowerDetails.TowerDifficulty.Text=='Hard','late metadata does not refresh existing Tower rows')
+ app.Destroy()
+end
+do
+ local f=setup(113290951185459,false)
+ f.unitSpecs['Mummy Loffy']={image=function()return'rbxassetid://901'end,rarity='Mythical'}
+ f.unitSpecs['Skeleton Sanjo']={image='rbxassetid://902'};f.unitSpecs['Vampire Gujo']={image='rbxassetid://903'}
+ local app=f.Run();table.remove(f.work,1)();local p=app.Presentation
+ local picker=f.objects['Pumpkin units to auto sell'];local row=picker.Rows['Mummy Loffy']
+ check(picker.Options[1]=='Mummy Loffy'and row.PumpkinUnitIcon.Image=='rbxassetid://901','Pumpkin picker lost native order or registry artwork')
+ check(row.PumpkinUnitDetails.UnitPower.Text=='Power 5B'and row.PumpkinUnitDetails.UnitRarity.Text=='Mythical','Pumpkin unit power / rarity is not native metadata')
+ picker.Callback({'Mummy Loffy','Vampire Gujo'});p.RefreshPumpkinUnits(f.pumpkin)
+ check(app.Config.PumpkinSellNames['Mummy Loffy']and app.Config.PumpkinSellNames['Vampire Gujo']and not app.Config.PumpkinSellNames['Skeleton Sanjo'],'decorated Pumpkin options do not preserve selected IDs')
+ check(#f.pumpkinRemote.Sent==0,'rendering/filter selection applied a sale automatically')
+ f.objects['Apply Pumpkin sell filter'].Callback();table.remove(f.work,#f.work)()
+ local worker=coroutine.create(table.remove(f.work,#f.work));for _=1,5 do if coroutine.status(worker)=='dead'then break end;check(coroutine.resume(worker),'Pumpkin apply worker failed')end
+ local sent={};for _,packet in ipairs(f.pumpkinRemote.Sent)do sent[packet[1]]=packet[2]end
+ check(sent['Mummy Loffy']==true and sent['Vampire Gujo']==true and sent['Skeleton Sanjo']==false,'Apply Pumpkin filter sent wrong IDs or deselection states')
+ p.SetLanguage('TH');check(row.PumpkinUnitDetails.UnitPower.Text=='พลัง 5B','Pumpkin power label did not translate')
+ p.SetLanguage('EN');check(row.PumpkinUnitDetails.UnitPower.Text=='Power 5B','Pumpkin power label did not switch back to English')
+ local clones,models,parts,effects=0,{},{},{}
+ f.env.typeof=function(value)if type(value)=='table'and value.props and value.props.ClassName then return'Instance'end;return typeof(value)end
+ local vecMT={__add=function(a,b)return setmetatable({X=a.X+b.X,Y=a.Y+b.Y,Z=a.Z+b.Z},getmetatable(a))end}
+ local function vec(x,y,z)return setmetatable({X=x,Y=y,Z=z},vecMT)end
+ f.env.Vector3={new=vec};f.env.CFrame={Angles=function()return{}end,lookAt=function(position,focus)return{Position=position,Focus=focus}end}
+ local function maker()
+  clones+=1;local model=Instance.new('Model');models[#models+1]=model
+  local part=Instance.new('BasePart');part.Parent=model;parts[#parts+1]=part
+  local effect=Instance.new('ParticleEmitter');effect.Parent=model;effects[#effects+1]=effect
+  model.PivotTo=function()end;model.GetBoundingBox=function()return{Position=vec(0,0,0)},vec(3,6,2)end
+  return model
+ end
+ for i=1,8 do local name='Preview '..i;f.pumpkin.Units[#f.pumpkin.Units+1]={id=name,power=i*1e9};f.unitSpecs[name]={model=maker}end
+ p.RefreshPumpkinUnits(f.pumpkin);check(clones==0,'refresh eagerly cloned every Pumpkin model')
+ picker.Popup.Visible=true;picker.Popup.AbsoluteSize=Vector2.new(420,300)
+ for _,r in pairs(picker.Rows)do r.OptionLabel.AbsolutePosition=Vector2.new(0,30);r.OptionLabel.AbsoluteSize=Vector2.new(200,30)end
+ p.Tick(f.now());check(clones==1,'preview creation is not limited to one model per tick')
+ for _=1,8 do f.advance(.5);p.Tick(f.now())end
+ local active=0;for _,r in pairs(picker.Rows)do if r:FindFirstChild('PumpkinUnitModel')then active+=1 end end
+ check(active==6 and clones==6,'Pumpkin preview exceeded six simultaneous visible models: '..active..' active / '..clones..' created; '..tostring(app.Report.LastPreviewError))
+ check(parts[1].Anchored and not parts[1].CanCollide and effects[1].destroyed,'preview model retains active effects / physical collisions')
+ picker.Popup.Visible=false;p.Tick(f.now())
+ check(models[1].destroyed,'closing Pumpkin popup retains preview models')
+ picker.Popup.Visible=true;app.Window.Gui.Enabled=false;p.Tick(f.now());check(clones==6,'hidden hub still creates previews')
+ app.Window.Gui.Enabled=true;f.advance(9);p.Tick(f.now());local last=models[#models]
+ app.Destroy();check(last.destroyed,'unloading hub leaks Pumpkin preview models')
+end
+do
+ local f=setup(113290951185459,false);local app=f.Run();table.remove(f.work,1)();local p=app.Presentation
+ local wing={name='Foyer',firstFloor=51,image='rbxassetid://77009522006685'}
+ local spec={event='Halloween',order=2,wing=wing,image=wing.image,maxFloors=50,difficulty={name='Floors 51-100'}}
+ p.RefreshTowers({GetAll=function()return{Foyer=spec}end},nil)
+ local picker=f.objects['Haunted wing'];check(picker.Options[1]=='Foyer'and picker.Rows.Foyer.TowerIcon.Image==wing.image,'Haunted selector depends on a separately loaded wing module')
+ local partial={event='Halloween',image=''}
+ p.RefreshTowers({GetAll=function()return{Foyer=partial}end},{WING_FLOORS=50,Wings={wing}})
+ check(picker.Rows.Foyer.TowerDetails.TowerFloors.Text=='Floors 51–100'and picker.Rows.Foyer.TowerIcon.Image==wing.image,'Haunted partial data does not recover artwork / floor range')
+ check(partial.image==''and partial.wing==nil,'presentation mutated native Tower catalog while merging wing metadata')
  app.Destroy()
 end
 print('PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: '..checks..' checks')

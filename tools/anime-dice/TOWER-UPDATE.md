@@ -16,3 +16,18 @@ Validation uses the complete public entry, image/difficulty/floor rendering,
 native ordering, stable selection, late metadata, fallback art, both languages,
 and existing automation/settings regressions. Offline checks do not establish
 asset visibility or gameplay compatibility on a live Roblox executor.
+
+The Pumpkin units to auto sell selector now shows registry artwork, or a static
+preview built from the unit's native `model({})` factory when no image exists.
+Power comes from `PumpkinDice.Units`; rarity comes from the registry. Multi-select
+and Apply keep the original unit IDs and deselection states.
+
+Model previews are lazy: at most one is created per UI tick and six remain alive
+for visible rows. Closing/hiding the popup or unloading destroys the clones.
+Preview clones have scripts/effects removed and parts anchored without collision.
+No animation/frame connection is created. Missing model errors use a fallback and
+an eight-second retry interval instead of repeatedly cloning every frame.
+
+Haunted wing also reads event entries from the Tower catalog when the separate
+HauntedHouse module is unavailable. Partial artwork/floor data is merged into
+presentation copies, preserving the live game configuration.
