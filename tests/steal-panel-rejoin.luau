@@ -1,4 +1,8 @@
 local artwork=makeArtwork()
+local function instanceType(value)
+ if type(value)=='table'and value.ClassName then return 'Instance'end
+ return typeof(value)
+end
 local core=Instance.new('CoreGui')
 local screen=Instance.new('ScreenGui');screen.Name='DevilHubStealTest';screen.Parent=core
 local root=Instance.new('Frame');root.Name='MainWindow';root.Size=UDim2.fromOffset(880,520);root.Parent=screen
@@ -20,7 +24,7 @@ local game={GetService=function(_,name)
  error(name)
 end}
 local compile=assert(loadstring(themeSource))
-setfenv(compile,setmetatable({game=game,getgenv=function()return env end,task=task,Instance=Instance,typeof=typeof,
+setfenv(compile,setmetatable({game=game,getgenv=function()return env end,task=task,Instance=Instance,typeof=instanceType,
  Color3=Color3,ColorSequence=ColorSequence,Vector2=Vector2,UDim2=UDim2,UDim=UDim,Enum=Enum},{__index=getfenv(0)}))
 local theme=compile();flush()
 check(pet.ImageColor3==Color3.new(1,1,1),'shared theme darkened randomized pet art')
@@ -31,6 +35,15 @@ button.Activated:Fire();check(clicks==1,'artwork fix lost original click handler
 local added=artwork(row,nil)
 check(added:IsA('ImageLabel')and added.Parent==row and added.Visible and added.Size.X.Offset==48,'missing prototype icon not created')
 check(artwork(row,added)==added,'repeated artwork fix duplicated icon')
+local launcher=artwork(button,nil,true)
+check(launcher.Image~=''and launcher:GetAttribute('DevilStealLauncher'),'launcher still lacks default system icon')
+check(launcher.DevilStealFallback.Visible and #launcher.DevilStealFallback:GetChildren()>0,'unloaded icon has no visible vector fallback')
+launcher.IsLoaded=true
+check(not launcher.DevilStealFallback.Visible,'loaded native icon remained covered by fallback')
+launcher.IsLoaded=false;launcher.Image='rbxassetid://999'
+check(launcher.DevilStealFallback.Visible,'changed / failed asset removed fallback')
+local children=#launcher:GetChildren();artwork(button,launcher,true)
+check(#launcher:GetChildren()==children,'launcher redraw duplicated fallback / listeners')
 theme.Destroy()
 do
  local cache={};local data={Assets={Directory={}}}
@@ -48,8 +61,39 @@ do
  local host=Instance.new('Folder');local native=Instance.new('ScreenGui');native.Enabled=true
  local flashed=false
  native:GetPropertyChangedSignal('Parent'):Connect(function()if native.Parent and native.Enabled then flashed=true end end)
- local create=assert(loadstring(createSource));setfenv(create,{F={[19]={obj1=native},[15]=host}});create()
+ local create=assert(loadstring(createSource));setfenv(create,{F={[19]={obj1=native},[15]=host},devilKeepNativeHidden=makeVisibility()});create()
  check(native.Parent==host and not native.Enabled and not flashed,'native GUI was enabled when parented')
+ native.Enabled=true;check(not native.Enabled,'native GUI re-enabled itself after parenting')
+ check(native:GetAttribute('DevilBlueSettings')==true,'hidden native GUI still incurs a complete theme / localization pass')
+end
+do
+ local shared={};local player=Instance.new('Player');local pg=Instance.new('PlayerGui');pg.Parent=player
+ local host=setmetatable({getgenv=function()return shared end,typeof=instanceType,
+  game={GetService=function(_,name)if name=='CoreGui'then return core end;return {LocalPlayer=player}end}},{__index=getfenv(0)})
+ setfenv(makeGuard,host);local install=makeGuard();local stop=install()
+ check(install()==stop,'early and frontend guards installed twice')
+ local nested=Instance.new('Folder');nested.Parent=core
+ local native=Instance.new('ScreenGui');native.Name='Settings';native.Parent=nested
+ native:SetAttribute('ChilliLibraryOwned',true)
+ check(not native.Enabled,'early guard missed late ownership under a nested hidden-UI folder')
+ native.Enabled=true;check(not native.Enabled,'legacy native GUI reopened under early guard')
+ local ours=Instance.new('ScreenGui');ours:SetAttribute('DevilHubPresentation',true);ours.Parent=core
+ check(ours.Enabled,'early guard hid the DEVIL HUB frontend')
+ local panel=Instance.new('ScreenGui');panel.Name='randomized-steal-panel';panel.Parent=core
+ check(panel.Enabled,'early guard hid the separate Steal Panel')
+ stop();check(shared.DevilChilliEarlyGuardStop==nil and not native.Enabled,'guard cleanup exposed old GUI / kept singleton alive')
+end
+do
+ local shared={};local progress
+ shared.DevilHubLoadController={Update=function(text,value)progress=value end}
+ local fn=makeLoading
+ setfenv(fn,setmetatable({getgenv=function()return shared end,task={wait=function()end},
+  Instance={new=function()error('native loading GUI must never be constructed')end}},{__index=getfenv(0)}))
+ fn()()
+ check(shared.ChilliCanvasHold and type(shared.ChilliHubLoadStep)=='function','headless loading lost engine hold / progress API')
+ shared.ChilliHubLoadStep(4);check(progress==.74,'native progress did not update DEVIL loading screen')
+ shared.ChilliHubLoadStep(10)
+ check(shared.ChilliCanvasHold==nil and shared.ChilliHubLoadStep==nil and shared.ChilliHubLoading==nil,'loading completion did not release native engine')
 end
 for _,enabled in ipairs({true,false})do
  local shared={};local downloads,launches=0,0

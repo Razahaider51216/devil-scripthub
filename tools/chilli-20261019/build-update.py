@@ -62,7 +62,12 @@ replace('F.Name="ChilliHubLoading";F.ResetOnSpawn=false;',
 # Disable the native menu BEFORE parenting, so no upstream window can render
 # during the handoff to DEVIL HUB, including a rejoin into a fresh client.
 replace('F[40]=F[19].obj1;F[40].Parent=F[15];',
-        'F[40]=F[19].obj1;F[40].Enabled=false;F[40].Parent=F[15];')
+        'F[40]=F[19].obj1;F[40].Enabled=false;devilKeepNativeHidden(F[40]);F[40].Parent=F[15];')
+# Replace the old loading widget with the same progress/hold API and no GUI.
+loading_start = adapted.index('[117]=function')
+loading_end = adapted.index('end,[', loading_start) + len('end')
+replace(adapted[loading_start:loading_end],
+        '[117]=function(N,N,N,N)return function()return devilNativeLoading;end;end')
 # The native auto-load queue used to download Chilli.lua independently of our
 # main loader. Share its destination guard with the always-enabled hub queue.
 queue_match = re.search(r'local Q,r="__ChilliAutoLoadScriptEnabled",("(?:\\.|[^"\\])*");local function k\(\)', adapted)
@@ -87,6 +92,8 @@ replace('IW.Color=A({{0,T(200,18,24)},{0.53,T(255,88,90)},{1,T(214,28,34)}});',
         'IW.Color=A({{0,T(8,18,35)},{0.53,T(0,140,255)},{1,T(16,42,70)}});')
 replace('uW.BadgeGradient=uW.Badge and uW.Badge:FindFirstChildOfClass("UIGradient")or nil;',
         'uW.Icon=devilStealArtwork(fW,uW.Icon);uW.BadgeGradient=uW.Badge and uW.Badge:FindFirstChildOfClass("UIGradient")or nil;')
+replace('D=i:FindFirstChild("ImageLabel");',
+        'D=devilStealArtwork(i,i:FindFirstChild("ImageLabel")or i:FindFirstChild("Icon"),true);')
 # Retry a catalog entry whose artwork was not ready when the first row appeared.
 replace('local function _(v)local s=S[v];if s then return s;end;',
         'local function _(v)local s=S[v];if s and s.Icon~=""then return s;end;')
@@ -112,6 +119,8 @@ helper = (WORK / 'webhook-branding.lua').read_text(encoding='utf-8')
 adapted = 'local devilWebhookLookup=(function()\n' + helper + '\nend)()()\n' + adapted
 artwork = (WORK / 'panel-artwork.lua').read_text(encoding='utf-8')
 adapted = 'local devilStealArtwork=(function()\n' + artwork + '\nend)()\n' + adapted
+for variable,filename in [('devilNativeLoading','native-loading.lua'),('devilKeepNativeHidden','native-visibility.lua')]:
+    adapted = 'local ' + variable + '=(function()\n' + (WORK / filename).read_text(encoding='utf-8') + '\nend)()\n' + adapted
 (WORK / 'native-layer.generated.luau').write_text(adapted, encoding='utf-8', newline='\n')
 
 
@@ -135,6 +144,13 @@ while ']' + eq + ']' in payload:
 output = source[:runtime_block.start()] + '[' + eq + '[' + payload + ']' + eq + ']' + source[runtime_block.end():]
 assert output.count('Z(m,H,1285437)') == 1
 output = output.replace('Z(m,H,1285437)', f'Z(m,H,{len(adapted.encode())})')
+slice_source = (WORK / 'startup-slice.lua').read_text(encoding='utf-8')
+decode_anchor = 'm[59],1;while true do local z;'
+assert output.count(decode_anchor) == 1
+output = output.replace(decode_anchor,'m[59],1;local devilDecodeTicks=0;while true do devilDecodeTicks+=1;if devilDecodeTicks%1024==0 then devilStartupSlice()end;local z;')
+lzma_anchor = 'while e<a do if D(q,h)==0 then'
+assert output.count(lzma_anchor) == 1
+output = slice_source + '\n' + output.replace(lzma_anchor,'local devilNextSlice=0;while e<a do if e>=devilNextSlice then devilNextSlice=e+8192;devilStartupSlice()end;if D(q,h)==0 then')
 result_native, result_data = decode(output, 'candidate')
 assert result_native == adapted
 assert result_data == game_data, 'Game bytecode must be identical to upstream'
@@ -142,7 +158,7 @@ target = ROOT / 'devil-chilli-native-ui-runtime.lua'
 target.write_text(output, encoding='utf-8', newline='\n')
 subprocess.run([str(COMPILER), '--null', str(target)], check=True)
 manifest = {
-    'release': 'steal-panel-rejoin-20261020-1', 'upstream_commit': UPSTREAM,
+    'release': 'steal-panel-startup-20261020-2', 'upstream_commit': UPSTREAM,
     'upstream_url': URL, 'upstream_sha256': EXPECTED,
     'upstream_bytes': len(original), 'source_bytes': target.stat().st_size,
     'source_sha256': sha(target.read_bytes()), 'transfer_checksum': checksum(target.read_bytes()),
@@ -155,6 +171,8 @@ manifest = {
     'shared_auto_execute_arrival_guard': True, 'pet_artwork_preserved_before_name_randomization': True,
     'artwork_sha256': sha(artwork.encode()),
     'adapted_native_sha256': sha(adapted.encode()),
+    'steal_launcher_icon_supported':True,'native_loading_widget_removed':True,
+    'native_visibility_lock':True,'cooperative_decompression':True,
 }
 (ROOT / 'devil-chilli-native-ui-recovery.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
 print(json.dumps(manifest, indent=2))

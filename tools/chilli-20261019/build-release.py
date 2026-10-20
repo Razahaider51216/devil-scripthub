@@ -6,7 +6,7 @@ root = Path(__file__).resolve().parents[2]
 build = root.parent / 'steal-chilli-build-20261019'
 mode, commit = sys.argv[1:3]
 assert re.fullmatch('[0-9a-f]{40}', commit)
-release = 'steal-panel-rejoin-20261020-1'
+release = 'steal-panel-startup-20261020-2'
 manifest_path = root / 'devil-steal-panel-rejoin-release.json'
 
 def blob(name):
@@ -26,14 +26,13 @@ if game.GameId~=10563114921 and game.PlaceId~=107778070777162 then
     assert(run,err);return run(...)
 end
 if env.DevilChilliUiStarting or env.DevilChilliMainUI then return env.DevilChilliMainUI end
-local source=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/GUI_COMMIT/devil-steal-an-egg-chilli-recovered-ui-test.lua")
-assert(type(source)=="string"and #source==GUI_SIZE,"Steal an Egg download size mismatch")
-local check=0
-for i=1,#source do check=(check*33+source:byte(i))%4294967296;if i%8192==0 then task.wait()end end
-assert(check==GUI_CHECKSUM,"Steal an Egg checksum mismatch")
+local loadPinnedSource=(function()
+PINNED_SOURCE_HELPER
+end)()
+local source=loadPinnedSource("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/GUI_COMMIT/devil-steal-an-egg-chilli-recovered-ui-test.lua",GUI_SIZE,GUI_CHECKSUM,"DevilHub_StealGUI_GUI_COMMIT.lua")
 local run,err=loadstring(source,"DEVIL HUB / Steal an Egg native UI")
 assert(run,err);return run(...)
-'''.replace('GUI_COMMIT',commit).replace('GUI_SIZE',str(len(gui))).replace('GUI_CHECKSUM',str(checksum(gui)))
+'''.replace('GUI_COMMIT',commit).replace('GUI_SIZE',str(len(gui))).replace('GUI_CHECKSUM',str(checksum(gui))).replace('PINNED_SOURCE_HELPER',(Path(__file__).parent/'pinned-source.lua').read_text(encoding='utf-8'))
     filename = 'devil-steal-an-egg.lua'
     manifest = {'release':release,'gui_commit':commit,'gui_sha256':hashlib.sha256(gui).hexdigest(),
         'runtime_commit':re.search(rb'/([0-9a-f]{40})/devil-chilli-native-ui-runtime.lua',gui)[1].decode(),
@@ -54,6 +53,16 @@ elif mode == 'router':
     anchor = 'entry.File=="devil-steal-an-egg.lua"and"'+old_version+'"'
     assert source.count(anchor)==1
     source = source.replace(anchor,'entry.File=="devil-steal-an-egg.lua"and"'+release+'"')
+    early = ('-- BEGIN EARLY STEAL UI GUARD\nif selected.File=="devil-steal-an-egg.lua"then\n'
+        'local install=(function()\n'+(Path(__file__).parent/'startup-guard.lua').read_text(encoding='utf-8')+
+        '\nend)()\ninstall()\nend\n-- END EARLY STEAL UI GUARD\n')
+    if '-- BEGIN EARLY STEAL UI GUARD\n' in source:
+        source,count=re.subn(r'-- BEGIN EARLY STEAL UI GUARD\n.*?-- END EARLY STEAL UI GUARD\n',lambda _:early,source,flags=re.S)
+        assert count==1
+    else:
+        marker='-- BEGIN DEVIL AUTO EXECUTE\n'
+        assert source.count(marker)==1
+        source=source.replace(marker,early+marker,1)
     assert re.findall(r'^    \{(?!Name="Steal an Egg")[^\n]+',before,re.M)==re.findall(r'^    \{(?!Name="Steal an Egg")[^\n]+',source,re.M)
     native.write_text(source,encoding='utf-8',newline='\n')
     route.update(Commit=commit,Version=release)
