@@ -482,6 +482,8 @@ end
 local startNativeUiGuard=(function()
 -- Presentation only: watch the native GUI containers before starting the runtime.
 return function()
+    local scope=type(getgenv)=="function"and getgenv()or _G
+    if type(scope.DevilChilliEarlyGuardStop)=="function"then return scope.DevilChilliEarlyGuardStop end
     local hidden,connections,containers={},{},{}
     local stopped=false
     local markers={}
@@ -536,19 +538,21 @@ return function()
     local function watch(container)
         if typeof(container)~="Instance" or containers[container] then return end
         containers[container]=true
-        table.insert(connections,container.ChildAdded:Connect(track))
-        for _,child in ipairs(container:GetChildren()) do track(child) end
+        table.insert(connections,container.DescendantAdded:Connect(track))
+        for _,child in ipairs(container:GetDescendants()) do track(child) end
     end
     pcall(function()watch(game:GetService("CoreGui"))end)
     pcall(function()if type(gethui)=="function" then watch(gethui()) end end)
     pcall(function()watch(game:GetService("Players").LocalPlayer:FindFirstChildOfClass("PlayerGui"))end)
-    return function()
+    local function stop()
         if stopped then return end
         stopped=true
         for _,connection in ipairs(connections) do connection:Disconnect() end
-        for screen,enabled in pairs(hidden) do pcall(function()screen.Enabled=enabled end) end
+        if scope.DevilChilliEarlyGuardStop==stop then scope.DevilChilliEarlyGuardStop=nil end
         table.clear(connections);table.clear(hidden);table.clear(containers);table.clear(tracked);table.clear(markers)
     end
+    scope.DevilChilliEarlyGuardStop=stop
+    return stop
 end
 
 end)()
@@ -718,6 +722,35 @@ local function mount()
     else loading.Fail(session and session.Report and (session.Report.error or session.Report.reason) or "UI did not mount") end
     return session
 end
+-- BEGIN PINNED SOURCE CACHE
+local loadPinnedSource=(function()
+-- Optional immutable-file cache. Every cached/downloaded byte is checked before compilation.
+return function(url,size,expected,filename)
+    local started=os.clock();local info={CacheHit=false,Yields=0}
+    local function valid(source)
+        if type(source)~="string"or #source~=size then return false end
+        local checksum=0;local slice=os.clock()
+        for i=1,#source do
+            checksum=(checksum*33+source:byte(i))%4294967296
+            if i%8192==0 and task and type(task.wait)=="function"and os.clock()-slice>=.006 then
+                info.Yields+=1;task.wait();slice=os.clock()
+            end
+        end
+        return checksum==expected
+    end
+    if type(readfile)=="function"and type(isfile)=="function"then
+        local ok,source=pcall(function()if isfile(filename)then return readfile(filename)end end)
+        if ok and valid(source)then info.CacheHit=true;info.Seconds=os.clock()-started;return source,info end
+    end
+    local source=game:HttpGet(url)
+    assert(valid(source),"Pinned script download checksum mismatch or unexpected size")
+    if type(writefile)=="function"then pcall(writefile,filename,source)end
+    info.Seconds=os.clock()-started
+    return source,info
+end
+
+end)()
+-- END PINNED SOURCE CACHE
 local completed=table.pack(pcall(function()
 if task and task.wait then task.wait() end
 loading.Update("Preparing DEVIL HUB logo...",0.05)
@@ -765,7 +798,7 @@ if env.DevilChilliFullRuntimeTest then
 end
 local report={schema="devil-chilli-full-runtime-test-1",release="chilli-full-test-1",map="Steal an Egg",
     placeId=game.PlaceId,universeId=game.GameId,status="Starting",devirtualized=false,
-    frontend="DEVIL HUB / native constructor export",referenceSHA256="4074799ca466527ee037a801f404eb1e1afdddcea1a390016b7b60bf9d0859a8",referenceCommit="03468a41b2ecf2d983b39993ba603c943c140f4f"}
+    frontend="DEVIL HUB / native constructor export",referenceSHA256="0f44580b855c26de5ac84ca337be8bab742b2951e25c3b52817673b7fbe97fe9",referenceCommit="03468a41b2ecf2d983b39993ba603c943c140f4f"}
 env.DevilChilliFullRuntimeTest=report
 local function save()
     if type(writefile)=="function"then
@@ -785,19 +818,21 @@ local outcome=table.pack(xpcall(function()
     end
     warn("DEVIL HUB: loading the original systems into the main GUI")
     loading.Update("Downloading systems...",0.15)
-    local originalGameSource=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/7528273904be647ffe2020da866f2d05aaa082fb/devil-chilli-native-ui-runtime.lua")
-    assert(type(originalGameSource)=="string"and #originalGameSource==827707,"Pinned runtime download has an unexpected size")
-    loading.Update("Checking download...",0.4)
-    local checksum=0
-    for index=1,#originalGameSource do checksum=(checksum*33+string.byte(originalGameSource,index))%4294967296; if index%32768==0 and task and task.wait then task.wait() end end
-    assert(checksum==1143929092,"Pinned runtime download checksum mismatch")
+    -- BEGIN VERIFIED RUNTIME LOAD
+local originalGameSource,sourceInfo=loadPinnedSource("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/b320e2f390b7cac6b30755e8f97312ccc5d750f6/devil-chilli-native-ui-runtime.lua",828593,727709894,"DevilHub_StealRuntime_b320e2f390b7cac6b30755e8f97312ccc5d750f6.lua")
+    report.Source=sourceInfo;loading.Update("Preparing verified systems...",.4)
+-- END VERIFIED RUNTIME LOAD
     loading.Update("Compiling systems...",0.55)
-    local run,err=loadstring(originalGameSource,"Chilli / Steal an Egg / pinned runtime")
+    local compileStarted=os.clock()
+    local run,err=loadstring(originalGameSource,"DEVIL HUB / Steal an Egg / pinned runtime")
+    report.CompileSeconds=os.clock()-compileStarted
     assert(run,err)
     report.status="Runtime compiled";report.transferChecksumVerified=true;save()
     loading.Update("Starting original systems...",0.7)
     if task and task.wait then task.wait() end
-    return run()
+    local runtimeStarted=os.clock();local values=table.pack(run())
+    report.RuntimeSeconds=os.clock()-runtimeStarted
+    return table.unpack(values,1,values.n)
 end,function(err)return debug and type(debug.traceback)=="function"and debug.traceback(tostring(err),2)or tostring(err)end))
 report.ok=outcome[1]
 report.status=report.ok and "Runtime returned; verify original menu and systems in game"or"Failed"
