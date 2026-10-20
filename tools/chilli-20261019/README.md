@@ -1,5 +1,23 @@
 # Steal an Egg ? Chilli Halloween update (2026-10-19)
 
+Layout/trace follow-up (`steal-startup-layout-20261020-4`): the user still reports
+70% after the compatibility release; the live cause remains unconfirmed. Native
+startup no longer forces or locks ScreenGui.Enabled. The root frame is parented
+under a full-viewport CanvasGroup with GroupTransparency=1 before it can render;
+the early legacy-UI guard exempts this explicitly marked screen. After startup,
+the existing frontend handoff hides native screens as before. CanvasGroup's
+group transparency is documented by [Roblox](https://create.roblox.com/docs/reference/engine/classes/CanvasGroup).
+
+Startup breadcrumbs begin outside the protected bootstrap and continue through
+native layer decode, VM entry, UI write probe, window handle export, engine parts,
+frontend build and Ready. `DevilHub-Steal-Startup.json` stores LastPhase, elapsed
+time, executor identity and basic API flags locally; the console prints the same
+milestones. Diagnostic writes are optional and guarded. No startup data is sent
+over the network. This should distinguish a decoder/VM stall from a native UI or
+frontend stall on the next live run. It is not evidence that the live freeze is
+resolved. All 43 panel/layout/guard/trace checks and 15 cache checks pass, as do
+the unchanged-bootstrap round-trip and public router/delegate checks.
+
 70% compatibility follow-up (`steal-startup-compat-20261020-3`): a live user
 reported the whole game becoming unresponsive at the runtime-start phase after
 the previous release. The cause is not confirmed without executor diagnostics.

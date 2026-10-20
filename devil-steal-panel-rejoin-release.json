@@ -5,5 +5,7 @@
   "runtime_commit": "8fbab06f609f0431b3ddde6f329b4d7ec2070d1a",
   "live_game_verified": false,
   "game_bytecode_unchanged": true,
-  "delegate_sha256": "11970924d5b4a801b2a22ccfa4371cf810ed80f54655bd4c0cb73dd5b0d2a1b7"
+  "delegate_sha256": "11970924d5b4a801b2a22ccfa4371cf810ed80f54655bd4c0cb73dd5b0d2a1b7",
+  "main_loader_entry_commit": "6a05b830d808b9c553bfec70198024fbe9b3500e",
+  "main_loader_sha256": "5847baaa003885b85cb6b8eddc33c54742b5c0795af3822dc81c91a98be050b8"
 }
