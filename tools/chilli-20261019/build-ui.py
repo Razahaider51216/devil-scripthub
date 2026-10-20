@@ -1,11 +1,13 @@
 from pathlib import Path
-import json, re, subprocess, sys
+import hashlib, json, re, subprocess, sys
 
 here = Path(__file__).resolve().parent
 root = here.parents[1]
 runtime_ref = sys.argv[1]
 assert re.fullmatch(r'[0-9a-f]{40}', runtime_ref)
 manifest = json.loads((root / 'devil-chilli-native-ui-recovery.json').read_text())
+runtime=subprocess.check_output(['git','show',runtime_ref+':devil-chilli-native-ui-runtime.lua'],cwd=root)
+assert hashlib.sha256(runtime).hexdigest()==manifest['source_sha256']
 path = root / 'devil-steal-an-egg-chilli-recovered-ui-test.lua'
 source = path.read_text(encoding='utf-8')
 start = source.index('local attach=(function()') + len('local attach=(function()\n')
@@ -27,6 +29,9 @@ source, count = re.subn(r'assert\(checksum==\d+,"Pinned runtime', 'assert(checks
 assert count == 1
 source, count = re.subn(r'referenceSHA256="[0-9a-f]+"', 'referenceSHA256="' + manifest['source_sha256'] + '"', source)
 assert count == 1
+source,count=re.subn(r'referenceCommit="[0-9a-f]+"','referenceCommit="'+runtime_ref+'"',source)
+assert count==1
+source=re.sub(r'release="chilli-full-test-1"','release="'+manifest['release']+'"',source)
 for name in ['devil-steal-an-egg-chilli-recovered-ui-test.lua', 'devil-steal-an-egg-chilli-main-gui.lua']:
     target = root / name
     target.write_text(source, encoding='utf-8', newline='\n')

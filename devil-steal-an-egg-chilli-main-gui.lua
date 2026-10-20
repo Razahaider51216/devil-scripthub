@@ -66,6 +66,9 @@ return function(createLibrary,restoreStartup)
     local stopped,mounted,syncing=false,false,false
     local library,window,nativeWindow,nativeRoot
     local connections,items,tabs,groups={},{},{},{}
+    local choiceCache=setmetatable({},{__mode="k"})
+    local syncOrder,syncCursor,lastDiscovery={},1,0
+    report.performance={DropdownScans=0,SyncPasses=0,ControlsRead=0,VisibilityWrites=0,MaxSyncSeconds=0}
     local embedded,hiddenScreens={},{}
     local session={Report=report,Items=items}
     env.DevilChilliMainUI=session
@@ -108,15 +111,19 @@ return function(createLibrary,restoreStartup)
                 end)
             end
         end
-        for screen,enabled in pairs(hiddenScreens) do pcall(function()screen.Enabled=enabled end) end
+        if not session.OriginalGuiRemoved then
+            for screen,enabled in pairs(hiddenScreens) do pcall(function()screen.Enabled=enabled end) end
+        end
         if library then pcall(function() library:Destroy() end) end
         if restoreStartup then restoreStartup();restoreStartup=nil end
         -- Unloading this adapter leaves the working protected engine running.
-        if nativeWindow and not rawget(nativeWindow,"_destroyed") then try(nativeWindow,"Open") end
+        if nativeWindow and not session.OriginalGuiRemoved and not rawget(nativeWindow,"_destroyed") then try(nativeWindow,"Open") end
         if env.DevilChilliMainUI==session then env.DevilChilliMainUI=nil end
     end
     local function rootFor(candidate)
         if type(candidate)~="table" or rawget(candidate,"_kind")~="Window" or rawget(candidate,"_destroyed") then return end
+        local store=rawget(candidate,"_DevilControlStore")
+        if typeof(store)=="Instance"and store:GetAttribute("DevilHubControlState")==true then return store end
         local nativeTabs=rawget(candidate,"Tabs")
         if type(nativeTabs)~="table" then return end
         for _,tab in ipairs(nativeTabs) do
@@ -174,9 +181,22 @@ return function(createLibrary,restoreStartup)
         local row=rawget(option,"Instance")
         local numbered={}
         if typeof(row)=="Instance" then
-            for _,node in ipairs(row:GetDescendants()) do
+            local cache=choiceCache[row]
+            if not cache then
+                cache={Dirty=true};choiceCache[row]=cache
+                local function dirty()cache.Dirty=true end
+                table.insert(connections,row.DescendantAdded:Connect(dirty))
+                if row.DescendantRemoving then table.insert(connections,row.DescendantRemoving:Connect(dirty))end
+            end
+            if cache.Dirty then
+                cache.Nodes={};cache.Dirty=false;report.performance.DropdownScans+=1
+                for _,node in ipairs(row:GetDescendants())do
+                    if node.Name:match("^Option%d+$")and node:IsA("GuiButton")then table.insert(cache.Nodes,node)end
+                end
+            end
+            for _,node in ipairs(cache.Nodes) do
                 local index=tonumber(node.Name:match("^Option(%d+)$"))
-                if index and node:IsA("GuiButton") then
+                if index and node.Parent then
                     local label=node:FindFirstChild("Label")
                     if label and label:IsA("TextLabel") then numbered[index]=label.Text end
                 end
@@ -283,12 +303,37 @@ return function(createLibrary,restoreStartup)
             end
         end
     end
-    local function add(option,section,group)
+    local function removeOriginalShell()
+        local store=rawget(nativeWindow,"_DevilControlStore")
+        if not store then
+            -- Preserve native handle/controller instances outside any ScreenGui.
+            -- Destroying them would break game callbacks, state bindings and rich panels.
+            store=Instance.new("Folder");store.Name="DevilHubControlState"
+            store:SetAttribute("DevilHubControlState",true)
+            -- An unparented Folder cannot render under executor-specific gethui containers.
+            for _,child in ipairs(nativeRoot:GetChildren())do child.Parent=store end
+            nativeWindow._DevilControlStore=store
+            nativeRoot:Destroy()
+        end
+        local removed=1
+        for screen in pairs(hiddenScreens)do
+            if screen~=nativeRoot and screen.Parent and screen.Name=="ChilliLeftCenter"then
+                -- Retain controllers/templates, discard the original launcher ScreenGui.
+                for _,child in ipairs(screen:GetChildren())do child.Parent=store end
+                screen:Destroy();removed+=1
+            end
+        end
+        session.OriginalGuiRemoved=true;session.NativeState=store
+        report.originalGuiRemoved=true;report.originalScreenGuisRemoved=removed
+        report.nativeControllerBackingRetained=true
+        nativeRoot=store
+    end
+    local function add(option,section,group,target)
         if items[option] then return end
         local kind=tostring(rawget(option,"Type") or ""):lower():gsub("[%s_%-]","")
         local name=tostring(rawget(option,"Name") or "")
-        local entry={Native=option,Kind=kind,Group=group,Section=section}
-        items[option]=entry;report.nativeOptions+=1
+        local entry={Native=option,Kind=kind,Group=group,Section=section,Tab=target}
+        items[option]=entry;table.insert(syncOrder,entry);report.nativeOptions+=1
         local function change(v)
             if stopped or not mounted or syncing then return end
             local ok,err=pcall(function()invoke(option,"Set",v,true)end)
@@ -348,7 +393,7 @@ return function(createLibrary,restoreStartup)
                 target=window:CreateTab({Name=name,Icon=icon(name)});tabs[tab]=target
                 if typeof(target._page)=="Instance" then
                     table.insert(connections,target._page:GetPropertyChangedSignal("Visible"):Connect(function()
-                        if mounted and not stopped and target._page.Visible then try(nativeWindow,"SelectTab",tab) end
+                        if mounted and not stopped and target._page.Visible then try(nativeWindow,"SelectTab",tab);session.Sync()end
                     end))
                 end
             end
@@ -361,7 +406,7 @@ return function(createLibrary,restoreStartup)
                 for _,option in ipairs(section.Options) do
                     if tabName=="settings" and tostring(option.Name)=="UI Size" then continue end
                     local fresh=items[option]==nil
-                    add(option,section,group)
+                    add(option,section,group,target)
                     if fresh and not mounted then
                         added+=1
                         if added%20==0 and task and task.wait then task.wait() end
@@ -370,21 +415,33 @@ return function(createLibrary,restoreStartup)
             end
         end
     end
-    function session.Sync()
+    function session.Sync(background)
         if stopped or not mounted or syncing then return end
         syncing=true
+        local started=os.clock();report.performance.SyncPasses+=1
         local ok,err=pcall(function()
-            populate()
-            for native,entry in pairs(items) do
+            if not background or started-lastDiscovery>=2 then populate();lastDiscovery=started end
+            local limit=background and math.min(24,#syncOrder)or #syncOrder
+            for _=1,limit do
+                if syncCursor>#syncOrder then syncCursor=1 end
+                local entry=syncOrder[syncCursor];syncCursor+=1
+                if entry.Removed then continue end
+                local native=entry.Native
                 local control=entry.Control
                 if rawget(native,"_destroyed") then
                     if control.Destroy then control:Destroy() end
                     if entry.Apply and entry.Apply.Destroy then entry.Apply:Destroy() end
-                    items[native]=nil;continue
+                    items[native]=nil;entry.Removed=true;continue
                 end
+                local page=entry.Tab and entry.Tab._page
+                if background and typeof(page)=="Instance"and not page.Visible then continue end
+                report.performance.ControlsRead+=1
                 local shownOK,shown=try(native,"IsVisible")
-                if shownOK and control.SetVisible then control:SetVisible(shown) end
-                if shownOK and entry.Apply and entry.Apply.SetVisible then entry.Apply:SetVisible(shown) end
+                if shownOK and entry.Visible~=shown then
+                    if control.SetVisible then control:SetVisible(shown)end
+                    if entry.Apply and entry.Apply.SetVisible then entry.Apply:SetVisible(shown)end
+                    entry.Visible=shown;report.performance.VisibilityWrites+=1
+                end
                 if entry.Embedded or entry.Kind=="button" then continue end
                 local current=value(native)
                 if entry.Range then
@@ -414,9 +471,11 @@ return function(createLibrary,restoreStartup)
                     if typeof(control.Desc)=="Instance" then control.Desc.Text=description end
                     entry.Note=description
                 end
+                if background and os.clock()-started>=.002 then break end
             end
         end)
         syncing=false
+        report.performance.MaxSyncSeconds=math.max(report.performance.MaxSyncSeconds,os.clock()-started)
         if not ok then report.syncError=tostring(err);notify(err);save() end
     end
     local ok,err=xpcall(function()
@@ -459,13 +518,14 @@ return function(createLibrary,restoreStartup)
         end
         settingsTab=settingsTab or window:CreateTab({Name="Settings",Icon="settings"})
         configureAppearance(library,window,settingsTab,embedded,env)
+        removeOriginalShell()
         local nativeFrame=nativeRoot:FindFirstChild("Frame")
         if nativeFrame then table.insert(connections,nativeRoot.Destroying:Connect(session.Destroy)) end
         if window.Gui and window.Gui.Destroying then table.insert(connections,window.Gui.Destroying:Connect(session.Destroy)) end
         local elapsed=0
         table.insert(connections,game:GetService("RunService").Heartbeat:Connect(function(dt)
             elapsed+=dt
-            if elapsed>=0.45 then elapsed=0;session.Sync();hideOriginalScreens() end
+            if elapsed>=0.1 then elapsed=0;session.Sync(true)end
         end))
         report.status="Mounted DEVIL HUB main GUI on original Chilli handles";report.libraryCommit="c8251f76f74d9942114ebccb0564aa0ac196320a";save()
     end,function(e)return tostring(e)end)
@@ -763,9 +823,9 @@ if env.DevilChilliFullRuntimeTest then
     warn("DEVIL HUB: this full-runtime test already ran; rejoin before testing again")
     return
 end
-local report={schema="devil-chilli-full-runtime-test-1",release="chilli-full-test-1",map="Steal an Egg",
+local report={schema="devil-chilli-full-runtime-test-1",release="chilli-performance-20261021-1",map="Steal an Egg",
     placeId=game.PlaceId,universeId=game.GameId,status="Starting",devirtualized=false,
-    frontend="DEVIL HUB / native constructor export",referenceSHA256="a761fae7ed9e555cf19fdb199e600297e3c77c8a93da42c3751d3694be3a77d0",referenceCommit="03468a41b2ecf2d983b39993ba603c943c140f4f"}
+    frontend="DEVIL HUB / native constructor export",referenceSHA256="a472e94451b2f138fae3bd99340e6c16c195faf4f8255ed71f7e24c129b05eb7",referenceCommit="97c207f985864561250f11b07480095814dff492"}
 env.DevilChilliFullRuntimeTest=report
 local function save()
     if type(writefile)=="function"then
@@ -785,12 +845,12 @@ local outcome=table.pack(xpcall(function()
     end
     warn("DEVIL HUB: loading the original systems into the main GUI")
     loading.Update("Downloading systems...",0.15)
-    local originalGameSource=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/869d9fbb4313ac47bcff5362554049bd98ae5ee7/devil-chilli-native-ui-runtime.lua")
-    assert(type(originalGameSource)=="string"and #originalGameSource==812281,"Pinned runtime download has an unexpected size")
+    local originalGameSource=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/97c207f985864561250f11b07480095814dff492/devil-chilli-native-ui-runtime.lua")
+    assert(type(originalGameSource)=="string"and #originalGameSource==812731,"Pinned runtime download has an unexpected size")
     loading.Update("Checking download...",0.4)
     local checksum=0
     for index=1,#originalGameSource do checksum=(checksum*33+string.byte(originalGameSource,index))%4294967296; if index%32768==0 and task and task.wait then task.wait() end end
-    assert(checksum==4279649682,"Pinned runtime download checksum mismatch")
+    assert(checksum==1168144710,"Pinned runtime download checksum mismatch")
     loading.Update("Compiling systems...",0.55)
     local run,err=loadstring(originalGameSource,"Chilli / Steal an Egg / pinned runtime")
     assert(run,err)
