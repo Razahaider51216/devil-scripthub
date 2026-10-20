@@ -1,0 +1,32 @@
+{
+  "release": "climb-steal-control-20261020-11",
+  "planner_runtime_checks": 130,
+  "gui_settings_checks": 105,
+  "actual_previous_production_core_verified": true,
+  "old_defects_reproduced": [
+    "Farm Off leaves prompt held until worker resumes",
+    "retired worker interrupts later manual hold",
+    "off/on resumes stale attempt",
+    "error leaks held prompt",
+    "synchronous executor fallback blocks farm worker",
+    "airborne native input begins"
+  ],
+  "regressions_passed": [
+    "immediate release and manual hold preservation",
+    "off/on cancellation generation",
+    "error finalizer",
+    "bounded executor child and cancellation",
+    "uncancellable child tracked without duplicate calls",
+    "retired child cannot rewrite report",
+    "airborne input prevented",
+    "supported side selected beside edge",
+    "out-of-range roof rejected",
+    "obstructed standing point rejected"
+  ],
+  "public_startup_transport": "old/new exact source, nil arguments/returns, corrupted payload rejection",
+  "main_router_cases": 33,
+  "other_map_entries_preserved": true,
+  "live_game_verified": false,
+  "entry_sha256": "1187cfe8e75caa3ee807818938989ed2fe6918a7365d01edddad294bf231d606",
+  "main_loader_sha256": "716d0a2294fa3e4033be2af329df9b1592d40765d410585fc213c4d8c8f4dfff"
+}

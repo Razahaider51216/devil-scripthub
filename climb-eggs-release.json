@@ -5,5 +5,8 @@
   "source_sha256": "dc05b57cb8804f1f3e2594a625b765b0e85799bdebd3480887de72ec6bfbcd08",
   "entry_sha256": "1187cfe8e75caa3ee807818938989ed2fe6918a7365d01edddad294bf231d606",
   "bytes": 269108,
-  "live_verified": false
+  "live_verified": false,
+  "runtime_commit": "cfb08293efa6ea72e12c76f12a3e11d7ce007364",
+  "main_loader_sha256": "716d0a2294fa3e4033be2af329df9b1592d40765d410585fc213c4d8c8f4dfff",
+  "other_routes_unchanged": true
 }

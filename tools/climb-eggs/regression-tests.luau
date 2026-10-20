@@ -82,6 +82,26 @@ app.FarmStep()
 check(EXPECT_BASELINE and begins==1 or not EXPECT_BASELINE and begins==0,'airborne pickup started')
 app.Destroy();hum.FloorMaterial=nil
 if not EXPECT_BASELINE then
+ -- Executors without task.cancel keep one unresolved fallback rather than
+ -- spawning copies. Its late completion cannot rewrite a retired report.
+ app=session();prompt.InputHoldBegin=function()end
+ local workers={};local activations=0
+ task.spawn=function(fn)
+  local thread=coroutine.create(fn);workers[#workers+1]=thread
+  local ok,err=coroutine.resume(thread);assert(ok,err);return thread
+ end
+ task.wait=function(dt)
+  if coroutine.running()~=mainThread then coroutine.yield()else originalWait(dt)end
+ end
+ deps.FirePrompt=function()activations+=1;task.wait(10)end
+ start=now;app.FarmStep()
+ check(now-start<6 and activations==1,'uncancellable fallback blocked worker')
+ local retired=app.Report.interaction;local stage=retired.stage
+ app.Set('Farm',false);app.Set('Farm',true)
+ app.FarmStep();check(activations==1,'unresolved executor call was duplicated')
+ assert(coroutine.resume(workers[1]))
+ check(retired.stage==stage and retired.fallbackReturnedAt==nil,'retired callback rewrote interaction evidence')
+ task.wait=originalWait;task.spawn=realSpawn;app.Destroy()
  -- A nearest-side ray misses the platform. Choose another grounded side.
  app=session();prompt.InputHoldBegin=function()attrs.CarryingEgg=wild.id end
  RaycastParams={new=function()return{}end};Enum.RaycastFilterType={Exclude='Exclude'}
