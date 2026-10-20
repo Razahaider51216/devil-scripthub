@@ -798,7 +798,7 @@ if env.DevilChilliFullRuntimeTest then
 end
 local report={schema="devil-chilli-full-runtime-test-1",release="chilli-full-test-1",map="Steal an Egg",
     placeId=game.PlaceId,universeId=game.GameId,status="Starting",devirtualized=false,
-    frontend="DEVIL HUB / native constructor export",referenceSHA256="0f44580b855c26de5ac84ca337be8bab742b2951e25c3b52817673b7fbe97fe9",referenceCommit="03468a41b2ecf2d983b39993ba603c943c140f4f"}
+    frontend="DEVIL HUB / native constructor export",referenceSHA256="9b502ea139263086558d595ac691a192950068d462a72fc920216ae754a36c4d",referenceCommit="03468a41b2ecf2d983b39993ba603c943c140f4f"}
 env.DevilChilliFullRuntimeTest=report
 local function save()
     if type(writefile)=="function"then
@@ -819,7 +819,7 @@ local outcome=table.pack(xpcall(function()
     warn("DEVIL HUB: loading the original systems into the main GUI")
     loading.Update("Downloading systems...",0.15)
     -- BEGIN VERIFIED RUNTIME LOAD
-local originalGameSource,sourceInfo=loadPinnedSource("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/b320e2f390b7cac6b30755e8f97312ccc5d750f6/devil-chilli-native-ui-runtime.lua",828593,727709894,"DevilHub_StealRuntime_b320e2f390b7cac6b30755e8f97312ccc5d750f6.lua")
+local originalGameSource,sourceInfo=loadPinnedSource("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/15de86622d381541c15e4563fb656735de2bbdd6/devil-chilli-native-ui-runtime.lua",828670,3884169547,"DevilHub_StealRuntime_15de86622d381541c15e4563fb656735de2bbdd6.lua")
     report.Source=sourceInfo;loading.Update("Preparing verified systems...",.4)
 -- END VERIFIED RUNTIME LOAD
     loading.Update("Compiling systems...",0.55)
