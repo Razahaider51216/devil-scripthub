@@ -47,7 +47,7 @@ elif mode == 'router':
     before = native.read_text(encoding='utf-8')
     assert hashlib.sha256(before.encode()).hexdigest() == audit['after_native_sha256']
     route = next(r for r in audit['routes'] if r['File']=='devil-steal-an-egg.lua')
-    old_version = route['Version']
+    old_version = re.search(r'entry.File=="devil-steal-an-egg.lua"and"([^"]+)"',before)[1]
     source, count = re.subn(r'^    \{Name="Steal an Egg"[^\n]+',
         lambda _: '    {Name="Steal an Egg",Universe=10563114921,Place=107778070777162,File="devil-steal-an-egg.lua",Commit="'+commit+'",Version="'+release+'"},',before,flags=re.M)
     assert count == 1

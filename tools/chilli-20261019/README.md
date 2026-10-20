@@ -1,5 +1,27 @@
 # Steal an Egg ? Chilli Halloween update (2026-10-19)
 
+Steal Panel/rejoin fix (2026-10-20): the native queued Auto Load payload now
+opens the DEVIL HUB main loader and shares its duplicate-arrival guard. The
+native Settings ScreenGui is disabled before parenting, preventing an upstream
+menu from rendering during the frontend handoff. Real item icons keep white
+image tint, zero image transparency and neutral gradients before native name
+randomization. A missing prototype icon is created in the existing row; initially
+empty catalog icons can refresh after live assets become available. Original
+selection buttons and the protected game bytecode remain intact.
+
+Validation: `test-panel-rejoin.py` executes the actual patched catalog lookup,
+row redraw, pre-parent visibility statement and queued payload. It also exercises
+the icon helper through the real shared blue theme with randomized node names.
+All 17 checks pass; the runtime decompressor round-trip preserves all 368,215
+game bytecode bytes. Live Roblox rendering has not been verified.
+
+Release build order: `build-update.py`, commit the runtime, `build-ui.py
+RUNTIME_COMMIT`, commit the frontend, `build-release.py delegate GUI_COMMIT`,
+commit the delegate, and `build-release.py router DELEGATE_COMMIT`. The latter
+updates only Steal an Egg; the other ten routes and the Auto Execute bootstrap
+remain unchanged. Run `test-panel-rejoin.py`, `test-delegate.py`,
+`test-public-loader.py` and `tools/blue-gui/test-router.py` before publishing.
+
 The DEVIL HUB adapter now uses Chilli's StealAnEggg release pinned to upstream
 03468a41b2ecf2d983b39993ba603c943c140f4f, reached through the current Chilli.lua router.
 The previous production runtime was pinned to the older StealAnEgg release.
