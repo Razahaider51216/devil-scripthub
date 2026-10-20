@@ -139,6 +139,19 @@ return function(scope,catalog)
     function A.TaggedOwn(tag)
         for _,n in ipairs(A.Tags:GetTagged(tag))do if A.Owned(n)then return n end end
     end
+    function A.MarketPosition(kind)
+        local _,_,root=A.Character();local best,distance
+        for _,prompt in ipairs(A.Tags:GetTagged("MarketPrompt"))do
+            if prompt.Parent and prompt:IsDescendantOf(workspace)and prompt:GetAttribute("MarketType")==kind then
+                local parent=prompt.Parent
+                local position=parent:IsA("Attachment")and parent.WorldPosition or parent:IsA("BasePart")and parent.Position
+                if not position then local part=A.Part(parent);position=part and part.Position end
+                local d=position and root and(root.Position-position).Magnitude
+                if d and(not distance or d<distance)then best,distance=position,d end
+            end
+        end
+        return best,distance
+    end
     function A.Mine()
         local map=workspace:FindFirstChild("RuntimeMap");return map and map:FindFirstChild("CommunalMine")
     end
@@ -402,7 +415,7 @@ end
 end)()
 local makeCore=(function()
 return function(A,P)
-    local C={Config=P.Defaults(),Jobs={},Alive=true,Mining=false,Generation=0,Report={Version="devilv4-test-20261020-3",Jobs={},Requests=0,Replies=0,Confirmed=0,Recoveries=0,Errors={},LiveVerified=false},Target=nil}
+    local C={Config=P.Defaults(),Jobs={},Alive=true,Mining=false,Generation=0,Report={Version="devilv4-test-20261021-1",Jobs={},Requests=0,Replies=0,Confirmed=0,Recoveries=0,Errors={},LiveVerified=false},Target=nil}
     local cfg=C.Config;local busyMoney=false;local movingJob=nil;local epoch={};local plans={};local collected={};local eventState
     local aimAt,lastAimTarget=0,nil;local nextAt={};local farmRetryAt=0
     local lastInputAt,progress=nil,nil
@@ -464,6 +477,7 @@ return function(A,P)
         local ok,err=xpcall(fn,debug.traceback);busyMoney=false;if not ok then error(err)end
     end
     local function move(valid,key,target)
+        if C.Shopping and C.Shopping~=key then status(key,"Waiting for shop");return false end
         if C.Selling and C.Selling~=key then status(key,"Waiting for sale");return false end
         if movingJob and movingJob~=key then status(key,"Waiting for movement queue");return false end
         movingJob=key;C.StopMining()
@@ -482,22 +496,57 @@ return function(A,P)
     end
     function C.Surface(mode)
         C.Run("Travel",function(valid)
-            if movingJob or C.Selling then return end;C.StopMining();C.Target=nil;if A.ReleasePhase then A.ReleasePhase()end
+            if movingJob or C.Selling or C.Shopping then return end;C.StopMining();C.Target=nil;if A.ReleasePhase then A.ReleasePhase()end
             local _,_,r=A.Character();local before=r and r.Position
             if valid()then A.Fire("Surface",mode);A.Wait(.6)end
             if not valid()then return end
             local _,_,now=A.Character();status("Travel",now and before and(now.Position-before).Magnitude>3 and"Travel confirmed"or"Travel requested; check position")
         end,true)
     end
+    local function shopSession(valid,key,fn)
+        money(valid,key,function()
+            if C.Selling or movingJob or A.MoveBusy then status(key,"Waiting for movement / sale");return end
+            C.Shopping=key;C.StopMining()
+            local ok,err=xpcall(fn,debug.traceback)
+            C.Shopping=nil
+            if not ok then error(err)end
+        end)
+    end
+    local function shopOpen(valid,key,remote)
+        local snap=invoke(valid,key,remote,"Open")
+        if type(snap)~="table"or(snap.Code~="TooFar"and snap.Code~="OutOfRange")then return snap end
+        if not valid()then return end
+        local kind=remote=="Shovels"and"Shovels"or"Gear"
+        local position=A.MarketPosition and A.MarketPosition(kind)
+        if not position then
+            if A.ReleasePhase then A.ReleasePhase()end
+            A.Fire("Surface","Sell");status(key,"Loading market area")
+            for _=1,6 do
+                A.Wait(.2);if not valid()then return end
+                position=A.MarketPosition and A.MarketPosition(kind);if position then break end
+            end
+        end
+        if not position then status(key,"Shop not loaded; visit the market and retry");return end
+        if not move(valid,key,{Position=position})then return end
+        for _=1,3 do
+            if not valid()then return end
+            snap=invoke(valid,key,remote,"Open")
+            if type(snap)~="table"or(snap.Code~="TooFar"and snap.Code~="OutOfRange")then break end
+            A.Wait(.2)
+        end
+        return snap
+    end
     function C.RefreshShop()
-        C.Run("ShopRefresh",function(valid)
-            local sh=invoke(valid,"ShopRefresh","Shovels","Open");if type(sh)=="table"and sh.Owned then A.Snapshots.Shovels=sh end
-            local gear=invoke(valid,"ShopRefresh","Gear","Open");if type(gear)=="table"and gear.Counts then A.Snapshots.Gear=gear end
-        end,true)
+        C.Run("ShopRefresh",function(valid)shopSession(valid,"ShopRefresh",function()
+            for _,remote in ipairs({"Shovels","Gear"})do
+                local snap=shopOpen(valid,"ShopRefresh",remote)
+                if valid()and type(snap)=="table"and(remote=="Shovels"and snap.Owned or remote=="Gear"and snap.Counts)then A.Snapshots[remote]=snap end
+            end
+        end)end,true)
     end
     local handlers={}
     handlers.FarmFinds=function(valid)
-        if A.Clock()<(C.NavigationUntil or 0)or C.Selling or C.Jobs.Plant or A.Attr("AfkTraining",false)or(cfg.Train and not cfg.Rotate)then return end
+        if A.Clock()<(C.NavigationUntil or 0)or C.Selling or C.Shopping or C.Jobs.Plant or A.Attr("AfkTraining",false)or(cfg.Train and not cfg.Rotate)then return end
         local target=C.Target
         if not target or not A.ValidFind(target.Instance)or target.Kind~=cfg.FindKind and cfg.FindKind~="All"or target.Rarity~=cfg.FindRarity and cfg.FindRarity~="All"then
             target=nil
@@ -519,7 +568,7 @@ return function(A,P)
         if valid()then status("FarmFinds","Target: "..target.Name.." #"..target.Serial);C.UpdateMining()end
     end
     handlers.Plant=function(valid)
-        if movingJob or C.Jobs.Train or A.Attr("AfkTraining",false)then return end
+        if movingJob or C.Shopping or C.Jobs.Train or A.Attr("AfkTraining",false)then return end
         local tool;for _,t in ipairs(A.Tools())do if t:GetAttribute("ItemId")=="Egg"then tool=t;break end end
         if not tool then status("Plant","Waiting for inventory eggs");return end
         local position=A.PlantPosition();if not position then status("Plant","Waiting for free ground on your plot");return end
@@ -543,7 +592,7 @@ return function(A,P)
     for key,entry in pairs({SellLoot={"SellAll"},SellEggs={"SellSpareEggs","SpareEggs"},SellPets={"SellStoredPets","StoredPets"}})do
         local job,action,quoteKey=key,entry[1],entry[2]
         handlers[job]=function(valid)
-            if C.Selling or movingJob or A.MoveBusy then nextAt[job]=A.Clock()+.2;return end
+            if C.Selling or C.Shopping or movingJob or A.MoveBusy then nextAt[job]=A.Clock()+.2;return end
             C.Selling=job;C.StopMining()
             local ok,err=xpcall(function()
                 local function snapshot()
@@ -581,8 +630,8 @@ return function(A,P)
         end
     end
     function C.BuyShovel(valid,choice)
-        money(valid,"BuyShovel",function()
-            local snap=invoke(valid,"BuyShovel","Shovels","Open");if type(snap)~="table"or not snap.Owned then return end;A.Snapshots.Shovels=snap
+        shopSession(valid,"BuyShovel",function()
+            local snap=shopOpen(valid,"BuyShovel","Shovels");if not valid()or type(snap)~="table"or not snap.Owned then return end;A.Snapshots.Shovels=snap
             local catalog=A.Modules.ShovelCatalog;if not catalog then status("BuyShovel","Waiting for shovel catalog");return end
             local active=catalog.tier(A.Attr("ShovelLevel",1));local item,action=P.ShopChoice(catalog.Tiers,snap,choice or cfg.Shovel,A.Attr("Cash",0),cfg.Reserve,active and active.Id)
             if not item then status("BuyShovel","Equipped best / saving cash");return end
@@ -591,22 +640,35 @@ return function(A,P)
     end
     handlers.BuyShovel=function(valid)C.BuyShovel(valid)end
     function C.BuyGear(valid,id)
-        money(valid,"BuyGear",function()
-            local snap=invoke(valid,"BuyGear","Gear","Open");if type(snap)~="table"or not snap.Counts then return end;A.Snapshots.Gear=snap
+        shopSession(valid,"BuyGear",function()
+            local snap=shopOpen(valid,"BuyGear","Gear");if not valid()or type(snap)~="table"or not snap.Counts then return end;A.Snapshots.Gear=snap
             local catalog=A.Modules.ShovelCatalog;local tier=catalog and catalog.index(id);tier=tier and catalog.Tiers[tier]
             if tier and tier.Kind~="Drill"then return end
             if tier and snap.Owned and snap.Owned[id]then
-                if A.Attr("ActiveDrillId")~=id then invoke(valid,"BuyGear","Gear","Equip",id,tier.Cost,snap.Stock and snap.Stock.Key)end;return
+                if A.Attr("ActiveDrillId")~=id then invoke(valid,"BuyGear","Gear","Equip",id,tier.Cost,snap.Stock and snap.Stock.Key)else status("BuyGear","Already equipped")end;return
             end
             local def=(A.Modules.GearConfig or{}).Types;def=def and def[id]
             if not tier and not def then status("BuyGear","Choose gear or a drill");return end
             if not tier and(tonumber(snap.Counts[id])or 0)>=cfg.GearLimit then status("BuyGear","Inventory limit reached");return end
-            if def and def.SingleOwned and snap.Owned and snap.Owned[id]then status("BuyGear","Already owned");return end
+            if def and def.SingleOwned and(tonumber(snap.Counts[id])or 0)>0 then status("BuyGear","Already owned");return end
             local price=tier and tier.Cost or snap.Prices and snap.Prices[id]
             local stock=snap.Stock
             if not stock or not stock.Key or not stock.Remaining or(tonumber(stock.Remaining[id])or 0)<=0 then status("BuyGear","Waiting for stock");return end
             if not P.Affordable(price,A.Attr("Cash",0),cfg.Reserve)then status("BuyGear","Saving cash / waiting for live price");return end
-            local reply=invoke(valid,"BuyGear","Gear","Buy",id,price,stock.Key);if type(reply)=="table"and reply.Counts then A.Snapshots.Gear=reply end
+            local reply=invoke(valid,"BuyGear","Gear","Buy",id,price,stock.Key)
+            if valid()and type(reply)=="table"and(reply.Code=="StockChanged"or reply.Code=="PriceChanged")then
+                snap=shopOpen(valid,"BuyGear","Gear")
+                if not valid()or type(snap)~="table"or not snap.Counts then return end
+                A.Snapshots.Gear=snap;price=tier and tier.Cost or snap.Prices and snap.Prices[id];stock=snap.Stock
+                if not tier and(tonumber(snap.Counts[id])or 0)>=(def and def.SingleOwned and 1 or cfg.GearLimit)then status("BuyGear","Inventory limit reached");return end
+                if not stock or not stock.Key or not stock.Remaining or(tonumber(stock.Remaining[id])or 0)<=0 then status("BuyGear","Waiting for stock");return end
+                if not P.Affordable(price,A.Attr("Cash",0),cfg.Reserve)then status("BuyGear","Saving cash / waiting for live price");return end
+                reply=invoke(valid,"BuyGear","Gear","Buy",id,price,stock.Key)
+            end
+            if type(reply)=="table"and reply.Counts then A.Snapshots.Gear=reply end
+            if valid()and tier and type(reply)=="table"and reply.Code=="Purchased"then
+                invoke(valid,"BuyGear","Gear","Equip",id,tier.Cost,reply.Stock and reply.Stock.Key or stock.Key)
+            end
         end)
     end
     handlers.BuyGear=function(valid)C.BuyGear(valid,cfg.Gear)end
@@ -750,6 +812,7 @@ return function(A,P)
     end
     local trainStarted=0;local miningStarted=A.Clock()
     handlers.Train=function(valid)
+        if C.Shopping or C.Selling or movingJob then return end
         local now=A.Clock()
         if cfg.Rotate and trainStarted>0 and now-trainStarted>=cfg.TrainSeconds then
             C.StopMining();if valid()then A.Fire("Surface","DigSite")end
@@ -777,7 +840,7 @@ return function(A,P)
         local now=A.Clock()
         if not C.Alive or not(cfg.Dig or cfg.FarmFinds)then C.StopMining();return end
         local blocked=A.Blocked()
-        if C.Selling or movingJob or A.MoveBusy or C.Jobs.Plant or C.Jobs.Potions or C.Jobs.UseGear or C.Jobs.Pumpkin or blocked or A.Attr("AfkTraining",false)then
+        if C.Shopping or C.Selling or movingJob or A.MoveBusy or C.Jobs.Plant or C.Jobs.Potions or C.Jobs.UseGear or C.Jobs.Pumpkin or blocked or A.Attr("AfkTraining",false)then
             C.StopMining();status("Dig",C.Selling and"Selling; mining resumes afterwards"or blocked and(A.BlockReason and A.BlockReason()or"Temporarily paused")or A.Attr("AfkTraining",false)and"Training; mining paused"or"Finishing movement / item action");return
         end
         if cfg.FarmFinds and not C.Target then C.StopMining();status("Dig","Waiting for selected target");return end
@@ -919,7 +982,7 @@ local catalog={["Egg"]={["Titanic__Nebula"]={["Name"]="Titanic Nebula Egg",["Rar
 local A=makeAdapter(scope,catalog);local C=makeCore(A,P);local cfg=C.Config
 local app={Version=C.Report.Version,Core=C,Adapter=A,Config=cfg,Report=C.Report,Stopped=false};scope.DevilV4Test=app
 local window,view,library,logo;local rebuilding=false;local language="EN";local languageOwner,baseSet,wrappedSet
-local statusWidget,detailsWidget,settingsWidget,travelWidget,sellWidget;local controls={};local jobNames={};local selectedTarget;local lastRefresh=0
+local statusWidget,detailsWidget,settingsWidget,travelWidget,sellWidget,shovelWidget,gearWidget;local controls={};local jobNames={};local selectedTarget;local lastRefresh=0
 local profile="DevilHub_MiningTest_"..A.Player.UserId.."_"..game.PlaceId..".json"
 local settingsStatus="Ready";local buildUI
 local function t(en,th)return language=="TH"and th or en end
@@ -1032,12 +1095,14 @@ end
         view.Picker(shovels,"Shovels",t("Shovel / price / ownership","พลั่ว ราคา และสถานะ"),function(id)cfg.Shovel=id end)
         toggle(shovels,"BuyShovel","Auto Buy / Equip Shovel","ซื้อและใช้พลั่วอัตโนมัติ")
         button(shovels,"Buy / Equip Selected Shovel","ซื้อหรือใช้พลั่วที่เลือก",function()C.Run("BuyShovel",function(valid)C.BuyShovel(valid,cfg.Shovel)end,true)end)
+        shovelWidget=shovels:CreateLabel({Text=t("Purchase results appear here.","ผลการซื้อจะแสดงตรงนี้")})
         local gear=group(shop,"Drills and gear","สว่านและอุปกรณ์","Right")
         view.Picker(gear,"Gear",t("Gear / live price / stock","อุปกรณ์ ราคาปัจจุบัน และสต็อก"),function(id)cfg.Gear=id end)
         toggle(gear,"BuyGear","Auto Buy / Equip Selected Gear","ซื้อและใช้อุปกรณ์ที่เลือกอัตโนมัติ")
         slider(gear,"GearLimit","Keep gear quantity","จำนวนอุปกรณ์ที่ซื้อเก็บ",1,25)
         button(gear,"Buy / Equip Selected Gear","ซื้อหรือใช้อุปกรณ์ที่เลือก",function()C.Run("BuyGear",function(valid)C.BuyGear(valid,cfg.Gear)end,true)end)
         button(gear,"Refresh prices and stock","อัปเดตราคาและสต็อก",C.RefreshShop)
+        gearWidget=gear:CreateLabel({Text=t("Purchase results appear here.","ผลการซื้อจะแสดงตรงนี้")})
         controls.Reserve=shovels:CreateInput({Name=t("Cash reserve","เงินสดสำรอง"),CurrentValue=tostring(cfg.Reserve),Callback=function(v)cfg.Reserve=P.Number(v,cfg.Reserve)end})
         local inv=tab("Inventory","กระเป๋า","backpack");local sell=group(inv,"Selling","การขาย")
         toggle(sell,"SellLoot","Auto Sell Loot","ขายของขุดอัตโนมัติ");toggle(sell,"SellEggs","Auto Sell Spare Eggs","ขายไข่สำรองอัตโนมัติ");toggle(sell,"SellPets","Auto Sell Stored Pets","ขายสัตว์ในกระเป๋าอัตโนมัติ")
@@ -1101,6 +1166,8 @@ end
         travelWidget:Set(C.Report.Jobs.Teleport or C.Report.Jobs.Travel or t("Select an item to teleport through obstacles.","เลือกสิ่งของเพื่อวาร์ปผ่านสิ่งกีดขวาง"),true)
         local saleLines={};for _,key in ipairs({"SellLoot","SellEggs","SellPets"})do if cfg[key]then saleLines[#saleLines+1]=(jobNames[key]or key)..": "..(C.Report.Jobs[key]or"Starting")end end
         sellWidget:Set(table.concat(saleLines,"\n"),true)
+        shovelWidget:Set(C.Report.Jobs.BuyShovel or C.Report.Jobs.ShopRefresh or t("Select a shovel to buy or equip.","เลือกพลั่วเพื่อซื้อหรือใช้งาน"),true)
+        gearWidget:Set(C.Report.Jobs.BuyGear or C.Report.Jobs.ShopRefresh or t("Select gear to buy or equip.","เลือกอุปกรณ์เพื่อซื้อหรือใช้งาน"),true)
         local shovelOptions={{Id="Best affordable",Name=t("Best affordable","ดีที่สุดที่ซื้อไหว"),Detail=t("Automatic choice","เลือกอัตโนมัติ")}}
         local gearOptions={};local catalog=A.Modules.ShovelCatalog;local sh=A.Snapshots.Shovels or{};local gs=A.Snapshots.Gear or{}
         for _,item in ipairs(catalog and catalog.Tiers or{})do

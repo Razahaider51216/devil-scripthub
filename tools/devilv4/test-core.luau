@@ -237,4 +237,60 @@ do
     check(C.Config.FarmFinds,"Target backoff keeps farm running")
     C.StopAll()
 end
+do
+    local A=context();local C=makeCore(A,P);A.Modules.ShovelCatalog=shovelCatalog();A.Attrs.Cash=500
+    local arrived=false;local moves=0
+    A.MarketPosition=function(kind)check(kind=="Shovels","Resolve native shovel market type");return "shop-position"end
+    A.Move=function(target,valid)
+        check(C.Shopping=="BuyShovel"and target.Position=="shop-position","Shop owns movement until purchase completes")
+        coroutine.yield();coroutine.yield();if not valid()then return false,"Cancelled"end;arrived=true;moves+=1;return true,"Arrived"
+    end
+    A.Next.Shovels=function(action)
+        if action=="Open"then return arrived and{Owned={Basic=true}}or{Code="TooFar"}end
+        return{Code="Purchased",Owned={Basic=true,Grey=true}}
+    end
+    C.Config.Dig=true;C.Config.FarmFinds=true;C.Config.SellLoot=true
+    A.Targets=function()error("Farm must pause during shopping")end
+    C.Run("BuyShovel",function(valid)C.BuyShovel(valid)end,true);pump()
+    C.Run("FarmFinds",C.Handlers.FarmFinds);C.Run("SellLoot",C.Handlers.SellLoot);C.UpdateMining();pump();drain()
+    check(moves==1 and #A.Calls==3 and A.Calls[3].Args[1]=="Buy","TooFar travels, reopens and purchases without sale / farm interference")
+    check(not C.Shopping and not C.Report.Errors.FarmFinds and C.Report.Jobs.BuyShovel=="Purchased","Shop releases movement and reports server result")
+    arrived=false;A.Calls={};C.Run("BuyShovel",function(valid)C.BuyShovel(valid)end,true);pump();C.StopAll();drain()
+    check(#A.Calls==1 and not C.Shopping,"Stop all during market travel prevents purchase and releases shop lease")
+end
+do
+    local A=context();local C=makeCore(A,P);A.Attrs.Cash=1000;C.Config.GearLimit=10
+    A.Modules.GearConfig={Types={Totem={SingleOwned=true}}}
+    A.Next.Gear={Counts={Totem=1},Prices={Totem=100},Stock={Key="s",Remaining={Totem=2}}}
+    C.Run("BuyGear",function(valid)C.BuyGear(valid,"Totem")end,true);drain()
+    check(#A.Calls==1 and C.Report.Jobs.BuyGear=="Already owned","SingleOwned uses Counts even when drill Owned map is absent")
+    local buys=0;local opens=0;A.Calls={}
+    A.Next.Gear=function(action,id,price,key)
+        if action=="Open"then opens+=1;return{Counts={},Prices={Totem=opens==1 and 100 or 120},Stock={Key=opens==1 and"old"or"fresh",Remaining={Totem=2}}}end
+        buys+=1
+        if buys==1 then return{Code="PriceChanged"}end
+        check(price==120 and key=="fresh","Retry uses refreshed price and stock key")
+        return{Code="Purchased",Counts={Totem=1}}
+    end
+    C.Run("BuyGear",function(valid)C.BuyGear(valid,"Totem")end,true);drain()
+    check(buys==2 and opens==2 and C.Report.Jobs.BuyGear=="Purchased","Price changes refresh once and purchase succeeds")
+    A.Calls={};C.Config.Reserve=950;buys=0;opens=0
+    C.Run("BuyGear",function(valid)C.BuyGear(valid,"Totem")end,true);drain()
+    check(buys==0,"Changed-price path never overrides cash reserve")
+end
+do
+    local A=context();local C=makeCore(A,P);A.Attrs.Cash=1000
+    A.Modules.ShovelCatalog={Tiers={{Id="Drill",Kind="Drill",Cost=100}},index=function()return 1 end}
+    A.Next.Gear=function(action)
+        if action=="Open"then return{Counts={},Owned={},Stock={Key="live",Remaining={Drill=1}}}end
+        if action=="Buy"then return{Code="Purchased",Counts={},Owned={Drill=true}}end
+        return{Code="Equipped"}
+    end
+    C.Run("BuyGear",function(valid)C.BuyGear(valid,"Drill")end,true);drain()
+    check(#A.Calls==3 and A.Calls[3].Args[1]=="Equip"and A.Calls[3].Args[2]=="Drill","A purchased drill is equipped during the same operation")
+    A.Calls={};A.Next.Gear={Code="TooFar"};A.MarketPosition=function()return nil end
+    C.Run("BuyGear",function(valid)C.BuyGear(valid,"Drill")end,true);drain()
+    check(#A.Calls==1 and A.Sent[1].Args[1]=="Sell"and not C.Shopping,"Unstreamed shop gets bounded surface discovery without blind purchases")
+    check(C.Report.Jobs.BuyGear=="Shop not loaded; visit the market and retry","Missing market shows an actionable status")
+end
 print("PASS core/policy behavior checks:",passed)

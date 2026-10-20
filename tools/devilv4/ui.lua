@@ -21,7 +21,7 @@ local catalog=__CATALOG__
 local A=makeAdapter(scope,catalog);local C=makeCore(A,P);local cfg=C.Config
 local app={Version=C.Report.Version,Core=C,Adapter=A,Config=cfg,Report=C.Report,Stopped=false};scope.DevilV4Test=app
 local window,view,library,logo;local rebuilding=false;local language="EN";local languageOwner,baseSet,wrappedSet
-local statusWidget,detailsWidget,settingsWidget,travelWidget,sellWidget;local controls={};local jobNames={};local selectedTarget;local lastRefresh=0
+local statusWidget,detailsWidget,settingsWidget,travelWidget,sellWidget,shovelWidget,gearWidget;local controls={};local jobNames={};local selectedTarget;local lastRefresh=0
 local profile="DevilHub_MiningTest_"..A.Player.UserId.."_"..game.PlaceId..".json"
 local settingsStatus="Ready";local buildUI
 local function t(en,th)return language=="TH"and th or en end
@@ -115,12 +115,14 @@ local ok,problem=xpcall(function()
         view.Picker(shovels,"Shovels",t("Shovel / price / ownership","พลั่ว ราคา และสถานะ"),function(id)cfg.Shovel=id end)
         toggle(shovels,"BuyShovel","Auto Buy / Equip Shovel","ซื้อและใช้พลั่วอัตโนมัติ")
         button(shovels,"Buy / Equip Selected Shovel","ซื้อหรือใช้พลั่วที่เลือก",function()C.Run("BuyShovel",function(valid)C.BuyShovel(valid,cfg.Shovel)end,true)end)
+        shovelWidget=shovels:CreateLabel({Text=t("Purchase results appear here.","ผลการซื้อจะแสดงตรงนี้")})
         local gear=group(shop,"Drills and gear","สว่านและอุปกรณ์","Right")
         view.Picker(gear,"Gear",t("Gear / live price / stock","อุปกรณ์ ราคาปัจจุบัน และสต็อก"),function(id)cfg.Gear=id end)
         toggle(gear,"BuyGear","Auto Buy / Equip Selected Gear","ซื้อและใช้อุปกรณ์ที่เลือกอัตโนมัติ")
         slider(gear,"GearLimit","Keep gear quantity","จำนวนอุปกรณ์ที่ซื้อเก็บ",1,25)
         button(gear,"Buy / Equip Selected Gear","ซื้อหรือใช้อุปกรณ์ที่เลือก",function()C.Run("BuyGear",function(valid)C.BuyGear(valid,cfg.Gear)end,true)end)
         button(gear,"Refresh prices and stock","อัปเดตราคาและสต็อก",C.RefreshShop)
+        gearWidget=gear:CreateLabel({Text=t("Purchase results appear here.","ผลการซื้อจะแสดงตรงนี้")})
         controls.Reserve=shovels:CreateInput({Name=t("Cash reserve","เงินสดสำรอง"),CurrentValue=tostring(cfg.Reserve),Callback=function(v)cfg.Reserve=P.Number(v,cfg.Reserve)end})
         local inv=tab("Inventory","กระเป๋า","backpack");local sell=group(inv,"Selling","การขาย")
         toggle(sell,"SellLoot","Auto Sell Loot","ขายของขุดอัตโนมัติ");toggle(sell,"SellEggs","Auto Sell Spare Eggs","ขายไข่สำรองอัตโนมัติ");toggle(sell,"SellPets","Auto Sell Stored Pets","ขายสัตว์ในกระเป๋าอัตโนมัติ")
@@ -184,6 +186,8 @@ local ok,problem=xpcall(function()
         travelWidget:Set(C.Report.Jobs.Teleport or C.Report.Jobs.Travel or t("Select an item to teleport through obstacles.","เลือกสิ่งของเพื่อวาร์ปผ่านสิ่งกีดขวาง"),true)
         local saleLines={};for _,key in ipairs({"SellLoot","SellEggs","SellPets"})do if cfg[key]then saleLines[#saleLines+1]=(jobNames[key]or key)..": "..(C.Report.Jobs[key]or"Starting")end end
         sellWidget:Set(table.concat(saleLines,"\n"),true)
+        shovelWidget:Set(C.Report.Jobs.BuyShovel or C.Report.Jobs.ShopRefresh or t("Select a shovel to buy or equip.","เลือกพลั่วเพื่อซื้อหรือใช้งาน"),true)
+        gearWidget:Set(C.Report.Jobs.BuyGear or C.Report.Jobs.ShopRefresh or t("Select gear to buy or equip.","เลือกอุปกรณ์เพื่อซื้อหรือใช้งาน"),true)
         local shovelOptions={{Id="Best affordable",Name=t("Best affordable","ดีที่สุดที่ซื้อไหว"),Detail=t("Automatic choice","เลือกอัตโนมัติ")}}
         local gearOptions={};local catalog=A.Modules.ShovelCatalog;local sh=A.Snapshots.Shovels or{};local gs=A.Snapshots.Gear or{}
         for _,item in ipairs(catalog and catalog.Tiers or{})do

@@ -125,4 +125,17 @@ check(A5.EnsureDigEquipment()and held.Parent==backpack,"Gear left after use is u
 held.Parent=phaseCharacter;player:SetAttribute("DrinkingPotion",true)
 check(not A5.EnsureDigEquipment()and held.Parent==phaseCharacter,"Do not interrupt active potion drinking")
 player:SetAttribute("DrinkingPotion",nil);held.Parent=backpack;A5.Destroy();pump()
+local shopPart=Instance.new("BasePart");shopPart.Position=Vec.new(10,0,0);shopPart.Parent=workspace
+local prompt=Instance.new("ProximityPrompt");prompt.Parent=shopPart;prompt:SetAttribute("MarketType","Gear")
+local attachment=Instance.new("Attachment");attachment.WorldPosition=Vec.new(2,0,0);attachment.Parent=shopPart
+local nearPrompt=Instance.new("ProximityPrompt");nearPrompt.Parent=attachment;nearPrompt:SetAttribute("MarketType","Gear")
+local oldTagged=services.CollectionService.GetTagged
+services.CollectionService.GetTagged=function(_,tag)return tag=="MarketPrompt"and{prompt,nearPrompt}or{}end
+local shopAdapter=makeAdapter({});shopAdapter.Character=function()return{},{},{Position=Vec.new(0,0,0)}end
+local position,distance=shopAdapter.MarketPosition("Gear")
+check(position==attachment.WorldPosition and distance==2,"Find nearest native market prompt using Attachment world position")
+check(shopAdapter.MarketPosition("Shovels")==nil,"Do not route a shovel purchase to the gear stall")
+nearPrompt.Parent=nil;position,distance=shopAdapter.MarketPosition("Gear")
+check(position==shopPart.Position and distance==10,"Ignore unloaded prompts and support BasePart prompt parents")
+shopAdapter.Destroy();shopPart:Destroy();services.CollectionService.GetTagged=oldTagged
 print("PASS adapter timeout / reload / target / movement checks:",checks)

@@ -1,5 +1,5 @@
 {
-  "release": "devilv4-test-20261020-3",
+  "release": "devilv4-test-20261021-1",
   "place_id": 121831322352666,
   "universe_id": 10765013362,
   "production_router_changed": false,
@@ -7,7 +7,7 @@
   "damage_bypass": false,
   "automation_defaults_off": true,
   "saved_profile_restores_explicitly_saved_jobs": true,
-  "entry_sha256": "732492d6b1ef4f72a66a34190081c3ce92c85febac84dd92dcdd375aea0b1d9d",
+  "entry_sha256": "724f9638e70b0218e09e5b027d9f5cca01ed2916f57e6c544de24dca9a5f768e",
   "theme_module_commit": "9a9812469df7b5dad2848abb33c5206f7d57e685",
   "ouroflow_sha256": "0c30762d3c9c3aa7c25ca3aeceab960a771c96b5af290a3b67aed627161385f5",
   "assets": 31,
@@ -18,10 +18,10 @@
   "mining_progress_watchdog": true,
   "buried_egg_teleport": true,
   "sources": {
-    "adapter.lua": "261702774a2833bc432427ee0eaa0f81ec18c45cfe6d4b5459fee550b45464ab",
-    "core.lua": "25b1d67a92d993ea92e5050dc557fb444b2ba33d969a2b40a00ad3a7f052ffe7",
+    "adapter.lua": "a0a610ebbf4e367314fa6841f9a4705f211cf93f2ff4eea137dab25dae8d5bc7",
+    "core.lua": "76d23716cea697847aacad3b84a3c726a74f98ad50c190ecf81a75b9f6c985ff",
     "policy.lua": "714b661bd847c5685473fb2d32b1874f065e5626e5a6e054047e2baed63e2c4e",
     "presentation.lua": "d1b7c08e71efd80b325d90e124ca2d141f0800c94180bfb4c7ee9daf058b0f9e",
-    "ui.lua": "2b968d2d978199a2a7809a20dc6dba45243a30e5d13a1ad2b4faa8fc7f44f753"
+    "ui.lua": "b7ce7af81cf9c0a07f1b108efce062e66caef99e90429e9532e8cd916e34f23d"
   }
 }

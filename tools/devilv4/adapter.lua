@@ -73,6 +73,19 @@ return function(scope,catalog)
     function A.TaggedOwn(tag)
         for _,n in ipairs(A.Tags:GetTagged(tag))do if A.Owned(n)then return n end end
     end
+    function A.MarketPosition(kind)
+        local _,_,root=A.Character();local best,distance
+        for _,prompt in ipairs(A.Tags:GetTagged("MarketPrompt"))do
+            if prompt.Parent and prompt:IsDescendantOf(workspace)and prompt:GetAttribute("MarketType")==kind then
+                local parent=prompt.Parent
+                local position=parent:IsA("Attachment")and parent.WorldPosition or parent:IsA("BasePart")and parent.Position
+                if not position then local part=A.Part(parent);position=part and part.Position end
+                local d=position and root and(root.Position-position).Magnitude
+                if d and(not distance or d<distance)then best,distance=position,d end
+            end
+        end
+        return best,distance
+    end
     function A.Mine()
         local map=workspace:FindFirstChild("RuntimeMap");return map and map:FindFirstChild("CommunalMine")
     end

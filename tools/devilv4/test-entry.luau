@@ -136,7 +136,16 @@ registry["Teleport to selected target"].Spec.Callback();pump();pump();pump()
 check(focused==nil and arrived==part,"Actual teleport button releases hub search focus and resolves buried selected egg")
 check(app.Report.Jobs.Teleport=="Arrived","Manual teleport outcome is reported")
 clock+=.2;pump();check(movements==1,"Farm cannot immediately override a manual egg teleport")
-app.Core.Set("FarmFinds",false);player.Character=nil;A.Move=oldMove;A.Aim=oldAim;map:Destroy()
+app.Core.Set("FarmFinds",false)
+local previousInvoke=A.Invoke;local purchases=0
+A.Invoke=function(remote,action,id)
+    if remote=="Shovels"and action=="Open"then return{Owned={Basic=true}}end
+    if remote=="Shovels"and action=="Buy"and id=="Grey"then purchases+=1;return{Code="Purchased",Owned={Basic=true,Grey=true}}end
+end
+player:SetAttribute("Cash",1000)
+registry["Buy / Equip Selected Shovel"].Spec.Callback();pump();pump();pump()
+check(purchases==1 and app.Report.Jobs.BuyShovel=="Purchased","Actual shop button purchases selected stable ID and reports confirmation")
+A.Invoke=previousInvoke;player.Character=nil;A.Move=oldMove;A.Aim=oldAim;map:Destroy()
 services.UserInputService.GetFocusedTextBox=function()return nil end
 registry["Save settings"].Spec.Callback();pump();check(fakeJSON.Config.Shovel=="Grey","Save profile stores chosen ID")
 check(fakeJSON.PlaceId==game.PlaceId and fakeJSON.UserId==player.UserId,"Settings scoped to account and place")
