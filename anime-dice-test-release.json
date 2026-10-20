@@ -25,6 +25,6 @@
     "translations.lua": "735438aef10d1517e51d7f628348745d9a724f56481d8c176d583411e3af559a",
     "ui.lua": "9bd759812c95ae3c0cb192dc6aefe2930b3e96bd2f336a59f6e6676157bb0b9c"
   },
-  "main_loader_entry_commit": "ea790b8bfd404e47512b95d9a8d650628dd246fe",
-  "main_loader_sha256": "4a5643106e12ec8999828cf2d289d3af2769ae4b85191b9fbc1418c367dd05c8"
+  "main_loader_entry_commit": "36dde420404c7712f118c720b60912b24270adfb",
+  "main_loader_sha256": "9b6fe3b1d0cc84b2a9ff31bb9ff8e978bad9b5ae3500f600f4048bcfc21f7d43"
 }
