@@ -21,12 +21,17 @@ This entry does not replace the production main loader or any existing game scri
 - Daily rewards, offline earnings and Pet Index rewards.
 - Per-account/per-place Save/Load settings in Settings. Only explicitly saved switches resume on the next run.
 - Stop All, unload, diagnostic JSON export, bounded asynchronous requests, cancellation checks and persistent locks for hanging requests across reloads.
+- Mining recovery: rearm a session after an input gap near the native aim timeout; observe server Health changes, restart stalled sessions, and temporarily skip persistently unreachable/stalled targets. The automation switch stays on. Real damage progress resets the timer, and slow equipment gets a larger recovery window. Stop All cancels recovery.
+- Restore the native shovel after consumable gear/potion use. Hidden GUI search focus cannot leave farming paused indefinitely; explicit hub actions release their own search focus. Pause reasons and recovery/health/packet diagnostics are exported.
+- Egg teleports resolve both exposed and buried live targets, independently of mining eligibility. Manual navigation gets priority over farm retargeting so the farm does not immediately move the character away again.
 
 ## Practical limits
 
 This is an offline-validated test, not a live-game compatibility claim. Server checks still decide purchases, rewards, mining and movement. Fast Dig keeps valid continuous mining input; changing aim frequency does not establish a server cooldown bypass. Owned DigSpeed potions and the game's equipment bonuses remain the source of server-authorized speed improvements. No damage bypass, damage-stat mutation, admin/test tool flag, or invulnerability code is included.
 
 Only currently streamed target instances can be reached. The catalog can display names before an instance is available. Teleports temporarily disable collision on the local character; fully buried targets use a destination over the target's top face and scoped vertical support. Original collisions and support are restored when clear, when stopping, on native travel, or on unload. No world block collision or damage setting is changed. Server correction can still reject movement. Large targets use the closest surface for reach checks. Teleporting beside a block does not grant it; the block still needs mining. Recipes, rarity-selective pet selling, paid growth/reward multipliers, and admin event creation are not invented where the captured client contract does not support them.
+
+Surface queries use a protected engine call plus a box-geometry fallback. An interior origin needs special handling because the native method can return that origin unchanged. See the [Roblox BasePart surface-query documentation](https://create.roblox.com/docs/reference/engine/classes/BasePart#GetClosestPointOnSurface).
 
 All auto jobs start off without a saved profile. To resume a setup, choose the filters/switches, then press **Settings → Save settings**. Use **Stop all automation** before saving an inactive profile.
 

@@ -51,13 +51,14 @@ source = source.replace('__OURO_LEN__', str(len(ouro))).replace('__OURO_HASH__',
 entry = ROOT / 'devilv4-test.lua'
 entry.write_text(source, encoding='utf-8', newline='\n')
 subprocess.run([str(ROOT.parent / 'luau-tools/luau-compile.exe'), '--null', str(entry)], check=True)
-manifest = {'release': 'devilv4-test-20261020-2', 'place_id': 121831322352666, 'universe_id': 10765013362,
+manifest = {'release': 'devilv4-test-20261020-3', 'place_id': 121831322352666, 'universe_id': 10765013362,
             'production_router_changed': False, 'live_game_verified': False, 'damage_bypass': False,
             'automation_defaults_off': True, 'saved_profile_restores_explicitly_saved_jobs': True,
             'entry_sha256': hashlib.sha256(entry.read_bytes()).hexdigest(), 'theme_module_commit': theme_commit,
             'ouroflow_sha256': hashlib.sha256(ouro).hexdigest(), 'assets': len(assets),
             'named_egg_types':len(catalog['Egg']),'farm_poll_seconds':0.1,'teleport_settle_seconds':0.06,
             'catalog_sha256':hashlib.sha256((HERE/'catalog.json').read_bytes()).hexdigest(),
+            'mining_progress_watchdog':True,'buried_egg_teleport':True,
             'sources': {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in HERE.glob('*.lua')}}
 (ROOT / 'devilv4-test-release.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8', newline='\n')
 print('PASS compiled standalone Devilv4 test:', entry.stat().st_size, 'bytes;', len(assets), 'native icons')

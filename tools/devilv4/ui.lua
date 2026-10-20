@@ -62,17 +62,20 @@ local ok,problem=xpcall(function()
     end)end
     language=languageValue()
     local function button(host,en,th,fn)
-        return host:CreateButton({Name=t(en,th),Callback=function()A.Spawn(function()local good,err=xpcall(fn,debug.traceback);if not good then settingsStatus=tostring(err);C.Report.Errors.UI=tostring(err)end end)end})
+        return host:CreateButton({Name=t(en,th),Callback=function()A.ReleaseHubFocus(window.Gui);A.Spawn(function()local good,err=xpcall(fn,debug.traceback);if not good then settingsStatus=tostring(err);C.Report.Errors.UI=tostring(err)end end)end})
     end
     local function toggle(host,key,en,th)
         jobNames[key]=t(en,th)
-        controls[key]=host:CreateToggle({Name=jobNames[key],CurrentValue=cfg[key],Callback=function(value)C.Set(key,value)end})
+        controls[key]=host:CreateToggle({Name=jobNames[key],CurrentValue=cfg[key],Callback=function(value)if value then A.ReleaseHubFocus(window.Gui)end;C.Set(key,value)end})
     end
     local function slider(host,key,en,th,lo,hi,increment)
         controls[key]=host:CreateSlider({Name=t(en,th),Range={lo,hi},Increment=increment or 1,CurrentValue=cfg[key],Callback=function(v)cfg[key]=P.Number(v,cfg[key],lo,hi)end})
     end
     local function choose(host,key,en,th,options)
-        controls[key]=host:CreateDropdown({Name=t(en,th),Options=options,CurrentOption=cfg[key],Searchable=true,Callback=function(v)if type(v)=="string"then cfg[key]=v end end})
+        controls[key]=host:CreateDropdown({Name=t(en,th),Options=options,CurrentOption=cfg[key],Searchable=true,Callback=function(v)
+            if type(v)~="string"then return end;cfg[key]=v
+            if key=="TeleportKind"then cfg.TeleportChoice="";selectedTarget=nil;view.Refresh("Targets",{});lastRefresh=0 end
+        end})
     end
     local function group(tab,en,th,side)return tab:CreateGroupbox({Name=t(en,th),Side=side or"Left"})end
     local function tab(en,th,icon)return window:CreateTab({Name=t(en,th),Icon=icon,Backdrop=false})end
@@ -99,9 +102,9 @@ local ok,problem=xpcall(function()
         button(targetGroup,"Teleport to selected target","วาร์ปไปเป้าหมายที่เลือก",function()
             local target=selectedTarget
             for _,item in ipairs(A.TeleportOptions(cfg.TeleportKind))do if item.Key==cfg.TeleportChoice then target=item;break end end
-            if target then C.Teleport(target)end
+            if target and(cfg.TeleportKind=="All"or target.Kind==cfg.TeleportKind)then C.Teleport(target)else C.Report.Jobs.Teleport="Select an egg / item first"end
         end)
-        button(targetGroup,"Teleport to nearest matching target","วาร์ปไปเป้าหมายที่ใกล้ที่สุด",function()local target=A.Targets(cfg.TeleportKind,"All")[1];if target then C.Teleport(target)end end)
+        button(targetGroup,"Teleport to nearest matching target","วาร์ปไปเป้าหมายที่ใกล้ที่สุด",function()local target=A.Targets(cfg.TeleportKind,"All",true)[1];if target then C.Teleport(target)else C.Report.Jobs.Teleport="No loaded instance of the selected item"end end)
         targetGroup:CreateLabel({Text=t("Egg names are grouped by type. Not loaded = no current target.","แสดงชื่อไข่แยกตามชนิด หากยังไม่โหลดจะยังไม่มีเป้าหมายวาร์ป")})
         travelWidget=targetGroup:CreateLabel({Text=t("Select an item to teleport through obstacles.","เลือกสิ่งของเพื่อวาร์ปผ่านสิ่งกีดขวาง")})
         local destinations=group(travel,"Destinations","สถานที่","Right")

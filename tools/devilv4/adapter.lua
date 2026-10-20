@@ -35,8 +35,27 @@ return function(scope,catalog)
         local c=A.Player.Character;local h=c and c:FindFirstChildOfClass("Humanoid");local r=c and c:FindFirstChild("HumanoidRootPart")
         if h and r and h.Health>0 then return c,h,r,c:FindFirstChild("Head")or r end
     end
-    function A.Blocked()
-        return not A.Character()or A.Input:GetFocusedTextBox()~=nil or game:GetService("GuiService").MenuIsOpen or A.Player:GetAttribute("ProductPurchaseOpen")==true or A.Player:GetAttribute("DataResetting")==true
+    function A.FocusBlocks()
+        local box=A.Input:GetFocusedTextBox();if not box then return false end
+        local node=box
+        while node do
+            if node:IsA("GuiObject")and not node.Visible or node:IsA("ScreenGui")and not node.Enabled then return false end
+            node=node.Parent
+        end
+        return true
+    end
+    function A.ReleaseHubFocus(gui)
+        local box=A.Input:GetFocusedTextBox()
+        if box and box:IsDescendantOf(gui)then box:ReleaseFocus()end
+    end
+    function A.BlockReason()
+        if not A.Character()then return "Waiting for character"end
+        if A.FocusBlocks()then return "Paused while typing"end
+        if game:GetService("GuiService").MenuIsOpen then return "Game menu is open"end
+        if A.Attr("ProductPurchaseOpen",false)then return "Waiting for purchase"end
+        if A.Attr("DataResetting",false)then return "Waiting for player data"end
+    end
+    function A.Blocked()return A.BlockReason()~=nil
     end
     function A.Attr(name,default)local v=A.Player:GetAttribute(name);if v==nil then return default end;return v end
     function A.Plot()
@@ -57,10 +76,11 @@ return function(scope,catalog)
     function A.Mine()
         local map=workspace:FindFirstChild("RuntimeMap");return map and map:FindFirstChild("CommunalMine")
     end
-    function A.ValidFind(n)
+    function A.ValidTarget(n)
         local mine=A.Mine()
-        return n and n.Parent and n:IsA("BasePart")and mine and n:IsDescendantOf(mine)and(n:GetAttribute("FindId")~=nil or n:GetAttribute("MaterialName")~=nil)and n:GetAttribute("Diggable")==true and not n:GetAttribute("MineBoundary")and not n:GetAttribute("TutorialHidden")and(tonumber(n:GetAttribute("Health"))or 1)>0
+        return n and n.Parent and n:IsA("BasePart")and mine and n:IsDescendantOf(mine)and(n:GetAttribute("FindId")~=nil or n:GetAttribute("MaterialName")~=nil)and not n:GetAttribute("MineBoundary")and not n:GetAttribute("TutorialHidden")and(tonumber(n:GetAttribute("Health"))or 1)>0
     end
+    function A.ValidFind(n)return A.ValidTarget(n)and n:GetAttribute("Diggable")==true end
     function A.Identity(n)
         if not A.Serials[n]then A.NextSerial+=1;A.Serials[n]=A.NextSerial end;return A.Serials[n]
     end
@@ -73,11 +93,11 @@ return function(scope,catalog)
         local d=module and module.Types and module.Types[id]
         return type(d)=="table"and d or catalog and catalog[kind]and catalog[kind][id]or{}
     end
-    function A.Targets(kind,rarity)
+    function A.Targets(kind,rarity,includeBuried)
         A.TrackMine()
         local _,_,root=A.Character();local list={}
         for n in pairs(A.Finds)do
-            if A.ValidFind(n)then
+            if (includeBuried and A.ValidTarget(n))or(not includeBuried and A.ValidFind(n))then
                 local k=n:GetAttribute("FindKind")or"Material"
                 local id=n:GetAttribute("FindId")or(n:GetAttribute("MaterialName")or n.Name):gsub("%s","");local d=A.FindDefinition(k,id)
                 if(kind=="All"or k==kind)and(rarity=="All"or d.Rarity==rarity)then
@@ -93,7 +113,7 @@ return function(scope,catalog)
     end
     function A.TeleportOptions(kind)
         local grouped={}
-        for _,target in ipairs(A.Targets(kind,"All"))do
+        for _,target in ipairs(A.Targets(kind,"All",true))do
             local key=target.Kind..":"..target.Id;local row=grouped[key]
             if row then row.Count+=1 else row=table.clone(target);row.Key=key;row.Group=true;row.Count=1;grouped[key]=row end
         end
@@ -114,8 +134,47 @@ return function(scope,catalog)
         return out
     end
     function A.ResolveTarget(target)
-        if not target.Group and A.ValidFind(target.Instance)then local t=table.clone(target);t.Position=t.Instance.Position;return t end
-        for _,candidate in ipairs(A.Targets(target.Kind,"All"))do if candidate.Id==target.Id then return candidate end end
+        if not target then return end
+        if not target.Group and A.ValidTarget(target.Instance)then local t=table.clone(target);t.Position=t.Instance.Position;return t end
+        for _,candidate in ipairs(A.Targets(target.Kind,"All",true))do if candidate.Id==target.Id then return candidate end end
+    end
+    function A.SurfacePoint(part,origin)
+        local ok,point=pcall(function()return part:GetClosestPointOnSurface(origin)end)
+        if ok and point and(point-origin).Magnitude>.05 then return point end
+        -- A box fallback also supplies a face when the engine returns an interior
+        -- origin unchanged, or the surface-query API is unavailable.
+        local good,value=pcall(function()
+            local p=part.CFrame:PointToObjectSpace(origin);local h=part.Size*.5
+            local x,y,z=math.clamp(p.X,-h.X,h.X),math.clamp(p.Y,-h.Y,h.Y),math.clamp(p.Z,-h.Z,h.Z)
+            if math.abs(p.X)<=h.X and math.abs(p.Y)<=h.Y and math.abs(p.Z)<=h.Z then
+                local dx,dy,dz=h.X-math.abs(p.X),h.Y-math.abs(p.Y),h.Z-math.abs(p.Z)
+                if dx<=dy and dx<=dz then x=p.X>=0 and h.X or-h.X elseif dy<=dz then y=p.Y>=0 and h.Y or-h.Y else z=p.Z>=0 and h.Z or-h.Z end
+            end
+            return part.CFrame:PointToWorldSpace(Vector3.new(x,y,z))
+        end)
+        return good and value or part.Position+Vector3.new(0,part.Size.Y/2,0)
+    end
+    function A.Health(part)local value=part and tonumber(part:GetAttribute("Health"));if value and value==value and math.abs(value)<math.huge then return value end end
+    function A.NativeCooldown()
+        local ok,value=pcall(function()
+            local sh=A.Modules.ShovelCatalog;local cd=sh and sh.cooldown(sh.activeLevel(A.Attr("ShovelLevel",1),A.Attr("ActiveDrillId")))or(A.Modules.DigConfig or{}).Cooldown or .5
+            local frenzy=A.Modules.DigFrenzyRules;local potion=A.Modules.PotionRules
+            if frenzy then cd/=frenzy.speedMultiplier(A.Player,A.ServerTime())end
+            if potion then cd/=potion.multiplier(A.Player,"DigSpeed",A.ServerTime())end
+            return cd
+        end)
+        return ok and type(value)=="number"and value==value and math.clamp(value,.025,30)or .5
+    end
+    function A.EnsureDigEquipment()
+        local equipment=A.Modules.Equipment;if not equipment then return true end
+        local c,h=A.Character();if not c then return false end
+        local tool=equipment.shovel(c);if tool and tool.Enabled~=false then return true end
+        if A.Attr("DrinkingPotion",false)then return false end
+        local held=c:FindFirstChildOfClass("Tool");local item=held and held:GetAttribute("ItemId")
+        if item=="Gear"or item=="Potion"then h:UnequipTools()end
+        local drill=A.Attr("ActiveDrillId")
+        if drill and not equipment.shovel(c)then A.Equip("Drill","DrillId",drill)end
+        tool=equipment.shovel(c);return tool~=nil and tool.Enabled~=false
     end
     function A.Ground(position,exclude,maxDepth)
         local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Exclude
@@ -139,7 +198,7 @@ return function(scope,catalog)
         end
         -- Buried targets have no empty adjacent floor. Stand over their top face
         -- with a scoped character collision lease instead of rejecting the warp.
-        if target.Instance and A.ValidFind(target.Instance)then
+        if target.Instance and A.ValidTarget(target.Instance)then
             return p+Vector3.new(0,size.Y/2+hum.HipHeight+root.Size.Y/2+.15,0),true
         end
     end
@@ -176,7 +235,7 @@ return function(scope,catalog)
         if A.MoveBusy then return false,"Another movement is active"end
         if not valid()then return false,"Cancelled"end
         local c,_,root=A.Character();if not root then return false,"Waiting for character"end
-        if target.Instance and not A.ValidFind(target.Instance)then return false,"Target disappeared"end
+        if target.Instance and not A.ValidTarget(target.Instance)then return false,"Target disappeared"end
         target.Position=target.Instance and target.Instance.Position or target.Position
         local goal,buried=A.Stand(target);if not goal then return false,"No clear ground next to target"end
         A.MoveBusy=true
@@ -202,25 +261,26 @@ return function(scope,catalog)
         local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Exclude;params.FilterDescendantsInstances={c}
         if target then
             if not A.ValidFind(target.Instance)then return end
-            local point=target.Instance:GetClosestPointOnSurface(head.Position)
+            local point=A.SurfacePoint(target.Instance,head.Position)
             local delta=point-head.Position;if delta.Magnitude<.1 or delta.Magnitude>reach then return end
             local hit=workspace:Raycast(head.Position,delta.Unit*(delta.Magnitude+1),params)
             if not hit or hit.Instance~=target.Instance then return end
-            return head.Position,delta.Unit,target.Kind=="Material"and"Aim"or"Find",target.Kind~="Material"and target.Instance or nil
+            return head.Position,delta.Unit,target.Kind=="Material"and"Aim"or"Find",target.Kind~="Material"and target.Instance or nil,target.Instance
         end
         local hit=workspace:Raycast(head.Position,Vector3.new(0,-reach,0),params)
         local mine=A.Mine();if not hit or not mine or not hit.Instance:IsDescendantOf(mine)or hit.Instance:GetAttribute("MineBoundary")or hit.Instance:GetAttribute("Diggable")~=true then return end
-        return head.Position,Vector3.new(0,-1,0),"Down",nil
+        return head.Position,Vector3.new(0,-1,0),"Down",nil,hit.Instance
     end
     function A.CanSee(part,origin)
         local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Exclude;params.FilterDescendantsInstances={A.Player.Character}
-        local point=part:GetClosestPointOnSurface(origin);local delta=point-origin
+        local point=A.SurfacePoint(part,origin);local delta=point-origin
         if delta.Magnitude<.1 then return false end
         local hit=workspace:Raycast(origin,delta.Unit*(delta.Magnitude+1),params)
         return hit and hit.Instance==part
     end
     function A.Tools()
-        local list={};for _,parent in ipairs({A.Player:FindFirstChild("Backpack"),A.Player.Character})do
+        local roots={};local backpack=A.Player:FindFirstChild("Backpack");if backpack then roots[#roots+1]=backpack end;if A.Player.Character then roots[#roots+1]=A.Player.Character end
+        local list={};for _,parent in ipairs(roots)do
             if parent then for _,tool in ipairs(parent:GetChildren())do if tool:IsA("Tool")then list[#list+1]=tool end end end
         end;return list
     end
@@ -251,7 +311,7 @@ return function(scope,catalog)
         if plant and plant:IsA("RemoteEvent")then A.Links[#A.Links+1]=plant.OnClientEvent:Connect(function(success,message)
             A.Snapshots.LastPlant={At=A.Clock(),Success=success==true,Message=message}
         end)end
-        for _,name in ipairs({"ShovelCatalog","GearConfig","GearPlacementGrid","EggCatalog","ArtifactCatalog","PotionConfig","MaterialCatalog","DigConfig","EggConfig","TrainingUpgradeConfig","PlotUpgradeConfig","BoothUpgradeConfig","ProgressionConfig","Equipment","ContinuousMiningConfig","RebirthConfig","AbuseEventConfig","AbuseEventRules","AdminAbuseEligibility"})do
+        for _,name in ipairs({"ShovelCatalog","GearConfig","GearPlacementGrid","EggCatalog","ArtifactCatalog","PotionConfig","MaterialCatalog","DigConfig","EggConfig","TrainingUpgradeConfig","PlotUpgradeConfig","BoothUpgradeConfig","ProgressionConfig","Equipment","PotionRules","DigFrenzyRules","ContinuousMiningConfig","RebirthConfig","AbuseEventConfig","AbuseEventRules","AdminAbuseEligibility"})do
             if not A.Alive then return end
             local module=shared:FindFirstChild(name)
             if module and module:IsA("ModuleScript")then task.spawn(function()local ok,v=pcall(require,module);if ok and A.Alive then A.Modules[name]=v end end)end

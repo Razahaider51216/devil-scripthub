@@ -17,6 +17,15 @@ for marker, filename in [('POLICY','policy.lua'),('CORE','core.lua')]:
 target = HERE / 'test-core.generated.luau'
 target.write_text(template, encoding='utf-8', newline='\n')
 behavior_checks=run_checks(target)
+regression_reproduced=False
+baseline=subprocess.run(['git','show','fbab251a6dc2f9c8f3bf3f0fb2df83d8ace07683:tools/devilv4/core.lua'],cwd=ROOT,capture_output=True,text=True,encoding='utf-8')
+if baseline.returncode==0:
+    old_test=(HERE/'test-core.luau').read_text(encoding='utf-8').replace('-- POLICY',(HERE/'policy.lua').read_text(encoding='utf-8')).replace('-- CORE',baseline.stdout)
+    old_path=HERE/'test-stall-baseline.generated.luau';old_path.write_text(old_test,encoding='utf-8',newline='\n')
+    old_result=subprocess.run([str(luau),str(old_path)],capture_output=True,text=True,encoding='utf-8')
+    assert old_result.returncode!=0 and 'Input timeout rearms with Start' in old_result.stderr,old_result.stderr
+    regression_reproduced=True
+    print('PASS reproduced stale mining session against published v2; new version recovers')
 sys.path.insert(0, str(ROOT / 'tools/anime-dice'))
 import dependency
 def literal(value):
@@ -64,6 +73,7 @@ if maps:
 validation={'release':manifest['release'],'live_game_verified':False,'luau_compile':True,
             'behavior_checks':behavior_checks,'public_entry_gui_settings_checks':gui_checks,'adapter_checks':adapter_checks,
             'remote_paths_checked':remote_count,'production_loader_unchanged':True,
+            'published_v2_stall_reproduced':regression_reproduced,
             'entry_sha256':manifest['entry_sha256'],
             'production_loader_sha256':hashlib.sha256((ROOT/'loader').read_bytes()).hexdigest()}
 (ROOT/'devilv4-test-validation.json').write_text(json.dumps(validation,indent=2)+'\n',encoding='utf-8',newline='\n')

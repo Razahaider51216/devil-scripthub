@@ -98,4 +98,31 @@ check(origin~=nil and mode=="Find"and part==respawned,"Large egg uses reachable 
 workspace.Raycast=function()return{Instance=egg}end
 check(A4.Aim({Instance=respawned,Kind="Egg"})==nil,"Mining still respects actual blocking ray result")
 A4.Destroy();pump()
+local A5=makeAdapter(scope)
+A5.Character=function()return phaseCharacter,{HipHeight=2},phaseRoot,phaseRoot end
+respawned:SetAttribute("Diggable",false);respawned.Position=Vec.new(0,-6,0);A5.Finds={[respawned]=true}
+check(not A5.ValidFind(respawned)and A5.ValidTarget(respawned),"Buried egg remains a teleport target before it is diggable")
+check(#A5.Targets("Egg","All")==0 and A5.ResolveTarget({Kind="Egg",Id="Soil",Group=true}).Instance==respawned,"Teleport resolves buried eggs without opening mining eligibility")
+local origin=Vec.new(0,-6,0);respawned.GetClosestPointOnSurface=function()return origin end
+respawned.CFrame={PointToObjectSpace=function(_,p)return p-respawned.Position end,PointToWorldSpace=function(_,p)return p+respawned.Position end}
+local surface=A5.SurfacePoint(respawned,origin)
+check((surface-origin).Magnitude>0,"Interior surface query supplies a real face rather than zero aim direction")
+respawned.GetClosestPointOnSurface=function()error("API unavailable")end
+check((A5.SurfacePoint(respawned,origin)-origin).Magnitude>0,"Unavailable surface API has a working geometry fallback")
+local focused=Instance.new("TextBox");focused.Parent=phaseCharacter
+local originalFocus=services.UserInputService.GetFocusedTextBox
+services.UserInputService.GetFocusedTextBox=function()return focused end
+check(A5.FocusBlocks(),"Visible typing pauses automation")
+phaseCharacter.Visible=false;check(not A5.FocusBlocks(),"Hidden GUI focus cannot leave farm permanently paused");phaseCharacter.Visible=true
+focused.ReleaseFocus=function()focused=nil end
+A5.ReleaseHubFocus(phaseCharacter);check(focused==nil,"Explicit hub action releases only its own textbox focus")
+services.UserInputService.GetFocusedTextBox=originalFocus
+local held=Instance.new("Tool");held:SetAttribute("ItemId","Gear");held.Parent=phaseCharacter
+local humanoid={UnequipTools=function()held.Parent=backpack end}
+A5.Character=function()return phaseCharacter,humanoid,phaseRoot,phaseRoot end
+A5.Modules.Equipment={shovel=function(c)if c:FindFirstChildOfClass("Tool")then return nil end;return{Enabled=true}end}
+check(A5.EnsureDigEquipment()and held.Parent==backpack,"Gear left after use is unequipped so native shovel can resume")
+held.Parent=phaseCharacter;player:SetAttribute("DrinkingPotion",true)
+check(not A5.EnsureDigEquipment()and held.Parent==phaseCharacter,"Do not interrupt active potion drinking")
+player:SetAttribute("DrinkingPotion",nil);held.Parent=backpack;A5.Destroy();pump()
 print("PASS adapter timeout / reload / target / movement checks:",checks)

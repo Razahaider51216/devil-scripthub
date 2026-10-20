@@ -34,6 +34,7 @@ function Methods:FindFirstChildOfClass(class)for _,n in ipairs(self.Children)do 
 function Methods:FindFirstChildWhichIsA(class,recursive)for _,n in ipairs(recursive and self:GetDescendants()or self.Children)do if n:IsA(class)then return n end end end
 function Methods:SetAttribute(key,value)self.Attributes[key]=value end
 function Methods:GetAttribute(key)return self.Attributes[key]end
+function Methods:IsDescendantOf(parent)local node=self.Parent;while node do if node==parent then return true end;node=node.Parent end;return false end
 function Methods:Destroy()if self.Destroyed then return end;self.Destroyed=true;self.Destroying:Fire();for _,n in ipairs(self:GetChildren())do n:Destroy()end;self.Parent=nil end
 local Enum=setmetatable({},{__index=function(t,k)local v=setmetatable({},{__index=function(_,key)return key end});rawset(t,k,v);return v end})
 local Color3={fromRGB=function(...)return{...}end,new=function(...)return{...}end}
@@ -119,6 +120,24 @@ selector.Spec.Callback("Grey Shovel");check(app.Config.Shovel=="Grey","Friendly 
 local gear=registry["Gear / live price / stock"];local detail=""
 for _,n in ipairs(gear.Popup:GetDescendants())do if n.Name=="DevilItemPrice"then detail=n.Text end end
 check(detail:find("$720",1,true)and detail:find("Stock: 4",1,true),"Gear displays live price and stock")
+local map=Instance.new("Folder");map.Name="RuntimeMap";map.Parent=workspace
+local mine=Instance.new("Folder");mine.Name="CommunalMine";mine.Parent=map
+local part=Instance.new("BasePart");part.Parent=mine;part:SetAttribute("FindKind","Egg");part:SetAttribute("FindId","Soil");part:SetAttribute("Diggable",false);part:SetAttribute("Health",20)
+local position=setmetatable({},{__sub=function()return{Magnitude=5}end});part.Position=position;A.Finds[part]=true
+local character=Instance.new("Model");local root=Instance.new("BasePart");root.Name="HumanoidRootPart";root.Position=position;root.Parent=character
+local humanoid=Instance.new("Humanoid");humanoid.Health=100;humanoid.Parent=character;player.Character=character
+local oldMove,oldAim=A.Move,A.Aim;local movements=0;local arrived
+A.Move=function(target)movements+=1;arrived=target.Instance;return true,"Arrived"end
+A.Aim=function()return nil end
+local focused=Instance.new("TextBox");focused.Parent=app.Window.Gui;focused.ReleaseFocus=function()focused=nil end
+services.UserInputService.GetFocusedTextBox=function()return focused end
+app.Config.FarmFinds=true
+registry["Teleport to selected target"].Spec.Callback();pump();pump();pump()
+check(focused==nil and arrived==part,"Actual teleport button releases hub search focus and resolves buried selected egg")
+check(app.Report.Jobs.Teleport=="Arrived","Manual teleport outcome is reported")
+clock+=.2;pump();check(movements==1,"Farm cannot immediately override a manual egg teleport")
+app.Core.Set("FarmFinds",false);player.Character=nil;A.Move=oldMove;A.Aim=oldAim;map:Destroy()
+services.UserInputService.GetFocusedTextBox=function()return nil end
 registry["Save settings"].Spec.Callback();pump();check(fakeJSON.Config.Shovel=="Grey","Save profile stores chosen ID")
 check(fakeJSON.PlaceId==game.PlaceId and fakeJSON.UserId==player.UserId,"Settings scoped to account and place")
 check(fakeJSON.Config.TeleportChoice=="Egg:Soil","Saved selection retains named egg type")

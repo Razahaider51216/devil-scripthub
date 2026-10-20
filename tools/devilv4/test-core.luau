@@ -196,4 +196,45 @@ do
     check(#A.Calls==1,"Sale types serialize instead of competing for same remote")
     C.StopAll();A.Pause=false;drain();check(#A.Calls==1 and C.Selling==nil,"Stop cancels sale and clears ownership after pending snapshot")
 end
+do
+    local A=context();local C=makeCore(A,P);C.Set("Dig",true);C.Tick();drain()
+    now+=.4;C.Tick();drain()
+    check(A.Sent[#A.Sent-1].Args[1]=="Stop"and A.Sent[#A.Sent].Args[1]=="Start","Input timeout rearms with Start rather than sending Aim forever")
+    check(C.Report.Recoveries==1 and C.Config.Dig,"Recovery keeps automation enabled")
+    C.StopAll();local count=#A.Sent;now+=5;C.Tick();drain();check(#A.Sent==count,"Watchdog cannot restart after Stop All")
+end
+do
+    local A=context();local C=makeCore(A,P)
+    local first={Instance={Alive=true,HP=100},Kind="Egg",Rarity="Common",Name="Soil",Serial=1}
+    local second={Instance={Alive=true,HP=1000},Kind="Egg",Rarity="Common",Name="Clay",Serial=2}
+    A.ValidFind=function(n)return n and n.Alive end;A.Targets=function()return{first,second}end
+    A.Aim=function(t)if t then return"o","d","Find",t.Instance,t.Instance end end
+    A.Health=function(n)return n and n.HP end;A.NativeCooldown=function()return .5 end
+    C.Set("FarmFinds",true);C.Tick();drain()
+    for _=1,220 do now+=.05;if C.Target==second then second.Instance.HP-=1 end;C.Tick();drain()end
+    check(C.Target==second and C.Config.FarmFinds,"Unchanged server health recovers then moves past stalled target without switching auto off")
+    check(C.Report.Recoveries>=3,"Repeated no-progress sessions are recorded")
+    C.StopAll()
+end
+do
+    local A=context();local C=makeCore(A,P);local node={HP=100}
+    A.Aim=function()return"o","d","Down",nil,node end;A.Health=function(n)return n.HP end;A.NativeCooldown=function()return 2 end
+    C.Set("Dig",true)
+    for _=1,140 do now+=.05;C.Tick();drain()end
+    check(C.Report.Recoveries==0,"Slow native equipment gets its own progress window")
+    node.HP=99;now+=.05;C.Tick();drain();check(C.Report.Recoveries==0,"Actual damage progress resets watchdog")
+    C.StopAll()
+end
+do
+    local A=context();local C=makeCore(A,P)
+    local stuck={Instance={},Kind="Egg",Rarity="Common",Name="Stuck",Serial=1};local good={Instance={},Kind="Egg",Rarity="Common",Name="Good",Serial=2}
+    A.ValidFind=function(n)return n~=nil end;A.Targets=function()return{stuck,good}end
+    A.Aim=function(t)if t==good then return"o","d","Find",t.Instance end end
+    local attempts=0;A.Move=function()attempts+=1;return false,"Blocked"end
+    C.Set("FarmFinds",true)
+    for _=1,60 do now+=.05;C.Tick();drain()end
+    check(attempts==3 and C.Target==good,"Repeated unreachable nearest egg cannot starve reachable eggs")
+    check(C.Config.FarmFinds,"Target backoff keeps farm running")
+    C.StopAll()
+end
 print("PASS core/policy behavior checks:",passed)
