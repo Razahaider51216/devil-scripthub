@@ -84,6 +84,8 @@ do
  assert(run()=='route-ok'and connections==1 and #queued==0,'public loader did not arm Auto Execute')
  callback(1);callback(4)
  assert(#queued==1 and queued[1]:find('main/loader?v=vm-1',1,true),'public loader did not queue main entry / queued twice')
+ state.DevilHubLoadController.IsActive=function()return true end
+ state.DevilHubLoadController.Acquire=function()return state.DevilHubLoadController end
  run();assert(connections==1,'public loader rerun duplicated Auto Execute listener')
 end
 print('PASS actual public router: '..cases..' universe/place cases across '..#definitions..' games, immutable pins, retries, errors, arguments and session guards')

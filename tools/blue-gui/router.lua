@@ -21,7 +21,7 @@ end
 local env=type(getgenv)=="function"and getgenv()or _G
 if env.DevilHubRouterLoading then return end
 local games={
-    {Name="Anime Dice",Universe=10708913337,Place=113290951185459,File="anime-dice-test.lua",Commit="6bb7714d11666d9bdef0a4bc78459046e75d7056",Version="anime-dice-test-20261020-9"},
+    {Name="Anime Dice",Universe=10708913337,Place=113290951185459,File="anime-dice-test.lua",Commit="dd943c7f97b7c8dec9a8637b4a28bb74679da972",Version="anime-dice-test-20261020-10"},
     {Name="Mine / Dump23",Universe=10740316645,Place=79389059854988,File="mine-auto-test.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="mine-auto-test-4"},
     {Name="Tap Simulator 2",Universe=10629695169,Place=72858262610964,File="tapping-auto-test.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="tapping-auto-test-10"},
     {Name="Climb for Eggs",Universe=10765490774,Place=85738654635245,File="climb-for-eggs.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="climb-fly-speed-10"},
@@ -35,12 +35,76 @@ local games={
 }
 for _,entry in ipairs(games)do entry.Version=entry.File=="devil-steal-an-egg.lua"and"chilli-startup-fix-20261019"or entry.File=="mine-auto-test.lua"and"mine-auto-test-4"or entry.File=="tapping-auto-test.lua"and"tapping-auto-test-10"or entry.File=="climb-for-eggs.lua"and"climb-fly-speed-10"or entry.File=="lift-rock-for-eggs.lua"and"lift-rock-fly-23"or entry.File=="aqua-auto-egg.lua"and"aqua-auto-egg-18"or entry.File=="break-and-steal-an-egg.lua"and"break-halloween-25"or(entry.File=="ride-a-pet.lua"and"ride-native-obf-18"or"shared-loading-3")end
 -- Anime Dice keeps its own release without changing legacy route versions.
-for _,entry in ipairs(games)do if entry.File=="anime-dice-test.lua"then entry.Version="anime-dice-test-20261020-9"end end
+for _,entry in ipairs(games)do if entry.File=="anime-dice-test.lua"then entry.Version="anime-dice-test-20261020-10"end end
 if not game:IsLoaded()then game.Loaded:Wait()end
 local selected
 for _,entry in ipairs(games)do if game.GameId==entry.Universe then selected=entry break end end
 if not selected then for _,entry in ipairs(games)do if game.PlaceId==entry.Place then selected=entry break end end end
 assert(selected,"DEVIL HUB supports Mine / Dump23, Tap Simulator 2, Climb for Eggs, Lift Rock for Eggs, Ride A Fish, Steal an Egg, Ride a Pet, Break and Steal an Egg, Loot to Forge, Build An Ant Empire, and Anime Dice. This map is not supported yet. GameId="..tostring(game.GameId).." PlaceId="..tostring(game.PlaceId).."")
+-- BEGIN DEVIL AUTO EXECUTE
+do
+    local scope=type(getgenv)=="function"and getgenv()or _G
+    local current=scope.DevilHubAutoExecute
+    if not(current and current.Version=="devil-auto-execute-1"and(current.Link or current.Queued))then
+        local state={Version="devil-auto-execute-1",Status="Unavailable",Queued=false}
+        scope.DevilHubAutoExecute=state
+        local ok,problem=pcall(function()
+            local candidates={}
+            local function add(fn)
+                if type(fn)~="function"then return end
+                for _,existing in ipairs(candidates)do if existing==fn then return end end
+                candidates[#candidates+1]=fn
+            end
+            add(queue_on_teleport);add(queueonteleport)
+            add(scope.queue_on_teleport);add(scope.queueonteleport)
+            for _,namespace in ipairs({"syn","fluxus"})do
+                local api=scope[namespace]or(namespace=="syn"and syn or fluxus)
+                if type(api)=="table"then add(api.queue_on_teleport);add(api.queueonteleport)end
+            end
+            if #candidates==0 then return end
+            local payload=[==[
+local scope=type(getgenv)=="function"and getgenv()or _G
+if scope.DevilHubAutoExecuteArrival then return end
+scope.DevilHubAutoExecuteArrival=true
+if not game:IsLoaded()then game.Loaded:Wait()end
+for attempt=1,3 do
+    local ok,problem=pcall(function()
+        local source=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/loader?v=vm-1")
+        assert(type(source)=="string"and #source>0 and not source:match("^%s*<"),"Invalid DEVIL HUB loader response")
+        local run,err=loadstring(source,"DEVIL HUB / Auto Execute")
+        assert(run,err)
+        return run()
+    end)
+    if ok then return end
+    if attempt<3 then task.wait(attempt*2)
+    else scope.DevilHubAutoExecuteArrival=nil;warn("DEVIL HUB Auto Execute: "..tostring(problem))end
+end
+]==]
+            local function queue()
+                if state.Queued then return end
+                for _,fn in ipairs(candidates)do
+                    local queued,result=pcall(fn,payload)
+                    if queued and result~=false then state.Queued=true;state.Status="Queued";state.LastError=nil;return end
+                    state.LastError=tostring(result)
+                end
+                state.Status="Queue failed"
+            end
+            local player=game:GetService("Players").LocalPlayer
+            if player and player.OnTeleport then
+                state.Link=player.OnTeleport:Connect(function(status)
+                    if status==Enum.TeleportState.Started or status==Enum.TeleportState.InProgress then queue()
+                    elseif status==Enum.TeleportState.Failed then state.Queued=false;state.Status="Ready"end
+                end)
+                state.Status="Ready"
+            else
+                -- Some executors cannot expose the event; preload their queue.
+                queue()
+            end
+        end)
+        if not ok then state.Status="Unavailable";state.LastError=tostring(problem)end
+    end
+end
+-- END DEVIL AUTO EXECUTE
 if selected.File=="ride-a-pet.lua"and(env.DevilRideLucyRunning or env.DevilRideLucyLoading or env.DevilRideLucyRequiresRejoin or env.DevilRideUnpacking or env.DevilRideDeltaLoading or(env.DevilRideLoading and env.DevilRideLoading.Busy))then return end
 if selected.File=="break-and-steal-an-egg.lua"and(env.DevilBreakActive or env.DevilBreakUnpacking)then return end
 if selected.File=="loot-to-forge.lua"and(env.DevilLootStarting or env.DevilLootRunning)then return end

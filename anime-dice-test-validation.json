@@ -1,19 +1,19 @@
 {
-  "release": "anime-dice-test-20261020-9",
+  "release": "anime-dice-test-20261020-10",
   "live_game_verified": false,
-  "entry_sha256": "d8eaf685184007a4966c1f461f0062504b0cc6c383f534850c85671e556adbc8",
-  "checks": 473,
+  "entry_sha256": "672c6d1c0bd824f4ecac6fe2873024af72010bcf0307eee71f7fd5b4b2ddb802",
+  "checks": 480,
   "literal_remote_contract_checks": 24,
   "results": [
     "PASS Anime Dice planning, network contracts, confirmation, stop and event behavior: 196 checks",
     "PASS Halloween teleport: roof rejection, door sill, elevation, streaming, death and cancellation: 23 checks",
-    "PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: 254 checks"
+    "PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: 261 checks"
   ],
-  "main_loader_sha256": "5cea714dcd46d8950dd876a5e2e4ba4eca9689b7b964e2f0a4b0871df00536e6",
+  "main_loader_sha256": "8fd56f261a29a7b327c793aea4ea2544d1342c88d519052fa7f7db6072ea2aa8",
   "pinned_gui_sha256": "0c30762d3c9c3aa7c25ca3aeceab960a771c96b5af290a3b67aed627161385f5",
   "fixtures": {
     "anime-dice-core.luau": "dc23486d63b359fcad08367e2ddaa7774cb03d04418868e8e073f154d4cddbd3",
-    "anime-dice-entry.luau": "7824fd36e5cf65745b59597eff944ce7307eb6556fddcc840f4e9af877a672e7",
+    "anime-dice-entry.luau": "cb80c0c3ccbca3d8e5006ff00a38879b27150169ecd6220f3e63064117cb1dc3",
     "anime-dice-movement.luau": "5d993b29e034b5bb4a66f7eb3c9b282581ac9b77f648e00e0cc3a6dfc53013f8"
   }
 }
