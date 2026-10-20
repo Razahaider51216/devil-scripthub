@@ -27,13 +27,13 @@ local games={
     {Name="Climb for Eggs",Universe=10765490774,Place=85738654635245,File="climb-for-eggs.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="climb-fly-speed-10"},
     {Name="Lift Rock for Eggs",Universe=10768316438,Place=76731343328034,File="lift-rock-for-eggs.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="lift-rock-fly-23"},
     {Name="Ride A Fish",Universe=10766691148,Place=104050046639813,File="aqua-auto-egg.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="aqua-auto-egg-18"},
-    {Name="Steal an Egg",Universe=10563114921,Place=107778070777162,File="devil-steal-an-egg.lua",Commit="f6336729057870d5587a41ea75c9bcfbebb2b5b2",Version="steal-panel-startup-20261020-2"},
+    {Name="Steal an Egg",Universe=10563114921,Place=107778070777162,File="devil-steal-an-egg.lua",Commit="4d55fc5f7a8b6c90b9e082ada45cb40aeeb393cc",Version="steal-startup-compat-20261020-3"},
     {Name="Ride a Pet",Universe=10035204815,Place=124216119978534,File="ride-a-pet.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351"},
     {Name="Break and Steal an Egg",Universe=10765288803,Place=114326934417838,File="break-and-steal-an-egg.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351"},
     {Name="Loot to Forge",Universe=10684750879,Place=118805555015549,File="loot-to-forge.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="silver-native-1"},
     {Name="Build An Ant Empire",Universe=10436530264,Place=78490532994307,File="build-an-ant-empire.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351"},
 }
-for _,entry in ipairs(games)do entry.Version=entry.File=="devil-steal-an-egg.lua"and"steal-panel-startup-20261020-2"or entry.File=="mine-auto-test.lua"and"mine-auto-test-4"or entry.File=="tapping-auto-test.lua"and"tapping-auto-test-10"or entry.File=="climb-for-eggs.lua"and"climb-fly-speed-10"or entry.File=="lift-rock-for-eggs.lua"and"lift-rock-fly-23"or entry.File=="aqua-auto-egg.lua"and"aqua-auto-egg-18"or entry.File=="break-and-steal-an-egg.lua"and"break-halloween-25"or(entry.File=="ride-a-pet.lua"and"ride-native-obf-18"or"shared-loading-3")end
+for _,entry in ipairs(games)do entry.Version=entry.File=="devil-steal-an-egg.lua"and"steal-startup-compat-20261020-3"or entry.File=="mine-auto-test.lua"and"mine-auto-test-4"or entry.File=="tapping-auto-test.lua"and"tapping-auto-test-10"or entry.File=="climb-for-eggs.lua"and"climb-fly-speed-10"or entry.File=="lift-rock-for-eggs.lua"and"lift-rock-fly-23"or entry.File=="aqua-auto-egg.lua"and"aqua-auto-egg-18"or entry.File=="break-and-steal-an-egg.lua"and"break-halloween-25"or(entry.File=="ride-a-pet.lua"and"ride-native-obf-18"or"shared-loading-3")end
 -- Anime Dice keeps its own release without changing legacy route versions.
 for _,entry in ipairs(games)do if entry.File=="anime-dice-test.lua"then entry.Version="anime-dice-test-20261020-10"end end
 if not game:IsLoaded()then game.Loaded:Wait()end

@@ -1,5 +1,18 @@
 # Steal an Egg ? Chilli Halloween update (2026-10-19)
 
+70% compatibility follow-up (`steal-startup-compat-20261020-3`): a live user
+reported the whole game becoming unresponsive at the runtime-start phase after
+the previous release. The cause is not confirmed without executor diagnostics.
+This release removes the added decoder yields/clocks/upvalues and restores the
+original native loading initializer, file diagnostics, flags and 0.05s waits.
+The bootstrap shape is checked against upstream with only payload literals and
+decoded size excluded. The native loading initializer is checked for exact
+parity after reversing its presentation-only changes. Its ScreenGui remains
+disabled and unparented, so the original loading card is never attached to UI.
+DEVIL progress is a separate observer. Icon fixes, the early UI guard and verified
+file caches remain. Tests pass offline; the reported executor freeze is not yet
+verified resolved live.
+
 Launcher/startup follow-up (`steal-panel-startup-20261020-2`): fix the separate
 Steal Panel launcher as well as item-row artwork. The launcher uses the native
 Steal Filter icon until a live item is selected; a blue/white vector egg is shown
