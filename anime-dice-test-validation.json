@@ -10,7 +10,7 @@
     "PASS Halloween teleport: roof rejection, door sill, elevation, streaming, death and cancellation: 32 checks",
     "PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: 531 checks"
   ],
-  "main_loader_sha256": "f2372ac4c58f4647009c6d3219a136187d7140310f145788633e6d9a94127612",
+  "main_loader_sha256": "f37d107e52d54749c804c9814b72498578a0d798f215b51df8118f3a99a41932",
   "main_loader_integration_verified": true,
   "pinned_gui_sha256": "0c30762d3c9c3aa7c25ca3aeceab960a771c96b5af290a3b67aed627161385f5",
   "fixtures": {

@@ -1,5 +1,5 @@
 {
-  "release": "devil-anime-dice-20261020-12",
+  "release": "chilli-fishing-rotation-20261020-1",
   "module_commit": "9a9812469df7b5dad2848abb33c5206f7d57e685",
   "game_entries_commit": "e39fb7f24bda4d132f439416c7c68ad7467ff351",
   "map_ids_unchanged": false,
@@ -39,7 +39,9 @@
       "Name": "Steal an Egg",
       "Universe": 10563114921,
       "Place": 107778070777162,
-      "File": "devil-steal-an-egg.lua"
+      "File": "devil-steal-an-egg.lua",
+      "Commit": "bceae2ad767b4ee309d4ad430caa2fd6aebf0c7e",
+      "Version": "chilli-fishing-rotation-20261020-1"
     },
     {
       "Name": "Ride a Pet",
@@ -76,11 +78,11 @@
       "Version": "anime-dice-test-20261020-12"
     }
   ],
-  "before_native_sha256": "1fa7343fee1e4478d1e900d262e0cd891cd2857286d56545aed62d5b48a12369",
-  "after_native_sha256": "3051da589ec8036bec14ed80f2d207e5f5fa4a1c2c0e2040e885cdf4dbadab47",
+  "before_native_sha256": "3051da589ec8036bec14ed80f2d207e5f5fa4a1c2c0e2040e885cdf4dbadab47",
+  "after_native_sha256": "21d42ff6df962cab34487a4a18c8ad07a9c0e8e18c084ab2466794373fe0615c",
   "live_rendering_verified": false,
-  "public_loader_sha256": "f2372ac4c58f4647009c6d3219a136187d7140310f145788633e6d9a94127612",
-  "public_loader_bytes": 135543,
+  "public_loader_sha256": "f37d107e52d54749c804c9814b72498578a0d798f215b51df8118f3a99a41932",
+  "public_loader_bytes": 135585,
   "ui_offline_checks": 165,
   "public_router_universe_place_cases": 33,
   "language_choices": [
@@ -141,5 +143,8 @@
   "auto_execute_enabled": true,
   "auto_execute_sha256": "6b071230dd8fcb24541ac6d8008d9bdeabaf8ea7051d4ca744be1bfbee2700c1",
   "break_language_entry_commit": "a7cf89d5f4aa4cf74d84e12af125cf82b788eae5",
-  "non_break_routes_unchanged": true
+  "non_break_routes_unchanged": true,
+  "steal_entry_commit": "bceae2ad767b4ee309d4ad430caa2fd6aebf0c7e",
+  "steal_entry_sha256": "e6c3b21ae1af1bc95d1b89040f464e35fa6b37c06850cb6e0daae1bcd013e658",
+  "non_steal_routes_unchanged": true
 }

@@ -7,5 +7,8 @@
   "live_verified": false,
   "delegate_bytes": 69931,
   "delegate_sha256": "e6c3b21ae1af1bc95d1b89040f464e35fa6b37c06850cb6e0daae1bcd013e658",
-  "delegate_native_sha256": "23a39589eb9c2601c5298466bb8c99e4731c04d979345647b088a8c626a512d2"
+  "delegate_native_sha256": "23a39589eb9c2601c5298466bb8c99e4731c04d979345647b088a8c626a512d2",
+  "delegate_commit": "bceae2ad767b4ee309d4ad430caa2fd6aebf0c7e",
+  "main_loader_sha256": "f37d107e52d54749c804c9814b72498578a0d798f215b51df8118f3a99a41932",
+  "other_game_routes_unchanged": true
 }
