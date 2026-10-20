@@ -59,11 +59,16 @@ do
 end
 do
  local host=Instance.new('Folder');local native=Instance.new('ScreenGui');native.Enabled=true
+ local frame=Instance.new('Frame');frame.Size=UDim2.fromScale(.45,.55)
  local flashed=false
- native:GetPropertyChangedSignal('Parent'):Connect(function()if native.Parent and native.Enabled then flashed=true end end)
- local create=assert(loadstring(createSource));setfenv(create,{F={[19]={obj1=native},[15]=host},devilKeepNativeHidden=makeVisibility()});create()
- check(native.Parent==host and not native.Enabled and not flashed,'native GUI was enabled when parented')
- native.Enabled=true;check(not native.Enabled,'native GUI re-enabled itself after parenting')
+ native:GetPropertyChangedSignal('Parent'):Connect(function()
+  for _,child in ipairs(native:GetChildren())do if child:IsA('GuiObject')and not(child:IsA('CanvasGroup')and child.GroupTransparency==1)then flashed=true end end
+ end)
+ local create=assert(loadstring(createSource));setfenv(create,{F={[19]={obj1=native,obj2=frame},[15]=host},devilKeepNativeHidden=makeVisibility()});create()
+ check(native.Parent==host and native.Enabled and not flashed,'startup changed native Enabled state / exposed native pixels')
+ check(frame.Parent:IsA('CanvasGroup')and frame.Parent.GroupTransparency==1 and frame.Parent.Parent==native,'root frame bypassed invisible canvas')
+ check(frame.Parent.Size.X.Scale==1 and frame.Parent.Size.Y.Scale==1,'native root lost viewport layout size')
+ native.Enabled=false;native.Enabled=true;check(native.Enabled,'permanent visibility lock still intercepts engine state')
  check(native:GetAttribute('DevilBlueSettings')==true,'hidden native GUI still incurs a complete theme / localization pass')
 end
 do
@@ -81,7 +86,23 @@ do
  check(ours.Enabled,'early guard hid the DEVIL HUB frontend')
  local panel=Instance.new('ScreenGui');panel.Name='randomized-steal-panel';panel.Parent=core
  check(panel.Enabled,'early guard hid the separate Steal Panel')
+ local quarantined=Instance.new('ScreenGui');makeVisibility()(quarantined);quarantined:SetAttribute('ChilliLibraryOwned',true);quarantined.Parent=core
+ check(quarantined.Enabled,'early guard disabled the transparent native layout screen')
  stop();check(shared.DevilChilliEarlyGuardStop==nil and not native.Enabled,'guard cleanup exposed old GUI / kept singleton alive')
+end
+do
+ local shared={};local written,warnings={},{};local updates=0
+ local host=setmetatable({getgenv=function()return shared end,game={PlaceId=107778070777162,GetService=function()return {JSONEncode=function(_,data)return data.LastPhase end}end},
+  identifyexecutor=function()return 'Offline Executor','1.2'end,
+  writefile=function(path,text)written[path]=text end,warn=function(text)warnings[#warnings+1]=text end},{__index=getfenv(0)})
+ shared.DevilHubLoadController={Update=function()updates+=1 end}
+ setfenv(makeTrace,host);local stage=makeTrace()()
+ check(shared.DevilStealStartupTrace.Executor=='Offline Executor / 1.2','startup trace did not identify executor')
+ stage('Native UI write probe');stage('Native UI write probe')
+ check(written['DevilHub-Steal-Startup.json']=='Native UI write probe'and #shared.DevilStealStartupTrace.Steps==2,'startup trace missing / repeated phase duplicated breadcrumbs')
+ check(updates==2 and #warnings==2,'startup trace did not expose actual stages')
+ host.writefile=function()error('file API unavailable')end
+ stage('Native handles ready');check(shared.DevilStealStartupTrace.LastPhase=='Native handles ready','failed diagnostic file write interrupted startup')
 end
 do
  local shared={};local progress

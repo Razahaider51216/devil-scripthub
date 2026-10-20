@@ -19,7 +19,9 @@ catalog = native.split('local function _(v)local s=S[v];',1)[1].split('local fun
 catalog = 'local function _(v)local s=S[v];' + catalog
 redraw = native.split('local function zW(_W,vW)local IW=vW.Style;',1)[1].split('R(_W.Label,IW.Name);',1)[0]
 redraw = 'local function redraw(_W,vW)local IW=vW.Style;' + redraw + 'end\n'
-creation = re.search(r'F\[40\]=F\[19\].obj1;F\[40\].Enabled=false;devilKeepNativeHidden\(F\[40\]\);F\[40\].Parent=F\[15\];',native)[0]
+creation = re.search(r'F\[40\]=F\[19\].obj1;devilKeepNativeHidden\(F\[40\]\);F\[40\].Parent=F\[15\];',native)[0]
+root_parent = re.search(r'F\[42\]=F\[19\].obj2;F\[43\]=devilKeepNativeHidden\(F\[19\].obj1\);F\[42\].Parent=F\[43\];',native)[0]
+creation += root_parent
 begin=native.index('[117]=function');end=native.index('end,[',begin)+len('end')
 loading_factory=native[begin:end]
 upstream=(here/'upstream-native.generated.luau').read_text(encoding='utf-8')
@@ -32,6 +34,7 @@ fixture += '\nlocal makeVisibility=function()\n' + (here / 'native-visibility.lu
 fixture += '\nlocal makeLoading=function()\n' + (here / 'native-loading.lua').read_text(encoding='utf-8') + '\nend\n'
 fixture += '\nlocal nativeLoadingSource='+literal('local callbacks={'+loading_factory+'};return callbacks[117]')+'\n'
 fixture += '\nlocal makeGuard=function()\n' + (here / 'startup-guard.lua').read_text(encoding='utf-8') + '\nend\n'
+fixture += '\nlocal makeTrace=function()\n' + (here / 'startup-trace.lua').read_text(encoding='utf-8') + '\nend\n'
 fixture += '\nlocal themeSource=' + literal((root / 'devil-blue-gui.lua').read_text(encoding='utf-8')) + '\n'
 fixture += 'local queuedSource=' + literal(queue) + '\nlocal catalogSource=' + literal(catalog) + '\n'
 fixture += 'local redrawSource=' + literal(redraw) + '\nlocal createSource=' + literal(creation) + '\n'

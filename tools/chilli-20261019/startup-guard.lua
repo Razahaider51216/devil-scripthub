@@ -6,6 +6,7 @@ return function()
     local stopped=false
     local markers={}
     local function nativeScreen(screen)
+        if screen:GetAttribute("DevilNativeCanvas")==true then return false end
         if screen.Name=="DEVIL HUB" or screen:GetAttribute("DevilHubPresentation")==true then return false end
         if screen.Name=="ChilliHubLoading" or screen:GetAttribute("ChilliLibraryOwned")==true then return true end
         local mark=markers[screen] or {}
@@ -26,6 +27,7 @@ return function()
     local tracked={}
     local function track(child)
         if not child:IsA("ScreenGui") or tracked[child] then return end
+        if child:GetAttribute("DevilNativeCanvas")==true then return end
         tracked[child]=true
         markers[child]={}
         hide(child)

@@ -57,13 +57,18 @@ def replace(before, after, count=1):
     patches.append((before, after, count))
 
 replace('h.Window=P;function S.ReflowTabs',
-        'h.Window=P;(type(getgenv)=="function"and getgenv()or _G).DevilChilliNativeWindow=P;function S.ReflowTabs')
+        'h.Window=P;(type(getgenv)=="function"and getgenv()or _G).DevilChilliNativeWindow=P;devilStartupStage("Native handles ready");function S.ReflowTabs')
 replace('F.Name="ChilliHubLoading";F.ResetOnSpawn=false;',
         'F.Name="ChilliHubLoading";F.Enabled=false;F.ResetOnSpawn=false;')
-# Disable the native menu BEFORE parenting, so no upstream window can render
-# during the handoff to DEVIL HUB, including a rejoin into a fresh client.
+# Set the presentation exemption before parenting, without changing Enabled.
 replace('F[40]=F[19].obj1;F[40].Parent=F[15];',
-        'F[40]=F[19].obj1;F[40].Enabled=false;devilKeepNativeHidden(F[40]);F[40].Parent=F[15];')
+        'F[40]=F[19].obj1;devilKeepNativeHidden(F[40]);F[40].Parent=F[15];')
+replace('F[42]=F[19].obj2;F[43]=F[19].obj1;F[42].Parent=F[43];',
+        'F[42]=F[19].obj2;F[43]=devilKeepNativeHidden(F[19].obj1);F[42].Parent=F[43];')
+replace('F[35]=N[0](pcall(function()local E={};local e=Instance.new("ScreenGui");',
+        'devilStartupStage("Native UI write probe");F[35]=N[0](pcall(function()local E={};local e=Instance.new("ScreenGui");')
+replace('Bc=function(N,...)local Q,E,F,e,p,m,U,t,r,k,h,P=N:yc();',
+        'Bc=function(N,...)devilStartupStage("VM startup");local Q,E,F,e,p,m,U,t,r,k,h,P=N:yc();')
 # Keep the original loading initializer, flags, file diagnostics and .05s wait.
 # Its screen stays unparented, so it cannot appear in CoreGui/hidden UI.
 replace('F.Parent=Q;local Q,e="ChilliLibrary/SAE_LoadProgress.txt";',
@@ -123,6 +128,7 @@ artwork = (WORK / 'panel-artwork.lua').read_text(encoding='utf-8')
 adapted = 'local devilStealArtwork=(function()\n' + artwork + '\nend)()\n' + adapted
 for variable,filename in [('devilNativeProgress','native-loading.lua'),('devilKeepNativeHidden','native-visibility.lua')]:
     adapted = 'local ' + variable + '=(function()\n' + (WORK / filename).read_text(encoding='utf-8') + '\nend)()\n' + adapted
+adapted='local devilStartupStage=(function()\n'+(WORK/'startup-trace.lua').read_text(encoding='utf-8')+'\nend)()()\n'+adapted
 (WORK / 'native-layer.generated.luau').write_text(adapted, encoding='utf-8', newline='\n')
 
 
@@ -161,7 +167,7 @@ target = ROOT / 'devil-chilli-native-ui-runtime.lua'
 target.write_text(output, encoding='utf-8', newline='\n')
 subprocess.run([str(COMPILER), '--null', str(target)], check=True)
 manifest = {
-    'release': 'steal-startup-compat-20261020-3', 'upstream_commit': UPSTREAM,
+    'release': 'steal-startup-layout-20261020-4', 'upstream_commit': UPSTREAM,
     'upstream_url': URL, 'upstream_sha256': EXPECTED,
     'upstream_bytes': len(original), 'source_bytes': target.stat().st_size,
     'source_sha256': sha(target.read_bytes()), 'transfer_checksum': checksum(target.read_bytes()),
@@ -175,8 +181,9 @@ manifest = {
     'artwork_sha256': sha(artwork.encode()),
     'adapted_native_sha256': sha(adapted.encode()),
     'steal_launcher_icon_supported':True,'native_loading_screen_unparented':True,
-    'native_visibility_lock':True,'cooperative_decompression':False,
+    'native_visibility_lock':False,'native_enabled_state_preserved':True,'cooperative_decompression':False,
     'protected_bootstrap_structure_unchanged':True,'original_loading_initializer_and_timing_preserved':True,
+    'startup_phase_report':'DevilHub-Steal-Startup.json',
 }
 (ROOT / 'devil-chilli-native-ui-recovery.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
 print(json.dumps(manifest, indent=2))
