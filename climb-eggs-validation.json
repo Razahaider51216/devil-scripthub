@@ -35,5 +35,7 @@
   "visible_script_text_english_verified": true,
   "thai_status_utf8_verified": true,
   "language_preserves_automation": true,
-  "gameplay_core_unchanged": true
+  "gameplay_core_unchanged": true,
+  "main_loader_sha256": "c7be3365232748e87776f57731a6e902b7f18296b3d6c0cda50208b63886eb2a",
+  "runtime_commit": "fa18b61e74e788a1825123d7bf3182b628c3463f"
 }

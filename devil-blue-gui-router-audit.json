@@ -1,5 +1,5 @@
 {
-  "release": "climb-steal-control-20261020-11",
+  "release": "climb-language-sync-20261020-12",
   "module_commit": "9a9812469df7b5dad2848abb33c5206f7d57e685",
   "game_entries_commit": "e39fb7f24bda4d132f439416c7c68ad7467ff351",
   "map_ids_unchanged": false,
@@ -22,8 +22,8 @@
       "Universe": 10765490774,
       "Place": 85738654635245,
       "File": "climb-for-eggs.lua",
-      "Commit": "cfb08293efa6ea72e12c76f12a3e11d7ce007364",
-      "Version": "climb-steal-control-20261020-11"
+      "Commit": "fa18b61e74e788a1825123d7bf3182b628c3463f",
+      "Version": "climb-language-sync-20261020-12"
     },
     {
       "Name": "Lift Rock for Eggs",
@@ -80,11 +80,11 @@
       "Version": "anime-dice-test-20261020-12"
     }
   ],
-  "before_native_sha256": "21d42ff6df962cab34487a4a18c8ad07a9c0e8e18c084ab2466794373fe0615c",
-  "after_native_sha256": "f482987f866c9837c1ff957ffe9f34ac9e48562019c7929417d3e3a995a907cb",
+  "before_native_sha256": "f482987f866c9837c1ff957ffe9f34ac9e48562019c7929417d3e3a995a907cb",
+  "after_native_sha256": "a7839d54fba125586d6650933b57287eae8103875631911d2a8e8b9c50dc5231",
   "live_rendering_verified": false,
-  "public_loader_sha256": "716d0a2294fa3e4033be2af329df9b1592d40765d410585fc213c4d8c8f4dfff",
-  "public_loader_bytes": 135634,
+  "public_loader_sha256": "c7be3365232748e87776f57731a6e902b7f18296b3d6c0cda50208b63886eb2a",
+  "public_loader_bytes": 135637,
   "ui_offline_checks": 165,
   "public_router_universe_place_cases": 33,
   "language_choices": [
@@ -149,7 +149,7 @@
   "steal_entry_commit": "bceae2ad767b4ee309d4ad430caa2fd6aebf0c7e",
   "steal_entry_sha256": "e6c3b21ae1af1bc95d1b89040f464e35fa6b37c06850cb6e0daae1bcd013e658",
   "non_steal_routes_unchanged": true,
-  "climb_entry_commit": "cfb08293efa6ea72e12c76f12a3e11d7ce007364",
-  "climb_entry_sha256": "1187cfe8e75caa3ee807818938989ed2fe6918a7365d01edddad294bf231d606",
+  "climb_entry_commit": "fa18b61e74e788a1825123d7bf3182b628c3463f",
+  "climb_entry_sha256": "cd9a3a277b46ce577b3bba1335eac7b39de3774774f310fdf1005cdb80cd044a",
   "non_climb_routes_unchanged": true
 }
