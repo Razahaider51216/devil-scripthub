@@ -1,0 +1,20 @@
+{
+  "release": "break-language-sync-20261020-1",
+  "map": "Break and Steal an Egg",
+  "place_id": 114326934417838,
+  "universe_id": 10765288803,
+  "baseline_commit": "ffead40854214241891f0873f6da71832face539",
+  "bridge_sha256": "1d221734a0329563560a6d32edddad458ce2d17e894c37165a05ec6edc7cf939",
+  "native_gameplay_unchanged": true,
+  "live_verified": false,
+  "entries": {
+    "break-and-steal-an-egg.lua": {
+      "engine_body_sha256": "5b1eaa9ede6b9c9a5a2b1788fe161daf6d81381c4aa765a082403576ecd16ec4",
+      "public_sha256": "179c79b82328f40f4b8f19858833fc8f46918704d4ab12f84301da0081fbde19"
+    },
+    "break-and-steal-an-egg-runtime.lua": {
+      "engine_body_sha256": "0484a89304a64852ca6324dc4c633148ee55f11d24976c2b078b123c4b601215",
+      "public_sha256": "6778573e9d62f1d8a96ddd6ecb8503b1733c39f8c57cb88cdaa44e670d544bb6"
+    }
+  }
+}

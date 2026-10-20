@@ -55,7 +55,7 @@ function mt.__index(self,key)
     if methods[key] then return methods[key]end
     if self.props[key]~=nil then return self.props[key]end
     for _,child in ipairs(self.children)do if child.Name==key then return child end end
-    if key=='ChildAdded' or key=='Activated' or key=='Focused' or key=='FocusLost' or key=='InputBegan' or key=='MouseEnter' or key=='MouseLeave' or key=='MouseButton1Down' or key=='MouseButton1Up' or key=='DescendantAdded' or key=='Destroying' then
+    if key=='ChildAdded' or key=='Activated' or key=='Focused' or key=='FocusLost' or key=='InputBegan' or key=='MouseEnter' or key=='MouseLeave' or key=='MouseButton1Click' or key=='MouseButton1Down' or key=='MouseButton1Up' or key=='DescendantAdded' or key=='Destroying' then
         self.signals[key]=self.signals[key] or signal();return self.signals[key]
     end
 end
