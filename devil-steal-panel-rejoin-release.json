@@ -1,11 +1,9 @@
 {
-  "release": "steal-startup-layout-20261020-4",
-  "gui_commit": "3ac409a9489c0be742586e3bf2c5f0caa2ef6fc6",
-  "gui_sha256": "79bea413210475df0624d5ab1bc30731afc770aa75bab74adef1f8c076d5b32f",
-  "runtime_commit": "8fbab06f609f0431b3ddde6f329b4d7ec2070d1a",
+  "release": "steal-startup-vm-20261020-5",
+  "gui_commit": "3b8999375f0d3d74e44bb551f150265717f7e02d",
+  "gui_sha256": "4ba14e3a6154e162667e13dfa18ed0c78dbfc0b6f3a3ea3b1e73855ceafb0419",
+  "runtime_commit": "80648e24de75f5e587752313911ed23088333ad5",
   "live_game_verified": false,
   "game_bytecode_unchanged": true,
-  "delegate_sha256": "11970924d5b4a801b2a22ccfa4371cf810ed80f54655bd4c0cb73dd5b0d2a1b7",
-  "main_loader_entry_commit": "6a05b830d808b9c553bfec70198024fbe9b3500e",
-  "main_loader_sha256": "5847baaa003885b85cb6b8eddc33c54742b5c0795af3822dc81c91a98be050b8"
+  "delegate_sha256": "64ac48bafbbc391c889b1e63d05570f1e63c3ccea643d102439350d0f7eec8ec"
 }
