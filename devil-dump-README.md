@@ -4,7 +4,7 @@ Independent universal client utility based on ValenHub. Uses the same OuroFlow
 Abyss blue/black interface, Devil logo and Discord invite as Devil Hub.
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/refs/heads/main/devil-dump.lua?v=dump-13-client-start-20261022-1"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/refs/heads/main/devil-dump.lua?v=dump-14-v8-capture-20261022-1"))()
 ```
 
 Rejoin before switching from an already running ValenHub version. The previous
@@ -21,6 +21,35 @@ specialized layout with updated branding and colors.
 Discord and community links: https://discord.gg/ZY7PRcVJe2
 Default export/config folders are `DevilDump_Dumps` and `DevilDump_service`.
 Existing `ValenHub_service` configurations are not automatically migrated.
+
+## V8 capture: dump-14-v8-capture-20261022-1
+
+The follow-up report identifies **Dump V8** as the action preceding a
+**BAC-1515** kick in Steal an Egg. This narrows the reported trigger to capture;
+it does not identify the API that triggered the game's decision.
+
+Loaded-module exports (`getloadedmodules` plus `require`) and global GC scanning
+are now separate options, both off by default. Source, bytecode, script closures,
+environments and function metadata remain available in the ordinary V8 capture.
+Enable the exports toggle explicitly when a task needs loaded module exports.
+Each capture snapshots its options and yields between scripts. API errors remain
+recorded in the normal report instead of discarding all output.
+
+By default, each run writes `LastOperation.txt` under its
+`DevilDump_Dumps/ClientRuntimeV8/Run_<timestamp>_<generation>/` folder (or the
+OnlineRewards folder for targeted captures). The file is overwritten immediately
+before an introspection operation and marked complete/cancelled when appropriate.
+If disconnected, inspect the latest run's file for the last attempted API/script.
+This is diagnostic evidence, not proof of a detection cause. The diagnostic toggle
+can disable these extra disk writes. It does not install hooks, suppress kicks or
+change game checks. A synchronous executor API that hangs cannot be forcibly
+timed out by a surrounding `pcall`.
+
+Validation includes the previous 16 full-capture and 17 targeted-capture checks
+with optional features explicitly enabled, plus 66 default-option, checkpoint,
+API-failure, cancellation and suspended-API checks against the packed public
+module. Public/native integrity and compilation pass. No live Delta/Roblox run
+has confirmed that BAC-1515 is resolved.
 
 ## Startup behavior: dump-13-client-start-20261022-1
 

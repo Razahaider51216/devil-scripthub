@@ -1,18 +1,19 @@
 {
-  "release": "dump-13-client-start-20261022-1",
-  "baseline_commit": "3457012252cb2929f2eefb743ed5893f258ca9b4",
-  "entry_sha256": "57b43102106cadc110f1920415879712987044004ccc5cd5b7ad736ef2578032",
-  "native_sha256": "c354cbd3fcd4632e3e36c040669482d1f5cd21c6a8afc1529ef1758aa39698b4",
+  "release": "dump-14-v8-capture-20261022-1",
+  "baseline_commit": "e2dec2a",
+  "entry_sha256": "84a0b87000d624398a3ba998715385a51ad25e67414259d4174e16f30675b3ce",
+  "native_sha256": "26e29207b3d1dc14c61b9fb94f0cc2896e1c49ab8839999cd7d9b17eb7211b7e",
   "live_verified": false,
   "automatic_map_scan": false,
   "automatic_profile_apply": false,
   "startup_remote_hook": false,
-  "explicit_dump_spy_and_profile_features_retained": true,
-  "utility_ui_host_order": [
-    "gethui/get_hidden_gui",
-    "CoreGui",
-    "PlayerGui fallback"
-  ],
   "kick_root_cause_confirmed": false,
-  "report": "Immediate kick using Delta; includes Steal an Egg; exact kick text unavailable"
+  "report": "User reports BAC-1515 after pressing Dump V8 in Steal an Egg using Delta.",
+  "v8_defaults": {
+    "loaded_exports": false,
+    "gc_functions": false,
+    "diagnostic_checkpoints": true
+  },
+  "diagnostic_file": "DevilDump_Dumps/ClientRuntimeV8/Run_<timestamp>_<generation>/LastOperation.txt",
+  "native_changes": "V8 capture module and retry URL only; all other native tools identical to baseline"
 }

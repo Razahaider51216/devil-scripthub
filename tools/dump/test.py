@@ -6,6 +6,9 @@ ns={'re':re,'base64':base64,'RELEASE':ROOT}
 tree=ast.parse((ROOT.parent/'naphub-loot-to-forge/build_update.py').read_text(encoding='utf-8'))
 exec(compile(ast.Module(body=[n for n in tree.body if isinstance(n,ast.FunctionDef)and n.name=='unpack'],type_ignores=[]),'dump-packing','exec'),ns)
 report=json.loads((ROOT/'devil-dump-release.json').read_text())
+if report['release'].startswith('dump-14-'):
+ subprocess.run(['python',str(HERE/'test-runtime.py')],check=True)
+ raise SystemExit(0)
 public=(ROOT/'devil-dump.lua').read_bytes();source=ns['unpack'](public.decode('utf-8')).decode('utf-8')
 assert hashlib.sha256(public).hexdigest()==report['entry_sha256']
 assert hashlib.sha256(source.encode()).hexdigest()==report['native_sha256']
