@@ -39,6 +39,6 @@
     "ui.lua": "71bd21fc8f43bde06768d1ef9ff510c77c7bfcda968a062a4369dd2d047e0bd1",
     "webhook.lua": "ae46beb1938a3e513cc8bee9feb3d85ce1110b32f96602f8760079b656eedf4e"
   },
-  "main_loader_entry_commit": "44e6fa00f0a341d61b550ead0680b26e0a1a043b",
-  "main_loader_sha256": "10daf765ff85a68d739de328d0f0b172dc9e20ea6bc62a2463faa7c0bfd952b0"
+  "main_loader_entry_commit": "4a8c4b5bd2dd66c15fe8bf181edee3cb05d71428",
+  "main_loader_sha256": "af5126bd1129b1a025ed0ce172ce6cac5ed37e60a47b70d92681dac073f12667"
 }

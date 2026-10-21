@@ -11,7 +11,7 @@
   "delegate_sha256": "8306630e4d4ea0573db7dddd7dc5e7ff33b7eedb9e7c5dd94baa5de50ce78db1",
   "delegate_native_sha256": "a9fd5dcea140d37bea243a1ff8949b0a1d433f715cf8c0eff486d1e20492bb35",
   "delegate_commit": "44e6fa00f0a341d61b550ead0680b26e0a1a043b",
-  "main_loader_sha256": "10daf765ff85a68d739de328d0f0b172dc9e20ea6bc62a2463faa7c0bfd952b0",
+  "main_loader_sha256": "af5126bd1129b1a025ed0ce172ce6cac5ed37e60a47b70d92681dac073f12667",
   "other_game_routes_unchanged": false,
   "router_baseline_commit": "00f5799cc38a04b04dd061a033ae40dbceda4569",
   "protection_release": "devil-all-games-obf-20261021-1",
