@@ -1,4 +1,4 @@
-local Runtime={Version="dump-15-v8-no-require-20261022-1",ModuleExecution=false}
+local Runtime={Version="dump-16-passive-player-20261022-1",ModuleExecution=false}
 local onlineTargets={
     "ReplicatedStorage.LocalData.OnlineData",
     "ReplicatedStorage.GuiUtils.OnlineGift",

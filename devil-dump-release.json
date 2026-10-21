@@ -1,20 +1,23 @@
 {
-  "release": "dump-15-v8-no-require-20261022-1",
+  "release": "dump-16-passive-player-20261022-1",
   "baseline_commit": "e2dec2a",
-  "entry_sha256": "2943759c8aa444fbde898e4bf219e994d6f09ed5af6be2bf15dd344fe7907bef",
-  "native_sha256": "6e111dd43ae791270cc46a4accbd12ae1f93b301a65d9af3754bd0981daa4966",
+  "entry_sha256": "608da1c198b2c12e6e5f9e82dce84cd3f6c85ae4045dfe42921475307f7dbb6f",
+  "native_sha256": "4093436dc514db2cc2028b358b65e1da26815ad1145ee5d1d1c40a23c44f1fd8",
   "live_verified": false,
   "automatic_map_scan": false,
   "automatic_profile_apply": false,
   "startup_remote_hook": false,
   "kick_root_cause_confirmed": false,
-  "report": "BAC-1515 during V8; last attempted operation require-loaded-export on ReplicatedStorage.CmdrClient.Commands.completeIndex. Correlation, not confirmed kick cause.",
+  "report": "User can play with Delta alone, but reports a delayed kick after opening DEVIL DUMP without capturing. Earlier V8 checkpoint: require-loaded-export on ReplicatedStorage.CmdrClient.Commands.completeIndex. Neither identifies the exact BAC-1515 detection cause.",
   "module_execution_enabled": false,
+  "automatic_player_apply": false,
+  "native_window_autoload": false,
+  "anti_afk_default": false,
   "v8_defaults": {
     "loaded_module_metadata": false,
     "gc_functions": false,
     "diagnostic_checkpoints": true
   },
   "diagnostic_file": "DevilDump_Dumps/ClientRuntimeV8/Run_<timestamp>_<generation>/LastOperation.txt",
-  "native_changes": "V8 capture module and retry URL only; all other native tools identical to baseline"
+  "native_changes": "V8 module, retry URL, disabled delayed character apply, opt-in AntiAFK default and disabled two native-window autoload paths; all other native tools identical to baseline"
 }

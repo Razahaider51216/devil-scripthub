@@ -1,17 +1,23 @@
 {
-  "release": "dump-15-v8-no-require-20261022-1",
-  "entry_sha256": "2943759c8aa444fbde898e4bf219e994d6f09ed5af6be2bf15dd344fe7907bef",
+  "release": "dump-16-passive-player-20261022-1",
+  "entry_sha256": "608da1c198b2c12e6e5f9e82dce84cd3f6c85ae4045dfe42921475307f7dbb6f",
   "live_verified": false,
   "kick_root_cause_confirmed": false,
   "results": [
-    "PASS exact public/native integrity and all unrelated native tools unchanged",
+    "PASS exact public/native integrity; only declared V8 and startup changes",
     "PASS runtime capture: 16 checks",
     "PASS runtime capture: 17 checks",
     "PASS targeted runtime: 17 checks",
     "PASS targeted runtime: 18 checks",
     "PASS V8 diagnostics/defaults/cancellation/API-error/blocked-call: 65 checks",
     "PASS reproduced previous V8 require call on reported completeIndex path (simulated side effect)",
-    "PASS completeIndex source retained; metadata and legacy enabled flags never require game module"
+    "PASS completeIndex source retained; metadata and legacy enabled flags never require game module",
+    "PASS before delayed player actions: 3; explicit action retained",
+    "PASS before unset AntiAFK default: true",
+    "PASS before native-window automatic Load calls: 2; manual Load retained",
+    "PASS after delayed player actions: 0; explicit action retained",
+    "PASS after unset AntiAFK default: false",
+    "PASS after native-window automatic Load calls: 0; manual Load retained"
   ],
   "limits": "No live Roblox/Delta test; synchronous executor API calls cannot be forcibly timed out or guaranteed not to disconnect."
 }

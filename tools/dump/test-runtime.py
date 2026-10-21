@@ -1,5 +1,5 @@
 from pathlib import Path
-import ast, base64, hashlib, json, re, subprocess
+import ast, base64, hashlib, json, re, subprocess, runpy
 
 ROOT=Path(__file__).resolve().parents[2]
 HERE=Path(__file__).resolve().parent
@@ -21,9 +21,9 @@ def module(text):
 start,end,new_module=module(source)
 _,_,old_module=module(old)
 assert new_module==(HERE/'runtime-capture.lua').read_text(encoding='utf-8').rstrip()
-restored=(source[:start]+old_module+source[end:]).replace('devil-dump.lua?v='+metadata['release'],'devil-dump.lua?v=dump-13-client-start-20261022-1')
+restored=runpy.run_path(str(HERE/'startup-patch.py'))['restore'](source[:start]+old_module+source[end:]).replace('devil-dump.lua?v='+metadata['release'],'devil-dump.lua?v=dump-13-client-start-20261022-1')
 assert restored==old,'Native code outside V8 module changed'
-results=['PASS exact public/native integrity and all unrelated native tools unchanged']
+results=['PASS exact public/native integrity; only declared V8 and startup changes']
 def run(name,text):
     path=HERE/(name+'.generated.luau')
     path.write_text(text,encoding='utf-8',newline='\n')
@@ -69,6 +69,65 @@ end
 '''
 run('v8-require-before','local Runtime=(function()\n'+previous_module+'\nend)()\n'+regression)
 run('v8-require-after','local Runtime=(function()\n'+new_module+'\nend)()\n'+regression)
+def handler(text,number):
+    begin=text.index('handlers['+str(number)+'] = function')
+    end=text.index('\nhandlers[',begin+1)
+    return text[begin:end]
+startup_patch=runpy.run_path(str(HERE/'startup-patch.py'))
+for version,text,expected in [('before',old,3),('after',source,0)]:
+    # Execute the real former delayed handler with an unset AntiAFK setting.
+    # The new build must have no call site scheduling it.
+    schedule=startup_patch['DELAYED_APPLY'] if version=='before' else startup_patch['NO_DELAY']
+    assert schedule in text
+    if version=='after':assert text.count('handlers[60899949]')==1
+    fixture='''local handlers={}
+local queue,calls={},{}
+local script_env={task={delay=function(_,fn)table.insert(queue,fn)end}}
+local function bind_handler(fn,values)return function()return fn(values)end end
+local settings={WalkSpeed=32,JumpPower=50,Noclip=false}
+local api={setAntiAfk=function(v)table.insert(calls,"anti-afk")end,
+ updateSpeed=function(v)table.insert(calls,"speed")end,updateJump=function(v)table.insert(calls,"jump")end}
+local decoded_local_118={[11]={settings},[12]={api}}
+local decoded_local_119={}
+'''+handler(text,60899949)+'\n'+schedule+'''
+for _,fn in ipairs(queue)do fn()end
+assert(#calls==EXPECTED,"unexpected automatic player actions")
+api.updateSpeed(24);assert(#calls==EXPECTED+1,"explicit player action unavailable")
+print("PASS STARTUP_CASE delayed player actions: EXPECTED; explicit action retained")
+'''
+    run('startup-actions-'+version,fixture.replace('EXPECTED',str(expected)).replace('STARTUP_CASE',version))
+    flag=text.index('decoded_local_119[25].flag = "AntiAFK"')
+    begin=text.rfind('\tdecoded_local_119[27] = ',0,flag)
+    expression=text[begin:flag].splitlines()[0].strip()
+    default_fixture='''local decoded_local_119={[28]=nil}
+'''+expression+'''
+assert(decoded_local_119[27]==EXPECTED)
+print("PASS STARTUP_CASE unset AntiAFK default: EXPECTED")
+'''
+    run('startup-default-'+version,default_fixture.replace('EXPECTED','true' if version=='before' else 'false').replace('STARTUP_CASE',version))
+    begin=text.index('        local window=result[1]\n')
+    end=text.index('        local ui=flow:CreateWindow',begin)
+    window_setup=text[begin:end]
+    # These are the two actual Show() guards in the pinned Rayfield controller.
+    show_fixture='''local loaded=0
+local window={configuration={autoLoad=true},settings={configAutoLoad="old-profile"},Load=function()loaded+=1 end}
+local result,oldWindows={window},{}
+'''+window_setup+'''
+local function show(self)
+ if self.configuration.autoLoad and not self._autoLoaded then
+  self._autoLoaded=true;pcall(self.Load,self)
+ end
+ if self.settings.configAutoLoad and not self._autoLoadedNamed then
+  self._autoLoadedNamed=true;pcall(self.Load,self,self.settings.configAutoLoad)
+ end
+end
+show(window);show(window)
+assert(loaded==EXPECTED,"unexpected native-window auto profile application")
+assert(window.settings.configAutoLoad=="old-profile","deleted saved setting")
+window:Load("manual-profile");assert(loaded==EXPECTED+1,"explicit profile Load unavailable")
+print("PASS STARTUP_CASE native-window automatic Load calls: EXPECTED; manual Load retained")
+'''
+    run('startup-window-'+version,show_fixture.replace('EXPECTED','2' if version=='before' else '0').replace('STARTUP_CASE',version))
 (ROOT/'devil-dump-validation.json').write_text(json.dumps({
     'release':metadata['release'],'entry_sha256':metadata['entry_sha256'],
     'live_verified':False,'kick_root_cause_confirmed':False,'results':results,

@@ -4,7 +4,7 @@ Independent universal client utility based on ValenHub. Uses the same OuroFlow
 Abyss blue/black interface, Devil logo and Discord invite as Devil Hub.
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/refs/heads/main/devil-dump.lua?v=dump-15-v8-no-require-20261022-1"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/refs/heads/main/devil-dump.lua?v=dump-16-passive-player-20261022-1"))()
 ```
 
 Rejoin before switching from an already running ValenHub version. The previous
@@ -21,6 +21,29 @@ specialized layout with updated branding and colors.
 Discord and community links: https://discord.gg/ZY7PRcVJe2
 Default export/config folders are `DevilDump_Dumps` and `DevilDump_service`.
 Existing `ValenHub_service` configurations are not automatically migrated.
+
+## Passive player startup: dump-16-passive-player-20261022-1
+
+The user reports that Delta alone works, while opening DEVIL DUMP and waiting
+without capturing can still precede a kick. Static inspection found a separate
+startup path: after 0.5 seconds, the native payload reapplied character options,
+treating an unset `AntiAFK` option as enabled. The pinned Rayfield controller also
+has two automatic profile-loading paths inside `Show()`, independently of the
+previously removed DEVIL profile loader.
+
+This release removes the delayed character-apply call, makes the Anti AFK toggle
+default off, and marks both native-window automatic loaders handled before the
+window is revealed. Saved settings and explicit profile Load/player controls are
+retained. V8 still never requires game modules. No kick suppression or changes
+to the game's checks are introduced.
+
+Tests execute the previous delayed handler with unset Anti AFK and sample speed/
+jump values, reproducing three automatic actions; the updated scheduling path
+produces zero. Both previous window auto-load paths are reproduced and disabled,
+while manual Load remains callable. Capture output and checkpoint regressions,
+official compilation, and packed/native integrity checks pass. These confirm
+unwanted startup behavior and its removal, not the cause or resolution of BAC-1515
+in a live game. Rejoin before testing the release to discard previous listeners.
 
 ## V8 capture: dump-15-v8-no-require-20261022-1
 

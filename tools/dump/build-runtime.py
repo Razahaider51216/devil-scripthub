@@ -1,11 +1,12 @@
 """Patch only the V8 capture module in the published passive-startup release."""
 from pathlib import Path
 import ast, base64, hashlib, json, re, subprocess
+import runpy
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 BASELINE = 'e2dec2a'
-RELEASE = 'dump-15-v8-no-require-20261022-1'
+RELEASE = 'dump-16-passive-player-20261022-1'
 ns = {'re': re, 'base64': base64, 'RELEASE': ROOT}
 tree = ast.parse((ROOT.parent/'naphub-loot-to-forge/build_update.py').read_text(encoding='utf-8'))
 exec(compile(ast.Module(body=[n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in {'unpack', 'repack'}], type_ignores=[]), 'packing', 'exec'), ns)
@@ -16,6 +17,7 @@ start = original.index(marker)+len(marker)
 end = original.index('\nend)()\nlocal DevilMapAnalyst=', start)
 module = (HERE/'runtime-capture.lua').read_text(encoding='utf-8').rstrip()
 source = (original[:start]+module+original[end:]).replace('devil-dump.lua?v=dump-13-client-start-20261022-1', 'devil-dump.lua?v='+RELEASE)
+source = runpy.run_path(str(HERE/'startup-patch.py'))['apply'](source)
 outer = before.replace('devil-dump.lua?v=dump-13-client-start-20261022-1', 'devil-dump.lua?v='+RELEASE)
 (ROOT/'devil-dump.lua').write_text(outer, encoding='utf-8', newline='\n')
 ns['repack']('devil-dump.lua', source, original)
@@ -28,11 +30,12 @@ report = {
     'native_sha256': hashlib.sha256(source.encode('utf-8')).hexdigest(),
     'live_verified': False, 'automatic_map_scan': False, 'automatic_profile_apply': False,
     'startup_remote_hook': False, 'kick_root_cause_confirmed': False,
-    'report': 'BAC-1515 during V8; last attempted operation require-loaded-export on ReplicatedStorage.CmdrClient.Commands.completeIndex. Correlation, not confirmed kick cause.',
+    'report': 'User can play with Delta alone, but reports a delayed kick after opening DEVIL DUMP without capturing. Earlier V8 checkpoint: require-loaded-export on ReplicatedStorage.CmdrClient.Commands.completeIndex. Neither identifies the exact BAC-1515 detection cause.',
     'module_execution_enabled': False,
+    'automatic_player_apply': False, 'native_window_autoload': False, 'anti_afk_default': False,
     'v8_defaults': {'loaded_module_metadata': False, 'gc_functions': False, 'diagnostic_checkpoints': True},
     'diagnostic_file': 'DevilDump_Dumps/ClientRuntimeV8/Run_<timestamp>_<generation>/LastOperation.txt',
-    'native_changes': 'V8 capture module and retry URL only; all other native tools identical to baseline'
+    'native_changes': 'V8 module, retry URL, disabled delayed character apply, opt-in AntiAFK default and disabled two native-window autoload paths; all other native tools identical to baseline'
 }
 (ROOT/'devil-dump-release.json').write_text(json.dumps(report, indent=2)+'\n', encoding='utf-8', newline='\n')
 print('PASS V8 release compilation and exact packing roundtrip')
