@@ -1,6 +1,6 @@
 # DEVIL HUB / Anime Dice
 
-Update `anime-dice-webhook-20261022-1` adds a **Webhook** tab:
+Update `anime-dice-webhook-20261022-2` adds a **Webhook** tab:
 
 - Enter your Discord incoming webhook URL and enable **Enable Webhook**.
 - Choose **Embed information**: character, rarity, level, chance, money gained,
@@ -37,7 +37,7 @@ Workspace (3) dump. It reads live game modules and inventory, not captured unit
 IDs. The main loader now supports Anime Dice as its eleventh route, pinned to
 the reviewed entry commit; the previous ten route definitions/pins are retained.
 Roblox/executor behavior has not been verified live. Direct entry remains available
-at `anime-dice-test.lua?v=anime-dice-webhook-20261022-1` for existing direct-loader users.
+at `anime-dice-test.lua?v=anime-dice-webhook-20261022-2` for existing direct-loader users.
 
 In **Settings > Saved settings**, use **Save Settings** after choosing filters,
 items and automation switches. The next run automatically restores that profile

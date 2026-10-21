@@ -54,13 +54,13 @@ source = source.replace('__OURO_LEN__', str(len(ouro))).replace('__OURO_HASH__',
 public = root / 'anime-dice-test.lua'
 pack_spec=importlib.util.spec_from_file_location('anime_protection',root/'tools/protection/pack.py')
 protection=importlib.util.module_from_spec(pack_spec);pack_spec.loader.exec_module(protection)
-protection.RELEASE='anime-dice-webhook-20261022-1'
+protection.RELEASE='anime-dice-webhook-20261022-2'
 public.write_bytes(protection.pack(source,public.name))
 subprocess.run([str(root.parent / 'luau-tools/luau-compile.exe'), '--null', str(public)], check=True)
 audit = json.loads((root / 'devil-blue-gui-router-audit.json').read_text(encoding='utf-8'))
 routes = audit['routes']
 anime_route = next((r for r in routes if r['File'] == 'anime-dice-test.lua'), None)
-manifest = {'release':'anime-dice-webhook-20261022-1','place_id':113290951185459,'universe_id':10708913337,
+manifest = {'release':'anime-dice-webhook-20261022-2','place_id':113290951185459,'universe_id':10708913337,
     'production_router_changed':anime_route is not None,'live_game_verified':False,'all_automation_defaults_off':True,
     'saved_settings_auto_load':True,'saved_automation_restored_after_initialization':True,
     'theme_module_commit':module_ref,'ouroflow_commit':'c8251f76f74d9942114ebccb0564aa0ac196320a',

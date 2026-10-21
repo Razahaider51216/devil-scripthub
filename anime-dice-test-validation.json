@@ -1,22 +1,22 @@
 {
-  "release": "anime-dice-webhook-20261022-1",
+  "release": "anime-dice-webhook-20261022-2",
   "live_game_verified": false,
-  "entry_sha256": "3776295e0f39e43f481370017561fe582c23b101c2e40663aed43bcef10cf386",
-  "checks": 1078,
+  "entry_sha256": "086a590bdfc05bc9780f69d2d67f3a19545956bca20c2aeb3ac92de4145fe06c",
+  "checks": 1033,
   "literal_remote_contract_checks": 24,
   "results": [
     "PASS Anime Dice webhook: opt-in, baseline, money, filters, art, retries, cancellation, bounded queue and secret redaction: 37 checks",
     "PASS Anime Dice planning, network contracts, confirmation, stop and event behavior: 216 checks",
     "PASS saved settings: schema, identity, validation, ordering, lists, false values, reset, API failures and readiness: 41 checks",
     "PASS Halloween teleport: roof rejection, door sill, elevation, streaming, death and cancellation: 32 checks",
-    "PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: 752 checks"
+    "PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: 707 checks"
   ],
-  "main_loader_sha256": "af5126bd1129b1a025ed0ce172ce6cac5ed37e60a47b70d92681dac073f12667",
-  "main_loader_integration_verified": true,
+  "main_loader_sha256": null,
+  "main_loader_integration_verified": false,
   "pinned_gui_sha256": "0c30762d3c9c3aa7c25ca3aeceab960a771c96b5af290a3b67aed627161385f5",
   "fixtures": {
     "anime-dice-core.luau": "c9cbecb236d62ce08d1886ce7858cb5078a1da4e68b66884b9c730aa63f3ab2f",
-    "anime-dice-entry.luau": "00269d948dc171bc2e3c80b962e6902164df16d0eb55a942f139e760741e0a6a",
+    "anime-dice-entry.luau": "f2a6db92005b405d3955218dc1e7843f399ae9e6dbe53317403305128dfcb23a",
     "anime-dice-movement.luau": "cabb717a38ad1509e24b357434d1071d36797002b2b4eeac8dcbeaee4d9b3e41",
     "anime-dice-settings.luau": "f1a603a3dbb9f14b1d78c877d9a4ad4196f87bb930f5a25fba2108126dff2789",
     "anime-dice-webhook.luau": "a32cd0a0906ccb24c7ce57a9de9773e6fd3e475e709c4278f0e902d940a0d762"

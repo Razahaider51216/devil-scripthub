@@ -2,7 +2,7 @@
 assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
 local scope=type(getgenv)=="function"and getgenv()or _G
 -- AUTO_EXECUTE_BOOTSTRAP
-local release="anime-dice-webhook-20261022-1"
+local release="anime-dice-webhook-20261022-2"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end
@@ -127,28 +127,6 @@ local ok,problem=xpcall(function()
             end)
         end})
     end
-    local hookTab=tab("Webhook","send")
-    local hook=group(hookTab,"DEVIL HUB Webhook")
-    valueWidgets.WebhookEnabled=hook:CreateToggle({Name="Enable Webhook",CurrentValue=false,Callback=function(v)changed();cfg.WebhookEnabled=v==true end})
-    valueWidgets.WebhookURL=hook:CreateInput({Name="Discord webhook URL",CurrentValue="",Callback=function(v)changed();cfg.WebhookURL=tostring(v):match("^%s*(.-)%s*$")end})
-    dropdown(hook,"WebhookFields","Embed information",{"Character","Rarity","Level","Chance","Money","Balance","Image"},nil,true):Set({"Character","Rarity","Level","Money","Balance","Image"},true)
-    dropdown(hook,"WebhookRarities","Notify rarities (empty = all)",{},nil,true)
-    input(hook,"WebhookInterval","Earnings interval (seconds)")
-    hook:CreateParagraph({Name="Money gained",Content="Counts observed positive balance changes while enabled. Purchases between snapshots can reduce the observed gain. Existing units are not announced."})
-    local art=group(hookTab,"Character images","Right")
-    local imageName,imageURL="",""
-    art:CreateInput({Name="Character name (exact)",CurrentValue="",Callback=function(v)imageName=tostring(v)end})
-    art:CreateInput({Name="Character image HTTPS URL",CurrentValue="",Callback=function(v)imageURL=tostring(v)end})
-    local hookStatus=art:CreateLabel({Text="Off"})
-    button(art,"Save character image",function()
-        assert(#imageName>0 and #imageName<=180,"Enter a character name")
-        assert(imageURL==""or imageURL:match("^https://"),"Use a public HTTPS image URL")
-        local success,images=pcall(http.JSONDecode,http,cfg.WebhookImages);images=success and type(images)=="table"and images or{}
-        images[imageName]=imageURL~=""and imageURL or nil
-        local encoded=http:JSONEncode(images);assert(#encoded<=4096,"Image settings are full")
-        cfg.WebhookImages=encoded;changed();hookStatus:Set("Image saved. Use Save Settings to keep it next run.")
-    end)
-    art:CreateParagraph({Name="Public images",Content="Uses game artwork when available. Characters provided only as 3D models need a public image URL here. Leave the URL empty to remove an override."})
     local main=tab("Farm","sprout")
     local farm=group(main,"Farm controls")
     toggle(farm,"Roll","Auto Roll")
@@ -328,6 +306,28 @@ local ok,problem=xpcall(function()
     local news=group(discord,"Stay connected","Right")
     news:CreateParagraph({Name="Updates and announcements",Content="New releases, supported games and DEVIL HUB news."})
     news:CreateParagraph({Name="Support and feedback",Content="Report bugs, share suggestions and connect with the community."})
+    local hookTab=tab("Webhook","send")
+    local hook=group(hookTab,"DEVIL HUB Webhook")
+    valueWidgets.WebhookEnabled=hook:CreateToggle({Name="Enable Webhook",CurrentValue=false,Callback=function(v)changed();cfg.WebhookEnabled=v==true end})
+    valueWidgets.WebhookURL=hook:CreateInput({Name="Discord webhook URL",CurrentValue="",Callback=function(v)changed();cfg.WebhookURL=tostring(v):match("^%s*(.-)%s*$")end})
+    dropdown(hook,"WebhookFields","Embed information",{"Character","Rarity","Level","Chance","Money","Balance","Image"},nil,true):Set({"Character","Rarity","Level","Money","Balance","Image"},true)
+    dropdown(hook,"WebhookRarities","Notify rarities (empty = all)",{},nil,true)
+    input(hook,"WebhookInterval","Earnings interval (seconds)")
+    hook:CreateParagraph({Name="Money gained",Content="Counts observed positive balance changes while enabled. Purchases between snapshots can reduce the observed gain. Existing units are not announced."})
+    local art=group(hookTab,"Character images","Right")
+    local imageName,imageURL="",""
+    art:CreateInput({Name="Character name (exact)",CurrentValue="",Callback=function(v)imageName=tostring(v)end})
+    art:CreateInput({Name="Character image HTTPS URL",CurrentValue="",Callback=function(v)imageURL=tostring(v)end})
+    local hookStatus=art:CreateLabel({Text="Off"})
+    button(art,"Save character image",function()
+        assert(#imageName>0 and #imageName<=180,"Enter a character name")
+        assert(imageURL==""or imageURL:match("^https://"),"Use a public HTTPS image URL")
+        local success,images=pcall(http.JSONDecode,http,cfg.WebhookImages);images=success and type(images)=="table"and images or{}
+        images[imageName]=imageURL~=""and imageURL or nil
+        local encoded=http:JSONEncode(images);assert(#encoded<=4096,"Image settings are full")
+        cfg.WebhookImages=encoded;changed();hookStatus:Set("Image saved. Use Save Settings to keep it next run.")
+    end)
+    art:CreateParagraph({Name="Public images",Content="Uses game artwork when available. Characters provided only as 3D models need a public image URL here. Leave the URL empty to remove an override."})
     local function keys(t)
         local list={};for name in pairs(t or{})do if type(name)=="string"then list[#list+1]=name end end;table.sort(list);return list
     end
