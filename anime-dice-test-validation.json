@@ -1,24 +1,24 @@
 {
-  "release": "anime-dice-desktop-towers-20261021-3",
+  "release": "anime-dice-webhook-20261022-1",
   "live_game_verified": false,
-  "entry_sha256": "041282fa68de9ffa7acba98b21a51dad8552a432d3d84e1181dc143ebb329321",
-  "checks": 1013,
+  "entry_sha256": "3776295e0f39e43f481370017561fe582c23b101c2e40663aed43bcef10cf386",
+  "checks": 1033,
   "literal_remote_contract_checks": 24,
   "results": [
+    "PASS Anime Dice webhook: opt-in, baseline, money, filters, art, retries, cancellation, bounded queue and secret redaction: 37 checks",
     "PASS Anime Dice planning, network contracts, confirmation, stop and event behavior: 216 checks",
     "PASS saved settings: schema, identity, validation, ordering, lists, false values, reset, API failures and readiness: 41 checks",
     "PASS Halloween teleport: roof rejection, door sill, elevation, streaming, death and cancellation: 32 checks",
-    "PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: 724 checks"
+    "PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: 707 checks"
   ],
-  "main_loader_sha256": "10daf765ff85a68d739de328d0f0b172dc9e20ea6bc62a2463faa7c0bfd952b0",
-  "main_loader_integration_verified": true,
+  "main_loader_sha256": null,
+  "main_loader_integration_verified": false,
   "pinned_gui_sha256": "0c30762d3c9c3aa7c25ca3aeceab960a771c96b5af290a3b67aed627161385f5",
   "fixtures": {
     "anime-dice-core.luau": "c9cbecb236d62ce08d1886ce7858cb5078a1da4e68b66884b9c730aa63f3ab2f",
-    "anime-dice-entry.luau": "800d1e0ead87c88db45fe17f4ab145c1d73e12cd07c69d737eb9632c2781f57e",
+    "anime-dice-entry.luau": "00269d948dc171bc2e3c80b962e6902164df16d0eb55a942f139e760741e0a6a",
     "anime-dice-movement.luau": "cabb717a38ad1509e24b357434d1071d36797002b2b4eeac8dcbeaee4d9b3e41",
-    "anime-dice-settings.luau": "f1a603a3dbb9f14b1d78c877d9a4ad4196f87bb930f5a25fba2108126dff2789"
-  },
-  "protection_release": "devil-all-games-obf-20261021-1",
-  "protection_validation": "vm-protection-validation.json"
+    "anime-dice-settings.luau": "f1a603a3dbb9f14b1d78c877d9a4ad4196f87bb930f5a25fba2108126dff2789",
+    "anime-dice-webhook.luau": "a32cd0a0906ccb24c7ce57a9de9773e6fd3e475e709c4278f0e902d940a0d762"
+  }
 }

@@ -1,5 +1,31 @@
 # DEVIL HUB / Anime Dice
 
+Update `anime-dice-webhook-20261022-1` adds a **Webhook** tab:
+
+- Enter your Discord incoming webhook URL and enable **Enable Webhook**.
+- Choose **Embed information**: character, rarity, level, chance, money gained,
+  current balance and character image. Headings use emoji; values use inline code.
+- **Notify rarities** selects the character tiers to report; empty means all.
+  The independent earnings summary is not a character rarity event.
+- Earnings interval is 15–3600 seconds. Gains are positive observed balance
+  changes; spending between snapshots can reduce this measured amount. This is
+  not a server lifetime earnings counter. Existing inventory is the baseline;
+  only new IDs or increased stacks are announced. Units removed between sampled
+  snapshots may not be observed.
+- Native HTTPS artwork and Roblox asset thumbnails are supported. Characters
+  supplied only as 3D models need a public HTTPS image URL under **Character
+  images**; exact character names match inventory names. No substitute character
+  portrait is invented when artwork is unavailable.
+- Use **Settings → Save Settings** to retain the URL, switches, filters and custom
+  image URLs locally. The webhook URL contains a secret; exported status reports
+  exclude it. Posts use `DEVIL HUB` and the DEVIL logo, disable mentions, serialize
+  requests and respect Discord retry delays. Disable/unload cancels queued posts;
+  an HTTP request already sent cannot be recalled.
+
+Discord payload format follows the [official webhook API](https://docs.discord.com/developers/resources/webhook#execute-webhook).
+Webhook tests use mocked HTTP; no real Discord webhook or live Roblox executor
+was contacted during validation.
+
 Open Anime Dice (place `113290951185459`, universe `10708913337`) and run:
 
 ```lua

@@ -2,7 +2,7 @@
 assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
 local scope=type(getgenv)=="function"and getgenv()or _G
 -- AUTO_EXECUTE_BOOTSTRAP
-local release="anime-dice-desktop-towers-20261021-3"
+local release="anime-dice-webhook-20261022-1"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end
@@ -26,11 +26,30 @@ end)()
 local makeSettings=(function()
 -- ANIME_SETTINGS
 end)()
+local makeWebhook=(function()
+-- ANIME_WEBHOOK
+end)()
 local ctx=makeAdapter(scope)
 local core=makeCore(ctx,planner)
 local cfg=core.Config
 local saved=makeSettings(core,ctx)
 local app={Core=core,Config=cfg,Report=core.Report,Version=core.Report.Version,Stopped=false}
+local http=game:GetService("HttpService")
+local transport=request or http_request or(syn and syn.request)or(fluxus and fluxus.request)
+local thumbnails={}
+local webhook=makeWebhook(ctx,planner,cfg,core.Report,{
+    Spawn=ctx.Spawn,Decode=function(text)return http:JSONDecode(text)end,
+    Post=function(url,body)
+        assert(type(transport)=="function","HTTP unavailable")
+        return transport({Url=url,Method="POST",Headers={["Content-Type"]="application/json"},Body=http:JSONEncode(body)})
+    end,
+    AssetImage=function(id)
+        if thumbnails[id]then return thumbnails[id]end
+        local body=http:JSONDecode(game:HttpGet("https://thumbnails.roblox.com/v1/assets?assetIds="..id.."&size=420x420&format=Png&isCircular=false"))
+        local item=body.data and body.data[1]
+        if item and item.state=="Completed"and type(item.imageUrl)=="string"and item.imageUrl:match("^https://")then thumbnails[id]=item.imageUrl;return item.imageUrl end
+    end})
+app.Webhook=webhook
 local window,library,presentation
 local links,widgets,optionWidgets,valueWidgets={}, {}, {}, {}
 local autoLoadPending=true
@@ -38,7 +57,7 @@ local controlsReady=false
 local function changed()if controlsReady then autoLoadPending=false end end
 local function destroy()
     if app.Stopped then return end
-    app.Stopped=true;core.Destroy()
+    app.Stopped=true;webhook.Destroy();core.Destroy()
     if presentation then presentation.Destroy()end
     for _,link in ipairs(links)do link:Disconnect()end
     if window then window:Destroy()end
@@ -108,6 +127,28 @@ local ok,problem=xpcall(function()
             end)
         end})
     end
+    local hookTab=tab("Webhook","send")
+    local hook=group(hookTab,"DEVIL HUB Webhook")
+    valueWidgets.WebhookEnabled=hook:CreateToggle({Name="Enable Webhook",CurrentValue=false,Callback=function(v)changed();cfg.WebhookEnabled=v==true end})
+    valueWidgets.WebhookURL=hook:CreateInput({Name="Discord webhook URL",CurrentValue="",Callback=function(v)changed();cfg.WebhookURL=tostring(v):match("^%s*(.-)%s*$")end})
+    dropdown(hook,"WebhookFields","Embed information",{"Character","Rarity","Level","Chance","Money","Balance","Image"},nil,true):Set({"Character","Rarity","Level","Money","Balance","Image"},true)
+    dropdown(hook,"WebhookRarities","Notify rarities (empty = all)",{},nil,true)
+    input(hook,"WebhookInterval","Earnings interval (seconds)")
+    hook:CreateParagraph({Name="Money gained",Content="Counts observed positive balance changes while enabled. Purchases between snapshots can reduce the observed gain. Existing units are not announced."})
+    local art=group(hookTab,"Character images","Right")
+    local imageName,imageURL="",""
+    art:CreateInput({Name="Character name (exact)",CurrentValue="",Callback=function(v)imageName=tostring(v)end})
+    art:CreateInput({Name="Character image HTTPS URL",CurrentValue="",Callback=function(v)imageURL=tostring(v)end})
+    local hookStatus=art:CreateLabel({Text="Off"})
+    button(art,"Save character image",function()
+        assert(#imageName>0 and #imageName<=180,"Enter a character name")
+        assert(imageURL==""or imageURL:match("^https://"),"Use a public HTTPS image URL")
+        local success,images=pcall(http.JSONDecode,http,cfg.WebhookImages);images=success and type(images)=="table"and images or{}
+        images[imageName]=imageURL~=""and imageURL or nil
+        local encoded=http:JSONEncode(images);assert(#encoded<=4096,"Image settings are full")
+        cfg.WebhookImages=encoded;changed();hookStatus:Set("Image saved. Use Save Settings to keep it next run.")
+    end)
+    art:CreateParagraph({Name="Public images",Content="Uses game artwork when available. Characters provided only as 3D models need a public image URL here. Leave the URL empty to remove an override."})
     local main=tab("Farm","sprout")
     local farm=group(main,"Farm controls")
     toggle(farm,"Roll","Auto Roll")
@@ -332,6 +373,7 @@ local ok,problem=xpcall(function()
         local labels,names,boosts,spins={}, {}, {}, {}
         local liveUnits=planner.Units(d,c.Registry)
         options("SellRarities",planner.RarityOptions(c.Rarities,liveUnits,cfg.SellRarities))
+        options("WebhookRarities",planner.RarityOptions(c.Rarities,liveUnits,cfg.WebhookRarities))
         unitLabels={};keepIdLabels={}
         for _,u in ipairs(liveUnits)do
             local label=u.name.." | "..tostring(u.attributes.level or 1).." | "..u.id:sub(1,8)
@@ -403,10 +445,11 @@ local ok,problem=xpcall(function()
     ctx.Spawn(function()
         local refreshAt=0
         while not app.Stopped do
-            local worked,err=xpcall(function()autoLoad();core.Tick()end,debug.traceback)
+            local worked,err=xpcall(function()autoLoad();core.Tick();webhook.Tick(ctx.Ready and ctx.Snapshot()or nil)end,debug.traceback)
             if not worked then core.Report.LastTickError=tostring(err)end
             local rendered,renderError=xpcall(function()
                 local r=core.Report.Summary
+                hookStatus:Set(webhook.Status.." | queued: "..#webhook.Queue.." | dropped: "..webhook.Dropped..(webhook.ImageStatus and"\n"..webhook.ImageStatus or""))
                 if r then
                     summary:Set(string.format("Money: %.4g | Units: %d / %d\nRolls: %s | Rebirth: %s\nCandy: %.4g | Pumpkins: %.4g",r.Money,r.Units,r.Storage,tostring(r.Rolls),tostring(r.Rebirth),r.Candy,r.Pumpkins))
                     sellStatus:Set(core.SellSummary())

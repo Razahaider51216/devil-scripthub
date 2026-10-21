@@ -6,9 +6,10 @@ return function(ctx,P)
         TowerChoice="",WingChoice="Front Yard",RebirthLimit=1,StatChoice="Luck",SelectedUnit="",RerollLimit=50,
         TraitTargets={},GradeTargets={},QuirkTargets={},BoostNames={},SpinNames={},GearPriority="Luck",PumpkinCount=1,
         PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true,
-        ProtectedTraits={},ProtectedGrades={},ProtectedQuirks={}}
+        ProtectedTraits={},ProtectedGrades={},ProtectedQuirks={},WebhookEnabled=false,WebhookURL="",WebhookInterval=60,
+        WebhookFields={Character=true,Rarity=true,Level=true,Money=true,Balance=true,Image=true},WebhookRarities={},WebhookImages="{}"}
     local clock=ctx.Clock or os.clock
-    local ctl={Config=cfg,Report={Version="anime-dice-desktop-towers-20261021-3",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
+    local ctl={Config=cfg,Report={Version="anime-dice-webhook-20261022-1",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
     local states,handlers,pending,spend={}, {}, {}, {}
     local towerOwned=false;local towerName;local towerEpoch=0;local originalRoll,rollOwned=nil,false
     local doorReady=setmetatable({},{__mode="k"});local lastKnock;local nextIslandTravel=0;local stopEpoch=0

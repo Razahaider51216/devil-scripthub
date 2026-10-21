@@ -1,5 +1,11 @@
 -- Reuse the single language menu provided by the shared DEVIL HUB presentation.
 local translations={
+    ["Webhook"]="เว็บฮุก",["DEVIL HUB Webhook"]="เว็บฮุก DEVIL HUB",["Enable Webhook"]="เปิดเว็บฮุก",
+    ["Discord webhook URL"]="ลิงก์เว็บฮุก Discord",["Embed information"]="ข้อมูลที่แสดงใน Embed",
+    ["Notify rarities (empty = all)"]="ระดับที่แจ้งเตือน (ว่าง = ทั้งหมด)",["Earnings interval (seconds)"]="รอบแจ้งเงิน (วินาที)",
+    ["Character images"]="รูปตัวละคร",["Character name (exact)"]="ชื่อตัวละคร (ตรงกับเกม)",
+    ["Character image HTTPS URL"]="ลิงก์รูปตัวละคร HTTPS",["Save character image"]="บันทึกรูปตัวละคร",
+    ["Public images"]="รูปภาพสาธารณะ",["Money gained"]="เงินที่ได้รับ",
     ["Settings"]="ตั้งค่า",["Saved settings"]="ค่าที่บันทึก",["Restore settings"]="คืนค่าตั้งค่า",
     ["Save Settings"]="บันทึกตั้งค่า",["Load Saved Settings"]="โหลดตั้งค่าที่บันทึก",["Reset Saved Settings"]="รีเซ็ตตั้งค่าที่บันทึก",
     ["Save filters, item choices and enabled automation. Saved settings load automatically next run."]="บันทึกฟิลเตอร์ รายการที่เลือก และออโต้ที่เปิดไว้ รันครั้งถัดไปจะโหลดค่าเดิมอัตโนมัติ",

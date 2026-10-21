@@ -1,5 +1,5 @@
 from pathlib import Path
-import hashlib, json, re, subprocess
+import hashlib, json, re, subprocess, importlib.util
 import dependency
 
 root = Path(__file__).resolve().parents[2]
@@ -14,6 +14,11 @@ def execute(path):
         result.check_returncode()
     results.append(result.stdout.strip())
 checks = (root / 'tests/anime-dice-core.luau').read_text(encoding='utf-8')
+webhook=(root/'tests/anime-dice-webhook.luau').read_text(encoding='utf-8')
+webhook=webhook.replace('-- TEST_PLANNER',(here/'planner.lua').read_text(encoding='utf-8')).replace('-- TEST_WEBHOOK',(here/'webhook.lua').read_text(encoding='utf-8'))
+webhook_path=here/'webhook-test.generated.luau'
+webhook_path.write_text(webhook,encoding='utf-8',newline='\n')
+execute(webhook_path)
 checks = checks.replace('-- TEST_PLANNER', (here / 'planner.lua').read_text(encoding='utf-8'))
 baseline=subprocess.check_output(['git','show','f54cc8e866b50ecfe74c228a0922f7b785309657:tools/anime-dice/core.lua'],cwd=root).decode('utf-8')
 baseline_path=here/'door-recovery-baseline.generated.luau'
@@ -54,6 +59,9 @@ def literal(value):
     return '[' + eq + '[' + value + ']' + eq + ']'
 mocks = (root / 'tests/blue-gui-mocks.luau').read_text(encoding='utf-8')
 entry = (root / 'anime-dice-test.lua').read_text(encoding='utf-8')
+pack_spec=importlib.util.spec_from_file_location('anime_protection',root/'tools/protection/pack.py')
+protection=importlib.util.module_from_spec(pack_spec);pack_spec.loader.exec_module(protection)
+entry=protection.native(entry,'anime-dice-test.lua')
 ouro = dependency.read(root).decode('utf-8')
 fixture = mocks + '\nlocal entrySource=' + literal(entry) + '\nlocal ouroSource=' + literal(ouro) + '\n'
 router = json.loads((root / 'devil-blue-gui-router-audit.json').read_text(encoding='utf-8'))

@@ -11,7 +11,7 @@ blue = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(blue)
 module_ref = json.loads((root / 'devil-blue-gui-release.json').read_text())['module_commit']
 source = (here / 'ui.lua').read_text(encoding='utf-8')
-for marker, name in [('ANIME_PLANNER','planner.lua'),('ANIME_ADAPTER','adapter.lua'),('ANIME_CORE','core.lua'),('ANIME_PRESENTATION','presentation.lua'),('ANIME_SETTINGS','settings.lua'),('TEST_TRANSLATIONS','translations.lua')]:
+for marker, name in [('ANIME_WEBHOOK','webhook.lua'),('ANIME_PLANNER','planner.lua'),('ANIME_ADAPTER','adapter.lua'),('ANIME_CORE','core.lua'),('ANIME_PRESENTATION','presentation.lua'),('ANIME_SETTINGS','settings.lua'),('TEST_TRANSLATIONS','translations.lua')]:
     assert source.count('-- ' + marker) == 1
     source = source.replace('-- ' + marker, (here / name).read_text(encoding='utf-8'))
 source=source.replace('-- ANIME_TOWER_CATALOG',(here/'tower-catalog.lua').read_text(encoding='utf-8'))
@@ -52,12 +52,15 @@ source = source.replace('__DISCORD_RECTS__', '{' + ','.join('{' + ','.join(map(s
 ouro = dependency.read(root)
 source = source.replace('__OURO_LEN__', str(len(ouro))).replace('__OURO_HASH__', str(blue.checksum(ouro)))
 public = root / 'anime-dice-test.lua'
-public.write_text(source, encoding='utf-8', newline='\n')
+pack_spec=importlib.util.spec_from_file_location('anime_protection',root/'tools/protection/pack.py')
+protection=importlib.util.module_from_spec(pack_spec);pack_spec.loader.exec_module(protection)
+protection.RELEASE='anime-dice-webhook-20261022-1'
+public.write_bytes(protection.pack(source,public.name))
 subprocess.run([str(root.parent / 'luau-tools/luau-compile.exe'), '--null', str(public)], check=True)
 audit = json.loads((root / 'devil-blue-gui-router-audit.json').read_text(encoding='utf-8'))
 routes = audit['routes']
 anime_route = next((r for r in routes if r['File'] == 'anime-dice-test.lua'), None)
-manifest = {'release':'anime-dice-desktop-towers-20261021-3','place_id':113290951185459,'universe_id':10708913337,
+manifest = {'release':'anime-dice-webhook-20261022-1','place_id':113290951185459,'universe_id':10708913337,
     'production_router_changed':anime_route is not None,'live_game_verified':False,'all_automation_defaults_off':True,
     'saved_settings_auto_load':True,'saved_automation_restored_after_initialization':True,
     'theme_module_commit':module_ref,'ouroflow_commit':'c8251f76f74d9942114ebccb0564aa0ac196320a',
@@ -65,6 +68,9 @@ manifest = {'release':'anime-dice-desktop-towers-20261021-3','place_id':11329095
     'candy_svg_sha256':hashlib.sha256(svg.read_bytes()).hexdigest(),
     'discord_logo_sha256':hashlib.sha256(discord.read_bytes()).hexdigest(),
     'auto_execute_enabled':True,
+    'webhook_opt_in':True,'webhook_mock_http_verified':True,'webhook_no_live_delivery_test':True,
+    'single_startup_vm_boundary':True,'native_gameplay_callbacks':True,
+    'native_entry_sha256':hashlib.sha256(source.encode()).hexdigest(),
     'tower_selection_native_images_difficulty_floors':True,
     'tower_metadata_fallback':True,'catalog_retry_single_worker':True,'independent_choice_refresh':True,
     'pumpkin_unit_native_model_previews':True,'pumpkin_preview_limit':6,'pumpkin_preview_creations_per_tick':1,
