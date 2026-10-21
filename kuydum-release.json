@@ -1,0 +1,31 @@
+{
+  "release": "kuydum-steal-20261022-1",
+  "artifacts": {
+    "kuydum-theme.lua": {
+      "public_sha256": "1c314dd2ad213ee80040ea4fa807975c95de00e8c21f130b104e91e3198849a5",
+      "native_sha256": "867090119d9bb8d34d3f86876ef89cb2fdff3762353ac204286f9530c2c35111",
+      "bytes": 291612
+    },
+    "kuydum-steal-gui.lua": {
+      "public_sha256": "4503c6ecd19795697cbe338d72c38ff72f62461ebf58d88b48db3a17ae3f54f4",
+      "native_sha256": "887892079647feb5c5435c22e84a4a4fd154b341f9bd4a66b8a003a7b7e79514",
+      "bytes": 1134900
+    },
+    "kuydum-steal-an-egg.lua": {
+      "public_sha256": "a2c821245ead3dbb7e958de2f41a6a6ace53d6f1b09fe23bd4a2eb8c383a18ba",
+      "native_sha256": "6db6e98b6614d4dd38c64e5dace1cba9c1919c4d57706fe5b0dbacc63d20a20d",
+      "bytes": 84227
+    }
+  },
+  "base_commit": "0fb8516b170f6dab88b008ea508b596dd0bc9423",
+  "logo_sha256": "ca7115972a49ae4381bba881a0861cb8a0150e0ec9555a3ca164339fb25b6e39",
+  "logo_bytes": 31426,
+  "theme_commit": "42e1434402f7a0259f1aaf74c36436cf83f10ff3",
+  "gui_commit": "ce52e55b173aee5a831b3d9e2917d6a3e8bbc4f3",
+  "discord": "https://discord.gg/tCnZhrBcM",
+  "theme": "monochrome",
+  "standalone": true,
+  "main_loader_changed": false,
+  "live_verified": false,
+  "architecture": "VM startup / native gameplay callbacks"
+}

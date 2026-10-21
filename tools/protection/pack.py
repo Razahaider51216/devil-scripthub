@@ -48,6 +48,7 @@ print("__SOURCE_BEGIN__");print(captured);print("__SOURCE_END__")
 def native(public,name):
     # Break's language prelude precedes the old VM and must remain intact.
     marker=public.find('--[[\nDEVIL HUB ')
+    if marker<0:marker=public.find('--[[\nKUYDUM HUB ')
     if marker>=0 and 'Fiu (startup only)'in public[marker:marker+250]:
         return public[:marker]+capture(public[marker:],name)
     marker=public.find('-- DEVIL HUB / Ride native encoded entry;')
