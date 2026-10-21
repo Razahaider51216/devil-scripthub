@@ -11,7 +11,7 @@
   "delegate_sha256": "fa812cce2e3fed1d696d39ee2b97c1091fd9bce765ac1f65e807151b6289ca91",
   "delegate_native_sha256": "6a6ef0e4c4d4b2b45dbe2e3b921b848762db6de48f48ad9fa4a97534f7cbfb4d",
   "delegate_commit": "00f5799cc38a04b04dd061a033ae40dbceda4569",
-  "main_loader_sha256": "28690e4bf5a91f702cc421d3c221adb128796a02fcf5cef4449b23138226e069",
+  "main_loader_sha256": "9fd1db536c1d3bbbadd42a8697faa3245128295b5c804aad2f68c021c7a2a853",
   "other_game_routes_unchanged": true,
   "router_baseline_commit": "00f5799cc38a04b04dd061a033ae40dbceda4569"
 }
