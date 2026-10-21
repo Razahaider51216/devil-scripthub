@@ -47,7 +47,7 @@ local deps={
     }
 }
 local capture=Runtime.New(deps)
-check(not capture.LoadedExports and not capture.GCFunctions,"expensive optional scans enabled by default")
+check(not capture.ListLoadedModules and not capture.GCFunctions,"expensive optional scans enabled by default")
 check(capture:Start(),"default capture failed to start")
 check(not calls.loaded and not calls.require and not calls.gc,"default capture calls optional APIs")
 check(lastReport.counts.scripts==3 and lastReport.counts.bytecode==3,"lost normal V8 output")
@@ -55,11 +55,13 @@ check(lastReport.counts.source==1 and lastReport.counts.sourceErrors==2,"API err
 check(yields>=3,"no per-script scheduling yield")
 check(currentTrace():find("Operation: capture-complete",1,true)~=nil,"missing completion marker")
 check(lastReport.options.diagnostics and not lastReport.options.loadedExports,"incorrect report defaults")
-capture.LoadedExports=true;capture.GCFunctions=true
+capture.LoadedExports=true;capture.ListLoadedModules=true;capture.GCFunctions=true
 capture:Start()
-check(calls.loaded==1 and calls.require==1 and calls.gc==1,"optional APIs not retained")
-check(lastReport.counts.loadedExports==1,"loaded export missing")
-capture.LoadedExports=false;capture.GCFunctions=false
+check(calls.loaded==1 and not calls.require and calls.gc==1,"optional metadata APIs or no-require rule failed")
+check(lastReport.counts.loadedExports==0 and lastReport.moduleExecutionEnabled==false,"report claims exports read")
+check(lastReport.scripts[1].loadedModule and not lastReport.scripts[3].loadedModule,"loaded metadata incorrect")
+check(currentTrace():find("Release: "..Runtime.Version,1,true)~=nil,"release missing from diagnostic")
+capture.LoadedExports=false;capture.ListLoadedModules=false;capture.GCFunctions=false
 local oldWait=deps.Wait
 local ticks=0
 deps.Wait=function()oldWait();ticks+=1;if ticks==2 then capture.Generation+=1 end end

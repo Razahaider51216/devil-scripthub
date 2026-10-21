@@ -42,14 +42,23 @@ check(capture:Start("online-rewards"),"targeted capture did not start")
 check(captured.scope=="online-rewards" and #captured.scripts==5,"unrelated modules consumed targeted budget")
 check(#captured.missingTargets==0 and #captured.requestedTargets==4,"target coverage wrong")
 check(captured.scripts[1].path==paths[1] and captured.scripts[2].path==paths[2],"state/UI not prioritized")
-check(captured.counts.loadedExports==3 and #required==3,"required an unloaded module")
+if Runtime.ModuleExecution==false then
+    check(captured.counts.loadedExports==0 and #required==0,"targeted dump required game modules")
+    check(captured.scripts[1].loadedModule==true,"missing loaded-module metadata")
+else
+    check(captured.counts.loadedExports==3 and #required==3,"required an unloaded module")
+end
 check(captured.counts.bytecode==5 and captured.counts.source==0,"stub accepted as source")
 check(not captured.functionLimit and #captured.functions==1,"unrelated closures used function budget")
 check(#captured.functions[1].constants==100,"targeted constants still capped at 64")
 check(captured.limits.tableBudget=="per-script" and captured.limits.tableDepth==4,"targeted table budget wrong")
 local nested
+if Runtime.ModuleExecution~=false then
 for _,f in ipairs(captured.scripts[1].loadedExport.fields)do if f.name=="Nested"then nested=f.members end end
 check(nested and nested.fields[1].members.fields[1].members.fields[1].members.fields[1].value.value==7,"nested target state lost")
+else
+check(captured.scripts[1].loadedExport==nil and captured.scripts[1].loadedExportStatus==captured.loadedExportsStatus,"missing explicit unavailable export status")
+end
 local exported=false
 for path,content in pairs(files)do if path:find("/OnlineRewards_",1,true) and path:find("Summary_",1,true) and content:find("Scope: online-rewards",1,true)then exported=true end end
 check(exported,"targeted summary/folder missing")

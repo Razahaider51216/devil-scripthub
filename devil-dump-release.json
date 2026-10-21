@@ -1,16 +1,17 @@
 {
-  "release": "dump-14-v8-capture-20261022-1",
+  "release": "dump-15-v8-no-require-20261022-1",
   "baseline_commit": "e2dec2a",
-  "entry_sha256": "84a0b87000d624398a3ba998715385a51ad25e67414259d4174e16f30675b3ce",
-  "native_sha256": "26e29207b3d1dc14c61b9fb94f0cc2896e1c49ab8839999cd7d9b17eb7211b7e",
+  "entry_sha256": "2943759c8aa444fbde898e4bf219e994d6f09ed5af6be2bf15dd344fe7907bef",
+  "native_sha256": "6e111dd43ae791270cc46a4accbd12ae1f93b301a65d9af3754bd0981daa4966",
   "live_verified": false,
   "automatic_map_scan": false,
   "automatic_profile_apply": false,
   "startup_remote_hook": false,
   "kick_root_cause_confirmed": false,
-  "report": "User reports BAC-1515 after pressing Dump V8 in Steal an Egg using Delta.",
+  "report": "BAC-1515 during V8; last attempted operation require-loaded-export on ReplicatedStorage.CmdrClient.Commands.completeIndex. Correlation, not confirmed kick cause.",
+  "module_execution_enabled": false,
   "v8_defaults": {
-    "loaded_exports": false,
+    "loaded_module_metadata": false,
     "gc_functions": false,
     "diagnostic_checkpoints": true
   },

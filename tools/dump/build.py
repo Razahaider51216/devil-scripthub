@@ -2,7 +2,7 @@ from pathlib import Path
 import ast,base64,hashlib,json,re,subprocess
 ROOT=Path(__file__).resolve().parents[2];HERE=Path(__file__).resolve().parent
 WORK=ROOT.parent/'devil-dump-development'
-if (ROOT/'devil-dump-release.json').exists() and json.loads((ROOT/'devil-dump-release.json').read_text(encoding='utf-8'))['release'].startswith('dump-14-'):
+if (ROOT/'devil-dump-release.json').exists() and json.loads((ROOT/'devil-dump-release.json').read_text(encoding='utf-8'))['release'].startswith(('dump-14-','dump-15-')):
  subprocess.run(['python',str(HERE/'build-runtime.py')],check=True)
  raise SystemExit(0)
 RELEASE='dump-13-client-start-20261022-1'

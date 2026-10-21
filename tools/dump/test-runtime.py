@@ -36,11 +36,39 @@ def run(name,text):
 for name in ['test-runtime-output','test-runtime-targeted']:
     fixture=(HERE/(name+'.luau')).read_text(encoding='utf-8')
     run(name+'-baseline',fixture.replace('require("./runtime-capture")','(function()\n'+old_module+'\nend)()',1))
-    # Optional APIs remain available when explicitly enabled.
-    enabled=fixture.replace('local capture=Runtime.New(deps)','local capture=Runtime.New(deps)\ncapture.LoadedExports=true;capture.GCFunctions=true',1)
+    # Even a legacy enabled export flag cannot cause game-module execution.
+    enabled=fixture.replace('local capture=Runtime.New(deps)','local capture=Runtime.New(deps)\ncapture.LoadedExports=true;capture.ListLoadedModules=true;capture.GCFunctions=true',1)
     run(name+'-updated',enabled.replace('require("./runtime-capture")','(function()\n'+new_module+'\nend)()',1))
 fixture=(HERE/'test-runtime-diagnostics.luau').read_text(encoding='utf-8')
 run('v8-public-diagnostics',fixture.replace('require("./runtime-capture")','(function()\n'+new_module+'\nend)()',1))
+previous_public=subprocess.check_output(['git','show','78a758a:devil-dump.lua'],cwd=ROOT).decode('utf-8')
+_,_,previous_module=module(ns['unpack'](previous_public).decode('utf-8'))
+regression='''
+local node={Name="completeIndex",ClassName="ModuleScript",Source="return {}"}
+function node:IsA(kind)return kind=="ModuleScript"end
+function node:GetFullName()return "ReplicatedStorage.CmdrClient.Commands.completeIndex"end
+local files,required,report={},0,nil
+local deps={Game={PlaceId=107778070777162,GameId=1,GetService=function(_,name)
+ if name=="ReplicatedStorage"then return {GetDescendants=function()return {node}end}end
+end},Alive=function()return true end,Spawn=function(fn)fn()end,Wait=function()end,
+Date=function()return "test"end,Typeof=type,JSON=function(value)report=value;return "json"end,
+APIs={getloadedmodules=function()return {node}end,
+ require=function(item)assert(item==node);required+=1;error("simulated module side effect")end,
+ writefile=function(path,value)files[path]=value end,makefolder=function()end,isfolder=function()return true end}}
+local capture=Runtime.New(deps)
+capture.LoadedExports=true;capture.ListLoadedModules=true
+capture:Start()
+if Runtime.ModuleExecution==false then
+ assert(required==0 and report.counts.scripts==1 and report.counts.source==1)
+ assert(report.scripts[1].loadedModule==true and report.scripts[1].loadedExport==nil)
+ print("PASS completeIndex source retained; metadata and legacy enabled flags never require game module")
+else
+ assert(required==1 and report.scripts[1].loadedExportError:find("simulated module side effect",1,true))
+ print("PASS reproduced previous V8 require call on reported completeIndex path (simulated side effect)")
+end
+'''
+run('v8-require-before','local Runtime=(function()\n'+previous_module+'\nend)()\n'+regression)
+run('v8-require-after','local Runtime=(function()\n'+new_module+'\nend)()\n'+regression)
 (ROOT/'devil-dump-validation.json').write_text(json.dumps({
     'release':metadata['release'],'entry_sha256':metadata['entry_sha256'],
     'live_verified':False,'kick_root_cause_confirmed':False,'results':results,

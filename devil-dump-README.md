@@ -4,7 +4,7 @@ Independent universal client utility based on ValenHub. Uses the same OuroFlow
 Abyss blue/black interface, Devil logo and Discord invite as Devil Hub.
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/refs/heads/main/devil-dump.lua?v=dump-14-v8-capture-20261022-1"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/refs/heads/main/devil-dump.lua?v=dump-15-v8-no-require-20261022-1"))()
 ```
 
 Rejoin before switching from an already running ValenHub version. The previous
@@ -21,6 +21,33 @@ specialized layout with updated branding and colors.
 Discord and community links: https://discord.gg/ZY7PRcVJe2
 Default export/config folders are `DevilDump_Dumps` and `DevilDump_service`.
 Existing `ValenHub_service` configurations are not automatically migrated.
+
+## V8 capture: dump-15-v8-no-require-20261022-1
+
+The supplied `LastOperation.txt` identifies `require-loaded-export` on
+`ReplicatedStorage.CmdrClient.Commands.completeIndex` in place 107778070777162
+as the last attempted operation. This correlates the interruption with the
+export-reading path; it does not prove how BAC-1515 detection works.
+
+V8 no longer calls `require` on any game module, regardless of legacy
+`LoadedExports` state. The old export toggle is replaced with **List loaded
+modules (metadata only)**. When enabled, it reads the loaded-module list and
+marks each captured ModuleScript's loaded status without executing it. Loaded
+exports are explicitly unavailable and their count stays zero; source, bytecode,
+closures, environments and optional GC capture retain their existing paths.
+No map-specific exclusions or changes to game checks are added.
+
+Diagnostics now include the release ID so a previous run's checkpoint can be
+distinguished from the active release. Rejoin before trying the updated script.
+
+Validation reproduces the previous `require` call on a simulated module at the
+reported path, then verifies that source capture and loaded metadata work without
+calling it, including when the legacy export flag is true. The full and targeted
+output fixtures, interrupted API/checkpoint tests, official compilation and packed
+integrity checks pass. No live Delta test has confirmed resolution of BAC-1515.
+
+The older export instructions below describe releases before dump-15. Game-module
+exports through `require` are no longer available in V8.
 
 ## V8 capture: dump-14-v8-capture-20261022-1
 

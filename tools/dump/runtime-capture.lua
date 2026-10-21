@@ -1,4 +1,4 @@
-local Runtime={}
+local Runtime={Version="dump-15-v8-no-require-20261022-1",ModuleExecution=false}
 local onlineTargets={
     "ReplicatedStorage.LocalData.OnlineData",
     "ReplicatedStorage.GuiUtils.OnlineGift",
@@ -15,7 +15,7 @@ function Runtime.ValidSource(source)
     return false
 end
 function Runtime.New(deps)
-    local self={Stopped=false,Busy=false,Generation=0,LoadedExports=false,GCFunctions=false,Diagnostics=true,Folder="DevilDump_Dumps/ClientRuntimeV8"}
+    local self={Stopped=false,Busy=false,Generation=0,ListLoadedModules=false,GCFunctions=false,Diagnostics=true,Folder="DevilDump_Dumps/ClientRuntimeV8"}
     local A=deps.APIs
     local function alive(generation) return not self.Stopped and deps.Alive() and generation==self.Generation end
     local function status(text) self.Status=text;if self.Label then pcall(self.Label.Set,self.Label,text,true) end end
@@ -64,14 +64,17 @@ function Runtime.New(deps)
             inspectedFunctionsExecuted=false,hooksInstalled=false,serverSourceAccessible=false,devirtualized=false,
             counts={source=0,sourceErrors=0,bytecode=0,bytecodeBytes=0,loadedExports=0,gcFunctions=0}}
         report.scope=targeted and "online-rewards" or "all-client"
-        local loadedExports,gcFunctions,diagnostics=self.LoadedExports==true,self.GCFunctions==true,self.Diagnostics==true
-        report.options={loadedExports=loadedExports,gcFunctions=gcFunctions,diagnostics=diagnostics}
+        local listLoadedModules,gcFunctions,diagnostics=self.ListLoadedModules==true,self.GCFunctions==true,self.Diagnostics==true
+        report.release=Runtime.Version
+        report.moduleExecutionEnabled=false
+        report.loadedExportsStatus="unavailable: capture does not require game modules"
+        report.options={loadedExports=false,listLoadedModules=listLoadedModules,gcFunctions=gcFunctions,diagnostics=diagnostics}
         report.progressFile=captureFolder.."/LastOperation.txt"
         local function checkpoint(operation,path)
             report.lastOperation={operation=operation,path=path or ""}
             if diagnostics and type(A.writefile)=="function" then
                 local ok,err=pcall(A.writefile,report.progressFile,
-                    "DEVIL DUMP V8\nOperation: "..operation.."\nScript: "..(path or "")..
+                    "DEVIL DUMP V8\nRelease: "..Runtime.Version.."\nOperation: "..operation.."\nScript: "..(path or "")..
                     "\nPlace: "..tostring(report.placeId).."\nThis records the last attempted operation, not a confirmed kick cause.\n")
                 if not ok then report.progressError=tostring(err) end
             end
@@ -88,7 +91,7 @@ function Runtime.New(deps)
             return nil
         end
         if targeted then report.requestedTargets=table.clone(onlineTargets);report.missingTargets={} end
-        for _,name in ipairs({"decompile","getscriptbytecode","getscriptclosure","getsenv","getloadedmodules","getgc","getfenv","getconstants","getupvalues","require","writefile"}) do report.capabilities[name]=type(A[name])=="function" end
+        for _,name in ipairs({"decompile","getscriptbytecode","getscriptclosure","getsenv","getloadedmodules","getgc","getfenv","getconstants","getupvalues","writefile"}) do report.capabilities[name]=type(A[name])=="function" end
         report.probes={constantsExposeOwnLiteral=false,upvaluesExposeOwnCapture=false}
         local ownCapture={marker="DEVIL_RUNTIME_UPVALUE_PROBE"}
         local ownFunction=function()return "DEVIL_RUNTIME_CONSTANT_PROBE",ownCapture.marker end
@@ -136,7 +139,7 @@ function Runtime.New(deps)
             end
         end
         local loaded={}
-        if loadedExports and type(A.getloadedmodules)=="function" then
+        if listLoadedModules and type(A.getloadedmodules)=="function" then
             checkpoint("getloadedmodules")
             local ok,items=pcall(A.getloadedmodules)
             if ok and type(items)=="table" then for _,module in pairs(items) do loaded[module]=true end
@@ -248,11 +251,9 @@ function Runtime.New(deps)
                 local envOK,value=pcall(A.getsenv,item)
                 if envOK then row.environment=inspectTable(value,path) else row.environmentError=tostring(value) end
             end
-            if loadedExports and loaded[item] and type(A.require)=="function" then
-                -- Only modules already reported loaded: do not initialize arbitrary modules.
-                checkpoint("require-loaded-export",path)
-                local exportOK,value=pcall(A.require,item)
-                if exportOK then row.loadedExport=inspectTable(value,path);report.counts.loadedExports+=1 else row.loadedExportError=tostring(value) end
+            if item:IsA("ModuleScript") then
+                if listLoadedModules then row.loadedModule=loaded[item]==true end
+                row.loadedExportStatus=report.loadedExportsStatus
             end
             report.scripts[#report.scripts+1]=row
             if index%10==0 then status("Runtime: "..index.."/"..#scripts.." • Source "..report.counts.source.." • Bytecode "..report.counts.bytecode);deps.Wait() end
@@ -305,10 +306,10 @@ function Runtime.New(deps)
         local tab=window:CreateTab({Name="Runtime Capture",Icon="code"})
         local group=tab:CreateGroupbox({Name="Client Runtime v8",Icon="scan",Side="Left"})
         group:CreateParagraph({Name="Source + Bytecode + Runtime",Content="เก็บ Source ที่อ่านได้, Bytecode และเมธอด/ค่าคงที่ • ไม่เรียกใช้ฟังก์ชันที่ตรวจ • Error stub ไม่นับเป็น Source"})
-        group:CreateToggle({Name="อ่าน exports ของ Module ที่โหลดแล้ว",CurrentValue=false,Callback=function(value)self.LoadedExports=value==true end})
+        group:CreateToggle({Name="List loaded modules (metadata only)",CurrentValue=false,Callback=function(value)self.ListLoadedModules=value==true end})
         group:CreateToggle({Name="Scan GC functions (optional)",CurrentValue=false,Callback=function(value)self.GCFunctions=value==true end})
         group:CreateToggle({Name="Save diagnostic checkpoints",CurrentValue=true,Callback=function(value)self.Diagnostics=value==true end})
-        group:CreateParagraph({Name="Capture diagnostics",Content="Loaded exports and GC scanning are off by default. LastOperation.txt records the last attempted API and script if capture is interrupted; it does not prove why a game disconnected."})
+        group:CreateParagraph({Name="Capture diagnostics",Content="Capture never requires game modules. Loaded-module metadata and GC scanning are optional. LastOperation.txt records the release and last attempted API/script; it does not prove why a game disconnected."})
         group:CreateButton({Name="Dump Client Runtime v8",Callback=function()self:Start()end})
         group:CreateParagraph({Name="Online Rewards",Content="เปิดหน้ารางวัลออนไลน์ค้างไว้ แล้วกดปุ่มด้านล่าง ไม่ต้องรอครบเวลา • เก็บเฉพาะ OnlineData / OnlineGift / Reward / Helper และสคริปต์ลูก"})
         group:CreateButton({Name="Dump Online Rewards Only",Callback=function()self:Start("online-rewards")end})

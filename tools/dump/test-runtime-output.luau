@@ -47,8 +47,14 @@ local capture=Runtime.New(deps)
 check(capture:Start(),"capture did not start")
 check(captured.counts.scripts==4 and captured.counts.source==1 and captured.counts.sourceErrors==3,"source classification/counts")
 check(captured.counts.bytecode==2 and captured.counts.bytecodeBytes==20,"bytecode counts")
-check(#required==1 and required[1]==panic,"initialized an unloaded module")
-check(captured.counts.loadedExports==1 and captured.counts.gcFunctions==1,"runtime fallback failed")
+if Runtime.ModuleExecution==false then
+    check(#required==0 and captured.counts.loadedExports==0,"capture required game module")
+    check(captured.scripts[2].loadedModule==true and captured.scripts[4].loadedModule==false,"loaded metadata missing")
+    check(captured.moduleExecutionEnabled==false and captured.counts.gcFunctions==1,"runtime metadata failed")
+else
+    check(#required==1 and required[1]==panic,"initialized an unloaded module")
+    check(captured.counts.loadedExports==1 and captured.counts.gcFunctions==1,"runtime fallback failed")
+end
 check(captured.scripts[2].sourceStatus=="decompiler error stub" and not captured.scripts[2].sourceFile,"exported panic as source")
 check(files[captured.scripts[2].bytecodeFile]=="\0\255BYTECODE","binary bytes corrupted")
 check(captured.functions[1].parameters==2 and #captured.functions[1].constants==4,"missing function metadata")
