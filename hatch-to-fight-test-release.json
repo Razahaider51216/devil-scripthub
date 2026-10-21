@@ -1,0 +1,27 @@
+{
+  "release": "hatch-to-fight-test-20261022-1",
+  "place_id": 127231827405683,
+  "universe_id": 10768001644,
+  "entry_sha256": "3d82d65f17cecbec0494f01c9fa703419d963f311b842cf2d3fc089051a4d876",
+  "live_verified": false,
+  "main_loader_changed": false,
+  "godmode_supported": false,
+  "server_damage_bypass_verified": false,
+  "startup_game_remote_requests": false,
+  "module_require_in_game": false,
+  "profile_autoload": "Only after explicitly saving AutoLoad=true; may restore enabled jobs",
+  "godmode_evidence": "Client HUD reads replicated PlayerGui.PetHP/PetMaxHP. No authoritative HP setter or verified damage bypass in the supplied dump.",
+  "known_contract_limits": [
+    "RequestTrainHit is present but its arguments/acceptance are not demonstrated by the captured native sender.",
+    "Stage 60 movement does not establish server stage unlock or reward eligibility.",
+    "Auto retreat may be rejected while fighting; it is not godmode.",
+    "Only owned-key crates are opened. Premium crates require the native purchase flow."
+  ],
+  "sources": {
+    "adapter.lua": "e7f6e7be92c4492b842db62e5f72619f90b9477fabc56116650bafd31b39ecf8",
+    "core.lua": "76f13cfa8029572369783cf810d7cb4ee568ff36e08804a2d88b8835002b752f",
+    "ui.lua": "b334ab4fa2e267ec039a1298a57b2efe33d56b47439826c16c5e59ccab765c6b"
+  },
+  "catalog_sha256": "638b07390809f0cc275a6f0d8de27847c6ef1189eedfeacd0496934eded83401",
+  "gui_sha256": "0c30762d3c9c3aa7c25ca3aeceab960a771c96b5af290a3b67aed627161385f5"
+}

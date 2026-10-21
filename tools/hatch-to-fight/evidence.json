@@ -1,0 +1,404 @@
+{
+  "place_id": 127231827405683,
+  "universe_id": 10768001644,
+  "sources": {
+    "ReplicatedStorage.HatchToFight.Config.Stages": {
+      "file": "0007_Stages.lua",
+      "sha256": "029695d1d4e9b899790317897314d703dcfb32c8caec7f177232736c1c63425d"
+    },
+    "ReplicatedStorage.HatchToFight.Config.Rarities": {
+      "file": "0008_Rarities.lua",
+      "sha256": "2aab34b263feb4988d9c1aa42a3a8e622714516a9b43622b474e13bd3669c411"
+    },
+    "ReplicatedStorage.HatchToFight.Config.Dev": {
+      "file": "0009_Dev.lua",
+      "sha256": "812cf86bf8d3e1b0ec001ef7b85993acfca190544c02a43357498ca563e670eb"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetsRoster": {
+      "file": "0010_PetsRoster.lua",
+      "sha256": "ff559d27c79d38f7d8884a993d63f451d3340d2c0d772c5386c5d082df9351a0"
+    },
+    "ReplicatedStorage.HatchToFight.Config.Mobs": {
+      "file": "0011_Mobs.lua",
+      "sha256": "72f03b6c2bf05f266d4e2c593ca92e6a23682069600a3ffb9bdbb63813c5aaec"
+    },
+    "ReplicatedStorage.HatchToFight.Config.Shop": {
+      "file": "0012_Shop.lua",
+      "sha256": "22b35d92b5842fbe8730a8a212a7ff41fa384d0dfe4431a8d5f7550b8bddba9c"
+    },
+    "ReplicatedStorage.HatchToFight.Config.Rewards": {
+      "file": "0013_Rewards.lua",
+      "sha256": "f61c234ef5a4c72d02ba1d388c032dd4a1e449cd95e2d621980e3dfb24ae8c0b"
+    },
+    "ReplicatedStorage.HatchToFight.Config.Formulas": {
+      "file": "0014_Formulas.lua",
+      "sha256": "7783d0a4ca5bb8ebbdaff4892133a0f309da810f64423d6f9c28b111dbbe4c65"
+    },
+    "ReplicatedStorage.HatchToFight.Config.LaunchEvent": {
+      "file": "0015_LaunchEvent.lua",
+      "sha256": "8ad463f684705ccd768b7b29a39126e1f887e162fb5404e37cc716b3c1f77bc5"
+    },
+    "ReplicatedStorage.HatchToFight.Config.ExclusivePets": {
+      "file": "0016_ExclusivePets.lua",
+      "sha256": "eaa84bdd62707788b3f8942819d4f38929eee8ef841c4bd0255361305963f7c0"
+    },
+    "ReplicatedStorage.HatchToFight.Config.Pets": {
+      "file": "0017_Pets.lua",
+      "sha256": "188bf28e5da721e523e4677cbf7770f3a53c7a7f8d7af5044a2eb143ef7b9620"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves": {
+      "file": "0018_PetMoves.lua",
+      "sha256": "f2816d4986c8f16659d24f31b2ca0c3a376645baaca2366fe510a31eea4c4b58"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.Aurora": {
+      "file": "0019_Aurora.lua",
+      "sha256": "06e98815cc4465ffad2c6422b8a0fb96769916cb39a94b1c2d13940bfbeac7f0"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.CommonA": {
+      "file": "0020_CommonA.lua",
+      "sha256": "d3747033c8b36b7c303ad43c702bd710abb2f708725156e6bbb08a4af53e254d"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.CommonB": {
+      "file": "0021_CommonB.lua",
+      "sha256": "3de2b75eaa9e97a2987a76f4fab0faec2233d27aa238168bf2325481119d8868"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.Cosmic": {
+      "file": "0022_Cosmic.lua",
+      "sha256": "e35281e776d5aca7017d7b73bf1c1bdcc4b110da90119968f173525e44e87b08"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.EpicA": {
+      "file": "0023_EpicA.lua",
+      "sha256": "264529e14fd8d77b8f2a6fd60a9654b89185ac46b3bdda621d5d6afe74256d92"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.EpicB": {
+      "file": "0024_EpicB.lua",
+      "sha256": "25cde369510f3823b1fb94a877ce5e46b160f1d0579d74f23c1b44c08f376ace"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.Legendary": {
+      "file": "0025_Legendary.lua",
+      "sha256": "d20f88514560da529125b1efe70d8a1403183d8a501cff1a24458c76d19002c8"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.Mythic": {
+      "file": "0026_Mythic.lua",
+      "sha256": "a1ff29248d5d8c72e334f1299c9c04f13ef46e4bdefb97116aee6d8f7c8d6f33"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.Prismatic": {
+      "file": "0027_Prismatic.lua",
+      "sha256": "d8ad5464b1682dcfd545299071d50c4a709962d7befa061a841617352f5d505d"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.RareA": {
+      "file": "0028_RareA.lua",
+      "sha256": "3563b96aaadd7768b3798c997abef2964c7780cd9a5c222dc168801cf98be4f0"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.RareB": {
+      "file": "0029_RareB.lua",
+      "sha256": "4a5462be68ff0c7508cb860097f651749f3cea1b9bdb75dfb00112b10a9e5114"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.UncommonA": {
+      "file": "0030_UncommonA.lua",
+      "sha256": "ba4d26e4eeb2ada15a8651b50e7c952af4b5c50fc1412f04a6599c81c5374e4d"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.UncommonB": {
+      "file": "0031_UncommonB.lua",
+      "sha256": "24c19b84d5510a80310d1037305ecc9411fdb85ce856ea0505ffba98850f0cad"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.Secret": {
+      "file": "0032_Secret.lua",
+      "sha256": "35f975d73475c224e7c6cb788a7915cf83c768dcd50358b5905862d5296d1519"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.SecretB": {
+      "file": "0033_SecretB.lua",
+      "sha256": "80cc725ca2cbd7cb1c175425d392c7ac5be0d82de7e7838e07d4302472818035"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.SecretPrize": {
+      "file": "0034_SecretPrize.lua",
+      "sha256": "a55fa5098fe7e9125df8a11a64205704e601102b86a41f8b0b0f145db6b5056a"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.Divine": {
+      "file": "0035_Divine.lua",
+      "sha256": "c4aca369cad3c25fb4afd54757930ead3140820c206123ce3f9ff433c3a3a2bd"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.LimitedA": {
+      "file": "0036_LimitedA.lua",
+      "sha256": "4e12f361a9dcca870fc62a0ea589cfe7fa0e1b7759ac548a4c84d2eabb829ff1"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.MutatedA": {
+      "file": "0037_MutatedA.lua",
+      "sha256": "66481f927a126e8d093b5f226dddfa1dfff49e1481db26b311931240855fac05"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.MutatedB": {
+      "file": "0038_MutatedB.lua",
+      "sha256": "6479c4e6b62cc4651627cc35bb7dc538d66f1354daf6f86c0dd239296a0951ab"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.MutatedC": {
+      "file": "0039_MutatedC.lua",
+      "sha256": "8b85c0eca25d93b42f2f90361e30f5ac52ff978ddaecae566ad22ad134132cef"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.TwinsA": {
+      "file": "0040_TwinsA.lua",
+      "sha256": "e90c9baae994d0cd850bc91f4591ff457d8b511de02b02778bc05f7e8c7b3f50"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.TwinsB": {
+      "file": "0041_TwinsB.lua",
+      "sha256": "f52e3913c96e06dc47eedaed2291a650778b99ba472b6113e44ba0f181e3b71d"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.TwinsC": {
+      "file": "0042_TwinsC.lua",
+      "sha256": "292843b6e1ecbe4e50915f17662676c077ca3563d136d1f808b73fbf8a3c0440"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.TwinsD": {
+      "file": "0043_TwinsD.lua",
+      "sha256": "ab6df52966c471655bb51f8bf81ef6e513bc5d086ab264e4a5a469df9e32585c"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.TwinsE": {
+      "file": "0044_TwinsE.lua",
+      "sha256": "23b21f9eae5296700efb444da021eedec2c8c6f61682a418d1e80dbcc94a9cd9"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.TwinsF": {
+      "file": "0045_TwinsF.lua",
+      "sha256": "d0769069583d84e157b59109609ffbc6f8638a0921642de661ff20fbd68c7b9a"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.TwinsG": {
+      "file": "0046_TwinsG.lua",
+      "sha256": "406f77736f3c045b7d8789792db02b88e3928e453929d24e2589411a211a079b"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.TwinsH": {
+      "file": "0047_TwinsH.lua",
+      "sha256": "b3909fc879803ffd759b6991f797b1ed4fd9c602e3fceb424dbca283df9338f5"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.LtdPanther": {
+      "file": "0048_LtdPanther.lua",
+      "sha256": "bdb5cf8d30ede446b800877141db8e9e557e336cc1172dd10f02e390d031f4d1"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.LtdPumpkin": {
+      "file": "0049_LtdPumpkin.lua",
+      "sha256": "1aa9daf64149f4e3661ee8fe9c5702d1e2b130891a4bd6cb07bc50f65d91d3d4"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.LtdRex": {
+      "file": "0050_LtdRex.lua",
+      "sha256": "cc1a19b3b999f9ba4fb266c1ee9c9137430e80e6cf143bf0e8cb28ecb2af40f7"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.LtdSeraph": {
+      "file": "0051_LtdSeraph.lua",
+      "sha256": "cba9549db4aa71a6e975e2dcc590742c59c9af71aeb4257762ff259172eb3e5e"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.Mossback": {
+      "file": "0052_Mossback.lua",
+      "sha256": "c4f39c84f480ec8d1e4b1b180302339eadf0eef1c6c80d6cdd49b1ebde7041f2"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.LtdHermit": {
+      "file": "0053_LtdHermit.lua",
+      "sha256": "ee88df57ca1dc8a23fba6eaff800703dddc31eec8b3b9ebfaa808064c5227707"
+    },
+    "ReplicatedStorage.HatchToFight.Config.PetMoves.TowerPets": {
+      "file": "0054_TowerPets.lua",
+      "sha256": "b0456f7ac66435644304daf52cddd05ba07966cfccbce7dc9cd965d8874eb8e4"
+    },
+    "ReplicatedStorage.HatchToFight.Config.Sounds": {
+      "file": "0055_Sounds.lua",
+      "sha256": "ad3f9cf6fc31ebe52df6bc84dbde35cb83a832e16a71297247ac85f1b1936315"
+    },
+    "ReplicatedStorage.HatchToFight.Config.SoundBank": {
+      "file": "0056_SoundBank.lua",
+      "sha256": "381361e682a32dcff8e3cbd3cd56208d73937def9d8e98c7ffa77a0a32d5db65"
+    },
+    "ReplicatedStorage.HatchToFight.Config.Group": {
+      "file": "0057_Group.lua",
+      "sha256": "a0c787eaaae455e6779ccd2cda22169ff5ddfc8a4db3836601ffa3cdd0478978"
+    },
+    "ReplicatedStorage.HatchToFight.Config.OfflinePower": {
+      "file": "0058_OfflinePower.lua",
+      "sha256": "fdd7acae70a409328669904db0df5fa78af4f2f54862711a6d8997f3980e7ffe"
+    },
+    "ReplicatedStorage.HatchToFight.Config.Events": {
+      "file": "0059_Events.lua",
+      "sha256": "f5fae476a1f39c040378820df0f2bb367c1357289529555c1b7f2fc35d3f6f0e"
+    },
+    "ReplicatedStorage.HatchToFight.Config.UI": {
+      "file": "0060_UI.lua",
+      "sha256": "b0fb59f5e608f31308bd0e543cfff698738925447d0bb37bd6185915f1df3e6f"
+    },
+    "ReplicatedStorage.HatchToFight.Config.MutatedPets": {
+      "file": "0061_MutatedPets.lua",
+      "sha256": "9e1ef2bb2b91f0d14d3d0d7f1d1ade5e50f1fc33dbbc41ffd53a7744f75bf79d"
+    },
+    "ReplicatedStorage.HatchToFight.Config.CratePets": {
+      "file": "0062_CratePets.lua",
+      "sha256": "b2017c1a6e7d7d3ee4f120ab01152dc73070f93a78f62c1ac55542b8e2372a7d"
+    },
+    "ReplicatedStorage.HatchToFight.Config.Crates": {
+      "file": "0063_Crates.lua",
+      "sha256": "9092b3f8cf9c70ab8eff06df66d300d16fbac2911342650a39d47b40fdf08245"
+    },
+    "ReplicatedStorage.HatchToFight.Config.LimitedPets": {
+      "file": "0064_LimitedPets.lua",
+      "sha256": "20de75498cff9237647b911ef8caf19b3e7ee510d2bb8ebaa607a251874efdf4"
+    },
+    "ReplicatedStorage.HatchToFight.Config.LimitedStands": {
+      "file": "0065_LimitedStands.lua",
+      "sha256": "b2cde7f387043670789aca8d46f6db4c3c3492732c6bedb1ea54f9eb99baebe1"
+    },
+    "ReplicatedStorage.HatchToFight.Config.DivineInfernalPets": {
+      "file": "0066_DivineInfernalPets.lua",
+      "sha256": "1886cb69423d35766190dcdb801b161bc9ca18cc652bb78f9082a593ecd7c3ce"
+    },
+    "ReplicatedStorage.HatchToFight.Config.Trails": {
+      "file": "0067_Trails.lua",
+      "sha256": "4422cc1da45c705e0a506c830ff18a0d624c6db7853c0cfbc0a71ad004f93d3c"
+    },
+    "ReplicatedStorage.HatchToFight.Config.Gifts": {
+      "file": "0068_Gifts.lua",
+      "sha256": "fcc91f334beafd0088310292cc4959dfeed649785156ac5262f5ff9dcc68942e"
+    },
+    "ReplicatedStorage.HatchToFight.Config.Shiny": {
+      "file": "0069_Shiny.lua",
+      "sha256": "5b1db7341dd2eb593b43e7e2d6941be97415754454047dc7fed985adec92731a"
+    },
+    "ReplicatedStorage.HatchToFight.Config.Races": {
+      "file": "0070_Races.lua",
+      "sha256": "8b4830c4ebbfa4939e12bb8e5a1a23835540ed7e6109c7580c5174bffbc8a262"
+    },
+    "ReplicatedStorage.HatchToFight.Config.WorldBoss": {
+      "file": "0071_WorldBoss.lua",
+      "sha256": "d766f2f606d4e34e9203d3c2cd35a07d6310101012f56ce29f9d81f648ed19ac"
+    },
+    "ReplicatedStorage.HatchToFight.Config.Tower": {
+      "file": "0072_Tower.lua",
+      "sha256": "ff98a2009f70ca511c751397a8e422959aee26ad7ecdf7815dcbe3833d263fd1"
+    },
+    "ReplicatedStorage.HatchToFight.Config.TowerPets": {
+      "file": "0073_TowerPets.lua",
+      "sha256": "53860ac9c538b8bd26830e02da575fbca034240f7b30f4bddf3c6e7e5ffbf940"
+    },
+    "ReplicatedStorage.Shared.ForgeOdds": {
+      "file": "0074_ForgeOdds.lua",
+      "sha256": "c584ea55394d62692f5595639f15ccc36878a11ba459259d15c854ef07ccce59"
+    },
+    "ReplicatedStorage.Shared.WeightedRandom": {
+      "file": "0075_WeightedRandom.lua",
+      "sha256": "67cc8a7b41dc93872d4d6009b5986a05ac71a09a6aa57c7e767acfa66b8b118d"
+    },
+    "ReplicatedStorage.Shared.Formulas": {
+      "file": "0076_Formulas.lua",
+      "sha256": "7503c3581c77faaf212cdfab07f6028a87f42f0de47c61a3e77705ad0f651f36"
+    },
+    "ReplicatedStorage.Shared.Config": {
+      "file": "0077_Config.lua",
+      "sha256": "0b497dc95e584b12aaad1c3c5c226ae51348e15a97063f48eb5e8d46f411d5ab"
+    },
+    "ReplicatedStorage.Shared.Config.Eggs": {
+      "file": "0078_Eggs.lua",
+      "sha256": "3bc10537f4e616c072a2068a97776504b87a931f8cdacf4969f705bdab75b8f0"
+    },
+    "ReplicatedStorage.Shared.Config.Stages": {
+      "file": "0079_Stages.lua",
+      "sha256": "cb7b3f52b46d1df9da43dd00b1d134338efec285544cd6783b9bdf6409de5cac"
+    },
+    "ReplicatedStorage.Shared.Config.Rarities": {
+      "file": "0080_Rarities.lua",
+      "sha256": "2329e33ed5888b5ce052bb8079d53247969faf1ca7cdf47b6473ba1cc8605f7c"
+    },
+    "ReplicatedStorage.Shared.Config.Economy": {
+      "file": "0081_Economy.lua",
+      "sha256": "6e531bc80d02b61a0ca13aebd4b5d9323f1554d049fe18e0eae214d771566aa2"
+    },
+    "ReplicatedStorage.Shared.Config.Shells": {
+      "file": "0082_Shells.lua",
+      "sha256": "c6799e554002cd6a4e8175937e31b862d266bf371bc6c34f0f65ab0feb5851d9"
+    },
+    "ReplicatedStorage.Shared.Config.Abilities": {
+      "file": "0083_Abilities.lua",
+      "sha256": "ff2a341f3656993392c17a89219f83911a5759e6d3944463b71b7ac07ccbab55"
+    },
+    "ReplicatedStorage.Shared.Config.Enemies": {
+      "file": "0084_Enemies.lua",
+      "sha256": "bfee29d46d40e9980752e7e84e517b0f3a9aaa9ab89ce4d340bff337e470f4fd"
+    },
+    "ReplicatedStorage.Shared.Config.Pets": {
+      "file": "0085_Pets.lua",
+      "sha256": "59d184edc72ae11e0b338b91e0657f92624460c99588adca6acf0ba93a43903f"
+    },
+    "ReplicatedStorage.Shared.Config.Forge": {
+      "file": "0086_Forge.lua",
+      "sha256": "45376d5180d0cbe1e293bce52a0c1402573003d76e38ed87bc2d25e8a7659188"
+    },
+    "ReplicatedStorage.Shared.Config.Leaderboards": {
+      "file": "0087_Leaderboards.lua",
+      "sha256": "1dc10e47565a30a6c1eaaa9878de334c3d98e9844da04153810567116d12471e"
+    },
+    "ReplicatedStorage.Shared.Config.ShellDrops": {
+      "file": "0088_ShellDrops.lua",
+      "sha256": "265feb4620471e8e8f15984d3cb62582c30c5c25101ff0a1c573ee2b9e37cd31"
+    },
+    "ReplicatedStorage.Shared.Config.Rewards": {
+      "file": "0089_Rewards.lua",
+      "sha256": "0e7d4fc5452a4ecfa298abaf515118cc939503b4edbe524fb3c971126706f30f"
+    },
+    "ReplicatedStorage.Shared.Config.Training": {
+      "file": "0090_Training.lua",
+      "sha256": "11fca2ecaa5ca37abfc646aea605c44736b6328a9ed64821edb0abb1905165c2"
+    },
+    "ReplicatedStorage.Shared.Config.Progression": {
+      "file": "0091_Progression.lua",
+      "sha256": "5b7dcdbb7876e585be16761fc7016a50cd1848a09c297fff07a4ddd90f9483be"
+    },
+    "ReplicatedStorage.Shared.Config.PetOdds": {
+      "file": "0092_PetOdds.lua",
+      "sha256": "1949c5f8f408d79992fdacb1c87b2c7c343d31dc535efa11e4d97a7c41811088"
+    },
+    "ReplicatedStorage.Shared.Config.ShellOdds": {
+      "file": "0093_ShellOdds.lua",
+      "sha256": "6136ff836369ff807b501a60d575d3a1039c71f05de32021d49f881186d08a7c"
+    },
+    "ReplicatedStorage.Shared.Config.Upgrades": {
+      "file": "0094_Upgrades.lua",
+      "sha256": "50c4fc160564d93f44eda23a0409c2fec2ec3d95b809fed70d98446f87b63520"
+    },
+    "ReplicatedStorage.Shared.Remotes": {
+      "file": "0095_Remotes.lua",
+      "sha256": "4e68c4593cb3b6f4bbc9cff4e173134b0b98bc2e1902666e102a6849918c147b"
+    },
+    "ReplicatedStorage.Shared.Progression": {
+      "file": "0096_Progression.lua",
+      "sha256": "5949d22a6558c4bfd5427b7df394beb03472ca6a89b1cdf3af65161da3ffd9de"
+    },
+    "ReplicatedStorage.Shared.StagePower": {
+      "file": "0097_StagePower.lua",
+      "sha256": "7300385eec675f71c50ee1e763cbd0ecbf8008d28ef433f4b295c323f92e065c"
+    },
+    "ReplicatedStorage.Shared.WorldShells": {
+      "file": "0098_WorldShells.lua",
+      "sha256": "0a4b3e8a296a66e3c3dfb18303d87359527550a55d73b1d2d7800e76503ef699"
+    },
+    "ReplicatedStorage.Shared.PaidRandom": {
+      "file": "0099_PaidRandom.lua",
+      "sha256": "7d7a9230ad1a2b26c197c1793857d364a8620d369e016b9c7a28cde8747253df"
+    },
+    "ReplicatedStorage.Shared.CubeFx": {
+      "file": "0100_CubeFx.lua",
+      "sha256": "0a623e42d10e5e98e65320d220751e5ca25ae9c0286c6ed4eb4b48ae649d079d"
+    },
+    "ReplicatedStorage.Shared.LowGraphics": {
+      "file": "0101_LowGraphics.lua",
+      "sha256": "61cb039c15784a0ffbc153ca2ef88502175201ef2e9c6d82749ca7cece0705d0"
+    },
+    "ReplicatedStorage.Shared.SpecialReach": {
+      "file": "0102_SpecialReach.lua",
+      "sha256": "ae661e2e244f115e533a868677e9ca670d56618a0f184aad562f82285468c002"
+    },
+    "ReplicatedStorage.Shared.UiUnlock": {
+      "file": "0103_UiUnlock.lua",
+      "sha256": "1353f12b43ca8263c53cdc3b630d653de574001ad78aea6427b0dfa4cdf48063"
+    },
+    "ReplicatedStorage.Shared.RaceBonus": {
+      "file": "0104_RaceBonus.lua",
+      "sha256": "ccc4d3c586f43214a1b3ce7672e7e810b836d3de424b426c93332e4c19eac446"
+    },
+    "ReplicatedStorage.Shared.MultText": {
+      "file": "0105_MultText.lua",
+      "sha256": "013136af1413f1799e95f5221a044bfb550ef144008754f854d35671f4d565b2"
+    }
+  },
+  "server_code_available": false,
+  "live_verified": false
+}

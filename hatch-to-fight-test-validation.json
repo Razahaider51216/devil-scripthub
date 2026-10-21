@@ -1,0 +1,10 @@
+{
+  "release": "hatch-to-fight-test-20261022-1",
+  "live_verified": false,
+  "results": [
+    "PASS HatchToFight core: 80 checks",
+    "PASS HatchToFight adapter concurrency/lifecycle: 18 checks",
+    "PASS HatchToFight entry/GUI/language/profile/lifecycle: 42 checks",
+    "PASS exact artifact hash, no game require/global hooks/fabricated HP or stage unlocks"
+  ]
+}
