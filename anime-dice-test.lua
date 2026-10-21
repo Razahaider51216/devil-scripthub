@@ -66,7 +66,7 @@ end
 end
 -- END DEVIL AUTO EXECUTE
 
-local release="anime-dice-halloween-icons-20261021-2"
+local release="anime-dice-desktop-towers-20261021-3"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end
@@ -218,6 +218,17 @@ return function(scope)
         UserId=player and player.UserId,PlaceId=game.PlaceId}
     local flights=scope.DevilAnimeDiceFlights or{};scope.DevilAnimeDiceFlights=flights
     local requireModule=require
+    local fallback=(function()
+-- Native metadata fallback only; server still validates Tower requests/results.
+-- Source: supplied ClientRuntimeV8 Run_20261020_011805_1.
+-- 0089_Towers.lua SHA256 dc75c71eba3044aee6147395017aed5bb0450ced5030ae763507d8e5dd3606cc
+-- 0152_HauntedHouse.lua SHA256 89c08c3db58a4b18430d8cb32b717b4d01e01cc66c5ca2159a5627b44676810b
+-- 0093_TowerRefs.lua SHA256 b4e9c36e6b29940bf458aaa35bca9d97fdc4f4590a310d74ae784b779659693f
+local towers={["Infinity Tower"]={["order"]=99,["image"]="rbxassetid://89992622754247",["difficulty"]={["name"]="Infinity"}},["Dragon Tower"]={["order"]=1,["image"]="rbxassetid://85435271739310",["difficulty"]={["name"]="Easy"},["maxFloors"]=100},["Cursed Tower"]={["order"]=2,["image"]="rbxassetid://104197656322827",["difficulty"]={["name"]="Medium"},["maxFloors"]=100},["Pirate Tower"]={["order"]=3,["image"]="rbxassetid://121966290975814",["difficulty"]={["name"]="Hard"},["maxFloors"]=100},["Hidden Leaf Tower"]={["order"]=4,["image"]="rbxassetid://104151110451469",["difficulty"]={["name"]="Extreme"},["maxFloors"]=100},["Slayer Tower"]={["order"]=5,["image"]="rbxassetid://136879114534623",["difficulty"]={["name"]="Nightmare"},["maxFloors"]=100},["Shadow Tower"]={["order"]=6,["image"]="rbxassetid://103129754283172",["difficulty"]={["name"]="Abyssal"},["maxFloors"]=150},["Front Yard"]={["order"]=101,["event"]="Halloween",["wing"]={["name"]="Front Yard",["order"]=1,["firstFloor"]=1,["image"]="rbxassetid://125258111031038"},["image"]="rbxassetid://125258111031038",["difficulty"]={["name"]="Floors 1-50"},["maxFloors"]=50},["Foyer"]={["order"]=102,["event"]="Halloween",["wing"]={["name"]="Foyer",["order"]=2,["firstFloor"]=51,["image"]="rbxassetid://77009522006685"},["image"]="rbxassetid://77009522006685",["difficulty"]={["name"]="Floors 51-100"},["maxFloors"]=50},["Crypt"]={["order"]=103,["event"]="Halloween",["wing"]={["name"]="Crypt",["order"]=3,["firstFloor"]=101,["image"]="rbxassetid://140454455505832"},["image"]="rbxassetid://140454455505832",["difficulty"]={["name"]="Floors 101-150"},["maxFloors"]=50},["Attic"]={["order"]=104,["event"]="Halloween",["wing"]={["name"]="Attic",["order"]=4,["firstFloor"]=151,["image"]="rbxassetid://80029664060134"},["image"]="rbxassetid://80029664060134",["difficulty"]={["name"]="Floors 151-200"},["maxFloors"]=50},["Bell Tower"]={["order"]=105,["event"]="Halloween",["wing"]={["name"]="Bell Tower",["order"]=5,["firstFloor"]=201,["image"]="rbxassetid://90658977359183"},["image"]="rbxassetid://90658977359183",["difficulty"]={["name"]="Floors 201-250"},["maxFloors"]=50},["The Abyss"]={["order"]=106,["event"]="Halloween",["wing"]={["name"]="The Abyss",["order"]=6,["firstFloor"]=251,["image"]="rbxassetid://95391097280127",["endless"]=true},["image"]="rbxassetid://95391097280127",["difficulty"]={["name"]="Floor 251+"}}}
+return {Towers={GetAll=function()return towers end},HauntedHouse={["WING_FLOORS"]=50,["Wings"]={{["name"]="Front Yard",["order"]=1,["firstFloor"]=1,["image"]="rbxassetid://125258111031038"},{["name"]="Foyer",["order"]=2,["firstFloor"]=51,["image"]="rbxassetid://77009522006685"},{["name"]="Crypt",["order"]=3,["firstFloor"]=101,["image"]="rbxassetid://140454455505832"},{["name"]="Attic",["order"]=4,["firstFloor"]=151,["image"]="rbxassetid://80029664060134"},{["name"]="Bell Tower",["order"]=5,["firstFloor"]=201,["image"]="rbxassetid://90658977359183"},{["name"]="The Abyss",["order"]=6,["firstFloor"]=251,["image"]="rbxassetid://95391097280127",["endless"]=true}}},TowerRefs={ActionWaitTime={["floorStarted"]=0.76,["damagePlayer"]=0.62,["damageEnemy"]=0.62,["floorCompleted"]=0.24,["memberDefeated"]=0.32,["ended"]=0}}}
+
+    end)()
+    local fallbackCatalog={Towers=fallback.Towers,HauntedHouse=fallback.HauntedHouse,TowerRefs=fallback.TowerRefs}
     local paths={
         Data="Data.DataController",Registry="Inventory.EntryRegistry",Buffs="Buffs.BuffController",BuffConfig="Buffs.BuffsConfig",Monetization="Monetization.MonetizationConfig",UnitController="Inventory.Kinds.Unit.UnitController",Rarities="Rarities",
         Dice="Rolling.Dice",PlotConfig="Plot.PlotConfig",UnitUtil="Inventory.Kinds.Unit.UnitUtil",
@@ -231,6 +242,45 @@ return function(scope)
         for part in text:gmatch("[^.]+")do root=root and root:FindFirstChild(part);if not root then return end end
         return root
     end
+    local function loadCatalog(key,name)
+        local module=path(rs,(key=="Rarities"and"Framework.Other."or"Framework.Features.")..name)
+        if not module then
+            local leaf=name:match("([^.]+)$")
+            local features=path(rs,"Framework.Features")
+            if features then for _,candidate in ipairs(features:GetDescendants())do
+                if candidate:IsA("ModuleScript")and candidate.Name==leaf then module=candidate;break end
+            end end
+        end
+        local ok,result=false,nil
+        if module then ok,result=pcall(requireModule,module)end
+        if ok and (key=="Towers"or key=="Dice") then
+            ok=type(result)=="table"and type(result.GetAll)=="function"
+            if ok then
+                local worked,entries=pcall(result.GetAll)
+                ok=worked and type(entries)=="table"and next(entries)~=nil
+                if not ok then result=worked and"Catalog is not ready"or entries end
+            else result="Catalog GetAll unavailable"end
+        end
+        if ok then ctx.Catalog[key]=result;ctx.Warnings[key]=nil
+        else ctx.Warnings[key]=module and tostring(result)or"Module unavailable"
+            if fallbackCatalog[key]then ctx.Catalog[key]=fallbackCatalog[key]end
+        end
+    end
+    local retryBusy=false
+    function ctx.RetryCatalogs(valid)
+        if retryBusy or not valid()then return end
+        retryBusy=true
+        ctx.Spawn(function()
+            local ok,problem=xpcall(function()
+                for key,name in pairs(paths)do
+                    if not valid()then return end
+                    if not ctx.Catalog[key]or ctx.Catalog[key]==fallbackCatalog[key]then loadCatalog(key,name)end
+                end
+            end,debug.traceback)
+            retryBusy=false
+            if not ok then ctx.Warnings.CatalogRetry=tostring(problem)end
+        end)
+    end
     function ctx.Initialize(valid)
         local deadline=os.clock()+20
         while valid()and os.clock()<deadline do
@@ -240,18 +290,7 @@ return function(scope)
         assert(valid(),"Startup cancelled")
         for key,name in pairs(paths)do
             if not valid()then return end
-            local module=path(rs,(key=="Rarities"and"Framework.Other."or"Framework.Features.")..name)
-            -- Locate alternate feature folder names from the actual live tree.
-            if not module then
-                local leaf=name:match("([^.]+)$")
-                local features=path(rs,"Framework.Features")
-                if features then for _,candidate in ipairs(features:GetDescendants())do
-                    if candidate:IsA("ModuleScript")and candidate.Name==leaf then module=candidate;break end
-                end end
-            end
-            local ok,result=false,nil
-            if module then ok,result=pcall(requireModule,module)end
-            if ok then ctx.Catalog[key]=result else ctx.Warnings[key]=module and tostring(result)or"Module unavailable"end
+            loadCatalog(key,name)
         end
         assert(ctx.Catalog.Data and ctx.Catalog.Registry,"Game data/registry unavailable; see initialization report")
         ctx.Ready=true
@@ -407,7 +446,7 @@ return function(ctx,P)
         PumpkinSellNames={},OfferChoice="",OfferLimit=1,QuestOffer="",QuestLimit=1,TicketReserve=0,CodeList={},UseNativeRoll=true,
         ProtectedTraits={},ProtectedGrades={},ProtectedQuirks={}}
     local clock=ctx.Clock or os.clock
-    local ctl={Config=cfg,Report={Version="anime-dice-halloween-icons-20261021-2",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
+    local ctl={Config=cfg,Report={Version="anime-dice-desktop-towers-20261021-3",Jobs={},Log={},TowerRewards={},LiveVerified=false},Stopped=false,Generation={}}
     local states,handlers,pending,spend={}, {}, {}, {}
     local towerOwned=false;local towerName;local towerEpoch=0;local originalRoll,rollOwned=nil,false
     local doorReady=setmetatable({},{__mode="k"});local lastKnock;local nextIslandTravel=0;local stopEpoch=0
@@ -1843,12 +1882,20 @@ end
     local protectionInitialized={};local pumpkinFilterInitialized=false
     local function refreshOptions()
         if not ctx.Ready or app.Stopped then return end
-        local c=ctx.Catalog;local d=ctx.Snapshot();if not d then return end
+        local c=ctx.Catalog
+        ctx.RetryCatalogs(function()return not app.Stopped end)
+        local function section(name,fn,...)
+            core.Report.ChoiceErrors=core.Report.ChoiceErrors or{}
+            local ok,problem=pcall(fn,...)
+            core.Report.ChoiceErrors[name]=not ok and tostring(problem)or nil
+        end
+        -- Static choices do not depend on player data or optional Dice artwork.
+        section("Towers",presentation.RefreshTowers,c.Towers,c.HauntedHouse)
+        local d=ctx.Snapshot();if not d then return end
         local function options(key,values)
             if optionWidgets[key]then optionWidgets[key]:Refresh(values,true,true)end
         end
-        presentation.RefreshDice(c.Dice,d)
-        presentation.RefreshTowers(c.Towers,c.HauntedHouse)
+        section("Dice",presentation.RefreshDice,c.Dice,d)
         for _,kind in ipairs({"Trait","Grade","Quirk"})do
             local values=keys(c[kind=="Trait"and"Traits"or kind=="Grade"and"Grades"or"Quirks"])
             options(kind.."Targets",values);protectionWidgets[kind]:Refresh(values,true,true)
@@ -1861,11 +1908,11 @@ end
                 protectionWidgets[kind]:Set(chosen,true)
             end
         end
-        presentation.RefreshShop(c.HalloweenShop)
+        section("Shop",presentation.RefreshShop,c.HalloweenShop)
         local questOffers={};for _,offer in ipairs(c.Quest and c.Quest.Shop or{})do questOffers[#questOffers+1]=offer.name end
-        presentation.RefreshItems("QuestOffer",questOffers,c.Quest and c.Quest.Shop or{})
-        presentation.RefreshItems("GearPriority",{"Luck","Money","Damage","Health","Roll","Candy","Pumpkin"})
-        presentation.RefreshPumpkinUnits(c.PumpkinDice)
+        section("Quest",presentation.RefreshItems,"QuestOffer",questOffers,c.Quest and c.Quest.Shop or{})
+        section("Gear",presentation.RefreshItems,"GearPriority",{"Luck","Money","Damage","Health","Roll","Candy","Pumpkin"})
+        section("Pumpkin",presentation.RefreshPumpkinUnits,c.PumpkinDice)
         if not pumpkinFilterInitialized then
             pumpkinFilterInitialized=true;local chosen={}
             for name,value in pairs(d.Halloween and d.Halloween.DiceAutoSell or{})do if value then cfg.PumpkinSellNames[name]=true;chosen[#chosen+1]=name end end

@@ -5,6 +5,10 @@ return function(scope)
         UserId=player and player.UserId,PlaceId=game.PlaceId}
     local flights=scope.DevilAnimeDiceFlights or{};scope.DevilAnimeDiceFlights=flights
     local requireModule=require
+    local fallback=(function()
+-- ANIME_TOWER_CATALOG
+    end)()
+    local fallbackCatalog={Towers=fallback.Towers,HauntedHouse=fallback.HauntedHouse,TowerRefs=fallback.TowerRefs}
     local paths={
         Data="Data.DataController",Registry="Inventory.EntryRegistry",Buffs="Buffs.BuffController",BuffConfig="Buffs.BuffsConfig",Monetization="Monetization.MonetizationConfig",UnitController="Inventory.Kinds.Unit.UnitController",Rarities="Rarities",
         Dice="Rolling.Dice",PlotConfig="Plot.PlotConfig",UnitUtil="Inventory.Kinds.Unit.UnitUtil",
@@ -18,6 +22,45 @@ return function(scope)
         for part in text:gmatch("[^.]+")do root=root and root:FindFirstChild(part);if not root then return end end
         return root
     end
+    local function loadCatalog(key,name)
+        local module=path(rs,(key=="Rarities"and"Framework.Other."or"Framework.Features.")..name)
+        if not module then
+            local leaf=name:match("([^.]+)$")
+            local features=path(rs,"Framework.Features")
+            if features then for _,candidate in ipairs(features:GetDescendants())do
+                if candidate:IsA("ModuleScript")and candidate.Name==leaf then module=candidate;break end
+            end end
+        end
+        local ok,result=false,nil
+        if module then ok,result=pcall(requireModule,module)end
+        if ok and (key=="Towers"or key=="Dice") then
+            ok=type(result)=="table"and type(result.GetAll)=="function"
+            if ok then
+                local worked,entries=pcall(result.GetAll)
+                ok=worked and type(entries)=="table"and next(entries)~=nil
+                if not ok then result=worked and"Catalog is not ready"or entries end
+            else result="Catalog GetAll unavailable"end
+        end
+        if ok then ctx.Catalog[key]=result;ctx.Warnings[key]=nil
+        else ctx.Warnings[key]=module and tostring(result)or"Module unavailable"
+            if fallbackCatalog[key]then ctx.Catalog[key]=fallbackCatalog[key]end
+        end
+    end
+    local retryBusy=false
+    function ctx.RetryCatalogs(valid)
+        if retryBusy or not valid()then return end
+        retryBusy=true
+        ctx.Spawn(function()
+            local ok,problem=xpcall(function()
+                for key,name in pairs(paths)do
+                    if not valid()then return end
+                    if not ctx.Catalog[key]or ctx.Catalog[key]==fallbackCatalog[key]then loadCatalog(key,name)end
+                end
+            end,debug.traceback)
+            retryBusy=false
+            if not ok then ctx.Warnings.CatalogRetry=tostring(problem)end
+        end)
+    end
     function ctx.Initialize(valid)
         local deadline=os.clock()+20
         while valid()and os.clock()<deadline do
@@ -27,18 +70,7 @@ return function(scope)
         assert(valid(),"Startup cancelled")
         for key,name in pairs(paths)do
             if not valid()then return end
-            local module=path(rs,(key=="Rarities"and"Framework.Other."or"Framework.Features.")..name)
-            -- Locate alternate feature folder names from the actual live tree.
-            if not module then
-                local leaf=name:match("([^.]+)$")
-                local features=path(rs,"Framework.Features")
-                if features then for _,candidate in ipairs(features:GetDescendants())do
-                    if candidate:IsA("ModuleScript")and candidate.Name==leaf then module=candidate;break end
-                end end
-            end
-            local ok,result=false,nil
-            if module then ok,result=pcall(requireModule,module)end
-            if ok then ctx.Catalog[key]=result else ctx.Warnings[key]=module and tostring(result)or"Module unavailable"end
+            loadCatalog(key,name)
         end
         assert(ctx.Catalog.Data and ctx.Catalog.Registry,"Game data/registry unavailable; see initialization report")
         ctx.Ready=true

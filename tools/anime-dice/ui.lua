@@ -2,7 +2,7 @@
 assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
 local scope=type(getgenv)=="function"and getgenv()or _G
 -- AUTO_EXECUTE_BOOTSTRAP
-local release="anime-dice-halloween-icons-20261021-2"
+local release="anime-dice-desktop-towers-20261021-3"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end
@@ -293,12 +293,20 @@ local ok,problem=xpcall(function()
     local protectionInitialized={};local pumpkinFilterInitialized=false
     local function refreshOptions()
         if not ctx.Ready or app.Stopped then return end
-        local c=ctx.Catalog;local d=ctx.Snapshot();if not d then return end
+        local c=ctx.Catalog
+        ctx.RetryCatalogs(function()return not app.Stopped end)
+        local function section(name,fn,...)
+            core.Report.ChoiceErrors=core.Report.ChoiceErrors or{}
+            local ok,problem=pcall(fn,...)
+            core.Report.ChoiceErrors[name]=not ok and tostring(problem)or nil
+        end
+        -- Static choices do not depend on player data or optional Dice artwork.
+        section("Towers",presentation.RefreshTowers,c.Towers,c.HauntedHouse)
+        local d=ctx.Snapshot();if not d then return end
         local function options(key,values)
             if optionWidgets[key]then optionWidgets[key]:Refresh(values,true,true)end
         end
-        presentation.RefreshDice(c.Dice,d)
-        presentation.RefreshTowers(c.Towers,c.HauntedHouse)
+        section("Dice",presentation.RefreshDice,c.Dice,d)
         for _,kind in ipairs({"Trait","Grade","Quirk"})do
             local values=keys(c[kind=="Trait"and"Traits"or kind=="Grade"and"Grades"or"Quirks"])
             options(kind.."Targets",values);protectionWidgets[kind]:Refresh(values,true,true)
@@ -311,11 +319,11 @@ local ok,problem=xpcall(function()
                 protectionWidgets[kind]:Set(chosen,true)
             end
         end
-        presentation.RefreshShop(c.HalloweenShop)
+        section("Shop",presentation.RefreshShop,c.HalloweenShop)
         local questOffers={};for _,offer in ipairs(c.Quest and c.Quest.Shop or{})do questOffers[#questOffers+1]=offer.name end
-        presentation.RefreshItems("QuestOffer",questOffers,c.Quest and c.Quest.Shop or{})
-        presentation.RefreshItems("GearPriority",{"Luck","Money","Damage","Health","Roll","Candy","Pumpkin"})
-        presentation.RefreshPumpkinUnits(c.PumpkinDice)
+        section("Quest",presentation.RefreshItems,"QuestOffer",questOffers,c.Quest and c.Quest.Shop or{})
+        section("Gear",presentation.RefreshItems,"GearPriority",{"Luck","Money","Damage","Health","Roll","Candy","Pumpkin"})
+        section("Pumpkin",presentation.RefreshPumpkinUnits,c.PumpkinDice)
         if not pumpkinFilterInitialized then
             pumpkinFilterInitialized=true;local chosen={}
             for name,value in pairs(d.Halloween and d.Halloween.DiceAutoSell or{})do if value then cfg.PumpkinSellNames[name]=true;chosen[#chosen+1]=name end end

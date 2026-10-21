@@ -33,6 +33,7 @@ settings_path.write_text('local settingsSource='+settings_helper+'\n'+settings,e
 execute(settings_path)
 movement = (root / 'tests/anime-dice-movement.luau').read_text(encoding='utf-8')
 movement = movement.replace('-- TEST_ADAPTER', (here / 'adapter.lua').read_text(encoding='utf-8'))
+movement=movement.replace('-- ANIME_TOWER_CATALOG',(here/'tower-catalog.lua').read_text(encoding='utf-8'))
 movement_path = here / 'movement-test.generated.luau'
 movement_path.write_text(movement, encoding='utf-8', newline='\n')
 execute(movement_path)
@@ -65,6 +66,14 @@ if main_matches:
 elif anime_route:
     print('SKIP main-loader integration until the new entry release is pinned; testing standalone entry')
 fixture += (root / 'tests/anime-dice-entry.luau').read_text(encoding='utf-8')
+entry_checks=(root/'tests/anime-dice-entry.luau').read_text(encoding='utf-8')
+old_entry=subprocess.check_output(['git','show','2679b1f:anime-dice-test.lua'],cwd=root).decode('utf-8')
+focused=entry_checks.split('\ndo\n',1)[0]+entry_checks[entry_checks.rfind('\ndo\n'):]
+old_path=here/'desktop-baseline.generated.luau'
+old_path.write_text(mocks+'\nlocal entrySource='+literal(old_entry)+'\nlocal ouroSource='+literal(ouro)+'\n'+focused,encoding='utf-8',newline='\n')
+old_result=subprocess.run([str(root.parent/'luau-tools/luau.exe'),str(old_path)],capture_output=True,text=True,timeout=25)
+assert old_result.returncode!=0 and 'failed desktop module left Tower picker empty'in old_result.stderr,old_result.stdout+old_result.stderr
+print('PASS reproduced empty Tower picker against actual previous public entry')
 path = here / 'entry-test.generated.luau'
 path.write_text(fixture, encoding='utf-8', newline='\n')
 execute(path)

@@ -5,6 +5,11 @@ local function node(class,name,parent,props)
  for key,value in pairs(props or{})do obj[key]=value end
  obj.Parent=parent;return obj
 end
+for _,input in ipairs({
+ {Name='Desktop',KeyboardEnabled=true,MouseEnabled=true,TouchEnabled=false},
+ {Name='TouchLaptop',KeyboardEnabled=true,MouseEnabled=true,TouchEnabled=true},
+ {Name='Mobile',KeyboardEnabled=false,MouseEnabled=false,TouchEnabled=true}
+})do
 for _,route in ipairs(routes)do for _,profile in ipairs({'CoreGui','HiddenFolder','HiddenScreen','PlayerGui','ThrowingHelper'})do
  local core=Instance.new('CoreGui')
  local player=Instance.new('Player');local playerGui=node('PlayerGui','PlayerGui',player)
@@ -18,7 +23,7 @@ for _,route in ipairs(routes)do for _,profile in ipairs({'CoreGui','HiddenFolder
   if name=='CoreGui'then if profile=='PlayerGui'then error('CoreGui denied')end;return core
   elseif name=='HttpService'then return {}
   elseif name=='Players'then return {LocalPlayer=player}
-  elseif name=='UserInputService'then return {KeyboardEnabled=true,MouseEnabled=true,TouchEnabled=false}end
+  elseif name=='UserInputService'then return input end
   error('Unexpected service '..name)
  end}
  local hud=node('ScreenGui','GameHUD',playerGui)
@@ -83,5 +88,5 @@ for _,route in ipairs(routes)do for _,profile in ipairs({'CoreGui','HiddenFolder
  controller.Destroy();flush()
  check(connection.Connected and plane.BackgroundTransparency==.95 and tint.BackgroundColor3==Color3.fromRGB(50,0,0),'startup teardown lost source state')
  check(root:FindFirstChild('DevilLanguageSelector')==nil and dialog.Visible,'startup teardown leaked presentation state')
-end end
-print('PASS desktop presentation startup across '..#routes..' routes and 5 GUI access profiles: '..checks..' checks')
+end end end
+print('PASS desktop/touch-laptop/mobile presentation across '..#routes..' routes, 5 GUI access profiles and resize/4K: '..checks..' checks')

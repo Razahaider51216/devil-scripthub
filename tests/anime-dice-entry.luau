@@ -140,7 +140,10 @@ local function setup(place,corrupt,storage)
  end}
  local env=setmetatable({game=game,workspace={GetServerTimeNow=function()return clockNow end,CurrentCamera={ViewportSize=Vector2.new(1280,720)}},task=testTask,
   os=setmetatable({clock=function()return clockNow end},{__index=os}),
-  getgenv=function()return scope end,require=function(obj)return assert(obj.Export,'missing module')end,
+  getgenv=function()return scope end,require=function(obj)
+   if storage and storage.FailModules and storage.FailModules[obj.Name]then error('Temporary module failure: '..obj.Name)end
+   return assert(obj.Export,'missing module')
+  end,
   Instance={new=function(class)
    local obj=Instance.new(class);if class=='TextButton'then obj.MouseButton1Click=signal()end;return obj
   end},Color3=Color3,ColorSequence=ColorSequence,UDim2=UDim2,UDim=UDim,Vector2=Vector2,Enum=Enum,
@@ -156,7 +159,7 @@ local function setup(place,corrupt,storage)
  end
  local originalCompiler=env.loadstring;local originalHttp=game.HttpGet
  local fn=assert(nativeCompile(entrySource));setfenv(fn,env)
- return {Run=fn,scope=scope,work=work,objects=objects,remote=remote,env=env,data=data,offers=offers,dice=dice,towerSpecs=towerSpecs,wings=wings,unitSpecs=unitSpecs,pumpkin=pumpkin,pumpkinRemote=pumpkinRemote,
+ return {Run=fn,scope=scope,work=work,objects=objects,remote=remote,env=env,data=data,offers=offers,dice=dice,towerSpecs=towerSpecs,wings=wings,unitSpecs=unitSpecs,pumpkin=pumpkin,pumpkinRemote=pumpkinRemote,features=features,
   advance=function(n)clockNow+=n end,now=function()return clockNow end,actions=function(value)floorActions=value end,
   compiler=originalCompiler,http=originalHttp,game=game,language=function(v)language=v end,
   counts=function()return downloads,libraryCalls end,window=function()return window end}
@@ -300,7 +303,7 @@ do
  local f=setup(113290951185459,false);local destroyed=0
  f.scope.DevilAnimeDiceTest={Version='anime-dice-test-20261020-1',Stopped=false,Destroy=function()destroyed+=1 end}
  local app=f.Run()
- check(destroyed==1 and app.Version=='anime-dice-halloween-icons-20261021-2','rerun retained previous broken release')
+ check(destroyed==1 and app.Version=='anime-dice-desktop-towers-20261021-3','rerun retained previous broken release')
  app.Destroy()
 end
 do
@@ -423,7 +426,7 @@ if mainLoaderSource then
  function f.game:IsLoaded()return true end
  f.game.HttpGet=function(self,url)
   if url:find('/anime-dice-test.lua',1,true)then
-   check(url:find('/'..mainEntryCommit..'/anime-dice-test.lua?hub=anime-dice-halloween-icons-20261021-2',1,true),'main loader fetched wrong entry pin / version')
+   check(url:find('/'..mainEntryCommit..'/anime-dice-test.lua?hub=anime-dice-desktop-towers-20261021-3',1,true),'main loader fetched wrong entry pin / version')
    routeRequests+=1;return entrySource
   end
   return f.http(self,url)
@@ -438,7 +441,7 @@ if mainLoaderSource then
   local ok,result=coroutine.resume(co);check(ok,'main loader / actual entry failed: '..tostring(result))
   if coroutine.status(co)=='dead'then app=result;break end
  end
- check(app and app==f.scope.DevilAnimeDiceTest and app.Version=='anime-dice-halloween-icons-20261021-2','main loader did not return the actual Anime Dice GUI')
+ check(app and app==f.scope.DevilAnimeDiceTest and app.Version=='anime-dice-desktop-towers-20261021-3','main loader did not return the actual Anime Dice GUI')
  check(routeRequests==1 and not f.scope.DevilHubRouterLoading,'main loader duplicated entry download or leaked busy state')
  table.remove(f.work,1)()
  check(not app.Report.InitializationError and f.objects['Quest shop item']and f.objects['Boosts to use']and f.objects['Spins to use']and f.objects['Gear priority'],'main-loaded app did not initialize requested selectors')
@@ -532,5 +535,27 @@ do
  check(picker.Rows.Foyer.TowerDetails.TowerFloors.Text=='Floors 51–100'and picker.Rows.Foyer.TowerIcon.Image==wing.image,'Haunted partial data does not recover artwork / floor range')
  check(partial.image==''and partial.wing==nil,'presentation mutated native Tower catalog while merging wing metadata')
  app.Destroy()
+end
+do
+ local storage={Files={},Encoded={},FailModules={Towers=true,HauntedHouse=true,TowerRefs=true}}
+ local f=setup(113290951185459,false,storage);local app=f.Run();table.remove(f.work,1)()
+ local picker=f.objects['Tower selection'];local wings=f.objects['Haunted wing']
+ check(table.find(picker.Options,'Dragon Tower')and table.find(picker.Options,'Infinity Tower'),'failed desktop module left Tower picker empty')
+ check(table.find(wings.Options,'Front Yard')and table.find(wings.Options,'The Abyss'),'failed wing module left Haunted picker empty')
+ check(picker.Rows['Dragon Tower'].TowerIcon.Image=='rbxassetid://85435271739310','fallback lost native Tower art')
+ picker.Callback('Dragon Tower');check(app.Config.TowerChoice=='Dragon Tower','desktop fallback selection changed the request id')
+ -- Complete the single pending retry, then simulate modules becoming usable.
+ table.remove(f.work)();storage.FailModules={}
+ f.towerSpecs['New Live Tower']={order=7,image='rbxassetid://7',difficulty={name='New'},maxFloors=200}
+ f.objects['Refresh inventory and choices'].Callback();while #f.work>1 do table.remove(f.work,2)()end
+ f.objects['Refresh inventory and choices'].Callback();while #f.work>1 do table.remove(f.work,2)()end
+ check(table.find(picker.Options,'New Live Tower'),'catalog did not replace fallback when native module recovered')
+ -- Rendering a bad optional Dice image must not block Towers or other pickers.
+ f.dice.Basic.image={Invalid=true}
+ local p=app.Presentation;local original=p.RefreshDice
+ p.RefreshDice=function()error('desktop image failure')end
+ f.objects['Refresh inventory and choices'].Callback();while #f.work>1 do table.remove(f.work,2)()end
+ check(app.Report.ChoiceErrors.Dice and table.find(picker.Options,'New Live Tower'),'optional art failure blocked Tower choices')
+ p.RefreshDice=original;app.Destroy()
 end
 print('PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: '..checks..' checks')
