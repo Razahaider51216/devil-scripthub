@@ -1,5 +1,5 @@
 {
-  "release": "climb-training-bonus-20261021-13",
+  "release": "anime-dice-desktop-towers-20261021-3",
   "module_commit": "9a9812469df7b5dad2848abb33c5206f7d57e685",
   "game_entries_commit": "e39fb7f24bda4d132f439416c7c68ad7467ff351",
   "map_ids_unchanged": true,
@@ -76,8 +76,8 @@
       "Universe": 10708913337,
       "Place": 113290951185459,
       "File": "anime-dice-test.lua",
-      "Commit": "1fe83cf2a3bc135f323451e206ace55f34eecb53",
-      "Version": "anime-dice-halloween-icons-20261021-2"
+      "Commit": "38ee1dc4057142e1349498be143a96f46fb30189",
+      "Version": "anime-dice-desktop-towers-20261021-3"
     },
     {
       "Name": "Dig For Eggs",
@@ -88,11 +88,11 @@
       "Version": "devilv4-test-20261021-1"
     }
   ],
-  "before_native_sha256": "2b95cf562ee251c15b19ce7f14a3ae84c4580cd48386b0f0c9ac650714f9eaa4",
-  "after_native_sha256": "391efa0a20fb03888ce5fa299a415b95882bfb3cd6f381d963797fb86a489562",
+  "before_native_sha256": "391efa0a20fb03888ce5fa299a415b95882bfb3cd6f381d963797fb86a489562",
+  "after_native_sha256": "488cf775790963cc52b72bbeaae32212bad21b3cf6aacafdcb1326679db5193b",
   "live_rendering_verified": false,
-  "public_loader_sha256": "9fd1db536c1d3bbbadd42a8697faa3245128295b5c804aad2f68c021c7a2a853",
-  "public_loader_bytes": 138016,
+  "public_loader_sha256": "a711a8f873fb766d2951cc199ed62fcb3d4e533565ddaf193d9ad83f8be7ad3c",
+  "public_loader_bytes": 138005,
   "ui_offline_checks": 165,
   "public_router_universe_place_cases": 36,
   "language_choices": [
@@ -148,8 +148,8 @@
   "late_viewport_and_primary_window_discovery": true,
   "desktop_executor_live_verified": false,
   "existing_game_routes_unchanged": true,
-  "anime_dice_entry_commit": "1fe83cf2a3bc135f323451e206ace55f34eecb53",
-  "anime_dice_entry_sha256": "06f149252d5c93f35dd02d5b71b3ce42d4f44e30311870345fa9814bb18dcf86",
+  "anime_dice_entry_commit": "38ee1dc4057142e1349498be143a96f46fb30189",
+  "anime_dice_entry_sha256": "74a58ae38fdd5502a889c24d8411086ddf3befc97caec19bfc6c8128bd7cac14",
   "auto_execute_enabled": true,
   "auto_execute_sha256": "6b071230dd8fcb24541ac6d8008d9bdeabaf8ea7051d4ca744be1bfbee2700c1",
   "break_language_entry_commit": "a7cf89d5f4aa4cf74d84e12af125cf82b788eae5",
@@ -163,6 +163,6 @@
   "dig_for_eggs_baseline_commit": "a381f1d700cc6abb5b1317f8cbc6d63d4f888bd8",
   "dig_for_eggs_entry_commit": "6e9145a78f93d7dee2ce0647b50174ab8f944d43",
   "dig_for_eggs_entry_sha256": "724f9638e70b0218e09e5b027d9f5cca01ed2916f57e6c544de24dca9a5f768e",
-  "anime_router_baseline_commit": "1fe83cf2a3bc135f323451e206ace55f34eecb53",
+  "anime_router_baseline_commit": "38ee1dc4057142e1349498be143a96f46fb30189",
   "climb_router_baseline_commit": "37487c14f436bc00a949a1064ab54fe3fd224f74"
 }

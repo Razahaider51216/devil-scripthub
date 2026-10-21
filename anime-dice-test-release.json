@@ -32,6 +32,6 @@
     "translations.lua": "735438aef10d1517e51d7f628348745d9a724f56481d8c176d583411e3af559a",
     "ui.lua": "cf939a9e18cfc2d1561a074ea95c3f3a0cd4e6cdd425e6c1fd3cc2ade444ae54"
   },
-  "main_loader_entry_commit": "1fe83cf2a3bc135f323451e206ace55f34eecb53",
-  "main_loader_sha256": "9fd1db536c1d3bbbadd42a8697faa3245128295b5c804aad2f68c021c7a2a853"
+  "main_loader_entry_commit": "38ee1dc4057142e1349498be143a96f46fb30189",
+  "main_loader_sha256": "a711a8f873fb766d2951cc199ed62fcb3d4e533565ddaf193d9ad83f8be7ad3c"
 }
