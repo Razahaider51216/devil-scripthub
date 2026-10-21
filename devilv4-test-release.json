@@ -26,7 +26,7 @@
   },
   "main_loader_entry_commit": "44e6fa00f0a341d61b550ead0680b26e0a1a043b",
   "main_loader_entry_sha256": "724f9638e70b0218e09e5b027d9f5cca01ed2916f57e6c544de24dca9a5f768e",
-  "main_loader_sha256": "af5126bd1129b1a025ed0ce172ce6cac5ed37e60a47b70d92681dac073f12667",
+  "main_loader_sha256": "d9454fa80bd452ac1f580c1cbc6eb0445814a3d3a5ea162088380f8fabc6cbee",
   "existing_routes_unchanged": true,
   "protection_release": "devil-all-games-obf-20261021-1",
   "native_entry_sha256": "a9f279c38dfacba6e745db4411b382116c341d413a3625400be58764a79fe19e"
