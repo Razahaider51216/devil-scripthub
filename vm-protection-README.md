@@ -1,4 +1,21 @@
-# Protection and native execution ? silver-native-1
+# Production protection — devil-all-games-obf-20261021-1
+
+The main loader covers all 12 supported games. Obfuscated VM startup packages
+were added for the six entries that lacked them: Mine / Dump23, Tap Simulator 2,
+Steal an Egg, Ride a Pet, Anime Dice and Dig For Eggs. The six already protected
+game artifacts and their pins are unchanged. Shared GUI and Steal dependencies
+are protected, with updated immutable references and transfer checks.
+
+Gameplay and UI callbacks run natively; the VM protects startup only. This avoids
+adding an interpreter to ongoing automation, but increases download/startup work.
+No live FPS or executor compatibility measurements have been made. Obfuscation
+cannot guarantee secrecy, and existing public Git history/development sources
+remain accessible. No history or repository visibility changes were made.
+
+See `vm-protection-release.json`, `vm-protection-validation.json` and
+`tools/protection/README.md` for exact artifacts, retained files and offline checks.
+
+## Historical silver-native-1 notes
 
 The nine production router/map/dependency files retain a VM-protected startup
 boundary with the existing randomized opcode/handler mapping. Protected startup

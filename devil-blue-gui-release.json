@@ -1,65 +1,80 @@
 {
   "release": "devil-blue-20261019-10",
-  "module_commit": "9a9812469df7b5dad2848abb33c5206f7d57e685",
-  "module_sha256": "5bb5443f5fb9dade535624acd41d66d2ad8f8b4fada1c08571d6c5db1efcd99a",
+  "module_commit": "17c1787803bf5db3e40bc0ace26de00fccd1841d",
+  "module_sha256": "966b62772451c447d202754f6ef13f79443b60080e0a72dffa6316c544fdac8a",
   "gameplay_bodies_unchanged": true,
   "live_verified": false,
   "entries": {
     "mine-auto-test.lua": {
       "original_body_sha256": "5eae6432fb73c9922460c5a0ad3683f2f0b93d13d6b3a7e2274cf865df630df0",
-      "public_sha256": "2b398057d327e2140dddd9cea0c805c62428920ba1cb2e86c6841e513b0a4428"
+      "public_sha256": "246ff36cfc7c5b2876673b46ec95b9e7d7c9e2c3cb71a6f9cb4d223ffe238ed9",
+      "native_source_sha256": "5927d300299a6e6c166576a46514eba6fd60f25fec1b172c87d3cbcd2605f6ae"
     },
     "tapping-auto-test.lua": {
       "original_body_sha256": "b0f3b3af1be12f81151d6cec9913fdcbbe4f8482d9378d63087ee3bf93f1947e",
-      "public_sha256": "6407ddab8551f5b72314e02727fae01c383942867e191e05d472c3faecb43ba2"
+      "public_sha256": "9166f3b7b4242a70c637138e3e96c7153846cf28139a74949683f54c40fb81c1",
+      "native_source_sha256": "6a727ea3f1277d0ef5890b7ad3e0ea098987db939760af7563207d6000be5a3f"
     },
     "climb-for-eggs.lua": {
       "original_body_sha256": "bfaa03d58f3eda5ee18fd1961b555868a77c5ba9d91fb11a3fca59e03c2f6d1e",
-      "public_sha256": "200a11dfcb6d2e1d4847a524a0e282aa0912950b66f6a658e1a64b9b7bf58f19"
+      "public_sha256": "08413913f170c28c2e68f84c0db903043ec375c003c3c15e9001a4225adc9b85",
+      "native_source_sha256": "8188124985c6dde46f74fc7df5a10cb70064c90184f758a33e649163c19821a1"
     },
     "lift-rock-for-eggs.lua": {
       "original_body_sha256": "ad9a36e4772cbd28513f732698391de49a460b34e4e9b873b6cbdc55d4e7f67e",
-      "public_sha256": "8d01b889f25fbed8029b4060ab598546407fe24703ca8971aaa76158bf480b91"
+      "public_sha256": "8d01b889f25fbed8029b4060ab598546407fe24703ca8971aaa76158bf480b91",
+      "native_source_sha256": "25a0f7314a07057f7a6f5c45a9ecf03145c692b2d3344ec93043c1e607401b07"
     },
     "aqua-auto-egg.lua": {
       "original_body_sha256": "08b7b2cccb5f615e7c1fb2c2bca24e5517103b7d0cdbbef88b08b62385d1657a",
-      "public_sha256": "97ca675a7bafdab9cba302351bfef4040b85916036f5f1a08d3ff654f35f8959"
+      "public_sha256": "97ca675a7bafdab9cba302351bfef4040b85916036f5f1a08d3ff654f35f8959",
+      "native_source_sha256": "0e21bd46325d2861d006156f9fa0ccaf621dc12b6db913a0342c81775d9f3ac2"
     },
     "devil-steal-an-egg.lua": {
       "original_body_sha256": "0955d8ef3f322c11ca22fd3d366a5b4552c8d2e3bd6456b5b705de5c25f09df6",
-      "public_sha256": "0a91e73d5b6d996b087dbbead1e66e716c9276bd199277027d2a681ce7250e78"
+      "public_sha256": "8306630e4d4ea0573db7dddd7dc5e7ff33b7eedb9e7c5dd94baa5de50ce78db1",
+      "native_source_sha256": "a9fd5dcea140d37bea243a1ff8949b0a1d433f715cf8c0eff486d1e20492bb35"
     },
     "ride-a-pet.lua": {
       "original_body_sha256": "0a2ba202ff86c3c6bbc5968854cbad0ad65a98d435c7dadee7d5145045918ea8",
-      "public_sha256": "74423e35e7968b09a3eb0e0f675d6dc8746693d8ffc5e8eb4a579f69a71ccef3"
+      "public_sha256": "ea22ba120a396f855876031957f0db6d51a3598ef2c723ed6de03c4a9c3981a5",
+      "native_source_sha256": "e57bdd7be32b7f47810e8560d11772203f35f9da4809d8c19940cad2f10dcca4"
     },
     "break-and-steal-an-egg.lua": {
       "original_body_sha256": "5b1eaa9ede6b9c9a5a2b1788fe161daf6d81381c4aa765a082403576ecd16ec4",
-      "public_sha256": "905cf213747ebdf7e660d8da90180bfa567b9f6db5cc78acebaf2093fbd88d9c"
+      "public_sha256": "179c79b82328f40f4b8f19858833fc8f46918704d4ab12f84301da0081fbde19",
+      "native_source_sha256": "93071a0c39c20ebdcd7c593e5f4ae36016d8069f262a88a4ecf83cf3e9b80899"
     },
     "loot-to-forge.lua": {
       "original_body_sha256": "88eca6b5ecc3e8c184095f1fa6fd01c87fdf7c78bdf7233251f978096594c515",
-      "public_sha256": "390f90265046f3e09cff296b90231dce56427a80b32b9deb4c48d63355ec1b2e"
+      "public_sha256": "390f90265046f3e09cff296b90231dce56427a80b32b9deb4c48d63355ec1b2e",
+      "native_source_sha256": "6c00befe2a7318db0a2f591c6e2a6ec26f38aab7c60c52bdbbd7410042247ed1"
     },
     "build-an-ant-empire.lua": {
       "original_body_sha256": "1ade406247e543c1a04386a4d52cc890ad7995747abb00198141f524dc66d004",
-      "public_sha256": "7ece31a02eb8f5ceeb8c53b518eff72f42f80b859c2658f0bb4525dc51234f4d"
+      "public_sha256": "7ece31a02eb8f5ceeb8c53b518eff72f42f80b859c2658f0bb4525dc51234f4d",
+      "native_source_sha256": "679525024e8d8db0d054ba9cc951b76e9aacd3116a53e36dbf842a736b35f59b"
     },
     "ride-a-pet-delta.lua": {
       "original_body_sha256": "ff15ce6bf52b96aa8c693ca0a36aec3a88f8126612016b985db4dca07249afeb",
-      "public_sha256": "98e9ffa74f05759e037bf95d26d947afdb60e4714e5984bb537e2752b85ce997"
+      "public_sha256": "b5f6638df3a5afedd215e57c63f676f007a597b625b96e0ef6eb5d6f51d2fc63",
+      "native_source_sha256": "9f80847667a9a94f40be433381806e98f62902c63a56ea2c35c8a318b8c059dd"
     },
     "break-and-steal-an-egg-runtime.lua": {
       "original_body_sha256": "0484a89304a64852ca6324dc4c633148ee55f11d24976c2b078b123c4b601215",
-      "public_sha256": "a0ddbe0a4b4534c2430b6d7a73248962e656ebe7dcce035e2a7ddc54a8808252"
+      "public_sha256": "6778573e9d62f1d8a96ddd6ecb8503b1733c39f8c57cb88cdaa44e670d544bb6",
+      "native_source_sha256": "7628efbfa1b32f2994b123410abeb60f48f06f1b7d24fb5b1b52f456b32812d4"
     },
     "devil-steal-an-egg-chilli-main-gui.lua": {
       "original_body_sha256": "b92a71bf03b1621e8b0b67d857d09496a864be8b93ac50f1a57750a59f31c4b2",
-      "public_sha256": "b866cd2562a78fec355ecf6038f43cf1e10f366502947ced85e843456ef538cb"
+      "public_sha256": "2c4bdcbc64aeb78d7419228e226cabbcac51f468fd5c696a6893806cfe593f7b",
+      "native_source_sha256": "6dd1b4e0f0216040d7e8fda1ef216fa0efb7826acf98c2c1716444c336f3c71b"
     },
     "devil-steal-an-egg-chilli-recovered-ui-test.lua": {
       "original_body_sha256": "b92a71bf03b1621e8b0b67d857d09496a864be8b93ac50f1a57750a59f31c4b2",
-      "public_sha256": "b866cd2562a78fec355ecf6038f43cf1e10f366502947ced85e843456ef538cb"
+      "public_sha256": "2c4bdcbc64aeb78d7419228e226cabbcac51f468fd5c696a6893806cfe593f7b",
+      "native_source_sha256": "6dd1b4e0f0216040d7e8fda1ef216fa0efb7826acf98c2c1716444c336f3c71b"
     }
-  }
+  },
+  "protection_release": "devil-all-games-obf-20261021-1"
 }

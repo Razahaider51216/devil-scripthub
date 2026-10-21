@@ -4,11 +4,11 @@ do
     local current=shared.DevilHubBlueGui
     if not(current and current.Version=="devil-blue-20261019-10"and not current.Stopped)then
         local ok,problem=pcall(function()
-            local source=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/9a9812469df7b5dad2848abb33c5206f7d57e685/devil-blue-gui.lua")
-            assert(type(source)=="string"and #source==95003,"DEVIL blue GUI download size mismatch")
+            local source=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/17c1787803bf5db3e40bc0ace26de00fccd1841d/devil-blue-gui.lua")
+            assert(type(source)=="string"and #source==291610,"DEVIL blue GUI download size mismatch")
             local sum=0
             for i=1,#source do sum=(sum*33+source:byte(i))%4294967296;if i%32768==0 and task and task.wait then task.wait()end end
-            assert(sum==941138957,"DEVIL blue GUI checksum mismatch")
+            assert(sum==2105118815,"DEVIL blue GUI checksum mismatch")
             local run,err=loadstring(source,"DEVIL HUB / Blue GUI")
             assert(run,err)
             return run()
@@ -21,15 +21,15 @@ end
 local env=type(getgenv)=="function"and getgenv()or _G
 if env.DevilHubRouterLoading then return end
 local games={
-    {Name="Dig For Eggs",Universe=10765013362,Place=121831322352666,File="devilv4-test.lua",Commit="6e9145a78f93d7dee2ce0647b50174ab8f944d43",Version="devilv4-test-20261021-1"},
-    {Name="Anime Dice",Universe=10708913337,Place=113290951185459,File="anime-dice-test.lua",Commit="38ee1dc4057142e1349498be143a96f46fb30189",Version="anime-dice-desktop-towers-20261021-3"},
-    {Name="Mine / Dump23",Universe=10740316645,Place=79389059854988,File="mine-auto-test.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="mine-auto-test-4"},
-    {Name="Tap Simulator 2",Universe=10629695169,Place=72858262610964,File="tapping-auto-test.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="tapping-auto-test-10"},
+    {Name="Dig For Eggs",Universe=10765013362,Place=121831322352666,File="devilv4-test.lua",Commit="44e6fa00f0a341d61b550ead0680b26e0a1a043b",Version="devilv4-test-20261021-1"},
+    {Name="Anime Dice",Universe=10708913337,Place=113290951185459,File="anime-dice-test.lua",Commit="44e6fa00f0a341d61b550ead0680b26e0a1a043b",Version="anime-dice-desktop-towers-20261021-3"},
+    {Name="Mine / Dump23",Universe=10740316645,Place=79389059854988,File="mine-auto-test.lua",Commit="44e6fa00f0a341d61b550ead0680b26e0a1a043b",Version="mine-auto-test-4"},
+    {Name="Tap Simulator 2",Universe=10629695169,Place=72858262610964,File="tapping-auto-test.lua",Commit="44e6fa00f0a341d61b550ead0680b26e0a1a043b",Version="tapping-auto-test-10"},
     {Name="Climb for Eggs",Universe=10765490774,Place=85738654635245,File="climb-for-eggs.lua",Commit="37487c14f436bc00a949a1064ab54fe3fd224f74",Version="climb-training-bonus-20261021-13"},
     {Name="Lift Rock for Eggs",Universe=10768316438,Place=76731343328034,File="lift-rock-for-eggs.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="lift-rock-fly-23"},
     {Name="Ride A Fish",Universe=10766691148,Place=104050046639813,File="aqua-auto-egg.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="aqua-auto-egg-18"},
-    {Name="Steal an Egg",Universe=10563114921,Place=107778070777162,File="devil-steal-an-egg.lua",Commit="00f5799cc38a04b04dd061a033ae40dbceda4569",Version="chilli-rejoin-clipboard-20261021-2"},
-    {Name="Ride a Pet",Universe=10035204815,Place=124216119978534,File="ride-a-pet.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351"},
+    {Name="Steal an Egg",Universe=10563114921,Place=107778070777162,File="devil-steal-an-egg.lua",Commit="44e6fa00f0a341d61b550ead0680b26e0a1a043b",Version="chilli-rejoin-clipboard-20261021-2"},
+    {Name="Ride a Pet",Universe=10035204815,Place=124216119978534,File="ride-a-pet.lua",Commit="44e6fa00f0a341d61b550ead0680b26e0a1a043b"},
     {Name="Break and Steal an Egg",Universe=10765288803,Place=114326934417838,File="break-and-steal-an-egg.lua",Commit="a7cf89d5f4aa4cf74d84e12af125cf82b788eae5",Version="break-language-sync-20261020-1"},
     {Name="Loot to Forge",Universe=10684750879,Place=118805555015549,File="loot-to-forge.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351",Version="silver-native-1"},
     {Name="Build An Ant Empire",Universe=10436530264,Place=78490532994307,File="build-an-ant-empire.lua",Commit="e39fb7f24bda4d132f439416c7c68ad7467ff351"},

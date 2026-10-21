@@ -1,7 +1,7 @@
 {
   "release": "anime-dice-desktop-towers-20261021-3",
   "live_game_verified": false,
-  "entry_sha256": "74a58ae38fdd5502a889c24d8411086ddf3befc97caec19bfc6c8128bd7cac14",
+  "entry_sha256": "041282fa68de9ffa7acba98b21a51dad8552a432d3d84e1181dc143ebb329321",
   "checks": 1013,
   "literal_remote_contract_checks": 24,
   "results": [
@@ -10,7 +10,7 @@
     "PASS Halloween teleport: roof rejection, door sill, elevation, streaming, death and cancellation: 32 checks",
     "PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: 724 checks"
   ],
-  "main_loader_sha256": "a711a8f873fb766d2951cc199ed62fcb3d4e533565ddaf193d9ad83f8be7ad3c",
+  "main_loader_sha256": "10daf765ff85a68d739de328d0f0b172dc9e20ea6bc62a2463faa7c0bfd952b0",
   "main_loader_integration_verified": true,
   "pinned_gui_sha256": "0c30762d3c9c3aa7c25ca3aeceab960a771c96b5af290a3b67aed627161385f5",
   "fixtures": {
@@ -18,5 +18,7 @@
     "anime-dice-entry.luau": "800d1e0ead87c88db45fe17f4ab145c1d73e12cd07c69d737eb9632c2781f57e",
     "anime-dice-movement.luau": "cabb717a38ad1509e24b357434d1071d36797002b2b4eeac8dcbeaee4d9b3e41",
     "anime-dice-settings.luau": "f1a603a3dbb9f14b1d78c877d9a4ad4196f87bb930f5a25fba2108126dff2789"
-  }
+  },
+  "protection_release": "devil-all-games-obf-20261021-1",
+  "protection_validation": "vm-protection-validation.json"
 }

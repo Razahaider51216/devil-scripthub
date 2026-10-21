@@ -1,0 +1,374 @@
+{
+  "release": "devil-all-games-obf-20261021-1",
+  "baseline_commit": "51e1850910ee450fcefa36bdb9f968b8dfb06d32",
+  "artifacts": {
+    "loader": {
+      "before_sha256": "a711a8f873fb766d2951cc199ed62fcb3d4e533565ddaf193d9ad83f8be7ad3c",
+      "before_native_sha256": "488cf775790963cc52b72bbeaae32212bad21b3cf6aacafdcb1326679db5193b",
+      "flattened": true,
+      "native_sha256": "600c4b12a3d0d0b00d2632b9c8147653c29bc9dcc2017f066f5fe659eae1f2e6",
+      "public_sha256": "10daf765ff85a68d739de328d0f0b172dc9e20ea6bc62a2463faa7c0bfd952b0",
+      "bytes": 137961,
+      "startup_only": true
+    },
+    "devil-blue-gui.lua": {
+      "before_sha256": "5bb5443f5fb9dade535624acd41d66d2ad8f8b4fada1c08571d6c5db1efcd99a",
+      "before_native_sha256": "5bb5443f5fb9dade535624acd41d66d2ad8f8b4fada1c08571d6c5db1efcd99a",
+      "flattened": false,
+      "native_sha256": "5bb5443f5fb9dade535624acd41d66d2ad8f8b4fada1c08571d6c5db1efcd99a",
+      "public_sha256": "966b62772451c447d202754f6ef13f79443b60080e0a72dffa6316c544fdac8a",
+      "bytes": 291610,
+      "startup_only": true
+    },
+    "mine-auto-test.lua": {
+      "before_sha256": "2b398057d327e2140dddd9cea0c805c62428920ba1cb2e86c6841e513b0a4428",
+      "before_native_sha256": "2b398057d327e2140dddd9cea0c805c62428920ba1cb2e86c6841e513b0a4428",
+      "flattened": false,
+      "native_sha256": "5927d300299a6e6c166576a46514eba6fd60f25fec1b172c87d3cbcd2605f6ae",
+      "public_sha256": "246ff36cfc7c5b2876673b46ec95b9e7d7c9e2c3cb71a6f9cb4d223ffe238ed9",
+      "bytes": 189824,
+      "startup_only": true
+    },
+    "tapping-auto-test.lua": {
+      "before_sha256": "6407ddab8551f5b72314e02727fae01c383942867e191e05d472c3faecb43ba2",
+      "before_native_sha256": "6407ddab8551f5b72314e02727fae01c383942867e191e05d472c3faecb43ba2",
+      "flattened": false,
+      "native_sha256": "6a727ea3f1277d0ef5890b7ad3e0ea098987db939760af7563207d6000be5a3f",
+      "public_sha256": "9166f3b7b4242a70c637138e3e96c7153846cf28139a74949683f54c40fb81c1",
+      "bytes": 310862,
+      "startup_only": true
+    },
+    "climb-for-eggs.lua": {
+      "before_sha256": "08413913f170c28c2e68f84c0db903043ec375c003c3c15e9001a4225adc9b85",
+      "before_native_sha256": "8188124985c6dde46f74fc7df5a10cb70064c90184f758a33e649163c19821a1",
+      "flattened": true,
+      "native_sha256": "8188124985c6dde46f74fc7df5a10cb70064c90184f758a33e649163c19821a1",
+      "public_sha256": "08413913f170c28c2e68f84c0db903043ec375c003c3c15e9001a4225adc9b85",
+      "bytes": 283124,
+      "startup_only": true,
+      "retained_existing_protection": true
+    },
+    "lift-rock-for-eggs.lua": {
+      "before_sha256": "8d01b889f25fbed8029b4060ab598546407fe24703ca8971aaa76158bf480b91",
+      "before_native_sha256": "25a0f7314a07057f7a6f5c45a9ecf03145c692b2d3344ec93043c1e607401b07",
+      "flattened": true,
+      "native_sha256": "25a0f7314a07057f7a6f5c45a9ecf03145c692b2d3344ec93043c1e607401b07",
+      "public_sha256": "8d01b889f25fbed8029b4060ab598546407fe24703ca8971aaa76158bf480b91",
+      "bytes": 310334,
+      "startup_only": true,
+      "retained_existing_protection": true
+    },
+    "aqua-auto-egg.lua": {
+      "before_sha256": "97ca675a7bafdab9cba302351bfef4040b85916036f5f1a08d3ff654f35f8959",
+      "before_native_sha256": "0e21bd46325d2861d006156f9fa0ccaf621dc12b6db913a0342c81775d9f3ac2",
+      "flattened": true,
+      "native_sha256": "0e21bd46325d2861d006156f9fa0ccaf621dc12b6db913a0342c81775d9f3ac2",
+      "public_sha256": "97ca675a7bafdab9cba302351bfef4040b85916036f5f1a08d3ff654f35f8959",
+      "bytes": 349669,
+      "startup_only": true,
+      "retained_existing_protection": true
+    },
+    "devil-steal-an-egg.lua": {
+      "before_sha256": "fa812cce2e3fed1d696d39ee2b97c1091fd9bce765ac1f65e807151b6289ca91",
+      "before_native_sha256": "fa812cce2e3fed1d696d39ee2b97c1091fd9bce765ac1f65e807151b6289ca91",
+      "flattened": false,
+      "native_sha256": "a9fd5dcea140d37bea243a1ff8949b0a1d433f715cf8c0eff486d1e20492bb35",
+      "public_sha256": "8306630e4d4ea0573db7dddd7dc5e7ff33b7eedb9e7c5dd94baa5de50ce78db1",
+      "bytes": 71561,
+      "startup_only": true
+    },
+    "ride-a-pet.lua": {
+      "before_sha256": "74423e35e7968b09a3eb0e0f675d6dc8746693d8ffc5e8eb4a579f69a71ccef3",
+      "before_native_sha256": "b9efc6338f6702642b94062aa062875fbc8430072120135bf9456d67287279f3",
+      "flattened": true,
+      "native_sha256": "e57bdd7be32b7f47810e8560d11772203f35f9da4809d8c19940cad2f10dcca4",
+      "public_sha256": "ea22ba120a396f855876031957f0db6d51a3598ef2c723ed6de03c4a9c3981a5",
+      "bytes": 141822,
+      "startup_only": true
+    },
+    "break-and-steal-an-egg.lua": {
+      "before_sha256": "179c79b82328f40f4b8f19858833fc8f46918704d4ab12f84301da0081fbde19",
+      "before_native_sha256": "93071a0c39c20ebdcd7c593e5f4ae36016d8069f262a88a4ecf83cf3e9b80899",
+      "flattened": true,
+      "native_sha256": "93071a0c39c20ebdcd7c593e5f4ae36016d8069f262a88a4ecf83cf3e9b80899",
+      "public_sha256": "179c79b82328f40f4b8f19858833fc8f46918704d4ab12f84301da0081fbde19",
+      "bytes": 89702,
+      "startup_only": true,
+      "retained_existing_protection": true
+    },
+    "loot-to-forge.lua": {
+      "before_sha256": "390f90265046f3e09cff296b90231dce56427a80b32b9deb4c48d63355ec1b2e",
+      "before_native_sha256": "6c00befe2a7318db0a2f591c6e2a6ec26f38aab7c60c52bdbbd7410042247ed1",
+      "flattened": true,
+      "native_sha256": "6c00befe2a7318db0a2f591c6e2a6ec26f38aab7c60c52bdbbd7410042247ed1",
+      "public_sha256": "390f90265046f3e09cff296b90231dce56427a80b32b9deb4c48d63355ec1b2e",
+      "bytes": 498210,
+      "startup_only": true,
+      "retained_existing_protection": true
+    },
+    "build-an-ant-empire.lua": {
+      "before_sha256": "7ece31a02eb8f5ceeb8c53b518eff72f42f80b859c2658f0bb4525dc51234f4d",
+      "before_native_sha256": "679525024e8d8db0d054ba9cc951b76e9aacd3116a53e36dbf842a736b35f59b",
+      "flattened": true,
+      "native_sha256": "679525024e8d8db0d054ba9cc951b76e9aacd3116a53e36dbf842a736b35f59b",
+      "public_sha256": "7ece31a02eb8f5ceeb8c53b518eff72f42f80b859c2658f0bb4525dc51234f4d",
+      "bytes": 157563,
+      "startup_only": true,
+      "retained_existing_protection": true
+    },
+    "anime-dice-test.lua": {
+      "before_sha256": "74a58ae38fdd5502a889c24d8411086ddf3befc97caec19bfc6c8128bd7cac14",
+      "before_native_sha256": "74a58ae38fdd5502a889c24d8411086ddf3befc97caec19bfc6c8128bd7cac14",
+      "flattened": false,
+      "native_sha256": "f67a2c31b09bd7b9e2a67effb03a860f7a82e4b074aa7b33cd74a11a41b843d2",
+      "public_sha256": "041282fa68de9ffa7acba98b21a51dad8552a432d3d84e1181dc143ebb329321",
+      "bytes": 409482,
+      "startup_only": true
+    },
+    "devilv4-test.lua": {
+      "before_sha256": "724f9638e70b0218e09e5b027d9f5cca01ed2916f57e6c544de24dca9a5f768e",
+      "before_native_sha256": "724f9638e70b0218e09e5b027d9f5cca01ed2916f57e6c544de24dca9a5f768e",
+      "flattened": false,
+      "native_sha256": "a9f279c38dfacba6e745db4411b382116c341d413a3625400be58764a79fe19e",
+      "public_sha256": "d89b40586e74f6d3e41b073947e98c8eafdbfd053b71805bb01027092fe2938c",
+      "bytes": 296262,
+      "startup_only": true
+    },
+    "devil-steal-an-egg-chilli-main-gui.lua": {
+      "before_sha256": "86f7ce565a6924ab65623a10355b2c332b557ac880da673be123662b940e865c",
+      "before_native_sha256": "86f7ce565a6924ab65623a10355b2c332b557ac880da673be123662b940e865c",
+      "flattened": false,
+      "native_sha256": "6dd1b4e0f0216040d7e8fda1ef216fa0efb7826acf98c2c1716444c336f3c71b",
+      "public_sha256": "2c4bdcbc64aeb78d7419228e226cabbcac51f468fd5c696a6893806cfe593f7b",
+      "bytes": 1134089,
+      "startup_only": true
+    },
+    "devil-steal-an-egg-chilli-recovered-ui-test.lua": {
+      "before_sha256": "86f7ce565a6924ab65623a10355b2c332b557ac880da673be123662b940e865c",
+      "before_native_sha256": "86f7ce565a6924ab65623a10355b2c332b557ac880da673be123662b940e865c",
+      "flattened": false,
+      "native_sha256": "6dd1b4e0f0216040d7e8fda1ef216fa0efb7826acf98c2c1716444c336f3c71b",
+      "public_sha256": "2c4bdcbc64aeb78d7419228e226cabbcac51f468fd5c696a6893806cfe593f7b",
+      "bytes": 1134089,
+      "startup_only": true
+    },
+    "devil-chilli-native-ui-runtime.lua": {
+      "before_sha256": "894f9f1a5f0d1f5a73ab173508854c173394f181fe39ac966db0193feefcb068",
+      "before_native_sha256": "894f9f1a5f0d1f5a73ab173508854c173394f181fe39ac966db0193feefcb068",
+      "flattened": false,
+      "native_sha256": "894f9f1a5f0d1f5a73ab173508854c173394f181fe39ac966db0193feefcb068",
+      "public_sha256": "dad49680bda3e36f7628e68f213f3b466a97451f45551d91d28d22c571f6c569",
+      "bytes": 1993350,
+      "startup_only": true
+    },
+    "break-and-steal-an-egg-runtime.lua": {
+      "before_sha256": "6778573e9d62f1d8a96ddd6ecb8503b1733c39f8c57cb88cdaa44e670d544bb6",
+      "before_native_sha256": "7628efbfa1b32f2994b123410abeb60f48f06f1b7d24fb5b1b52f456b32812d4",
+      "flattened": true,
+      "native_sha256": "7628efbfa1b32f2994b123410abeb60f48f06f1b7d24fb5b1b52f456b32812d4",
+      "public_sha256": "6778573e9d62f1d8a96ddd6ecb8503b1733c39f8c57cb88cdaa44e670d544bb6",
+      "bytes": 445279,
+      "startup_only": true,
+      "retained_existing_protection": true
+    },
+    "ride-a-pet-delta.lua": {
+      "before_sha256": "98e9ffa74f05759e037bf95d26d947afdb60e4714e5984bb537e2752b85ce997",
+      "before_native_sha256": "f9eb2dfd93f679cd74238785e9e2a20d2924ecccd65ef8c4ffca3ecb2199a14e",
+      "flattened": true,
+      "native_sha256": "9f80847667a9a94f40be433381806e98f62902c63a56ea2c35c8a318b8c059dd",
+      "public_sha256": "b5f6638df3a5afedd215e57c63f676f007a597b625b96e0ef6eb5d6f51d2fc63",
+      "bytes": 69450,
+      "startup_only": true
+    }
+  },
+  "routes_before": [
+    {
+      "Name": "Mine / Dump23",
+      "Universe": 10740316645,
+      "Place": 79389059854988,
+      "File": "mine-auto-test.lua"
+    },
+    {
+      "Name": "Tap Simulator 2",
+      "Universe": 10629695169,
+      "Place": 72858262610964,
+      "File": "tapping-auto-test.lua"
+    },
+    {
+      "Name": "Climb for Eggs",
+      "Universe": 10765490774,
+      "Place": 85738654635245,
+      "File": "climb-for-eggs.lua",
+      "Commit": "37487c14f436bc00a949a1064ab54fe3fd224f74",
+      "Version": "climb-training-bonus-20261021-13"
+    },
+    {
+      "Name": "Lift Rock for Eggs",
+      "Universe": 10768316438,
+      "Place": 76731343328034,
+      "File": "lift-rock-for-eggs.lua"
+    },
+    {
+      "Name": "Ride A Fish",
+      "Universe": 10766691148,
+      "Place": 104050046639813,
+      "File": "aqua-auto-egg.lua"
+    },
+    {
+      "Name": "Steal an Egg",
+      "Universe": 10563114921,
+      "Place": 107778070777162,
+      "File": "devil-steal-an-egg.lua",
+      "Commit": "00f5799cc38a04b04dd061a033ae40dbceda4569",
+      "Version": "chilli-rejoin-clipboard-20261021-2"
+    },
+    {
+      "Name": "Ride a Pet",
+      "Universe": 10035204815,
+      "Place": 124216119978534,
+      "File": "ride-a-pet.lua"
+    },
+    {
+      "Name": "Break and Steal an Egg",
+      "Universe": 10765288803,
+      "Place": 114326934417838,
+      "File": "break-and-steal-an-egg.lua",
+      "Commit": "a7cf89d5f4aa4cf74d84e12af125cf82b788eae5",
+      "Version": "break-language-sync-20261020-1"
+    },
+    {
+      "Name": "Loot to Forge",
+      "Universe": 10684750879,
+      "Place": 118805555015549,
+      "File": "loot-to-forge.lua"
+    },
+    {
+      "Name": "Build An Ant Empire",
+      "Universe": 10436530264,
+      "Place": 78490532994307,
+      "File": "build-an-ant-empire.lua"
+    },
+    {
+      "Name": "Anime Dice",
+      "Universe": 10708913337,
+      "Place": 113290951185459,
+      "File": "anime-dice-test.lua",
+      "Commit": "38ee1dc4057142e1349498be143a96f46fb30189",
+      "Version": "anime-dice-desktop-towers-20261021-3"
+    },
+    {
+      "Name": "Dig For Eggs",
+      "Universe": 10765013362,
+      "Place": 121831322352666,
+      "File": "devilv4-test.lua",
+      "Commit": "6e9145a78f93d7dee2ce0647b50174ab8f944d43",
+      "Version": "devilv4-test-20261021-1"
+    }
+  ],
+  "shared_commit": "17c1787803bf5db3e40bc0ace26de00fccd1841d",
+  "dependencies_commit": "d75f46dc309ad1c3da9fb160489bcc8a02aa8467",
+  "games_commit": "44e6fa00f0a341d61b550ead0680b26e0a1a043b",
+  "architecture": "VM startup boundary / native gameplay and UI callbacks",
+  "live_verified": false,
+  "history_rewritten": false,
+  "skip_existing": [
+    "climb-for-eggs.lua",
+    "lift-rock-for-eggs.lua",
+    "aqua-auto-egg.lua",
+    "break-and-steal-an-egg.lua",
+    "loot-to-forge.lua",
+    "build-an-ant-empire.lua",
+    "break-and-steal-an-egg-runtime.lua"
+  ],
+  "routes_after": [
+    {
+      "Name": "Mine / Dump23",
+      "Universe": 10740316645,
+      "Place": 79389059854988,
+      "File": "mine-auto-test.lua",
+      "Commit": "44e6fa00f0a341d61b550ead0680b26e0a1a043b"
+    },
+    {
+      "Name": "Tap Simulator 2",
+      "Universe": 10629695169,
+      "Place": 72858262610964,
+      "File": "tapping-auto-test.lua",
+      "Commit": "44e6fa00f0a341d61b550ead0680b26e0a1a043b"
+    },
+    {
+      "Name": "Climb for Eggs",
+      "Universe": 10765490774,
+      "Place": 85738654635245,
+      "File": "climb-for-eggs.lua",
+      "Commit": "37487c14f436bc00a949a1064ab54fe3fd224f74",
+      "Version": "climb-training-bonus-20261021-13"
+    },
+    {
+      "Name": "Lift Rock for Eggs",
+      "Universe": 10768316438,
+      "Place": 76731343328034,
+      "File": "lift-rock-for-eggs.lua",
+      "Commit": "e39fb7f24bda4d132f439416c7c68ad7467ff351"
+    },
+    {
+      "Name": "Ride A Fish",
+      "Universe": 10766691148,
+      "Place": 104050046639813,
+      "File": "aqua-auto-egg.lua",
+      "Commit": "e39fb7f24bda4d132f439416c7c68ad7467ff351"
+    },
+    {
+      "Name": "Steal an Egg",
+      "Universe": 10563114921,
+      "Place": 107778070777162,
+      "File": "devil-steal-an-egg.lua",
+      "Commit": "44e6fa00f0a341d61b550ead0680b26e0a1a043b",
+      "Version": "chilli-rejoin-clipboard-20261021-2"
+    },
+    {
+      "Name": "Ride a Pet",
+      "Universe": 10035204815,
+      "Place": 124216119978534,
+      "File": "ride-a-pet.lua",
+      "Commit": "44e6fa00f0a341d61b550ead0680b26e0a1a043b"
+    },
+    {
+      "Name": "Break and Steal an Egg",
+      "Universe": 10765288803,
+      "Place": 114326934417838,
+      "File": "break-and-steal-an-egg.lua",
+      "Commit": "a7cf89d5f4aa4cf74d84e12af125cf82b788eae5",
+      "Version": "break-language-sync-20261020-1"
+    },
+    {
+      "Name": "Loot to Forge",
+      "Universe": 10684750879,
+      "Place": 118805555015549,
+      "File": "loot-to-forge.lua",
+      "Commit": "e39fb7f24bda4d132f439416c7c68ad7467ff351"
+    },
+    {
+      "Name": "Build An Ant Empire",
+      "Universe": 10436530264,
+      "Place": 78490532994307,
+      "File": "build-an-ant-empire.lua",
+      "Commit": "e39fb7f24bda4d132f439416c7c68ad7467ff351"
+    },
+    {
+      "Name": "Anime Dice",
+      "Universe": 10708913337,
+      "Place": 113290951185459,
+      "File": "anime-dice-test.lua",
+      "Commit": "44e6fa00f0a341d61b550ead0680b26e0a1a043b",
+      "Version": "anime-dice-desktop-towers-20261021-3"
+    },
+    {
+      "Name": "Dig For Eggs",
+      "Universe": 10765013362,
+      "Place": 121831322352666,
+      "File": "devilv4-test.lua",
+      "Commit": "44e6fa00f0a341d61b550ead0680b26e0a1a043b",
+      "Version": "devilv4-test-20261021-1"
+    }
+  ]
+}

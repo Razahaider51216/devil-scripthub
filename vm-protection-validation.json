@@ -1,0 +1,32 @@
+{
+  "release": "devil-all-games-obf-20261021-1",
+  "live_verified": false,
+  "results": [
+    "PASS glass-black GUI, red icons, toggle states and reserved language layout: 165 checks",
+    "PASS desktop/touch-laptop/mobile presentation across 12 routes, 5 GUI access profiles and resize/4K: 3090 checks",
+    "PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: 724 checks",
+    "PASS public entry / GUI / settings checks:\t32"
+  ],
+  "native_gameplay_callbacks": true,
+  "artifacts": {
+    "loader": "10daf765ff85a68d739de328d0f0b172dc9e20ea6bc62a2463faa7c0bfd952b0",
+    "devil-blue-gui.lua": "966b62772451c447d202754f6ef13f79443b60080e0a72dffa6316c544fdac8a",
+    "mine-auto-test.lua": "246ff36cfc7c5b2876673b46ec95b9e7d7c9e2c3cb71a6f9cb4d223ffe238ed9",
+    "tapping-auto-test.lua": "9166f3b7b4242a70c637138e3e96c7153846cf28139a74949683f54c40fb81c1",
+    "climb-for-eggs.lua": "08413913f170c28c2e68f84c0db903043ec375c003c3c15e9001a4225adc9b85",
+    "lift-rock-for-eggs.lua": "8d01b889f25fbed8029b4060ab598546407fe24703ca8971aaa76158bf480b91",
+    "aqua-auto-egg.lua": "97ca675a7bafdab9cba302351bfef4040b85916036f5f1a08d3ff654f35f8959",
+    "devil-steal-an-egg.lua": "8306630e4d4ea0573db7dddd7dc5e7ff33b7eedb9e7c5dd94baa5de50ce78db1",
+    "ride-a-pet.lua": "ea22ba120a396f855876031957f0db6d51a3598ef2c723ed6de03c4a9c3981a5",
+    "break-and-steal-an-egg.lua": "179c79b82328f40f4b8f19858833fc8f46918704d4ab12f84301da0081fbde19",
+    "loot-to-forge.lua": "390f90265046f3e09cff296b90231dce56427a80b32b9deb4c48d63355ec1b2e",
+    "build-an-ant-empire.lua": "7ece31a02eb8f5ceeb8c53b518eff72f42f80b859c2658f0bb4525dc51234f4d",
+    "anime-dice-test.lua": "041282fa68de9ffa7acba98b21a51dad8552a432d3d84e1181dc143ebb329321",
+    "devilv4-test.lua": "d89b40586e74f6d3e41b073947e98c8eafdbfd053b71805bb01027092fe2938c",
+    "devil-steal-an-egg-chilli-main-gui.lua": "2c4bdcbc64aeb78d7419228e226cabbcac51f468fd5c696a6893806cfe593f7b",
+    "devil-steal-an-egg-chilli-recovered-ui-test.lua": "2c4bdcbc64aeb78d7419228e226cabbcac51f468fd5c696a6893806cfe593f7b",
+    "devil-chilli-native-ui-runtime.lua": "dad49680bda3e36f7628e68f213f3b466a97451f45551d91d28d22c571f6c569",
+    "break-and-steal-an-egg-runtime.lua": "6778573e9d62f1d8a96ddd6ecb8503b1733c39f8c57cb88cdaa44e670d544bb6",
+    "ride-a-pet-delta.lua": "b5f6638df3a5afedd215e57c63f676f007a597b625b96e0ef6eb5d6f51d2fc63"
+  }
+}

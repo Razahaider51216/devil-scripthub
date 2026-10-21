@@ -1,7 +1,7 @@
 {
   "release": "anime-dice-desktop-towers-20261021-3",
   "module_commit": "9a9812469df7b5dad2848abb33c5206f7d57e685",
-  "game_entries_commit": "e39fb7f24bda4d132f439416c7c68ad7467ff351",
+  "game_entries_commit": "44e6fa00f0a341d61b550ead0680b26e0a1a043b",
   "map_ids_unchanged": true,
   "native_logic_unchanged_except_presentation_bootstrap_and_entry_pins": false,
   "routes": [
@@ -9,13 +9,15 @@
       "Name": "Mine / Dump23",
       "Universe": 10740316645,
       "Place": 79389059854988,
-      "File": "mine-auto-test.lua"
+      "File": "mine-auto-test.lua",
+      "Commit": "44e6fa00f0a341d61b550ead0680b26e0a1a043b"
     },
     {
       "Name": "Tap Simulator 2",
       "Universe": 10629695169,
       "Place": 72858262610964,
-      "File": "tapping-auto-test.lua"
+      "File": "tapping-auto-test.lua",
+      "Commit": "44e6fa00f0a341d61b550ead0680b26e0a1a043b"
     },
     {
       "Name": "Climb for Eggs",
@@ -29,27 +31,30 @@
       "Name": "Lift Rock for Eggs",
       "Universe": 10768316438,
       "Place": 76731343328034,
-      "File": "lift-rock-for-eggs.lua"
+      "File": "lift-rock-for-eggs.lua",
+      "Commit": "e39fb7f24bda4d132f439416c7c68ad7467ff351"
     },
     {
       "Name": "Ride A Fish",
       "Universe": 10766691148,
       "Place": 104050046639813,
-      "File": "aqua-auto-egg.lua"
+      "File": "aqua-auto-egg.lua",
+      "Commit": "e39fb7f24bda4d132f439416c7c68ad7467ff351"
     },
     {
       "Name": "Steal an Egg",
       "Universe": 10563114921,
       "Place": 107778070777162,
       "File": "devil-steal-an-egg.lua",
-      "Commit": "00f5799cc38a04b04dd061a033ae40dbceda4569",
+      "Commit": "44e6fa00f0a341d61b550ead0680b26e0a1a043b",
       "Version": "chilli-rejoin-clipboard-20261021-2"
     },
     {
       "Name": "Ride a Pet",
       "Universe": 10035204815,
       "Place": 124216119978534,
-      "File": "ride-a-pet.lua"
+      "File": "ride-a-pet.lua",
+      "Commit": "44e6fa00f0a341d61b550ead0680b26e0a1a043b"
     },
     {
       "Name": "Break and Steal an Egg",
@@ -63,20 +68,22 @@
       "Name": "Loot to Forge",
       "Universe": 10684750879,
       "Place": 118805555015549,
-      "File": "loot-to-forge.lua"
+      "File": "loot-to-forge.lua",
+      "Commit": "e39fb7f24bda4d132f439416c7c68ad7467ff351"
     },
     {
       "Name": "Build An Ant Empire",
       "Universe": 10436530264,
       "Place": 78490532994307,
-      "File": "build-an-ant-empire.lua"
+      "File": "build-an-ant-empire.lua",
+      "Commit": "e39fb7f24bda4d132f439416c7c68ad7467ff351"
     },
     {
       "Name": "Anime Dice",
       "Universe": 10708913337,
       "Place": 113290951185459,
       "File": "anime-dice-test.lua",
-      "Commit": "38ee1dc4057142e1349498be143a96f46fb30189",
+      "Commit": "44e6fa00f0a341d61b550ead0680b26e0a1a043b",
       "Version": "anime-dice-desktop-towers-20261021-3"
     },
     {
@@ -84,15 +91,15 @@
       "Universe": 10765013362,
       "Place": 121831322352666,
       "File": "devilv4-test.lua",
-      "Commit": "6e9145a78f93d7dee2ce0647b50174ab8f944d43",
+      "Commit": "44e6fa00f0a341d61b550ead0680b26e0a1a043b",
       "Version": "devilv4-test-20261021-1"
     }
   ],
   "before_native_sha256": "391efa0a20fb03888ce5fa299a415b95882bfb3cd6f381d963797fb86a489562",
-  "after_native_sha256": "488cf775790963cc52b72bbeaae32212bad21b3cf6aacafdcb1326679db5193b",
+  "after_native_sha256": "600c4b12a3d0d0b00d2632b9c8147653c29bc9dcc2017f066f5fe659eae1f2e6",
   "live_rendering_verified": false,
-  "public_loader_sha256": "a711a8f873fb766d2951cc199ed62fcb3d4e533565ddaf193d9ad83f8be7ad3c",
-  "public_loader_bytes": 138005,
+  "public_loader_sha256": "10daf765ff85a68d739de328d0f0b172dc9e20ea6bc62a2463faa7c0bfd952b0",
+  "public_loader_bytes": 137961,
   "ui_offline_checks": 165,
   "public_router_universe_place_cases": 36,
   "language_choices": [
@@ -148,14 +155,14 @@
   "late_viewport_and_primary_window_discovery": true,
   "desktop_executor_live_verified": false,
   "existing_game_routes_unchanged": true,
-  "anime_dice_entry_commit": "38ee1dc4057142e1349498be143a96f46fb30189",
-  "anime_dice_entry_sha256": "74a58ae38fdd5502a889c24d8411086ddf3befc97caec19bfc6c8128bd7cac14",
+  "anime_dice_entry_commit": "44e6fa00f0a341d61b550ead0680b26e0a1a043b",
+  "anime_dice_entry_sha256": "041282fa68de9ffa7acba98b21a51dad8552a432d3d84e1181dc143ebb329321",
   "auto_execute_enabled": true,
   "auto_execute_sha256": "6b071230dd8fcb24541ac6d8008d9bdeabaf8ea7051d4ca744be1bfbee2700c1",
   "break_language_entry_commit": "a7cf89d5f4aa4cf74d84e12af125cf82b788eae5",
   "non_break_routes_unchanged": true,
-  "steal_entry_commit": "00f5799cc38a04b04dd061a033ae40dbceda4569",
-  "steal_entry_sha256": "fa812cce2e3fed1d696d39ee2b97c1091fd9bce765ac1f65e807151b6289ca91",
+  "steal_entry_commit": "44e6fa00f0a341d61b550ead0680b26e0a1a043b",
+  "steal_entry_sha256": "8306630e4d4ea0573db7dddd7dc5e7ff33b7eedb9e7c5dd94baa5de50ce78db1",
   "non_steal_routes_unchanged": true,
   "climb_entry_commit": "37487c14f436bc00a949a1064ab54fe3fd224f74",
   "climb_entry_sha256": "08413913f170c28c2e68f84c0db903043ec375c003c3c15e9001a4225adc9b85",
@@ -164,5 +171,7 @@
   "dig_for_eggs_entry_commit": "6e9145a78f93d7dee2ce0647b50174ab8f944d43",
   "dig_for_eggs_entry_sha256": "724f9638e70b0218e09e5b027d9f5cca01ed2916f57e6c544de24dca9a5f768e",
   "anime_router_baseline_commit": "38ee1dc4057142e1349498be143a96f46fb30189",
-  "climb_router_baseline_commit": "37487c14f436bc00a949a1064ab54fe3fd224f74"
+  "climb_router_baseline_commit": "37487c14f436bc00a949a1064ab54fe3fd224f74",
+  "protection_release": "devil-all-games-obf-20261021-1",
+  "protection_baseline_commit": "51e1850910ee450fcefa36bdb9f968b8dfb06d32"
 }

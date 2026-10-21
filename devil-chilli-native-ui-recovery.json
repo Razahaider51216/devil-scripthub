@@ -14,9 +14,9 @@
   "upstream_url": "https://raw.githubusercontent.com/tienkhanh1/Chilli-Hub-Script/7b9215d199e43d7dda2569a8cf84477c77552630/StealAnEggg",
   "upstream_sha256": "52812e88b260512c0362cd1085c2d830665b33675c67b92d0b168fa2577b6fa2",
   "upstream_bytes": 811078,
-  "source_bytes": 812911,
-  "source_sha256": "894f9f1a5f0d1f5a73ab173508854c173394f181fe39ac966db0193feefcb068",
-  "transfer_checksum": 2880846688,
+  "source_bytes": 1993350,
+  "source_sha256": "dad49680bda3e36f7628e68f213f3b466a97451f45551d91d28d22c571f6c569",
+  "transfer_checksum": 2174269613,
   "native_bytes": 1264377,
   "game_bytecode_bytes": 360955,
   "game_bytecode_sha256": "d1e5f84582e1be41bc4baac9abf1014991916c11a19dcaf0a1da87cf1b0511f7",
@@ -35,5 +35,7 @@
   "hidden_ui_max_hz": 4,
   "startup_discord_clipboard_disabled": true,
   "rejoin_uses_devil_main_loader": true,
-  "native_window_disabled_before_parenting": true
+  "native_window_disabled_before_parenting": true,
+  "protection_release": "devil-all-games-obf-20261021-1",
+  "native_source_sha256": "894f9f1a5f0d1f5a73ab173508854c173394f181fe39ac966db0193feefcb068"
 }
