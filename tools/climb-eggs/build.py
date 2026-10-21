@@ -4,7 +4,7 @@ ROOT=Path(__file__).resolve().parents[2]
 WORK=Path(__file__).resolve().parent
 VMROOT=ROOT.parent/'devil-vm-build'
 COMPILER=ROOT.parent/'luau-tools/luau-compile.exe'
-RELEASE='climb-language-sync-20261020-12'
+RELEASE='climb-training-bonus-20261021-13'
 planner=(WORK/'planner.lua').read_text(encoding='utf-8')
 core=(WORK/'core.lua').read_text(encoding='utf-8')
 ui=(WORK/'ui.lua').read_text(encoding='utf-8')

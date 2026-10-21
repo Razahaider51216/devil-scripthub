@@ -10,6 +10,8 @@ def run(name,text):
  path=WORK/(name+'.generated.luau');path.write_text(text,encoding='utf-8')
  subprocess.run([str(CLI),str(path)],check=True,timeout=45)
 run('core',fixture.replace('-- CLIMB_PLANNER',planner).replace('-- CLIMB_CORE',core))
+bonus=fixture.split('cfg=P.Defaults();cfg.AutoBonus=true',1)[0]
+run('bonus',bonus.replace('-- CLIMB_PLANNER',planner).replace('-- CLIMB_CORE',core)+'\n'+(WORK/'bonus-tests.luau').read_text())
 # Retain the same independent runtime stubs, then replay five failures against
 # the exact prior production source as well as this revision.
 prefix=fixture.split('-- The native hold may not activate',1)[0]

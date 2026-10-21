@@ -13,7 +13,14 @@ row='    {Name="Anime Dice",Universe=10708913337,Place=113290951185459,File="ani
 expected,n=re.subn(r'^    \{Name="Anime Dice"[^\n]+',lambda _:row,before,flags=re.M);assert n==1
 expected,n=re.subn(r'(for _,entry in ipairs\(games\)do if entry.File=="anime-dice-test.lua"then entry.Version=")[^"]+',lambda m:m[1]+route['Version'],expected);assert n==1
 current=(ROOT/'tools/blue-gui/router.lua').read_text(encoding='utf-8')
-assert expected==current,'Non-Anime router bytes changed'
+normalized=current
+if audit.get('climb_router_baseline_commit'):
+    climb=next(r for r in audit['routes'] if r['File']=='climb-for-eggs.lua')
+    old_row=re.search(r'^    \{Name="Climb for Eggs"[^\n]+',expected,re.M)[0]
+    old_version=re.search(r'entry.File=="climb-for-eggs.lua"and"([^"]+)"',expected)[1]
+    normalized=re.sub(r'^    \{Name="Climb for Eggs"[^\n]+',lambda _:old_row,normalized,flags=re.M)
+    normalized=normalized.replace('entry.File=="climb-for-eggs.lua"and"'+climb['Version']+'"','entry.File=="climb-for-eggs.lua"and"'+old_version+'"',1)
+assert expected==normalized,'Changes outside declared Anime/Climb pins'
 assert hashlib.sha256(current.encode()).hexdigest()==audit['after_native_sha256']
 assert hashlib.sha256((ROOT/'loader').read_bytes()).hexdigest()==audit['public_loader_sha256']==release['main_loader_sha256']
 print('PASS Anime Dice immutable entry and main hashes; all non-Anime router bytes preserved')

@@ -40,5 +40,11 @@ if audit.get('anime_router_baseline_commit'):
     old_version=re.search(r'entry.File=="anime-dice-test.lua"then entry.Version="([^"]+)"',expected)[1]
     normalized=re.sub(r'^    \{Name="Anime Dice"[^\n]+',lambda _:old_row,normalized,flags=re.M)
     normalized=normalized.replace('entry.File=="anime-dice-test.lua"then entry.Version="'+anime['Version']+'"','entry.File=="anime-dice-test.lua"then entry.Version="'+old_version+'"',1)
-assert count==1 and normalized==expected,'Changes outside the declared Steal/Anime pins and Steal migration'
+if audit.get('climb_router_baseline_commit'):
+    climb=next(r for r in audit['routes'] if r['File']=='climb-for-eggs.lua')
+    old_row=re.search(r'^    \{Name="Climb for Eggs"[^\n]+',expected,re.M)[0]
+    old_version=re.search(r'entry.File=="climb-for-eggs.lua"and"([^"]+)"',expected)[1]
+    normalized=re.sub(r'^    \{Name="Climb for Eggs"[^\n]+',lambda _:old_row,normalized,flags=re.M)
+    normalized=normalized.replace('entry.File=="climb-for-eggs.lua"and"'+climb['Version']+'"','entry.File=="climb-for-eggs.lua"and"'+old_version+'"',1)
+assert count==1 and normalized==expected,'Changes outside the declared Steal/Anime/Climb pins and Steal migration'
 print('PASS complete immutable chain: loader -> delegate -> GUI -> adapted runtime; current Steal pin preserved; publication router verified')

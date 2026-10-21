@@ -14,7 +14,7 @@ local config=P.Defaults()
 local Http=game:GetService("HttpService")
 local player=game:GetService("Players").LocalPlayer
 local prefsFile="DevilClimbEggSettings_"..player.UserId..".json"
-local controller={Config=config,Version="climb-language-sync-20261020-12"}
+local controller={Config=config,Version="climb-training-bonus-20261021-13"}
 local core,library,window,statusWidget,totalsWidget,jobWidgets,prefsWidget
 local destroyed,rebuilding=false,false
 local languageOwner,originalLanguageSet,originalLanguageDestroy,languageSet,languageDestroy

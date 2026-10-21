@@ -1,14 +1,11 @@
 {
-  "release": "climb-language-sync-20261020-12",
+  "release": "climb-training-bonus-20261021-13",
   "placeId": 85738654635245,
   "universeId": 10765490774,
-  "source_sha256": "acea5f0993b81b173e94995d927e1b78902d3c7c669bb35397c5cb7a7808b92b",
-  "entry_sha256": "cd9a3a277b46ce577b3bba1335eac7b39de3774774f310fdf1005cdb80cd044a",
-  "bytes": 276957,
+  "source_sha256": "0bc9833edaa1fc82f145a97ae1a6ffb275e29210438686217cc07e79b1ff63db",
+  "entry_sha256": "08413913f170c28c2e68f84c0db903043ec375c003c3c15e9001a4225adc9b85",
+  "bytes": 283124,
   "live_verified": false,
-  "gameplay_core_sha256": "abd7bbd3527f6794f5939fd2d05726ec26313b8ef8ace1a28275f905e0ca0032",
-  "language_sync": true,
-  "runtime_commit": "fa18b61e74e788a1825123d7bf3182b628c3463f",
-  "main_loader_sha256": "28690e4bf5a91f702cc421d3c221adb128796a02fcf5cef4449b23138226e069",
-  "other_routes_unchanged": true
+  "gameplay_core_sha256": "679465f4aa6b276ed0e11797103e371c098d7f0e98d57d77150db69a7ae7fbda",
+  "language_sync": true
 }

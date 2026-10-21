@@ -15,7 +15,7 @@ return function(config, notify, P, dependencies)
     local activeInteraction,pendingPrompt
     local target,carriedBefore,awaitClaim,awaitPlace,awaitHatch,fuseRecipe
     local blockedUntil={}
-    local R={release="climb-steal-control-20261020-11",status="Ready",phase="Idle",picked=0,stored=0,placed=0,hatched=0,
+    local R={release="climb-training-bonus-20261021-13",status="Ready",phase="Idle",picked=0,stored=0,placed=0,hatched=0,
         lost=0,errors={},jobs={},placeId=game.PlaceId}
     local core={Config=config,Report=R,Tiers=P.Tiers,Variants=P.Variants,Mutations=P.Mutations}
     local function status(text) R.status=text;if notify then notify(R) end end
@@ -32,7 +32,7 @@ return function(config, notify, P, dependencies)
         local packages=src:WaitForChild("Packages",20);assert(packages,"Game packages not loaded")
         local Knit=require(packages:WaitForChild("knit",20))
         local needed={"DataController","BaseController","ZoneController","FallController","TreadmillController",
-            "EggHatchController","EggCarryController","GiftPlayTimeController","DayCycleController","EventController"}
+            "EggHatchController","EggCarryController","GiftPlayTimeController","DayCycleController","EventController","ButtonsController"}
         local timeout=clock()+25
         repeat
             for _,name in ipairs(needed) do
@@ -774,8 +774,55 @@ return function(config, notify, P, dependencies)
         end
         if best and best~=result.Equipped then core.Call("TrailsService","SelectTrail",{best},"Trails") end
     end
+    local bonusPending,bonusConsumed={},{}
+    local bonusSession
+    local function bonuses()
+        local tm=controllers.TreadmillController
+        if not tm or not tm.OnTreadmill then
+            table.clear(bonusPending);table.clear(bonusConsumed);bonusSession=nil;return
+        end
+        if bonusSession~=tm.TreadmillSession then
+            table.clear(bonusPending);table.clear(bonusConsumed);bonusSession=tm.TreadmillSession
+        end
+        if not (config.AutoBonus or config.AutoTrain) then return end
+        if not tm.TreadmillSession or not tm.LoadedAnimation then return end
+        -- Native treadmillMultiplier places live clones directly in General.
+        -- Scan only this container, never all PlayerGui/CoreGui descendants.
+        local gui=player:FindFirstChild("PlayerGui")
+        local general=gui and gui:FindFirstChild("General")
+        local frames={}
+        if general then for _,frame in ipairs(general:GetChildren()) do
+            local button=frame:FindFirstChildOfClass("ImageButton")
+            local id=button and button:GetAttribute("Id")
+            if id~=nil and button:GetAttribute("Action")=="ClaimTmMultiplier" and frame.Visible==true then
+                frames[id]=frames[id] or {};table.insert(frames[id],{frame,button})
+                if not bonusConsumed[id] then bonusPending[id]=bonusSession end
+            end
+        end end
+        local budget=8
+        for id,session in pairs(bonusPending) do
+            if stopped or not (config.AutoBonus or config.AutoTrain) or not tm.OnTreadmill or tm.TreadmillSession~=bonusSession then break end
+            if session~=bonusSession then bonusPending[id]=nil
+            elseif budget>0 and not bonusConsumed[id] then
+                budget-=1
+                local ok,problem=pcall(tm.ClaimMultiplier,tm,id)
+                local j=job("Bonus",ok and "Bonus clicked" or tostring(problem));j.requests+=1
+                if ok then bonusConsumed[id]=true;bonusPending[id]=nil else errorLog(problem) end
+            end
+        end
+        -- ClaimMultiplier sends the native request but does not remove its UI.
+        -- Mirror claimTmMultiplierAction's unlink/destroy, leaving other UI alone.
+        for id,nodes in pairs(frames) do if bonusConsumed[id] then
+            for _,pair in ipairs(nodes) do
+                local buttons=controllers.ButtonsController
+                if buttons then pcall(buttons.Unlink,buttons,pair[2]) end
+                pair[1]:Destroy()
+            end
+        end end
+    end
     function core.JobsStep()
         if stopped or rpcBusy then return end
+        bonuses()
         if awaitPlace and data("PlacedEggs",{})[awaitPlace.id] then
             R.placed+=1;job("Place","Placement confirmed");awaitPlace=nil
         end
@@ -880,13 +927,12 @@ return function(config, notify, P, dependencies)
     end
     core.OriginalDisableActivation=tm and tm.DisableActivation
     if tm and tm.Signals and tm.Signals.ShowMultiplierButton then
-        local consumed={}
-        table.insert(links,tm.Signals.ShowMultiplierButton:Connect(function(id)
-            if not stopped and config.AutoBonus and tm.OnTreadmill and not consumed[id] then
-                consumed[id]=true
-                local ok,problem=pcall(tm.ClaimMultiplier,tm,id)
-                local j=job("Bonus",ok and "Bonus clicked" or tostring(problem));j.requests+=1
-                if not ok then errorLog(problem) end
+        table.insert(links,tm.Signals.ShowMultiplierButton:Connect(function(id,session)
+            if not stopped and tm.OnTreadmill and id~=nil and tm.TreadmillSession and (session==nil or session==tm.TreadmillSession) then
+                if bonusSession~=tm.TreadmillSession then
+                    table.clear(bonusPending);table.clear(bonusConsumed);bonusSession=tm.TreadmillSession
+                end
+                if not bonusConsumed[id] then bonusPending[id]=bonusSession end
             end
         end))
     end

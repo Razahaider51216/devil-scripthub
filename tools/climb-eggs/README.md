@@ -1,10 +1,20 @@
 # Climb for Eggs — Steal control and language synchronization
 
-Release `climb-language-sync-20261020-12`, universe 10765490774,
+Release `climb-training-bonus-20261021-13`, universe 10765490774,
 place 85738654635245. Keeps the existing DEVIL HUB interface, blue/white
 presentation, saved settings, filtering, return, claiming and other jobs.
-The gameplay core is byte-identical to the Steal control repair in
-`cfb08293efa6ea72e12c76f12a3e11d7ce007364`.
+Training bonus repair: the previous listener only saw new signals, marked
+failed/no-op claims consumed and left the native floating icons on screen.
+Auto Treadmill now includes bonus collection; Auto Training Bonuses also works
+when the player starts training manually. The existing one-second job worker
+collects current General children with the exact ClaimTmMultiplier/Id attributes,
+checks session/animation readiness, retries thrown failures, deduplicates per
+session and unlinks/destroys claimed frames. Each tick sends at most eight claims.
+No whole-GUI scans, virtual mouse clicks or new per-frame loops are added.
+Claims are request counts, not server-confirmed reward counts. The native contract
+comes from Dump1 Run_20261016_180246_1 treadmillController, treadmillMultiplier
+and claimTmMultiplierAction. Bonus regressions cover existing/new buttons,
+readiness, retry, duplicate/stale events, session reuse, batches, stop and unload.
 
 The shared language selector previously changed its own language while the
 native Climb renderer kept its independently saved Thai value. The native UI

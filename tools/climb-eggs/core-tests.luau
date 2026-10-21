@@ -51,7 +51,7 @@ game={PlaceId=85738654635245}
 local now=0
 task={wait=function(dt) now+=dt or .01 end,spawn=function(fn)fn()end}
 local attrs={}
-local player={UserId=123,GetAttribute=function(_,key)return attrs[key]end}
+local player={UserId=123,GetAttribute=function(_,key)return attrs[key]end,FindFirstChild=function()return nil end}
 local signal={callbacks={}}
 function signal:Connect(fn)
     local holder={fn=fn};table.insert(self.callbacks,holder)
@@ -60,7 +60,7 @@ end
 function signal:Fire(...)for _,holder in ipairs(self.callbacks) do if holder.fn then holder.fn(...)end end end
 local native={Data={Inventory=inv,EquippedAnimals={equipped=true},PlacedEggs={},Cash=1000000,Rebirths=0,Speed=5000,BaseLevel=0,StaminaLevel=1,TreadmillLevel=0,Fuse={Slots={}}}}
 local bonusRequests=0
-local treadmill={OnTreadmill=true,DisableActivation=false,Signals={ShowMultiplierButton=signal},
+local treadmill={OnTreadmill=true,TreadmillSession="session-1",LoadedAnimation={},DisableActivation=false,Signals={ShowMultiplierButton=signal},
     ClaimMultiplier=function(_,id)check(id=="bonus-1","bonus id from game");bonusRequests+=1 end,
     DeactivateTreadmill=function(self)self.OnTreadmill=false end}
 local requests={}
@@ -87,7 +87,7 @@ local deps={Manual=true,Clock=function()return now end,Player=player,Players={},
         Stamina={Levels={{Price=0},{Price=800}}}},Services=services}
 cfg=P.Defaults();cfg.AutoBonus=true;cfg.KeepBest=true;cfg.SellTiers={Common=true}
 local c=make(cfg,nil,P,deps)
-signal:Fire("bonus-1");signal:Fire("bonus-1");check(bonusRequests==1,"bonus id consumed once")
+signal:Fire("bonus-1");signal:Fire("bonus-1");c.JobsStep();check(bonusRequests==1,"bonus id consumed once")
 cfg.AutoSell=true;cfg.AutoRebirth=true;cfg.AutoTrails=true;cfg.AutoStamina=true
 c.JobsStep()
 check(c.Report.jobs.Sell.confirmed==0 and c.Report.jobs.Sell.status=="Please wait a moment.","rejected request is not success")
