@@ -4,9 +4,10 @@ ROOT=Path(__file__).resolve().parents[2]
 HERE=Path(__file__).resolve().parent
 sys.path.insert(0,str(ROOT/'tools/protection'))
 from pack import native,pack,checksum,sha,WORK
-RELEASE='kuydum-steal-20261022-1'
+RELEASE='kuydum-no-loader-20261022-2'
 STATE=WORK/'kuydum-state.json'
 state=json.loads(STATE.read_text())if STATE.exists()else{'release':RELEASE,'artifacts':{},'base_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()}
+state['release']=RELEASE
 def gray(source):
     def rgb(m):
         r,g,b=map(int,m.groups());v=round(.2126*r+.7152*g+.0722*b)
@@ -45,6 +46,15 @@ elif stage=='gui':
     source,n=re.subn(r'(assert\(sum==)\d+(,"DEVIL blue GUI checksum)',lambda m:m[1]+str(checksum(data))+m[2],source);assert n==1
     source=source.replace('Theme="Abyss"','Theme={Background=Color3.fromRGB(8,8,8),Surface=Color3.fromRGB(16,16,16),Surface2=Color3.fromRGB(23,23,23),Surface3=Color3.fromRGB(38,38,38),Accent=Color3.fromRGB(235,235,235),Text=Color3.fromRGB(255,255,255),Muted=Color3.fromRGB(170,170,170),Stroke=Color3.fromRGB(60,60,60)}')
     source=re.sub(r'https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png\?logo=silver-20261011',url(state['theme_commit'],'assets/kuydumhub.jpg'),source)
+    start=source.index('local loading=(function()')
+    end=source.index('end)()("Steal an Egg")',start)+len('end)()("Steal an Egg")')
+    source=source[:start]+'''-- No startup screen, percentage, tweens or input-blocking overlay.
+local loading={Update=function()end,Finish=function()end,Fail=function(message)
+    warn("KUYDUM HUB: "..tostring(message))
+end}
+'''+source[end:]
+    assert 'Starting original systems...'in source
+    assert 'scope.DevilHubLoadScreen'not in source
     save('kuydum-steal-gui.lua',source)
 elif stage=='entry':
     state['gui_commit']=head()
@@ -57,7 +67,7 @@ elif stage=='entry':
         '__GUI_URL__':url(state['gui_commit'],'kuydum-steal-gui.lua'),'__GUI_BYTES__':str(len(gui)),'__GUI_CHECKSUM__':str(checksum(gui)),
         '__AUTO_SOURCE__':json.dumps(auto,ensure_ascii=False)}.items():source=source.replace(key,value)
     save('kuydum-steal-an-egg.lua',source)
-    state.update(discord='https://discord.gg/tCnZhrBcM',theme='monochrome',standalone=True,main_loader_changed=False,live_verified=False,architecture='VM startup / native gameplay callbacks')
+    state.update(discord='https://discord.gg/tCnZhrBcM',theme='monochrome',standalone=True,main_loader_changed=False,live_verified=False,architecture='VM startup / native gameplay callbacks',startup_screen=False,native_executor_api_inheritance=True)
     (ROOT/'kuydum-release.json').write_text(json.dumps(state,indent=2)+'\n',encoding='utf-8',newline='\n')
 else:raise ValueError(stage)
 STATE.write_text(json.dumps(state,indent=2)+'\n')

@@ -1,5 +1,5 @@
 {
-  "release": "kuydum-steal-20261022-1",
+  "release": "kuydum-no-loader-20261022-2",
   "live_verified": false,
   "protected_artifacts": {
     "kuydum-theme.lua": {
@@ -8,14 +8,14 @@
       "bytes": 291612
     },
     "kuydum-steal-gui.lua": {
-      "public_sha256": "4503c6ecd19795697cbe338d72c38ff72f62461ebf58d88b48db3a17ae3f54f4",
-      "native_sha256": "887892079647feb5c5435c22e84a4a4fd154b341f9bd4a66b8a003a7b7e79514",
-      "bytes": 1134900
+      "public_sha256": "a2c79f0b18eedf6739057e723c83629abaf3874b2ab312f814a6b06e6bfb1dcd",
+      "native_sha256": "576dd2987b6f86bdbe18f64ce29ee59dd08e7e373189aed51cd128ddf6d50b79",
+      "bytes": 1115187
     },
     "kuydum-steal-an-egg.lua": {
-      "public_sha256": "a2c821245ead3dbb7e958de2f41a6a6ace53d6f1b09fe23bd4a2eb8c383a18ba",
-      "native_sha256": "6db6e98b6614d4dd38c64e5dace1cba9c1919c4d57706fe5b0dbacc63d20a20d",
-      "bytes": 84227
+      "public_sha256": "973f23ebe5fe4033fdc41643dd2f055c9d80b1780ad3ae873916a32cf174879b",
+      "native_sha256": "dba3ebf79c1ad7c3730b8ef160e12c060d1a7ab7320daa31c4dbdf000c6977b4",
+      "bytes": 84926
     }
   },
   "original_logo_exact": true,
@@ -26,5 +26,8 @@
   "separate_rejoin_loader": true,
   "duplicate_close_reopen_integrity_checks": true,
   "original_main_and_runtime_unchanged": true,
-  "base_commit": "0fb8516b170f6dab88b008ea508b596dd0bc9423"
+  "base_commit": "0fb8516b170f6dab88b008ea508b596dd0bc9423",
+  "startup_screen": false,
+  "old_executor_api_defect_reproduced": true,
+  "native_getfenv_preserved": true
 }

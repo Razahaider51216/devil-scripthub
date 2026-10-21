@@ -3,25 +3,28 @@ assert(game.GameId==10563114921 or game.PlaceId==107778070777162,"Open Steal an 
 local host=getfenv(1)
 local root=type(getgenv)=="function"and getgenv()or _G
 local previous=root.KuydumHubSession
-if previous and not previous.Stopped then
+if previous and not previous.Stopped and previous.Version=="kuydum-no-loader-20261022-2"then
     if previous.Loading or previous.Shared.DevilChilliMainUI then return previous end
     previous.Destroy()
 end
-local app={Brand="KUYDUM HUB",Version="kuydum-steal-20261022-1",Discord="https://discord.gg/tCnZhrBcM",Loading=true,Stopped=false}
+if previous and not previous.Stopped then previous.Destroy()end
+local app={Brand="KUYDUM HUB",Version="kuydum-no-loader-20261022-2",Discord="https://discord.gg/tCnZhrBcM",Loading=true,Stopped=false}
 local shared=root.KuydumHubContext or{};app.Shared=shared;root.KuydumHubContext=shared
 root.KuydumHubSession=app
 local scope=setmetatable({getgenv=function()return shared end,_G=shared},{__index=host})
 local compile,setEnvironment,getEnvironment=loadstring,setfenv,getfenv
-scope.getfenv=function(subject)
-    if subject==0 then return scope end
-    if type(subject)=="function"then return getEnvironment(subject)end
-    return getEnvironment((subject or 1)+1)
-end
+-- The original runtime uses executor globals via _G/getgenv. Preserve those
+-- API lookups and the native getfenv identity/stack semantics.
+scope.getfenv=getEnvironment
 scope.loadstring=function(source,label)
     local fn,problem=compile(source,label)
     if fn then setEnvironment(fn,scope)end
     return fn,problem
 end
+setmetatable(shared,{__index=function(_,key)
+    if type(key)=="string"and(key:match("^Devil")or key:match("^Chilli")or key:match("^Kuydum"))then return nil end
+    return scope[key]
+end})
 local function filename(path)
     if type(path)~="string"then return path end
     return(path:gsub("^Devil","Kuydum"):gsub("^DEVIL","KUYDUM"))
