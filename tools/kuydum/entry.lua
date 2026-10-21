@@ -3,12 +3,12 @@ assert(game.GameId==10563114921 or game.PlaceId==107778070777162,"Open Steal an 
 local host=getfenv(1)
 local root=type(getgenv)=="function"and getgenv()or _G
 local previous=root.KuydumHubSession
-if previous and not previous.Stopped and previous.Version=="kuydum-no-loader-20261022-2"then
+if previous and not previous.Stopped and previous.Version=="kuydum-native-start-20261022-3"then
     if previous.Loading or previous.Shared.DevilChilliMainUI then return previous end
     previous.Destroy()
 end
 if previous and not previous.Stopped then previous.Destroy()end
-local app={Brand="KUYDUM HUB",Version="kuydum-no-loader-20261022-2",Discord="https://discord.gg/tCnZhrBcM",Loading=true,Stopped=false}
+local app={Brand="KUYDUM HUB",Version="kuydum-native-start-20261022-3",Discord="https://discord.gg/tCnZhrBcM",Loading=true,Stopped=false}
 local shared=root.KuydumHubContext or{};app.Shared=shared;root.KuydumHubContext=shared
 root.KuydumHubSession=app
 local scope=setmetatable({getgenv=function()return shared end,_G=shared},{__index=host})
@@ -18,10 +18,16 @@ local compile,setEnvironment,getEnvironment=loadstring,setfenv,getfenv
 scope.getfenv=getEnvironment
 scope.loadstring=function(source,label)
     local fn,problem=compile(source,label)
-    if fn then setEnvironment(fn,scope)end
+    if fn then
+        -- The original protected game runtime must not inherit the UI's
+        -- getgenv/file/clipboard wrappers or proxy _G.
+        local gameplay=label=="Chilli / Steal an Egg / pinned runtime"
+        setEnvironment(fn,gameplay and host or scope)
+    end
     return fn,problem
 end
 setmetatable(shared,{__index=function(_,key)
+    if key=="DevilChilliNativeWindow"then return root[key]end
     if type(key)=="string"and(key:match("^Devil")or key:match("^Chilli")or key:match("^Kuydum"))then return nil end
     return scope[key]
 end})
@@ -46,6 +52,7 @@ function app.Destroy()
     app.Stopped=true
     local auto=shared.DevilHubAutoExecute
     if auto and auto.Link then pcall(function()auto.Link:Disconnect()end)end
+    if app.RegisteredAutoExecute and root.DevilHubAutoExecute==app.RegisteredAutoExecute then root.DevilHubAutoExecute=nil end
     for _,key in ipairs({"DevilChilliMainUI","DevilHubBlueGui"})do
         local current=shared[key]
         if current and type(current.Destroy)=="function"then pcall(current.Destroy)end
@@ -67,6 +74,12 @@ local ok,problem=xpcall(function()
     end
     shared.DevilHubSilverLogo=image;shared.DevilChilliBrandLogo=image
     local auto=assert(scope.loadstring(__AUTO_SOURCE__,"KUYDUM HUB / Auto Execute"));auto()
+    -- The native engine checks this existing global registration before queuing
+    -- its legacy loader. Lease only an unused slot; never replace another hub.
+    if root.DevilHubAutoExecute==nil then
+        app.RegisteredAutoExecute=shared.DevilHubAutoExecute
+        root.DevilHubAutoExecute=app.RegisteredAutoExecute
+    end
     local source=game:HttpGet("__GUI_URL__")
     assert(type(source)=="string"and #source==__GUI_BYTES__,"KUYDUM HUB GUI download size mismatch")
     local sum=0

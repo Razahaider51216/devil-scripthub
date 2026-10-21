@@ -9,7 +9,10 @@ for name,row in m['artifacts'].items():
  data=(ROOT/name).read_bytes();assert sha(data)==row['public_sha256']and len(data)==row['bytes']
  source=native(data.decode('utf-8'),name);assert sha(source.encode())==row['native_sha256'];sources[name]=source
  assert 'KUYDUM HUB 'in data.decode('utf-8')[:200]
-print('PASS all three protected KUYDUM startup artifacts match exact native compilation input')
+print('PASS all four native-encoded KUYDUM artifacts match exact native compilation input')
+for name in m['artifacts']:
+ public=(ROOT/name).read_text(encoding='utf-8')
+ assert 'Fiu (startup only)'not in public and '"Devil VM"'not in public,'added startup VM: '+name
 logo=(ROOT/'assets/kuydumhub.jpg').read_bytes()
 assert sha(logo)==m['logo_sha256']and logo==Path('C:/Users/Administrator/Downloads/kuydumhub.jpg').read_bytes()
 gui=sources['kuydum-steal-gui.lua'];theme=sources['kuydum-theme.lua']
@@ -20,8 +23,11 @@ assert m['theme_commit']+'/kuydum-theme.lua'in gui and '#source=='+str((ROOT/'ku
 for r,g,b in re.findall(r'Color3.fromRGB\((\d+),(\d+),(\d+)\)',theme):assert r==g==b
 runtime=re.search(r'originalGameSource=game:HttpGet\("([^"\n]+)"',gui)[1]
 ref=runtime.split('/')[-2]
-data=subprocess.check_output(['git','show',ref+':devil-chilli-native-ui-runtime.lua'],cwd=ROOT)
-assert data==(ROOT/'devil-chilli-native-ui-runtime.lua').read_bytes(),'fork changed shared gameplay runtime'
+data=subprocess.check_output(['git','show',ref+':kuydum-steal-runtime.lua'],cwd=ROOT)
+assert data==(ROOT/'kuydum-steal-runtime.lua').read_bytes()
+original_runtime=native((ROOT/'devil-chilli-native-ui-runtime.lua').read_text(encoding='utf-8'),'original-runtime')
+assert sources['kuydum-steal-runtime.lua']==original_runtime,'original game VM/source changed'
+assert '#originalGameSource=='+str(len(data))in gui and 'assert(checksum=='+str(checksum(data))+',"Pinned runtime'in gui
 for name in ['loader','devil-steal-an-egg.lua','devil-steal-an-egg-chilli-recovered-ui-test.lua','devil-blue-gui.lua','devil-chilli-native-ui-runtime.lua']:
  assert subprocess.check_output(['git','show',m['base_commit']+':'+name],cwd=ROOT)==(ROOT/name).read_bytes(),name+' changed'
 def run(name,source):
@@ -39,6 +45,14 @@ old_path=WORK/'kuydum-api-baseline.generated.luau';old_path.write_text(old_fixtu
 old_result=subprocess.run([str(CLI),str(old_path)],capture_output=True,timeout=40)
 assert old_result.returncode!=0 and b'missing executor APIs in private _G'in old_result.stderr,old_result.stderr
 print('PASS reproduced missing executor APIs against actual previous public KUYDUM entry')
+v2='867a753'
+v2_entry=native(subprocess.check_output(['git','show',v2+':kuydum-steal-an-egg.lua'],cwd=ROOT).decode('utf-8'),'v2-entry')
+v2_gui=subprocess.check_output(['git','show',v2+':kuydum-steal-gui.lua'],cwd=ROOT).decode('utf-8')
+v2_fixture='local ENTRY='+literal(v2_entry)+'\nlocal GUI='+literal(v2_gui)+'\nlocal LOGO=string.rep("x",'+str(len(logo))+')\n'+(HERE/'scope-tests.luau').read_text(encoding='utf-8')
+old_path.write_text(v2_fixture,encoding='utf-8',newline='\n')
+v2_result=subprocess.run([str(CLI),str(old_path)],capture_output=True,timeout=40)
+assert v2_result.returncode!=0 and b'game runtime inherited UI scope'in v2_result.stderr,v2_result.stderr
+print('PASS reproduced scoped game-runtime environment against previous v2 runner')
 run('kuydum-scope',scope+(HERE/'scope-tests.luau').read_text(encoding='utf-8'))
 run('kuydum-theme',(ROOT/'tests/blue-gui-mocks.luau').read_text(encoding='utf-8')+(HERE/'theme-tests.luau').read_text(encoding='utf-8').replace('-- THEME',theme))
 print('PASS original main loader, DEVIL HUB files and protected gameplay runtime unchanged')
@@ -47,5 +61,6 @@ report={'release':m['release'],'live_verified':False,'protected_artifacts':m['ar
  'discord_manual_copy':m['discord'],'automatic_clipboard_copy':False,
  'separate_rejoin_loader':True,'duplicate_close_reopen_integrity_checks':True,
  'original_main_and_runtime_unchanged':True,'base_commit':m['base_commit'],
- 'startup_screen':False,'old_executor_api_defect_reproduced':True,'native_getfenv_preserved':True}
+ 'startup_screen':False,'old_executor_api_defect_reproduced':True,'native_getfenv_preserved':True,
+ 'additional_startup_vm':False,'gameplay_uses_original_environment':True,'v2_gameplay_scope_defect_reproduced':True}
 (ROOT/'kuydum-validation.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8',newline='\n')

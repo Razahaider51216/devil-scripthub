@@ -3,8 +3,8 @@ import hashlib,json,re,subprocess,sys
 ROOT=Path(__file__).resolve().parents[2]
 HERE=Path(__file__).resolve().parent
 sys.path.insert(0,str(ROOT/'tools/protection'))
-from pack import native,pack,checksum,sha,WORK
-RELEASE='kuydum-no-loader-20261022-2'
+from pack import native,pack,checksum,sha,WORK,DECODER,ns,COMPILER
+RELEASE='kuydum-native-start-20261022-3'
 STATE=WORK/'kuydum-state.json'
 state=json.loads(STATE.read_text())if STATE.exists()else{'release':RELEASE,'artifacts':{},'base_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()}
 state['release']=RELEASE
@@ -23,7 +23,13 @@ def branding(source):
         .replace('"devil-logo"','"kuydum-logo"').replace('"DevilHub_Silver"','"KuydumHubLogo"')
         .replace('text:sub(1,12)=="KUYDUM HUB / "','text:sub(1,13)=="KUYDUM HUB / "'))
 def save(name,source):
-    data=pack(source,name).replace(b'DEVIL HUB devil-all-games-obf-20261021-1',('KUYDUM HUB '+RELEASE).encode(),1);(ROOT/name).write_bytes(data)
+    # Encode once and compile natively. The original game VM remains intact;
+    # no extra Fiu interpreter is added around the fork or game runtime.
+    data=('-- KUYDUM HUB '+RELEASE+' / native encoded startup\n'+DECODER+
+        '\nlocal run,err=loadstring(decode('+json.dumps(ns['encoded'](source.encode()))+'),'+json.dumps('KUYDUM HUB / native '+name)+')\nassert(run,err)\nreturn run(...)\n').encode()
+    check=WORK/(name+'.native-check');check.write_bytes(data)
+    subprocess.run([str(COMPILER),'--null',str(check)],check=True,capture_output=True)
+    (ROOT/name).write_bytes(data)
     (WORK/(name+'.kuydum-native')).write_text(source,encoding='utf-8',newline='\n')
     state['artifacts'][name]={'public_sha256':sha(data),'native_sha256':sha(source.encode()),'bytes':len(data)}
 def head():return subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
@@ -36,6 +42,9 @@ if stage=='theme':
     logo=Path('C:/Users/Administrator/Downloads/kuydumhub.jpg').read_bytes()
     (ROOT/'assets/kuydumhub.jpg').write_bytes(logo)
     state['logo_sha256']=sha(logo);state['logo_bytes']=len(logo)
+    runtime=native((ROOT/'devil-chilli-native-ui-runtime.lua').read_text(encoding='utf-8'),'runtime')
+    save('kuydum-steal-runtime.lua',runtime)
+    state['original_runtime_native_sha256']=sha(runtime.encode())
 elif stage=='gui':
     state['theme_commit']=head()
     source=native((ROOT/'devil-steal-an-egg-chilli-recovered-ui-test.lua').read_text(encoding='utf-8'),'gui')
@@ -46,6 +55,12 @@ elif stage=='gui':
     source,n=re.subn(r'(assert\(sum==)\d+(,"DEVIL blue GUI checksum)',lambda m:m[1]+str(checksum(data))+m[2],source);assert n==1
     source=source.replace('Theme="Abyss"','Theme={Background=Color3.fromRGB(8,8,8),Surface=Color3.fromRGB(16,16,16),Surface2=Color3.fromRGB(23,23,23),Surface3=Color3.fromRGB(38,38,38),Accent=Color3.fromRGB(235,235,235),Text=Color3.fromRGB(255,255,255),Muted=Color3.fromRGB(170,170,170),Stroke=Color3.fromRGB(60,60,60)}')
     source=re.sub(r'https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/assets/devil-logo.png\?logo=silver-20261011',url(state['theme_commit'],'assets/kuydumhub.jpg'),source)
+    runtime=(ROOT/'kuydum-steal-runtime.lua').read_bytes()
+    source,n=re.subn(r'https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/[0-9a-f]{40}/devil-chilli-native-ui-runtime.lua',url(state['theme_commit'],'kuydum-steal-runtime.lua'),source);assert n==1
+    source,n=re.subn(r'#originalGameSource==\d+','#originalGameSource=='+str(len(runtime)),source);assert n==1
+    source,n=re.subn(r'assert\(checksum==\d+,"Pinned runtime','assert(checksum=='+str(checksum(runtime))+',"Pinned runtime',source);assert n==1
+    source,n=re.subn(r'referenceSHA256="[0-9a-f]+"','referenceSHA256="'+sha(runtime)+'"',source);assert n==1
+    source,n=re.subn(r'referenceCommit="[0-9a-f]+"','referenceCommit="'+state['theme_commit']+'"',source);assert n==1
     start=source.index('local loading=(function()')
     end=source.index('end)()("Steal an Egg")',start)+len('end)()("Steal an Egg")')
     source=source[:start]+'''-- No startup screen, percentage, tweens or input-blocking overlay.
@@ -67,7 +82,7 @@ elif stage=='entry':
         '__GUI_URL__':url(state['gui_commit'],'kuydum-steal-gui.lua'),'__GUI_BYTES__':str(len(gui)),'__GUI_CHECKSUM__':str(checksum(gui)),
         '__AUTO_SOURCE__':json.dumps(auto,ensure_ascii=False)}.items():source=source.replace(key,value)
     save('kuydum-steal-an-egg.lua',source)
-    state.update(discord='https://discord.gg/tCnZhrBcM',theme='monochrome',standalone=True,main_loader_changed=False,live_verified=False,architecture='VM startup / native gameplay callbacks',startup_screen=False,native_executor_api_inheritance=True)
+    state.update(discord='https://discord.gg/tCnZhrBcM',theme='monochrome',standalone=True,main_loader_changed=False,live_verified=False,architecture='Encoded native startup / original game VM unchanged',startup_screen=False,native_executor_api_inheritance=True,additional_startup_vm=False,runtime_uses_original_environment=True)
     (ROOT/'kuydum-release.json').write_text(json.dumps(state,indent=2)+'\n',encoding='utf-8',newline='\n')
 else:raise ValueError(stage)
 STATE.write_text(json.dumps(state,indent=2)+'\n')

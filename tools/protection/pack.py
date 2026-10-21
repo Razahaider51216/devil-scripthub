@@ -53,6 +53,8 @@ def native(public,name):
         return public[:marker]+capture(public[marker:],name)
     marker=public.find('-- DEVIL HUB / Ride native encoded entry;')
     if marker>=0:return public[:marker]+capture(public[marker:],name)
+    if public.startswith('-- KUYDUM HUB ')and ' / native encoded startup\n'in public[:160]:
+        return capture(public,name)
     return public
 def pack(source,name):
     path=WORK/(name+'.native');path.write_text(source,encoding='utf-8',newline='\n')

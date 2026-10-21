@@ -1,21 +1,26 @@
 {
-  "release": "kuydum-no-loader-20261022-2",
+  "release": "kuydum-native-start-20261022-3",
   "live_verified": false,
   "protected_artifacts": {
     "kuydum-theme.lua": {
-      "public_sha256": "1c314dd2ad213ee80040ea4fa807975c95de00e8c21f130b104e91e3198849a5",
+      "public_sha256": "1e6a1eed599b43fe77cab88e732e57d386e06aa4be78b6b8824a6967c21c7144",
       "native_sha256": "867090119d9bb8d34d3f86876ef89cb2fdff3762353ac204286f9530c2c35111",
-      "bytes": 291612
+      "bytes": 128324
     },
     "kuydum-steal-gui.lua": {
-      "public_sha256": "a2c79f0b18eedf6739057e723c83629abaf3874b2ab312f814a6b06e6bfb1dcd",
-      "native_sha256": "576dd2987b6f86bdbe18f64ce29ee59dd08e7e373189aed51cd128ddf6d50b79",
-      "bytes": 1115187
+      "public_sha256": "5a49e17ea4912bec579edc18578a257d7b7be23e31dbdf75877506d072e674eb",
+      "native_sha256": "d7be626355a63fb96cdf8f7bf5daea71baca9cce28ecd475bf734531e24bf997",
+      "bytes": 591569
     },
     "kuydum-steal-an-egg.lua": {
-      "public_sha256": "973f23ebe5fe4033fdc41643dd2f055c9d80b1780ad3ae873916a32cf174879b",
-      "native_sha256": "dba3ebf79c1ad7c3730b8ef160e12c060d1a7ab7320daa31c4dbdf000c6977b4",
-      "bytes": 84926
+      "public_sha256": "50530f8b82407e4862e59f9054dbfefb3be497b7dd39ddef0787ea236f52d69c",
+      "native_sha256": "9d07a5172feb2d421cb3db312c7c6108e985f742690b728c9bf316f1ab9d5536",
+      "bytes": 13076
+    },
+    "kuydum-steal-runtime.lua": {
+      "public_sha256": "e21a8bb5540f1d58f908fe7267a4a20bacef595d21de41e2fbd5f3841206b395",
+      "native_sha256": "894f9f1a5f0d1f5a73ab173508854c173394f181fe39ac966db0193feefcb068",
+      "bytes": 1085538
     }
   },
   "original_logo_exact": true,
@@ -29,5 +34,8 @@
   "base_commit": "0fb8516b170f6dab88b008ea508b596dd0bc9423",
   "startup_screen": false,
   "old_executor_api_defect_reproduced": true,
-  "native_getfenv_preserved": true
+  "native_getfenv_preserved": true,
+  "additional_startup_vm": false,
+  "gameplay_uses_original_environment": true,
+  "v2_gameplay_scope_defect_reproduced": true
 }
