@@ -1,0 +1,18 @@
+{
+  "release": "dump-13-client-start-20261022-1",
+  "baseline_commit": "3457012252cb2929f2eefb743ed5893f258ca9b4",
+  "entry_sha256": "57b43102106cadc110f1920415879712987044004ccc5cd5b7ad736ef2578032",
+  "native_sha256": "c354cbd3fcd4632e3e36c040669482d1f5cd21c6a8afc1529ef1758aa39698b4",
+  "live_verified": false,
+  "automatic_map_scan": false,
+  "automatic_profile_apply": false,
+  "startup_remote_hook": false,
+  "explicit_dump_spy_and_profile_features_retained": true,
+  "utility_ui_host_order": [
+    "gethui/get_hidden_gui",
+    "CoreGui",
+    "PlayerGui fallback"
+  ],
+  "kick_root_cause_confirmed": false,
+  "report": "Immediate kick using Delta; includes Steal an Egg; exact kick text unavailable"
+}

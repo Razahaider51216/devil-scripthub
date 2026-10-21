@@ -1,0 +1,14 @@
+{
+  "release": "dump-13-client-start-20261022-1",
+  "live_verified": false,
+  "results": [
+    "PASS reproduced automatic saved-profile application in previous release",
+    "PASS startup does not apply old profile actions; explicit profile Load retained",
+    "PASS five UI parenting cases: hidden host/alternate helper/CoreGui/error/fallback",
+    "PASS reproduced automatic map scan in previous release",
+    "PASS startup has no automatic map scan; manual Analyze & Dump retained"
+  ],
+  "native_other_tools_unchanged": true,
+  "entry_sha256": "57b43102106cadc110f1920415879712987044004ccc5cd5b7ad736ef2578032",
+  "kick_root_cause_confirmed": false
+}

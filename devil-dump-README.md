@@ -4,7 +4,7 @@ Independent universal client utility based on ValenHub. Uses the same OuroFlow
 Abyss blue/black interface, Devil logo and Discord invite as Devil Hub.
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/main/devil-dump.lua?v=5"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/refs/heads/main/devil-dump.lua?v=dump-13-client-start-20261022-1"))()
 ```
 
 Rejoin before switching from an already running ValenHub version. The previous
@@ -21,6 +21,32 @@ specialized layout with updated branding and colors.
 Discord and community links: https://discord.gg/ZY7PRcVJe2
 Default export/config folders are `DevilDump_Dumps` and `DevilDump_service`.
 Existing `ValenHub_service` configurations are not automatically migrated.
+
+## Startup behavior: dump-13-client-start-20261022-1
+
+Reports describe immediate kicks with Delta, including Steal an Egg; exact kick
+text was unavailable. The provided dump-6 URL currently returns the same dump-12
+bytes as main, so a different query string alone was not the diagnosed issue.
+There is no confirmed map-specific kick root cause or universal anti-detection
+guarantee. This release removes observed automatic startup side effects:
+
+- Map Analyst starts with automatic scanning off; use Analyze & Dump explicitly.
+- Startup does not read/apply the old automatic profile. Saved profile files and
+  explicit Load controls remain; opening the tool cannot silently restore old
+  movement/recorder settings through that path.
+- The loading overlay uses gethui/get_hidden_gui, then CoreGui, with PlayerGui
+  only as a compatibility fallback. Existing game GUI objects are not modified.
+- Remote Spy remains explicit, as in dump-12. Opening or restoring config cannot
+  install its global namecall hook. Explicitly enabling it still changes that
+  metamethod and may be detected by a game.
+
+The actual old startup profile block and auto-scan behavior are reproduced in
+offline regressions. Tests cover explicit profile/dump actions, five parenting
+fallbacks, 11 hook/config checks, nine frontend integrations and 28 recorder/
+forwarding checks. Packed roundtrip, Luau compilation and byte comparisons prove
+other native dumper callbacks remain unchanged. Live Delta/map behavior has not
+been verified. Rejoin before testing if a previous tool run installed a hook.
+Release evidence is in devil-dump-release.json and devil-dump-validation.json.
 
 ## Image Dump: dump-11
 
