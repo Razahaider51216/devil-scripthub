@@ -1,9 +1,13 @@
 {
-  "release": "hatch-to-fight-test-20261022-1",
+  "release": "hatch-to-fight-stage-farm-20261022-2",
   "place_id": 127231827405683,
   "universe_id": 10768001644,
-  "entry_sha256": "3d82d65f17cecbec0494f01c9fa703419d963f311b842cf2d3fc089051a4d876",
+  "entry_sha256": "28bd934d46fb612cab129facb7b0380621014c344023c8dbbce225ff9d8d57d6",
   "live_verified": false,
+  "stage_grounding": "Actual stage Floor bounds; streamed floor required; no guessed gate offset",
+  "farm_progression": "FightStage/enemy acknowledgment, facing, attack cooldowns, server clear/win before next target",
+  "one_hit_supported": false,
+  "damage_setup": "Highest catalog single-hit pet and an owned Fight race slot; no arbitrary damage argument",
   "main_loader_changed": false,
   "godmode_supported": false,
   "server_damage_bypass_verified": false,
@@ -18,9 +22,9 @@
     "Only owned-key crates are opened. Premium crates require the native purchase flow."
   ],
   "sources": {
-    "adapter.lua": "e7f6e7be92c4492b842db62e5f72619f90b9477fabc56116650bafd31b39ecf8",
-    "core.lua": "76f13cfa8029572369783cf810d7cb4ee568ff36e08804a2d88b8835002b752f",
-    "ui.lua": "b334ab4fa2e267ec039a1298a57b2efe33d56b47439826c16c5e59ccab765c6b"
+    "adapter.lua": "30c6bc414afca245abca2e69cad5cededa3f7d01a950d982c0b6c72d068eaeb4",
+    "core.lua": "f206c531eb1c9c2e2722f6fb288b03a207888743481961ced0cb3fff29a20ab4",
+    "ui.lua": "a7603a15ff3202be9b5b2cb5486b6833ac32c4092317b87a58614e77b33a64d5"
   },
   "catalog_sha256": "638b07390809f0cc275a6f0d8de27847c6ef1189eedfeacd0496934eded83401",
   "gui_sha256": "0c30762d3c9c3aa7c25ca3aeceab960a771c96b5af290a3b67aed627161385f5"

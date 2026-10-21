@@ -1,10 +1,12 @@
 {
-  "release": "hatch-to-fight-test-20261022-1",
+  "release": "hatch-to-fight-stage-farm-20261022-2",
   "live_verified": false,
   "results": [
-    "PASS HatchToFight core: 80 checks",
+    "PASS HatchToFight core: 101 checks",
     "PASS HatchToFight adapter concurrency/lifecycle: 18 checks",
-    "PASS HatchToFight entry/GUI/language/profile/lifecycle: 42 checks",
+    "PASS reproduced previous inverted gate offset outside recorded Stage1 floor",
+    "PASS actual floor entry/height/direction, bounded stream loading and recovery: 14 checks",
+    "PASS HatchToFight entry/GUI/language/profile/lifecycle: 45 checks",
     "PASS exact artifact hash, no game require/global hooks/fabricated HP or stage unlocks"
   ]
 }

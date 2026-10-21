@@ -14,6 +14,17 @@ def run(name,text):
     output=p.stdout.decode('utf-8').strip();print(output);results.append(output)
 run('core-tests','local K='+build['lua'](catalog)+'\nlocal makeCore=(function()\n'+core+'\nend)()\n'+(HERE/'core-tests.luau').read_text(encoding='utf-8'))
 run('adapter-tests',(HERE/'adapter-tests.luau').read_text(encoding='utf-8').replace('-- ADAPTER','local makeAdapter=(function()\n'+adapter+'\nend)()'))
+baseline=subprocess.check_output(['git','show','b2b307f:tools/hatch-to-fight/adapter.lua'],cwd=ROOT).decode('utf-8')
+geometry=(HERE/'geometry-tests.luau').read_text(encoding='utf-8')
+floor=json.loads((HERE/'geometry-evidence.json').read_text(encoding='utf-8'))['floors']['Stage1']
+for name,text,is_old in [('old',baseline,True),('new',adapter,False)]:
+    start=text.index('    function A.StagePoint(');end=text.index('    local function own(',start)
+    section=text[start:end]
+    if not is_old:
+        begin=text.index('    local function stageFloor(');finish=text.index('    function A.Move(',begin)
+        movement_end=text.index('    function A.HubPoint(',finish)
+        section=text[begin:finish]+text[finish:movement_end]+section
+    run('geometry-'+name,'local OLD='+str(is_old).lower()+'\nlocal FLOOR='+build['lua'](floor)+'\n'+geometry.replace('-- GEOMETRY',section))
 entry=(ROOT/'hatch-to-fight-test.lua').read_text(encoding='utf-8')
 gui=runpy.run_path(str(ROOT/'tools/anime-dice/dependency.py'))['read'](ROOT).decode('utf-8')
 ui_fixture=(HERE/'ui-tests.luau').read_text(encoding='utf-8')

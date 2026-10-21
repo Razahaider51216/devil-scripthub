@@ -1,7 +1,7 @@
 from pathlib import Path
 import json,hashlib,subprocess,runpy
 ROOT=Path(__file__).resolve().parents[2];HERE=Path(__file__).resolve().parent
-RELEASE='hatch-to-fight-test-20261022-1'
+RELEASE='hatch-to-fight-stage-farm-20261022-2'
 def lua(value):
     if value is None:return 'nil'
     if isinstance(value,bool):return 'true'if value else'false'
@@ -22,6 +22,9 @@ entry=ROOT/'hatch-to-fight-test.lua';entry.write_text(source,encoding='utf-8',ne
 subprocess.run([str(ROOT.parent/'luau-tools/luau-compile.exe'),'--null',str(entry)],check=True,capture_output=True)
 manifest={'release':RELEASE,'place_id':127231827405683,'universe_id':10768001644,
  'entry_sha256':hashlib.sha256(entry.read_bytes()).hexdigest(),'live_verified':False,
+ 'stage_grounding':'Actual stage Floor bounds; streamed floor required; no guessed gate offset',
+ 'farm_progression':'FightStage/enemy acknowledgment, facing, attack cooldowns, server clear/win before next target',
+ 'one_hit_supported':False,'damage_setup':'Highest catalog single-hit pet and an owned Fight race slot; no arbitrary damage argument',
  'main_loader_changed':False,'godmode_supported':False,'server_damage_bypass_verified':False,
  'startup_game_remote_requests':False,'module_require_in_game':False,
  'profile_autoload':'Only after explicitly saving AutoLoad=true; may restore enabled jobs',

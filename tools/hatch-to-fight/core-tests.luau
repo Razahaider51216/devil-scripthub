@@ -14,6 +14,7 @@ local function fixture()
     A.Move=function(point,look)table.insert(log,{Kind="move",Point=point});return point~=nil,"not streamed"end
     A.StagePoint=function(index)if A.MissingStage then return end;return "stage-"..index,"look"end
     A.Approach=function()return "approach"end
+    A.Face=function(target)table.insert(log,{Kind="face",Point=target});return true end
     A.Drop=function()return A.DropValue end
     A.Dummy=function()return A.DummyValue end
     A.NearHub=function()return A.Near end
@@ -49,7 +50,8 @@ do
     tick(.1);local first=count("fire","Ability");check(first==2,"attack/special missing")
     tick(.1);check(count("fire","Ability")==first,"ability cooldown not retained")
     c.Set("Attack",false);c.Set("Special",false);tick(20);check(count("fire","Ability")==first,"disabled abilities still fire")
-    c.Set("Farm",true);s.Mounted=false;tick(1);check(count("fire","EquipPet")==1,"native mount request missing")
+    a.Cache.Data={equipped="pet-uid",pets={{uid="pet-uid",id="Pig"}}}
+    c.Set("Farm",true);s.Mounted=false;tick(1);local _,mount=count("fire","RequestEquipPet");check(mount and mount.Args[1]=="pet-uid","owned UID mount request missing")
 end
 do
     local c,a,s,attrs,tick,count=fixture()
@@ -159,5 +161,53 @@ do
     a.Near=true;tick(3);check(count("fire","RequestSell")==1,"hub visit does not sell")
     a.Cache.Data={shells={},bagCount=0,bagCapacity=10};tick(1)
     check(not c.Service and c.Config.Farm,"farm does not resume after actual inventory change")
+end
+do
+    local c,a,s,attrs,tick,count=fixture()
+    c.Set("Farm",true);tick()
+    check(c.Farm.Target==1 and c.Farm.Phase=="AwaitEntry","farm does not enter first stage")
+    s.Mob={HP=100,Distance=6,Pos="enemy",Name="Mob"};tick(.3)
+    check(count("fire","Ability")==0,"farm attacks before server stage acknowledgment")
+    s.FightStage=1;s.InFight=true;tick(.3)
+    check(c.Farm.Phase=="Fight"and count("fire","Ability")==2,"acknowledged fight does not attack")
+    check(count("face")>0,"close target not faced before attack")
+    local before=count("move")
+    s.Mob=nil;tick(2)
+    check(c.Farm.Target==1 and c.Farm.Phase=="AwaitMobs"and count("move")==before,"empty wave treated as clear")
+    c.Observe("FightEnded",1,false);tick(.2)
+    check(c.Farm.Target==1 and c.Farm.Phase=="Recover","defeat advances stage")
+    s.FightStage=0;s.InFight=false;tick(4)
+    check(c.Config.Farm and c.Farm.Target==1 and c.Farm.Phase=="AwaitEntry","defeat does not retry")
+    c.Observe("FightEnded",1,true);s.StagesCleared=1;tick(.2)
+    check(c.Farm.Target==2 and c.Report.FarmStagesCompleted==1,"won event does not advance exactly one stage")
+    tick(2);local _,point=count("move");check(point.Point=="stage-2","does not teleport to next stage")
+    s.FightStage=2;s.InFight=true;s.Mob={HP=100,Distance=20,Pos="enemy2",Name="Mob2"};tick(.5)
+    check(c.Farm.Phase=="Fight","second-stage fight missing")
+    s.StagesCleared=2;tick(.5)
+    check(c.Farm.Target==3,"authoritative progress cannot advance without result callback")
+    s.Mob=nil;s.FightStage=2;tick(2)
+    local _,nextPoint=count("move");check(nextPoint.Point=="stage-3","stale FightStage blocks entry forever")
+    c.Set("Farm",false);check(not c.Farm,"disabled farm retains state")
+end
+do
+    local c,a,s,attrs,tick,count=fixture()
+    s.StagesCleared=59;c.Set("Farm",true);tick();check(c.Farm.Target==60,"last stage selection")
+    c.Observe("FightEnded",60,true);s.StagesCleared=60;tick()
+    check(c.Farm.Phase=="Complete"and c.Report.FarmStagesCompleted==1,"final stage not complete")
+    tick(30);check(c.Report.FarmStagesCompleted==1,"final clear counted repeatedly")
+    c.Config.PetPriority="Damage per hit"
+    local pig=K.Pets.List.Pig
+    check(c.Score({id="Pig"})==math.max(pig.Attack.Damage,pig.Special.Damage),"damage priority still uses DPS")
+    check(c.Report.OneHit:find("Unverified",1,true)and not c.Config.OneHit,"fake one-hit control added")
+end
+do
+    local c,a,s,attrs,tick,count=fixture()
+    s.Mounted=false;s.HP=0;c.Set("Farm",true);tick()
+    local _,destination=count("move")
+    check(destination and destination.Point=="stage-1","stale battle HP / unmounted training state prevents stage entry")
+    s.FightStage=1;s.InFight=true;s.Mob={HP=100,Distance=6,Pos="enemy",Name="Mob"};tick(1)
+    check(count("fire","Ability")==0,"dead or unmounted pet attacks")
+    s.Mounted=true;s.HP=100;tick(1)
+    check(c.Farm.Phase=="Fight"and count("fire","Ability")==2,"farm does not resume after mount/HP acknowledgment")
 end
 print("PASS HatchToFight core: "..checks.." checks")

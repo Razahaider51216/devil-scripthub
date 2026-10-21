@@ -1,6 +1,6 @@
 assert(game.PlaceId==127231827405683 or game.GameId==10768001644,"Open the HatchToFight map recorded in Devilv10")
 local scope=type(getgenv)=="function"and getgenv()or _G
-local release="hatch-to-fight-test-20261022-1"
+local release="hatch-to-fight-stage-farm-20261022-2"
 if scope.DevilHtFStarting and os.clock()-scope.DevilHtFStarting<40 then return end
 if scope.DevilHtFTest and type(scope.DevilHtFTest.Destroy)=="function"then scope.DevilHtFTest.Destroy()end
 scope.DevilHtFStarting=os.clock()
@@ -91,16 +91,35 @@ return function(scope,K)
     function A.Distance(point)
         local _,_,root=A.Character();return root and point and(root.Position-point).Magnitude or math.huge
     end
-    function A.Move(point,look)
+    local function stageFloor(index)
+        local map=workspace:FindFirstChild("Map");local stages=map and map:FindFirstChild("Stages")
+        local stage=stages and stages:FindFirstChild("Stage"..tostring(index))
+        local floor=stage and stage:FindFirstChild("Floor")
+        return floor and floor:IsA("BasePart")and floor or nil,stage
+    end
+    function A.Move(point,look,ground)
         if not A.Alive then return false,"Unloaded"end
         if typeof(point)~="Vector3"then return false,"Destination unavailable / not streamed"end
         local char,hum,root=A.Character();if not root then return false,"Waiting for character"end
-        local ray=RaycastParams.new();ray.FilterType=Enum.RaycastFilterType.Exclude
+        if not ground then
+            local floor=stageFloor(A.Attr("FightStage",0))
+            if floor then
+                local localPoint=floor.CFrame:PointToObjectSpace(point)
+                if math.abs(localPoint.X)<=floor.Size.X/2 and math.abs(localPoint.Z)<=floor.Size.Z/2 then ground=floor end
+            end
+        end
+        local ray=RaycastParams.new();ray.RespectCanCollide=true;ray.FilterType=Enum.RaycastFilterType.Exclude
         local ignore={char}
         for _,name in ipairs({"HtF_Runtime","ClientGates","StageGateLabels"})do local obj=workspace:FindFirstChild(name);if obj then table.insert(ignore,obj)end end
         ray.FilterDescendantsInstances=ignore
-        local hit=workspace:Raycast(point+Vector3.new(0,4,0),Vector3.new(0,-24,0),ray)
-        if hit then point=Vector3.new(point.X,hit.Position.Y+hum.HipHeight+root.Size.Y/2+.15,point.Z)end
+        if ground and ground:IsA("BasePart")then
+            local localPoint=ground.CFrame:PointToObjectSpace(point)
+            localPoint=Vector3.new(math.clamp(localPoint.X,-ground.Size.X/2+2,ground.Size.X/2-2),ground.Size.Y/2,math.clamp(localPoint.Z,-ground.Size.Z/2+2,ground.Size.Z/2-2))
+            point=ground.CFrame:PointToWorldSpace(localPoint)+Vector3.new(0,hum.HipHeight+root.Size.Y/2+.15,0)
+        else
+            local hit=workspace:Raycast(point+Vector3.new(0,4,0),Vector3.new(0,-24,0),ray)
+            if hit then point=Vector3.new(point.X,hit.Position.Y+hum.HipHeight+root.Size.Y/2+.15,point.Z)end
+        end
         local destination=CFrame.new(point)*root.CFrame.Rotation
         if typeof(look)=="Vector3"then
             local flat=Vector3.new(look.X,point.Y,look.Z)
@@ -108,6 +127,14 @@ return function(scope,K)
         end
         local offset=root.CFrame:ToObjectSpace(char:GetPivot())
         return pcall(char.PivotTo,char,destination*offset)
+    end
+    function A.Face(target)
+        local char,_,root=A.Character()
+        if not root or typeof(target)~="Vector3"then return false end
+        local look=Vector3.new(target.X,root.Position.Y,target.Z)
+        if(look-root.Position).Magnitude<.1 then return true end
+        local offset=root.CFrame:ToObjectSpace(char:GetPivot())
+        return pcall(char.PivotTo,char,CFrame.lookAt(root.Position,look)*offset)
     end
     function A.HubPoint(name)
         local map=workspace:FindFirstChild("Map");local hub=map and map:FindFirstChild("Hub")
@@ -120,20 +147,34 @@ return function(scope,K)
         local p=position(anchor);return p and p+Vector3.new(0,3,5)
     end
     function A.NearHub(name,range)return A.Distance(A.HubPoint(name))<=range end
-    function A.StagePoint(index)
-        local map=workspace:FindFirstChild("Map");local stages=map and map:FindFirstChild("Stages")
-        local model=stages and stages:FindFirstChild("Stage"..index)
+    function A.StagePoint(index,attempt)
+        local floor,model=stageFloor(index)
+        if floor then
+            local p=floor.CFrame:PointToWorldSpace(Vector3.new(0,floor.Size.Y/2+3,0))
+            local spawns=model:FindFirstChild("EnemySpawns")
+            local first=spawns and spawns:FindFirstChild("EnemySpawn1")
+            local look=first and position(first)or p+Vector3.new(0,0,-10)
+            if attempt and attempt>0 then
+                local direction=Vector3.new(look.X-p.X,0,look.Z-p.Z)
+                if direction.Magnitude>.1 then p+=direction.Unit*(attempt==1 and 12 or-12)end
+            end
+            return p,look,floor
+        end
         local gate=model and model:FindFirstChild("EntranceGate")
         local frame=gate and gate:GetAttribute("GateCFrame")
-        if typeof(frame)=="CFrame"then
-            local p=(frame*CFrame.new(0,3,-12)).Position
-            return p,p+frame.LookVector*10
-        end
         local labels=workspace:FindFirstChild("StageGateLabels")
         local marker=labels and labels:FindFirstChild("Stage"..index)
-        if marker and marker:IsA("BasePart")then
-            local p=Vector3.new(marker.Position.X,marker.Position.Y-16,marker.Position.Z-14)
-            return p,p+Vector3.new(0,0,-10)
+        local streamAt=typeof(frame)=="CFrame"and frame.Position or marker and marker:IsA("BasePart")and marker.Position
+        if streamAt and not A.Pending.StageStream and A.Now()-(A.LastPoll.StageStream or-math.huge)>5 then
+            local token={At=A.Now(),Job="Farm"};A.Pending.StageStream=token;A.LastPoll.StageStream=A.Now()
+            task.spawn(function()
+                if A.Alive and not token.Cancelled then
+                    token.Started=true
+                    local ok,err=pcall(A.Player.RequestStreamAroundAsync,A.Player,streamAt,2)
+                    if not ok and A.Alive then A.LastError.StageStream=tostring(err)end
+                end
+                if A.Pending.StageStream==token then A.Pending.StageStream=nil end
+            end)
         end
         return nil
     end
@@ -146,7 +187,10 @@ return function(scope,K)
         local best
         for _,obj in ipairs(folder and folder:GetChildren()or{})do
             local p=position(obj);local hp=obj:GetAttribute("HP")
-            if p and type(hp)=="number"and hp>0 and own(obj)then
+            local ownerStage=obj:GetAttribute("StageIndex")or obj:GetAttribute("Stage")
+            local currentStage=A.Attr("FightStage",0)
+            local sameStage=type(ownerStage)~="number"or currentStage<=0 or ownerStage==currentStage
+            if p and type(hp)=="number"and hp>0 and own(obj)and sameStage then
                 local distance=A.Distance(p)
                 if not best or distance<best.Distance then best={Ref=obj,Pos=p,HP=hp,Distance=distance,Name=obj.Name}end
             end
@@ -164,7 +208,8 @@ return function(scope,K)
         local stage=A.Attr("FightStage",0)
         return {Mounted=char and char:GetAttribute("Mounted")==true,PetId=A.Attr("PetId",K.Pets.Starter),
             InFight=stage>0 or A.Attr("TowerFight",false)or A.Attr("OnBossIsland",false),
-            FightStage=stage,StagesCleared=A.Attr("StagesCleared",0),Rebirths=A.Attr("Rebirths",0),
+            FightStage=stage,StagesCleared=A.Attr("StagesCleared",0),Rebirths=A.Attr("Rebirths",0),TowerFight=A.Attr("TowerFight",false),OnBossIsland=A.Attr("OnBossIsland",false),
+            WaveTotal=A.Attr("WaveTotal",0),WaveKills=A.Attr("WaveKills",0),
             BossAlive=workspace:GetAttribute("WorldBossAlive")==true,HP=gui and gui:GetAttribute("PetHP"),
             MaxHP=gui and gui:GetAttribute("PetMaxHP"),SpecialCooldownMult=A.Attr("QCooldownMult",1),Mob=A.Mob()}
     end
@@ -242,9 +287,10 @@ return function(A,K)
         Rewards=false,Crates=false,RaceRoll=false,RaceEquip=false,Retreat=false,Stage=0,Dummy="Best available",
         PickupDistance=18,CombatDistance=8,ShellRarities={},PetRarities={},CraftShells={},CraftCount=4,
         KeepPets=1,UpgradeIds={BagCapacity=true,TrainBoost=true,LuckBoost=true},TowerCheckpoint=0,TowerStop=0,
-        Crate="Secret",CrateCount=1,RaceStop="Secret",RaceKind="Fight",RetreatHP=20,Language="EN",AutoMount=true,AutoHub=true},
-        Report={Version="hatch-to-fight-test-20261022-1",Jobs={},Sent=0,Observed=0,Events={},Errors={},
-            Godmode="Unavailable: no verified server HP bypass in the supplied client dump"},Next={},Pending={},Rejected={},LastActivity=A.Now()}
+        Crate="Secret",CrateCount=1,RaceStop="Secret",RaceKind="Fight",RetreatHP=20,Language="EN",AutoMount=true,AutoHub=true,PetPriority="Damage per hit"},
+        Report={Version="hatch-to-fight-stage-farm-20261022-2",Jobs={},Sent=0,Observed=0,Events={},Errors={},
+            Godmode="Unavailable: no verified server HP bypass in the supplied client dump",
+            OneHit="Unverified: native Ability sends a slot, not a client damage amount"},Next={},Pending={},Rejected={},LastActivity=A.Now()}
     local cfg,R=C.Config,C.Report
     local primary={Farm=true,Train=true,Tower=true,Boss=true}
     local jobKeys={"Farm","Train","Tower","Boss","Attack","Special","Collect","Sell","SellPets","Craft","Hatch","Equip","Upgrade","Rebirth","Rewards","Crates","RaceRoll","RaceEquip","Retreat"}
@@ -288,20 +334,21 @@ return function(A,K)
         local def=petDef(pet);if not def then return -1 end
         local attack=def.Abilities and def.Abilities.Attack or def.Attack or{}
         local special=def.Abilities and def.Abilities.Special or def.Special or{}
+        if cfg.PetPriority=="Damage per hit"then return math.max(attack.Damage or 0,special.Damage or 0)*(pet.sizeMult or 1)end
         return ((attack.Damage or 0)/math.max(.05,attack.Cooldown or 1)+(special.Damage or 0)/math.max(.05,special.Cooldown or 10))*(pet.sizeMult or 1)
     end
     C.Score=score;C.Protected=equipped
-    local function move(job,point,look)
+    local function move(job,point,look,ground)
         if not point then state(job,"Destination is not streamed; refresh targets or travel to this world first");return false end
         if A.Now()<(C.ManualUntil or 0)then return false end
         if not due("move",.35)then return false end
-        local ok,why=A.Move(point,look)
+        local ok,why=A.Move(point,look,ground)
         if not ok then state(job,why or"Movement failed")end
         return ok
     end
     function C.StopAll()
         for _,job in ipairs(jobKeys)do cfg[job]=false;state(job,"Off")end
-        A.CancelQueued();C.ManualUntil=nil;C.Service=nil
+        A.CancelQueued();C.ManualUntil=nil;C.Service=nil;C.Farm=nil
     end
     function C.Set(job,value)
         assert(table.find(jobKeys,job),"Unknown job")
@@ -310,6 +357,7 @@ return function(A,K)
             for other in pairs(primary)do if other~=job then cfg[other]=false;state(other,"Off")end end
         end
         cfg[job]=value;state(job,value and"Waiting for game state"or"Off")
+        if job=="Farm"then C.Farm=nil end
         C.Next[job]=0
         if not value then A.CancelJob(job);if C.Service and C.Service.Job==job then C.Service=nil end end
     end
@@ -346,12 +394,17 @@ return function(A,K)
         R.Observed+=1;C.LastActivity=A.Now();R.Events[name]=(R.Events[name]or 0)+1
         if name=="Tower:floor"then local d=...;if type(d)=="table"then R.TowerFloor=d.floor end end
         if name=="Tower:cleared"then local d=...;if type(d)=="table"then R.LastTowerReward=d end end
-        if name=="FightEnded"then R.LastFight={...}end
+        if name=="FightEnded"then
+            local stage,won=...
+            R.LastFight={Stage=stage,Won=won,At=A.Now()}
+            if C.Farm and stage==C.Farm.Target and type(won)=="boolean"then C.Farm.Result=won;C.Farm.ResultAt=A.Now()end
+        end
+        if name=="Notify"then local values={};for i=1,select("#",...)do local v=select(i,...);if type(v)=="string"then table.insert(values,v)end end;R.LastNotice=table.concat(values," | ")end
     end
     function C.WarpStage(index)
         index=math.floor(num(index,1,1,60))
-        local point,look=A.StagePoint(index)
-        local ok,why=A.Move(point,look)
+        local point,look,ground=A.StagePoint(index)
+        local ok,why=A.Move(point,look,ground)
         C.ManualUntil=A.Now()+2
         state("Manual",ok and("Moved to Stage "..index.."; waiting for server FightStage="..index)or why or"Stage not streamed")
         return ok
@@ -422,16 +475,25 @@ return function(A,K)
         local current=A.Snapshot()
         if not current.Mounted then
             if cfg.AutoMount and(cfg.Farm or cfg.Tower or cfg.Boss)and due("mount",4)then
-                local ok=A.Fire("EquipPet",current.PetId or K.Pets.Starter)
-                if ok then R.Sent+=1;state("Attack","Mount requested")end
+                local data=A.Cache.Data;local selected
+                for _,pet in ipairs(data and data.pets or{})do if pet.uid==data.equipped then selected=pet;break end end
+                if not selected then for _,pet in ipairs(data and data.pets or{})do if not selected or score(pet)>score(selected)then selected=pet end end end
+                if selected and selected.uid then
+                    local ok=A.Fire("RequestEquipPet",selected.uid)
+                    if ok then R.Sent+=1;state("Attack","Equip / mount requested using owned pet UID")end
+                else state("Attack","Waiting for an owned pet in GetData")end
             end
             return
         end
         if not current.Mob then return end
+        if current.HP and current.HP<=0 then return end
+        local farmReady=cfg.Farm and C.Farm and C.Farm.Phase=="Fight"and current.FightStage==C.Farm.Target
+        if not(cfg.Attack or cfg.Special or cfg.Tower or cfg.Boss or farmReady)then return end
         local def=K.Pets.List[current.PetId or K.Pets.Starter]
         if not def then state("Attack","Pet data unavailable");return end
+        if due("face-target",.2)then A.Face(current.Mob.Pos)end
         for _,slot in ipairs({"Attack","Special"})do
-            local enabled=cfg[slot]or cfg.Farm or cfg.Tower or cfg.Boss
+            local enabled=cfg[slot]or farmReady or cfg.Tower or cfg.Boss
             local ability=def.Abilities and def.Abilities[slot]or def[slot]
             if enabled and ability then
                 local range=slot=="Special"and 150 or(ability.Range or 8)+2
@@ -444,13 +506,63 @@ return function(A,K)
             end
         end
     end
+    local function stageFarm(s)
+        if s.TowerFight or s.OnBossIsland then state("Farm","Finish or leave the other battle before entering a normal stage");return end
+        local f=C.Farm
+        if not f then
+            local target=cfg.Stage>0 and cfg.Stage or math.min(60,(s.StagesCleared or 0)+1)
+            f={Target=target,Baseline=s.StagesCleared or 0,Phase="Enter",Started=A.Now(),Attempts=0,NextEntry=0}
+            C.Farm=f
+        end
+        R.FarmTarget=f.Target;R.FarmPhase=f.Phase
+        if f.Phase=="Complete"then state("Farm","All stages complete");return end
+        local cleared=(s.StagesCleared or 0)>=f.Target and(s.StagesCleared or 0)>f.Baseline
+        if cleared or f.Result==true then
+            R.FarmStagesCompleted=(R.FarmStagesCompleted or 0)+1
+            if f.Target>=60 then f.Phase="Complete";f.Result=nil;state("Farm","Stage 60 cleared by server result; all stages complete");return end
+            f.Target=math.min(60,math.max(f.Target+1,(s.StagesCleared or 0)+1))
+            f.Baseline=s.StagesCleared or 0;f.Phase="Enter";f.Result=nil;f.Attempts=0;f.Started=A.Now();f.NextEntry=A.Now()+1
+        elseif f.Result==false then
+            f.Result=nil;f.Phase="Recover";f.NextEntry=A.Now()+3;f.Started=A.Now()
+            state("Farm","Defeated; waiting to recover and retry Stage "..f.Target);return
+        end
+        if f.Phase=="Complete"then state("Farm","All stages complete");return end
+        if f.Target>(s.StagesCleared or 0)+1 then state("Farm","Stage "..f.Target.." is locked; waiting for server progress");return end
+        if A.Now()<(C.ManualUntil or 0)then return end
+        if f.Phase=="Recover"and A.Now()<f.NextEntry then return end
+        -- Entering/leaving the training area can change Mounted and reset PetHP.
+        -- Do not require those battle attributes before moving onto the stage.
+        if s.FightStage==f.Target and s.Mob and s.Mounted and(not s.HP or s.HP>0)then
+            f.Phase="Fight";f.LastMob=A.Now()
+            local definition=K.Pets.List[s.PetId or K.Pets.Starter]
+            local attack=definition and(definition.Abilities and definition.Abilities.Attack or definition.Attack)
+            local distance=math.min(cfg.CombatDistance,math.max(3,(attack and attack.Range or 8)-2))
+            if s.Mob.Distance>distance+1 then move("Farm",A.Approach(s.Mob,distance),s.Mob.Pos)end
+            state("Farm","Stage "..f.Target.." | "..(s.Mob.Name or"target").." HP "..tostring(s.Mob.HP).." | wave "..tostring(s.WaveKills or 0).."/"..tostring(s.WaveTotal or"?"))
+            return
+        end
+        if s.FightStage==f.Target and A.Now()-(f.LastMob or f.LastEntry or f.Started)<10 then
+            f.Phase="AwaitMobs";state("Farm","Stage "..f.Target.." acknowledged; waiting for living enemies / FightEnded");return
+        end
+        -- An unchanged FightStage can survive a result. Do not wait on that stale
+        -- number forever; only the server's clear/result advances the target.
+        if A.Now()>=(f.NextEntry or 0)then
+            local point,look,ground=A.StagePoint(f.Target,f.Attempts%3)
+            if point then
+                if move("Farm",point,look,ground)then f.Attempts+=1;f.LastEntry=A.Now();f.Phase="AwaitEntry"end
+            else f.Phase="AwaitStream"end
+            f.NextEntry=A.Now()+2
+        end
+        state("Farm","Target Stage "..f.Target.." | "..f.Phase.." | server FightStage="..tostring(s.FightStage)..(R.LastNotice and" | "..R.LastNotice or""))
+    end
     local function primaryStep(s)
         if cfg.Retreat and s.HP and s.MaxHP and s.HP>0 and s.HP/s.MaxHP*100<=cfg.RetreatHP then
             if due("retreat",8)then emit("Retreat","RequestReturnHome");C.RecoveryUntil=A.Now()+10;state("Retreat","Return requested at low HP; not invulnerability")end
         end
         if A.Now()<(C.RecoveryUntil or 0)then return end
         if hubService(s)then return end
-        if s.InFight and s.Mob and (cfg.Farm or cfg.Tower or cfg.Boss)then
+        if cfg.Farm then stageFarm(s);return end
+        if s.InFight and s.Mob and (cfg.Tower or cfg.Boss)then
             local job=cfg.Tower and"Tower"or cfg.Boss and"Boss"or"Farm"
             if s.Mob.Distance>cfg.CombatDistance+3 then move(job,A.Approach(s.Mob,cfg.CombatDistance),s.Mob.Pos)end
             state(job,"Fighting "..(s.Mob.Name or"target").." | HP "..tostring(s.Mob.HP))
@@ -470,12 +582,6 @@ return function(A,K)
             if s.InFight then state("Boss","Waiting for current fight");return end
             if not s.BossAlive then state("Boss","Waiting for World Boss");return end
             if due("Boss",5)then emit("Boss","WorldBoss","Enter")end
-        elseif cfg.Farm then
-            if s.InFight then state("Farm","Waiting for spawned enemies / next wave");return end
-            local stage=cfg.Stage>0 and cfg.Stage or math.min(60,(s.StagesCleared or 0)+1)
-            if stage>(s.StagesCleared or 0)+1 then state("Farm","Stage locked; use the separate warp test to inspect it");return end
-            if due("Farm",1.5)then local point,look=A.StagePoint(stage);move("Farm",point,look)end
-            state("Farm","Entering Stage "..stage.."; server FightStage="..tostring(s.FightStage))
         elseif cfg.Train then
             if s.InFight then state("Train","Waiting for current fight");return end
             local dummy=A.Dummy(cfg.Dummy,K.Training.Dummies,s)
@@ -737,10 +843,12 @@ local function statusRefresh()
     if R.Blocked then table.insert(lines,R.Blocked)end
     if R.Watchdog then table.insert(lines,R.Watchdog)end
     if C.Service and R.Jobs.Movement then table.insert(lines,R.Jobs.Movement)end
+    if C.Farm then table.insert(lines,"Farm: Stage "..C.Farm.Target.." | "..C.Farm.Phase.." | cleared "..tostring(R.FarmStagesCompleted or 0))end
     if labels.Overview then labels.Overview:Set(table.concat(lines,"\n"),true)end
     local jobs={}
     for _,key in ipairs(C.JobKeys)do if cfg[key]then table.insert(jobs,t(jobNames[key][1],jobNames[key][2])..": "..(R.Jobs[key]or"Waiting"))end end
     for key,err in pairs(R.Errors)do table.insert(jobs,key..": "..err)end
+    for key,err in pairs(A.LastError)do table.insert(jobs,key..": "..err)end
     for lane,pending in pairs(A.Pending)do if A.Now()-pending.At>8 then table.insert(jobs,lane..": request still pending; no duplicate request started")end end
     if labels.Jobs then labels.Jobs:Set(#jobs>0 and table.concat(jobs,"\n")or t("All automation is off","ปิดระบบอัตโนมัติทั้งหมดอยู่"),true)end
     if labels.Settings then labels.Settings:Set(settingsText.."\n"..profile,true)end
@@ -799,12 +907,19 @@ local ok,problem=xpcall(function()
         farm:CreateToggle({Name=t("Auto mount selected pet","ขี่สัตว์ที่เลือกอัตโนมัติ"),CurrentValue=cfg.AutoMount,Callback=function(v)if ready then cfg.AutoMount=v==true end end})
         local stages={t("Highest unlocked","ด่านสูงสุดที่ปลดล็อก")};local stageMap={[stages[1]]=0};local stageChoice=stages[1]
         for index=1,60 do local spec=K.Stages.List[index];local label="Stage "..index.." | "..spec.World..(spec.Boss and" | "..spec.Boss or"");table.insert(stages,label);stageMap[label]=index;if cfg.Stage==index then stageChoice=label end end
-        farm:CreateDropdown({Name=t("Farm stage","เลือกด่านฟาร์ม"),Options=stages,CurrentOption=stageChoice,Searchable=true,Callback=function(v)if ready then cfg.Stage=stageMap[type(v)=="table"and v[1]or v]or 0 end end})
+        farm:CreateDropdown({Name=t("Start stage","เลือกด่านเริ่มต้น"),Options=stages,CurrentOption=stageChoice,Searchable=true,Callback=function(v)if ready then cfg.Stage=stageMap[type(v)=="table"and v[1]or v]or 0;C.Farm=nil end end})
         input(farm,"CombatDistance","Distance from target","ระยะห่างเป้าหมาย",3,30)
+        farm:CreateParagraph({Name=t("Stage progression","การเคลียร์ด่าน"),Content=t("Teleports onto the actual stage floor, waits for FightStage and live enemies, faces targets and attacks. Only server clear progress or a won FightEnded advances to the next stage.","วาร์ปลงพื้นด่านจริง รอ FightStage และมอน หันหาเป้าหมายแล้วตี ขึ้นด่านต่อเมื่อเซิร์ฟเวอร์ยืนยันความคืบหน้าหรือ FightEnded ชนะ")})
         local life=group(fight,"Health and survival","พลังชีวิตและการเอาตัวรอด","Right")
         paragraph(life,"Godmode","Godmode availability","สถานะ Godmode")
         toggle(life,"Retreat");input(life,"RetreatHP","Return home below HP %","กลับบ้านเมื่อ HP ต่ำกว่า %",1,90)
         life:CreateParagraph({Name=t("Retreat","กลับบ้าน"),Content=t("Retreat requests the game's Return Home action. It does not prevent server damage or guarantee escape during a fight.","ระบบถอยใช้คำสั่งกลับบ้านของเกม ไม่ได้ป้องกันดาเมจและไม่ได้ยืนยันว่าจะออกจากการต่อสู้ได้ทุกครั้ง")})
+        local damage=group(fight,"Damage setup","จัดชุดดาเมจ","Right")
+        options(damage,"PetPriority","Pet selection priority","เกณฑ์เลือกสัตว์",{"Damage per hit","Damage per second"})
+        button(damage,"Equip strongest single-hit setup","จัดชุดสัตว์ที่ดาเมจต่อครั้งสูงสุด",function()
+            cfg.PetPriority="Damage per hit";cfg.RaceKind="Fight";C.Set("Equip",true);C.Set("RaceEquip",true);C.Set("Special",true);buildUI()
+        end)
+        damage:CreateParagraph({Name="One-hit",Content=t("Unverified: the native attack request sends only Attack/Special; no client damage amount was found. This setup chooses the highest listed hit damage and owned fight race; it does not force one-hit kills.","ยังไม่พบวิธี One-hit ที่ยืนยันได้ คำสั่งเกมส่งแค่ Attack/Special ไม่มีค่าดาเมจให้กำหนด ชุดนี้เลือกสัตว์ที่ตีต่อครั้งแรงสุดและเผ่าต่อสู้ที่มี ไม่ได้บังคับให้ตีครั้งเดียวตาย")})
         local training=tab("Training","ฝึกพลัง","dumbbell")
         local train=group(training,"Power training","ฝึกพลัง")
         toggle(train,"Train");toggle(train,"Rebirth")

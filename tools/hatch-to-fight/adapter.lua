@@ -83,16 +83,35 @@ return function(scope,K)
     function A.Distance(point)
         local _,_,root=A.Character();return root and point and(root.Position-point).Magnitude or math.huge
     end
-    function A.Move(point,look)
+    local function stageFloor(index)
+        local map=workspace:FindFirstChild("Map");local stages=map and map:FindFirstChild("Stages")
+        local stage=stages and stages:FindFirstChild("Stage"..tostring(index))
+        local floor=stage and stage:FindFirstChild("Floor")
+        return floor and floor:IsA("BasePart")and floor or nil,stage
+    end
+    function A.Move(point,look,ground)
         if not A.Alive then return false,"Unloaded"end
         if typeof(point)~="Vector3"then return false,"Destination unavailable / not streamed"end
         local char,hum,root=A.Character();if not root then return false,"Waiting for character"end
-        local ray=RaycastParams.new();ray.FilterType=Enum.RaycastFilterType.Exclude
+        if not ground then
+            local floor=stageFloor(A.Attr("FightStage",0))
+            if floor then
+                local localPoint=floor.CFrame:PointToObjectSpace(point)
+                if math.abs(localPoint.X)<=floor.Size.X/2 and math.abs(localPoint.Z)<=floor.Size.Z/2 then ground=floor end
+            end
+        end
+        local ray=RaycastParams.new();ray.RespectCanCollide=true;ray.FilterType=Enum.RaycastFilterType.Exclude
         local ignore={char}
         for _,name in ipairs({"HtF_Runtime","ClientGates","StageGateLabels"})do local obj=workspace:FindFirstChild(name);if obj then table.insert(ignore,obj)end end
         ray.FilterDescendantsInstances=ignore
-        local hit=workspace:Raycast(point+Vector3.new(0,4,0),Vector3.new(0,-24,0),ray)
-        if hit then point=Vector3.new(point.X,hit.Position.Y+hum.HipHeight+root.Size.Y/2+.15,point.Z)end
+        if ground and ground:IsA("BasePart")then
+            local localPoint=ground.CFrame:PointToObjectSpace(point)
+            localPoint=Vector3.new(math.clamp(localPoint.X,-ground.Size.X/2+2,ground.Size.X/2-2),ground.Size.Y/2,math.clamp(localPoint.Z,-ground.Size.Z/2+2,ground.Size.Z/2-2))
+            point=ground.CFrame:PointToWorldSpace(localPoint)+Vector3.new(0,hum.HipHeight+root.Size.Y/2+.15,0)
+        else
+            local hit=workspace:Raycast(point+Vector3.new(0,4,0),Vector3.new(0,-24,0),ray)
+            if hit then point=Vector3.new(point.X,hit.Position.Y+hum.HipHeight+root.Size.Y/2+.15,point.Z)end
+        end
         local destination=CFrame.new(point)*root.CFrame.Rotation
         if typeof(look)=="Vector3"then
             local flat=Vector3.new(look.X,point.Y,look.Z)
@@ -100,6 +119,14 @@ return function(scope,K)
         end
         local offset=root.CFrame:ToObjectSpace(char:GetPivot())
         return pcall(char.PivotTo,char,destination*offset)
+    end
+    function A.Face(target)
+        local char,_,root=A.Character()
+        if not root or typeof(target)~="Vector3"then return false end
+        local look=Vector3.new(target.X,root.Position.Y,target.Z)
+        if(look-root.Position).Magnitude<.1 then return true end
+        local offset=root.CFrame:ToObjectSpace(char:GetPivot())
+        return pcall(char.PivotTo,char,CFrame.lookAt(root.Position,look)*offset)
     end
     function A.HubPoint(name)
         local map=workspace:FindFirstChild("Map");local hub=map and map:FindFirstChild("Hub")
@@ -112,20 +139,34 @@ return function(scope,K)
         local p=position(anchor);return p and p+Vector3.new(0,3,5)
     end
     function A.NearHub(name,range)return A.Distance(A.HubPoint(name))<=range end
-    function A.StagePoint(index)
-        local map=workspace:FindFirstChild("Map");local stages=map and map:FindFirstChild("Stages")
-        local model=stages and stages:FindFirstChild("Stage"..index)
+    function A.StagePoint(index,attempt)
+        local floor,model=stageFloor(index)
+        if floor then
+            local p=floor.CFrame:PointToWorldSpace(Vector3.new(0,floor.Size.Y/2+3,0))
+            local spawns=model:FindFirstChild("EnemySpawns")
+            local first=spawns and spawns:FindFirstChild("EnemySpawn1")
+            local look=first and position(first)or p+Vector3.new(0,0,-10)
+            if attempt and attempt>0 then
+                local direction=Vector3.new(look.X-p.X,0,look.Z-p.Z)
+                if direction.Magnitude>.1 then p+=direction.Unit*(attempt==1 and 12 or-12)end
+            end
+            return p,look,floor
+        end
         local gate=model and model:FindFirstChild("EntranceGate")
         local frame=gate and gate:GetAttribute("GateCFrame")
-        if typeof(frame)=="CFrame"then
-            local p=(frame*CFrame.new(0,3,-12)).Position
-            return p,p+frame.LookVector*10
-        end
         local labels=workspace:FindFirstChild("StageGateLabels")
         local marker=labels and labels:FindFirstChild("Stage"..index)
-        if marker and marker:IsA("BasePart")then
-            local p=Vector3.new(marker.Position.X,marker.Position.Y-16,marker.Position.Z-14)
-            return p,p+Vector3.new(0,0,-10)
+        local streamAt=typeof(frame)=="CFrame"and frame.Position or marker and marker:IsA("BasePart")and marker.Position
+        if streamAt and not A.Pending.StageStream and A.Now()-(A.LastPoll.StageStream or-math.huge)>5 then
+            local token={At=A.Now(),Job="Farm"};A.Pending.StageStream=token;A.LastPoll.StageStream=A.Now()
+            task.spawn(function()
+                if A.Alive and not token.Cancelled then
+                    token.Started=true
+                    local ok,err=pcall(A.Player.RequestStreamAroundAsync,A.Player,streamAt,2)
+                    if not ok and A.Alive then A.LastError.StageStream=tostring(err)end
+                end
+                if A.Pending.StageStream==token then A.Pending.StageStream=nil end
+            end)
         end
         return nil
     end
@@ -138,7 +179,10 @@ return function(scope,K)
         local best
         for _,obj in ipairs(folder and folder:GetChildren()or{})do
             local p=position(obj);local hp=obj:GetAttribute("HP")
-            if p and type(hp)=="number"and hp>0 and own(obj)then
+            local ownerStage=obj:GetAttribute("StageIndex")or obj:GetAttribute("Stage")
+            local currentStage=A.Attr("FightStage",0)
+            local sameStage=type(ownerStage)~="number"or currentStage<=0 or ownerStage==currentStage
+            if p and type(hp)=="number"and hp>0 and own(obj)and sameStage then
                 local distance=A.Distance(p)
                 if not best or distance<best.Distance then best={Ref=obj,Pos=p,HP=hp,Distance=distance,Name=obj.Name}end
             end
@@ -156,7 +200,8 @@ return function(scope,K)
         local stage=A.Attr("FightStage",0)
         return {Mounted=char and char:GetAttribute("Mounted")==true,PetId=A.Attr("PetId",K.Pets.Starter),
             InFight=stage>0 or A.Attr("TowerFight",false)or A.Attr("OnBossIsland",false),
-            FightStage=stage,StagesCleared=A.Attr("StagesCleared",0),Rebirths=A.Attr("Rebirths",0),
+            FightStage=stage,StagesCleared=A.Attr("StagesCleared",0),Rebirths=A.Attr("Rebirths",0),TowerFight=A.Attr("TowerFight",false),OnBossIsland=A.Attr("OnBossIsland",false),
+            WaveTotal=A.Attr("WaveTotal",0),WaveKills=A.Attr("WaveKills",0),
             BossAlive=workspace:GetAttribute("WorldBossAlive")==true,HP=gui and gui:GetAttribute("PetHP"),
             MaxHP=gui and gui:GetAttribute("PetMaxHP"),SpecialCooldownMult=A.Attr("QCooldownMult",1),Mob=A.Mob()}
     end

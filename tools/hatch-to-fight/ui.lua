@@ -1,6 +1,6 @@
 assert(game.PlaceId==127231827405683 or game.GameId==10768001644,"Open the HatchToFight map recorded in Devilv10")
 local scope=type(getgenv)=="function"and getgenv()or _G
-local release="hatch-to-fight-test-20261022-1"
+local release="hatch-to-fight-stage-farm-20261022-2"
 if scope.DevilHtFStarting and os.clock()-scope.DevilHtFStarting<40 then return end
 if scope.DevilHtFTest and type(scope.DevilHtFTest.Destroy)=="function"then scope.DevilHtFTest.Destroy()end
 scope.DevilHtFStarting=os.clock()
@@ -108,10 +108,12 @@ local function statusRefresh()
     if R.Blocked then table.insert(lines,R.Blocked)end
     if R.Watchdog then table.insert(lines,R.Watchdog)end
     if C.Service and R.Jobs.Movement then table.insert(lines,R.Jobs.Movement)end
+    if C.Farm then table.insert(lines,"Farm: Stage "..C.Farm.Target.." | "..C.Farm.Phase.." | cleared "..tostring(R.FarmStagesCompleted or 0))end
     if labels.Overview then labels.Overview:Set(table.concat(lines,"\n"),true)end
     local jobs={}
     for _,key in ipairs(C.JobKeys)do if cfg[key]then table.insert(jobs,t(jobNames[key][1],jobNames[key][2])..": "..(R.Jobs[key]or"Waiting"))end end
     for key,err in pairs(R.Errors)do table.insert(jobs,key..": "..err)end
+    for key,err in pairs(A.LastError)do table.insert(jobs,key..": "..err)end
     for lane,pending in pairs(A.Pending)do if A.Now()-pending.At>8 then table.insert(jobs,lane..": request still pending; no duplicate request started")end end
     if labels.Jobs then labels.Jobs:Set(#jobs>0 and table.concat(jobs,"\n")or t("All automation is off","ปิดระบบอัตโนมัติทั้งหมดอยู่"),true)end
     if labels.Settings then labels.Settings:Set(settingsText.."\n"..profile,true)end
@@ -170,12 +172,19 @@ local ok,problem=xpcall(function()
         farm:CreateToggle({Name=t("Auto mount selected pet","ขี่สัตว์ที่เลือกอัตโนมัติ"),CurrentValue=cfg.AutoMount,Callback=function(v)if ready then cfg.AutoMount=v==true end end})
         local stages={t("Highest unlocked","ด่านสูงสุดที่ปลดล็อก")};local stageMap={[stages[1]]=0};local stageChoice=stages[1]
         for index=1,60 do local spec=K.Stages.List[index];local label="Stage "..index.." | "..spec.World..(spec.Boss and" | "..spec.Boss or"");table.insert(stages,label);stageMap[label]=index;if cfg.Stage==index then stageChoice=label end end
-        farm:CreateDropdown({Name=t("Farm stage","เลือกด่านฟาร์ม"),Options=stages,CurrentOption=stageChoice,Searchable=true,Callback=function(v)if ready then cfg.Stage=stageMap[type(v)=="table"and v[1]or v]or 0 end end})
+        farm:CreateDropdown({Name=t("Start stage","เลือกด่านเริ่มต้น"),Options=stages,CurrentOption=stageChoice,Searchable=true,Callback=function(v)if ready then cfg.Stage=stageMap[type(v)=="table"and v[1]or v]or 0;C.Farm=nil end end})
         input(farm,"CombatDistance","Distance from target","ระยะห่างเป้าหมาย",3,30)
+        farm:CreateParagraph({Name=t("Stage progression","การเคลียร์ด่าน"),Content=t("Teleports onto the actual stage floor, waits for FightStage and live enemies, faces targets and attacks. Only server clear progress or a won FightEnded advances to the next stage.","วาร์ปลงพื้นด่านจริง รอ FightStage และมอน หันหาเป้าหมายแล้วตี ขึ้นด่านต่อเมื่อเซิร์ฟเวอร์ยืนยันความคืบหน้าหรือ FightEnded ชนะ")})
         local life=group(fight,"Health and survival","พลังชีวิตและการเอาตัวรอด","Right")
         paragraph(life,"Godmode","Godmode availability","สถานะ Godmode")
         toggle(life,"Retreat");input(life,"RetreatHP","Return home below HP %","กลับบ้านเมื่อ HP ต่ำกว่า %",1,90)
         life:CreateParagraph({Name=t("Retreat","กลับบ้าน"),Content=t("Retreat requests the game's Return Home action. It does not prevent server damage or guarantee escape during a fight.","ระบบถอยใช้คำสั่งกลับบ้านของเกม ไม่ได้ป้องกันดาเมจและไม่ได้ยืนยันว่าจะออกจากการต่อสู้ได้ทุกครั้ง")})
+        local damage=group(fight,"Damage setup","จัดชุดดาเมจ","Right")
+        options(damage,"PetPriority","Pet selection priority","เกณฑ์เลือกสัตว์",{"Damage per hit","Damage per second"})
+        button(damage,"Equip strongest single-hit setup","จัดชุดสัตว์ที่ดาเมจต่อครั้งสูงสุด",function()
+            cfg.PetPriority="Damage per hit";cfg.RaceKind="Fight";C.Set("Equip",true);C.Set("RaceEquip",true);C.Set("Special",true);buildUI()
+        end)
+        damage:CreateParagraph({Name="One-hit",Content=t("Unverified: the native attack request sends only Attack/Special; no client damage amount was found. This setup chooses the highest listed hit damage and owned fight race; it does not force one-hit kills.","ยังไม่พบวิธี One-hit ที่ยืนยันได้ คำสั่งเกมส่งแค่ Attack/Special ไม่มีค่าดาเมจให้กำหนด ชุดนี้เลือกสัตว์ที่ตีต่อครั้งแรงสุดและเผ่าต่อสู้ที่มี ไม่ได้บังคับให้ตีครั้งเดียวตาย")})
         local training=tab("Training","ฝึกพลัง","dumbbell")
         local train=group(training,"Power training","ฝึกพลัง")
         toggle(train,"Train");toggle(train,"Rebirth")
