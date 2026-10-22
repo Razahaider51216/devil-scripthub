@@ -9,8 +9,8 @@
     "PASS HatchToFight entry/GUI/language/profile/lifecycle: 45 checks",
     "PASS exact artifact hash, no game require/global hooks/fabricated HP or stage unlocks"
   ],
-  "branding_release": "devil-brand-v2-20261022-2",
+  "branding_release": "devil-brand-v3-20261022-1",
   "branding_validation": "devil-branding-v2-validation.json",
   "unchanged_payload_validation_preserved": true,
-  "entry_sha256": "8c94e6558da737221ce3adb28266dc35a586254e227e78c35bf9f81abda6c1d7"
+  "entry_sha256": "19919f5067b320ecf09b8fda2fc13e2c9f48a5fa7414da8b0e551034831926f3"
 }

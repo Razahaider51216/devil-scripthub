@@ -10,21 +10,21 @@
       "Universe": 10740316645,
       "Place": 79389059854988,
       "File": "mine-auto-test.lua",
-      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b"
+      "Commit": "d15c8cf4eb1b612b321ee40f27b9135ce13057da"
     },
     {
       "Name": "Tap Simulator 2",
       "Universe": 10629695169,
       "Place": 72858262610964,
       "File": "tapping-auto-test.lua",
-      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b"
+      "Commit": "d15c8cf4eb1b612b321ee40f27b9135ce13057da"
     },
     {
       "Name": "Climb for Eggs",
       "Universe": 10765490774,
       "Place": 85738654635245,
       "File": "climb-for-eggs.lua",
-      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b",
+      "Commit": "d15c8cf4eb1b612b321ee40f27b9135ce13057da",
       "Version": "climb-training-bonus-20261021-13"
     },
     {
@@ -32,21 +32,21 @@
       "Universe": 10768316438,
       "Place": 76731343328034,
       "File": "lift-rock-for-eggs.lua",
-      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b"
+      "Commit": "d15c8cf4eb1b612b321ee40f27b9135ce13057da"
     },
     {
       "Name": "Ride A Fish",
       "Universe": 10766691148,
       "Place": 104050046639813,
       "File": "aqua-auto-egg.lua",
-      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b"
+      "Commit": "d15c8cf4eb1b612b321ee40f27b9135ce13057da"
     },
     {
       "Name": "Steal an Egg",
       "Universe": 10563114921,
       "Place": 107778070777162,
       "File": "devil-steal-an-egg.lua",
-      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b",
+      "Commit": "d15c8cf4eb1b612b321ee40f27b9135ce13057da",
       "Version": "chilli-rejoin-clipboard-20261021-2"
     },
     {
@@ -54,14 +54,14 @@
       "Universe": 10035204815,
       "Place": 124216119978534,
       "File": "ride-a-pet.lua",
-      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b"
+      "Commit": "d15c8cf4eb1b612b321ee40f27b9135ce13057da"
     },
     {
       "Name": "Break and Steal an Egg",
       "Universe": 10765288803,
       "Place": 114326934417838,
       "File": "break-and-steal-an-egg.lua",
-      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b",
+      "Commit": "d15c8cf4eb1b612b321ee40f27b9135ce13057da",
       "Version": "break-language-sync-20261020-1"
     },
     {
@@ -69,21 +69,21 @@
       "Universe": 10684750879,
       "Place": 118805555015549,
       "File": "loot-to-forge.lua",
-      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b"
+      "Commit": "d15c8cf4eb1b612b321ee40f27b9135ce13057da"
     },
     {
       "Name": "Build An Ant Empire",
       "Universe": 10436530264,
       "Place": 78490532994307,
       "File": "build-an-ant-empire.lua",
-      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b"
+      "Commit": "d15c8cf4eb1b612b321ee40f27b9135ce13057da"
     },
     {
       "Name": "Anime Dice",
       "Universe": 10708913337,
       "Place": 113290951185459,
       "File": "anime-dice-test.lua",
-      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b",
+      "Commit": "d15c8cf4eb1b612b321ee40f27b9135ce13057da",
       "Version": "anime-dice-webhook-20261022-2"
     },
     {
@@ -91,15 +91,15 @@
       "Universe": 10765013362,
       "Place": 121831322352666,
       "File": "devilv4-test.lua",
-      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b",
+      "Commit": "d15c8cf4eb1b612b321ee40f27b9135ce13057da",
       "Version": "devilv4-test-20261021-1"
     }
   ],
   "before_native_sha256": "cb87e59de81648523e748977e1a86446a5c74db5f768b52352b72de9f5befa96",
-  "after_native_sha256": "07079b1949fea9b826508b758202d4c27a79222b991bccb3fe8e5c14870d19eb",
+  "after_native_sha256": "6da24c7740680409cd5d659f823e37e17d4157e8e956903bad259052a2b7df56",
   "live_rendering_verified": false,
-  "public_loader_sha256": "dd8924f91cb2fd47ea21307a29616e96a1666a959ce4bbe0b5760456826ac878",
-  "public_loader_bytes": 140005,
+  "public_loader_sha256": "329f4b2559a5d7e45aedae35ca95f02415ae7e641d5f95b92ee95753c43851f4",
+  "public_loader_bytes": 140001,
   "ui_offline_checks": 165,
   "public_router_universe_place_cases": 36,
   "language_choices": [
@@ -155,17 +155,17 @@
   "late_viewport_and_primary_window_discovery": true,
   "desktop_executor_live_verified": false,
   "existing_game_routes_unchanged": true,
-  "anime_dice_entry_commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b",
-  "anime_dice_entry_sha256": "ca75bb3ddb501bf7fd995705fcd25123aac55189e97fbee1e387a4be5c70dd6e",
+  "anime_dice_entry_commit": "d15c8cf4eb1b612b321ee40f27b9135ce13057da",
+  "anime_dice_entry_sha256": "ea6c9f7a3dfa6832e49eaa98101235069fe93b3148fe363a6d603052c23c0bdc",
   "auto_execute_enabled": true,
   "auto_execute_sha256": "6b071230dd8fcb24541ac6d8008d9bdeabaf8ea7051d4ca744be1bfbee2700c1",
   "break_language_entry_commit": "a7cf89d5f4aa4cf74d84e12af125cf82b788eae5",
   "non_break_routes_unchanged": true,
-  "steal_entry_commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b",
-  "steal_entry_sha256": "f463cd0c4174106a2483f94fdb3c48dc30848388d846306d6830c8bf3006e531",
+  "steal_entry_commit": "d15c8cf4eb1b612b321ee40f27b9135ce13057da",
+  "steal_entry_sha256": "16f2b664ddca910cf922d0741be4fa80888f0483689603c49810c9517a96201d",
   "non_steal_routes_unchanged": true,
-  "climb_entry_commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b",
-  "climb_entry_sha256": "93b01dde5543e60744f7a9a34be0b366f69462ae0ba53e8a2efdc9f1dc23b93b",
+  "climb_entry_commit": "d15c8cf4eb1b612b321ee40f27b9135ce13057da",
+  "climb_entry_sha256": "f086ea4172a7d450e6e799e6b9d2cfcbe18bb4f65afce5725cc313bc83976069",
   "non_climb_routes_unchanged": true,
   "dig_for_eggs_baseline_commit": "a381f1d700cc6abb5b1317f8cbc6d63d4f888bd8",
   "dig_for_eggs_entry_commit": "6e9145a78f93d7dee2ce0647b50174ab8f944d43",
@@ -174,7 +174,7 @@
   "climb_router_baseline_commit": "37487c14f436bc00a949a1064ab54fe3fd224f74",
   "protection_release": "devil-all-games-obf-20261021-1",
   "protection_baseline_commit": "51e1850910ee450fcefa36bdb9f968b8dfb06d32",
-  "branding_release": "devil-brand-v2-20261022-2",
-  "branding_shared_commit": "8029f5c344eadba1f6fe5831364f5165426850a3",
-  "branding_entries_commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b"
+  "branding_release": "devil-brand-v3-20261022-1",
+  "branding_shared_commit": "ba1c6ccf3954d0967e26d3ae385fc3fc5fd258aa",
+  "branding_entries_commit": "d15c8cf4eb1b612b321ee40f27b9135ce13057da"
 }

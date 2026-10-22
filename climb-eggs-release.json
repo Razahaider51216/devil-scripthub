@@ -3,15 +3,15 @@
   "placeId": 85738654635245,
   "universeId": 10765490774,
   "source_sha256": "0bc9833edaa1fc82f145a97ae1a6ffb275e29210438686217cc07e79b1ff63db",
-  "entry_sha256": "93b01dde5543e60744f7a9a34be0b366f69462ae0ba53e8a2efdc9f1dc23b93b",
+  "entry_sha256": "f086ea4172a7d450e6e799e6b9d2cfcbe18bb4f65afce5725cc313bc83976069",
   "bytes": 283124,
   "live_verified": false,
   "gameplay_core_sha256": "679465f4aa6b276ed0e11797103e371c098d7f0e98d57d77150db69a7ae7fbda",
   "language_sync": true,
   "runtime_commit": "37487c14f436bc00a949a1064ab54fe3fd224f74",
-  "main_loader_sha256": "dd8924f91cb2fd47ea21307a29616e96a1666a959ce4bbe0b5760456826ac878",
+  "main_loader_sha256": "329f4b2559a5d7e45aedae35ca95f02415ae7e641d5f95b92ee95753c43851f4",
   "other_routes_unchanged": true,
-  "branding_release": "devil-brand-v2-20261022-2",
-  "branding_shared_commit": "8029f5c344eadba1f6fe5831364f5165426850a3",
-  "branding_entry_commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b"
+  "branding_release": "devil-brand-v3-20261022-1",
+  "branding_shared_commit": "ba1c6ccf3954d0967e26d3ae385fc3fc5fd258aa",
+  "branding_entry_commit": "d15c8cf4eb1b612b321ee40f27b9135ce13057da"
 }

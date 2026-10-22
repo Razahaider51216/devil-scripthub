@@ -27,7 +27,7 @@
   "main_router_cases": 33,
   "other_map_entries_preserved": true,
   "live_game_verified": false,
-  "entry_sha256": "93b01dde5543e60744f7a9a34be0b366f69462ae0ba53e8a2efdc9f1dc23b93b",
+  "entry_sha256": "f086ea4172a7d450e6e799e6b9d2cfcbe18bb4f65afce5725cc313bc83976069",
   "gameplay_core_sha256": "abd7bbd3527f6794f5939fd2d05726ec26313b8ef8ace1a28275f905e0ca0032",
   "language_checks": 33,
   "language_bug_reproduced": true,
@@ -36,9 +36,9 @@
   "thai_status_utf8_verified": true,
   "language_preserves_automation": true,
   "gameplay_core_unchanged": true,
-  "main_loader_sha256": "dd8924f91cb2fd47ea21307a29616e96a1666a959ce4bbe0b5760456826ac878",
+  "main_loader_sha256": "329f4b2559a5d7e45aedae35ca95f02415ae7e641d5f95b92ee95753c43851f4",
   "runtime_commit": "fa18b61e74e788a1825123d7bf3182b628c3463f",
-  "branding_release": "devil-brand-v2-20261022-2",
+  "branding_release": "devil-brand-v3-20261022-1",
   "branding_validation": "devil-branding-v2-validation.json",
   "unchanged_payload_validation_preserved": true
 }
