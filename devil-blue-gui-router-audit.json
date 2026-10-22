@@ -1,5 +1,5 @@
 {
-  "release": "anime-dice-webhook-20261022-2",
+  "release": "anime-dice-server-controls-20261022-1",
   "module_commit": "9a9812469df7b5dad2848abb33c5206f7d57e685",
   "game_entries_commit": "44e6fa00f0a341d61b550ead0680b26e0a1a043b",
   "map_ids_unchanged": true,
@@ -83,8 +83,8 @@
       "Universe": 10708913337,
       "Place": 113290951185459,
       "File": "anime-dice-test.lua",
-      "Commit": "d15c8cf4eb1b612b321ee40f27b9135ce13057da",
-      "Version": "anime-dice-webhook-20261022-2"
+      "Commit": "9a5406516546b85a96930f5f5d34908fb596292c",
+      "Version": "anime-dice-server-controls-20261022-1"
     },
     {
       "Name": "Dig For Eggs",
@@ -95,11 +95,11 @@
       "Version": "devilv4-test-20261021-1"
     }
   ],
-  "before_native_sha256": "cb87e59de81648523e748977e1a86446a5c74db5f768b52352b72de9f5befa96",
-  "after_native_sha256": "6da24c7740680409cd5d659f823e37e17d4157e8e956903bad259052a2b7df56",
+  "before_native_sha256": "6da24c7740680409cd5d659f823e37e17d4157e8e956903bad259052a2b7df56",
+  "after_native_sha256": "12ac6a5d6eac21107c51b90c08fd73b0fffb7571d2bdb68a8b2403b09e39d183",
   "live_rendering_verified": false,
-  "public_loader_sha256": "329f4b2559a5d7e45aedae35ca95f02415ae7e641d5f95b92ee95753c43851f4",
-  "public_loader_bytes": 140001,
+  "public_loader_sha256": "c2da72284e3a1e1b804ba4a625926ea42d78c27c2c0dfb8d60d50445ee50cf13",
+  "public_loader_bytes": 140094,
   "ui_offline_checks": 165,
   "public_router_universe_place_cases": 36,
   "language_choices": [
@@ -155,8 +155,8 @@
   "late_viewport_and_primary_window_discovery": true,
   "desktop_executor_live_verified": false,
   "existing_game_routes_unchanged": true,
-  "anime_dice_entry_commit": "d15c8cf4eb1b612b321ee40f27b9135ce13057da",
-  "anime_dice_entry_sha256": "ea6c9f7a3dfa6832e49eaa98101235069fe93b3148fe363a6d603052c23c0bdc",
+  "anime_dice_entry_commit": "9a5406516546b85a96930f5f5d34908fb596292c",
+  "anime_dice_entry_sha256": "978faedc0fc7debdf808149983841c73bc1cbddb236b521891689c11c233ff97",
   "auto_execute_enabled": true,
   "auto_execute_sha256": "6b071230dd8fcb24541ac6d8008d9bdeabaf8ea7051d4ca744be1bfbee2700c1",
   "break_language_entry_commit": "a7cf89d5f4aa4cf74d84e12af125cf82b788eae5",
@@ -170,7 +170,7 @@
   "dig_for_eggs_baseline_commit": "a381f1d700cc6abb5b1317f8cbc6d63d4f888bd8",
   "dig_for_eggs_entry_commit": "6e9145a78f93d7dee2ce0647b50174ab8f944d43",
   "dig_for_eggs_entry_sha256": "724f9638e70b0218e09e5b027d9f5cca01ed2916f57e6c544de24dca9a5f768e",
-  "anime_router_baseline_commit": "fa58d15a09b7397b9b18a9ddc585a101d717241d",
+  "anime_router_baseline_commit": "9a5406516546b85a96930f5f5d34908fb596292c",
   "climb_router_baseline_commit": "37487c14f436bc00a949a1064ab54fe3fd224f74",
   "protection_release": "devil-all-games-obf-20261021-1",
   "protection_baseline_commit": "51e1850910ee450fcefa36bdb9f968b8dfb06d32",

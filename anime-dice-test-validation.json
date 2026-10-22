@@ -2,7 +2,7 @@
   "release": "anime-dice-server-controls-20261022-1",
   "live_game_verified": false,
   "entry_sha256": "978faedc0fc7debdf808149983841c73bc1cbddb236b521891689c11c233ff97",
-  "checks": 1054,
+  "checks": 1099,
   "literal_remote_contract_checks": 24,
   "results": [
     "PASS Anime Dice navigation: rejoin, filtered/paginated hop, concurrency, failures, timeout and unload: 20 checks",
@@ -10,10 +10,10 @@
     "PASS Anime Dice planning, network contracts, confirmation, stop and event behavior: 216 checks",
     "PASS saved settings: schema, identity, validation, ordering, lists, false values, reset, API failures and readiness: 41 checks",
     "PASS Halloween teleport: roof rejection, door sill, elevation, streaming, death and cancellation: 32 checks",
-    "PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: 708 checks"
+    "PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: 753 checks"
   ],
-  "main_loader_sha256": null,
-  "main_loader_integration_verified": false,
+  "main_loader_sha256": "c2da72284e3a1e1b804ba4a625926ea42d78c27c2c0dfb8d60d50445ee50cf13",
+  "main_loader_integration_verified": true,
   "pinned_gui_sha256": "0c30762d3c9c3aa7c25ca3aeceab960a771c96b5af290a3b67aed627161385f5",
   "fixtures": {
     "anime-dice-core.luau": "c9cbecb236d62ce08d1886ce7858cb5078a1da4e68b66884b9c730aa63f3ab2f",

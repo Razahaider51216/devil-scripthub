@@ -35,7 +35,7 @@ local env=type(getgenv)=="function"and getgenv()or _G
 if env.DevilHubRouterLoading then return end
 local games={
     {Name="Dig For Eggs",Universe=10765013362,Place=121831322352666,File="devilv4-test.lua",Commit="d15c8cf4eb1b612b321ee40f27b9135ce13057da",Version="devilv4-test-20261021-1"},
-    {Name="Anime Dice",Universe=10708913337,Place=113290951185459,File="anime-dice-test.lua",Commit="d15c8cf4eb1b612b321ee40f27b9135ce13057da",Version="anime-dice-webhook-20261022-2"},
+    {Name="Anime Dice",Universe=10708913337,Place=113290951185459,File="anime-dice-test.lua",Commit="9a5406516546b85a96930f5f5d34908fb596292c",Version="anime-dice-server-controls-20261022-1"},
     {Name="Mine / Dump23",Universe=10740316645,Place=79389059854988,File="mine-auto-test.lua",Commit="d15c8cf4eb1b612b321ee40f27b9135ce13057da",Version="mine-auto-test-4"},
     {Name="Tap Simulator 2",Universe=10629695169,Place=72858262610964,File="tapping-auto-test.lua",Commit="d15c8cf4eb1b612b321ee40f27b9135ce13057da",Version="tapping-auto-test-10"},
     {Name="Climb for Eggs",Universe=10765490774,Place=85738654635245,File="climb-for-eggs.lua",Commit="d15c8cf4eb1b612b321ee40f27b9135ce13057da",Version="climb-training-bonus-20261021-13"},
@@ -49,7 +49,7 @@ local games={
 }
 for _,entry in ipairs(games)do entry.Version=entry.File=="devil-steal-an-egg.lua"and"chilli-rejoin-clipboard-20261021-2"or entry.File=="mine-auto-test.lua"and"mine-auto-test-4"or entry.File=="tapping-auto-test.lua"and"tapping-auto-test-10"or entry.File=="climb-for-eggs.lua"and"climb-training-bonus-20261021-13"or entry.File=="lift-rock-for-eggs.lua"and"lift-rock-fly-23"or entry.File=="aqua-auto-egg.lua"and"aqua-auto-egg-18"or entry.File=="break-and-steal-an-egg.lua"and"break-language-sync-20261020-1"or(entry.File=="ride-a-pet.lua"and"ride-native-obf-18"or"shared-loading-3")end
 -- Anime Dice keeps its own release without changing legacy route versions.
-for _,entry in ipairs(games)do if entry.File=="anime-dice-test.lua"then entry.Version="anime-dice-webhook-20261022-2"end end
+for _,entry in ipairs(games)do if entry.File=="anime-dice-test.lua"then entry.Version="anime-dice-server-controls-20261022-1"end end
 -- Dig For Eggs keeps its own release after the legacy version normalizer.
 for _,entry in ipairs(games)do if entry.File=="devilv4-test.lua"then entry.Version="devilv4-test-20261021-1"end end
 if not game:IsLoaded()then game.Loaded:Wait()end
