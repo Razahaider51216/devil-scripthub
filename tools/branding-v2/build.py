@@ -6,7 +6,7 @@ ROOT=Path(__file__).resolve().parents[2]
 HERE=Path(__file__).resolve().parent
 WORK=ROOT.parent/'devil-branding-v2-build'
 WORK.mkdir(exist_ok=True)
-RELEASE='devil-brand-v2-20261022-1'
+RELEASE='devil-brand-v2-20261022-2'
 BASELINE='0a2bdfc'
 ASSETS='de20eac'
 spec=importlib.util.spec_from_file_location('brand_pack',ROOT/'tools/protection/pack.py')
@@ -74,7 +74,7 @@ def shared():
     source=source.replace('    return image:find("devil-logo",1,true)~=nil','    return brand.Matches(image)or image:find("devil-logo",1,true)~=nil',1)
     marker='    localize(node)\n    if states[node]'
     assert source.count(marker)==1
-    source=source.replace(marker,'    brand.Apply(node,function(image)return logo(image),launcher(image)or waveHost(image)end)\n'+marker,1)
+    source=source.replace(marker,'    brand.Apply(node,function(image)return logo(image),launcher(image)and not brand.TopSlot(image)end)\n'+marker,1)
     source=source.replace('    table.clear(roots)\n','    brand.Destroy()\n    table.clear(roots)\n',1)
     source=source.replace('return controller\n','brand.Resolve()\nreturn controller\n',1)
     assert 'brand.Resolve()\nreturn controller' in source

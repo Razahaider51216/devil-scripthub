@@ -47,7 +47,7 @@ end}
 local loadstring=function(text,label)
  check(text==source and label=="DEVIL HUB / brand v2","wrong compilation boundary")
  compiles+=1
- return function()scope.DevilHubBlueGui={BrandingVersion="devil-brand-v2-20261022-1",Stopped=false}end
+ return function()scope.DevilHubBlueGui={BrandingVersion="devil-brand-v2-20261022-2",Stopped=false}end
 end
 local function start()
 PRELUDE

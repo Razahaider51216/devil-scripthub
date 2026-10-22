@@ -1,7 +1,7 @@
 -- PNG branding and a vector D compiled from assets/devil-d-toggle.svg.
 -- Only owned brand ImageLabels/ImageButtons are changed; native input stays intact.
 return function(scope,links)
-    local B={Version="devil-brand-v2-20261022-1",Image=nil,Status="Not loaded"}
+    local B={Version="devil-brand-v2-20261022-2",Image=nil,Status="Not loaded"}
     local records=setmetatable({},{__mode="k"})
     local rectangles=__D_RECTS__
     local colors={Color3.fromRGB(245,251,255),Color3.fromRGB(97,212,255),Color3.fromRGB(255,255,255)}
@@ -11,6 +11,17 @@ return function(scope,links)
     function B.Matches(image)
         return type(image)=="string"and(image==B.Image or image:find("devilhubv2",1,true)~=nil
             or image:find("DevilHub_LogoV2",1,true)~=nil)
+    end
+    function B.TopSlot(node)
+        local current=node
+        while current and not current:IsA("ScreenGui")do
+            local name=current.Name:lower()
+            if name=="island"or name=="islandbubble"or name=="topbar"or name=="header"or name=="titlebar"then return true end
+            if current:IsA("GuiButton")and current.Parent and current.Parent:IsA("ScreenGui")
+                and current.Position.Y.Scale==0 and current.Position.Y.Offset<=100 and current.AnchorPoint.Y==0 then return true end
+            current=current.Parent
+        end
+        return false
     end
     local function glyph(node)
         local frame=Instance.new("Frame");frame.Name="DevilCustomD"

@@ -1,4 +1,4 @@
-local scope={DevilHubLogoV2Version="devil-brand-v2-20261022-1",DevilHubLogoV2="local-v2.png"}
+local scope={DevilHubLogoV2Version="devil-brand-v2-20261022-2",DevilHubLogoV2="local-v2.png"}
 local links={};local b=makeBrand(scope,links)
 check(b.Resolve()=="local-v2.png","cached PNG not reused")
 local screen=Instance.new("ScreenGui")

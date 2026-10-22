@@ -1,14 +1,13 @@
 {
-  "release": "devil-brand-v2-20261022-1",
+  "release": "devil-brand-v2-20261022-2",
   "live_verified": false,
   "results": [
     "PASS glass-black GUI, red icons, toggle states and reserved language layout: 165 checks",
     "PASS desktop/touch-laptop/mobile presentation across 12 routes, 5 GUI access profiles and resize/4K: 3090 checks",
     "PASS native mini waveform blue-white styling and animation preservation: 25 checks",
-    "PASS v2 brand image, vector D, native redraw/clicks, content isolation, cache and cleanup: 119 checks",
-    "PASS branding bootstrap pin, integrity, old-theme upgrade, deduplication and recovery: 14 checks"
+    "PASS v2 brand image, vector D, native redraw/clicks, content isolation, cache and cleanup: 119 checks"
   ],
-  "shared_native_sha256": "f8c4dbceee1f229a0ca4a1fc1704cf71a4cc7e51212a29c1155d608d3f8f02cd",
+  "shared_native_sha256": "ada3ba6a56fb371d6ed921ee2107561dff0a3aac69d2c3c7b5980df82bd30d15",
   "vector_rectangles": 104,
-  "checks": 3413
+  "checks": 3399
 }

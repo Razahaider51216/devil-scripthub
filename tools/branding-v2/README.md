@@ -7,9 +7,10 @@ custom vector D remains visible as a fallback.
 
 `assets/devil-d-toggle.svg` is the authoritative custom white/blue D artwork. The
 build converts its even-odd polygon paths into 104 merged native GUI rectangles.
-Launcher/reopen and Island brand image slots use this vector, independent of
+Floating launcher/reopen image slots use this vector, independent of
 PNG downloads or executor SVG support. Existing click/drag/minimize handlers,
 visibility, size and window layout remain under each native GUI's control.
+Top header, Island mini-bar and top reopen slots use the supplied PNG logo.
 
 The shared presentation keeps its existing compatibility version and exposes a
 separate `BrandingVersion`. New entry preludes verify/download the immutable
