@@ -1,7 +1,7 @@
 {
   "release": "anime-dice-webhook-20261022-2",
   "live_game_verified": false,
-  "entry_sha256": "4c0e31b563ed8ea68eaae291bf49305623bddb13754dc2f80a1fff65c2e087cf",
+  "entry_sha256": "ca75bb3ddb501bf7fd995705fcd25123aac55189e97fbee1e387a4be5c70dd6e",
   "checks": 1078,
   "literal_remote_contract_checks": 24,
   "results": [
@@ -11,7 +11,7 @@
     "PASS Halloween teleport: roof rejection, door sill, elevation, streaming, death and cancellation: 32 checks",
     "PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: 752 checks"
   ],
-  "main_loader_sha256": "3110deb870d72dd4cc525ea59f9d8c5bff60a13a3ef9b0d3f3210a4edb87d067",
+  "main_loader_sha256": "dd8924f91cb2fd47ea21307a29616e96a1666a959ce4bbe0b5760456826ac878",
   "main_loader_integration_verified": true,
   "pinned_gui_sha256": "0c30762d3c9c3aa7c25ca3aeceab960a771c96b5af290a3b67aed627161385f5",
   "fixtures": {
@@ -21,7 +21,7 @@
     "anime-dice-settings.luau": "f1a603a3dbb9f14b1d78c877d9a4ad4196f87bb930f5a25fba2108126dff2789",
     "anime-dice-webhook.luau": "a32cd0a0906ccb24c7ce57a9de9773e6fd3e475e709c4278f0e902d940a0d762"
   },
-  "branding_release": "devil-brand-v2-20261022-1",
+  "branding_release": "devil-brand-v2-20261022-2",
   "branding_validation": "devil-branding-v2-validation.json",
   "unchanged_payload_validation_preserved": true
 }

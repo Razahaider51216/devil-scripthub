@@ -112,5 +112,99 @@
       "added_vm_layers": 0
     }
   },
-  "shared_commit": "8029f5c344eadba1f6fe5831364f5165426850a3"
+  "shared_commit": "8029f5c344eadba1f6fe5831364f5165426850a3",
+  "entries_commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b",
+  "loader_sha256": "dd8924f91cb2fd47ea21307a29616e96a1666a959ce4bbe0b5760456826ac878",
+  "loader_native_sha256": "07079b1949fea9b826508b758202d4c27a79222b991bccb3fe8e5c14870d19eb",
+  "routes": [
+    {
+      "Name": "Mine / Dump23",
+      "Universe": 10740316645,
+      "Place": 79389059854988,
+      "File": "mine-auto-test.lua",
+      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b"
+    },
+    {
+      "Name": "Tap Simulator 2",
+      "Universe": 10629695169,
+      "Place": 72858262610964,
+      "File": "tapping-auto-test.lua",
+      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b"
+    },
+    {
+      "Name": "Climb for Eggs",
+      "Universe": 10765490774,
+      "Place": 85738654635245,
+      "File": "climb-for-eggs.lua",
+      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b",
+      "Version": "climb-training-bonus-20261021-13"
+    },
+    {
+      "Name": "Lift Rock for Eggs",
+      "Universe": 10768316438,
+      "Place": 76731343328034,
+      "File": "lift-rock-for-eggs.lua",
+      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b"
+    },
+    {
+      "Name": "Ride A Fish",
+      "Universe": 10766691148,
+      "Place": 104050046639813,
+      "File": "aqua-auto-egg.lua",
+      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b"
+    },
+    {
+      "Name": "Steal an Egg",
+      "Universe": 10563114921,
+      "Place": 107778070777162,
+      "File": "devil-steal-an-egg.lua",
+      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b",
+      "Version": "chilli-rejoin-clipboard-20261021-2"
+    },
+    {
+      "Name": "Ride a Pet",
+      "Universe": 10035204815,
+      "Place": 124216119978534,
+      "File": "ride-a-pet.lua",
+      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b"
+    },
+    {
+      "Name": "Break and Steal an Egg",
+      "Universe": 10765288803,
+      "Place": 114326934417838,
+      "File": "break-and-steal-an-egg.lua",
+      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b",
+      "Version": "break-language-sync-20261020-1"
+    },
+    {
+      "Name": "Loot to Forge",
+      "Universe": 10684750879,
+      "Place": 118805555015549,
+      "File": "loot-to-forge.lua",
+      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b"
+    },
+    {
+      "Name": "Build An Ant Empire",
+      "Universe": 10436530264,
+      "Place": 78490532994307,
+      "File": "build-an-ant-empire.lua",
+      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b"
+    },
+    {
+      "Name": "Anime Dice",
+      "Universe": 10708913337,
+      "Place": 113290951185459,
+      "File": "anime-dice-test.lua",
+      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b",
+      "Version": "anime-dice-webhook-20261022-2"
+    },
+    {
+      "Name": "Dig For Eggs",
+      "Universe": 10765013362,
+      "Place": 121831322352666,
+      "File": "devilv4-test.lua",
+      "Commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b",
+      "Version": "devilv4-test-20261021-1"
+    }
+  ]
 }

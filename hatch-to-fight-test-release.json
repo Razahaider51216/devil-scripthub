@@ -2,7 +2,7 @@
   "release": "hatch-to-fight-stage-farm-20261022-2",
   "place_id": 127231827405683,
   "universe_id": 10768001644,
-  "entry_sha256": "377e832dd5a970a77a2daf42584d089bb5568ba8f188ff61f644e39180d4d47d",
+  "entry_sha256": "8c94e6558da737221ce3adb28266dc35a586254e227e78c35bf9f81abda6c1d7",
   "live_verified": false,
   "stage_grounding": "Actual stage Floor bounds; streamed floor required; no guessed gate offset",
   "farm_progression": "FightStage/enemy acknowledgment, facing, attack cooldowns, server clear/win before next target",
@@ -28,8 +28,8 @@
   },
   "catalog_sha256": "638b07390809f0cc275a6f0d8de27847c6ef1189eedfeacd0496934eded83401",
   "gui_sha256": "0c30762d3c9c3aa7c25ca3aeceab960a771c96b5af290a3b67aed627161385f5",
-  "branding_release": "devil-brand-v2-20261022-1",
-  "branding_shared_commit": "fc25e68723a99cf9fc18f1f424a6e949862ac2e2",
-  "branding_entry_commit": "b58b5dfc7295a4a9f503a98166618c9290085435",
-  "main_loader_sha256": "3110deb870d72dd4cc525ea59f9d8c5bff60a13a3ef9b0d3f3210a4edb87d067"
+  "branding_release": "devil-brand-v2-20261022-2",
+  "branding_shared_commit": "8029f5c344eadba1f6fe5831364f5165426850a3",
+  "branding_entry_commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b",
+  "main_loader_sha256": "dd8924f91cb2fd47ea21307a29616e96a1666a959ce4bbe0b5760456826ac878"
 }

@@ -8,15 +8,15 @@
   "delegate_native_startup": false,
   "delegate_extra_vm_removed": false,
   "delegate_bytes": 71561,
-  "delegate_sha256": "91f2f1f6b69fbf026ff95031d3126632475135cef0bb802c7775b96c77ab7a9c",
+  "delegate_sha256": "f463cd0c4174106a2483f94fdb3c48dc30848388d846306d6830c8bf3006e531",
   "delegate_native_sha256": "a9fd5dcea140d37bea243a1ff8949b0a1d433f715cf8c0eff486d1e20492bb35",
-  "delegate_commit": "b58b5dfc7295a4a9f503a98166618c9290085435",
-  "main_loader_sha256": "3110deb870d72dd4cc525ea59f9d8c5bff60a13a3ef9b0d3f3210a4edb87d067",
+  "delegate_commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b",
+  "main_loader_sha256": "dd8924f91cb2fd47ea21307a29616e96a1666a959ce4bbe0b5760456826ac878",
   "other_game_routes_unchanged": false,
   "router_baseline_commit": "00f5799cc38a04b04dd061a033ae40dbceda4569",
   "protection_release": "devil-all-games-obf-20261021-1",
   "delegate_startup_vm": true,
-  "branding_release": "devil-brand-v2-20261022-1",
-  "branding_shared_commit": "fc25e68723a99cf9fc18f1f424a6e949862ac2e2",
-  "branding_entry_commit": "b58b5dfc7295a4a9f503a98166618c9290085435"
+  "branding_release": "devil-brand-v2-20261022-2",
+  "branding_shared_commit": "8029f5c344eadba1f6fe5831364f5165426850a3",
+  "branding_entry_commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b"
 }

@@ -10,7 +10,7 @@
   "theme_module_commit": "17c1787803bf5db3e40bc0ace26de00fccd1841d",
   "ouroflow_commit": "c8251f76f74d9942114ebccb0564aa0ac196320a",
   "ouroflow_sha256": "0c30762d3c9c3aa7c25ca3aeceab960a771c96b5af290a3b67aed627161385f5",
-  "entry_sha256": "4c0e31b563ed8ea68eaae291bf49305623bddb13754dc2f80a1fff65c2e087cf",
+  "entry_sha256": "ca75bb3ddb501bf7fd995705fcd25123aac55189e97fbee1e387a4be5c70dd6e",
   "candy_svg_sha256": "c7025836ff6cd9849344697ffbd5f8ff5961a23c812cb85c5abe1ec9ecdc5a43",
   "discord_logo_sha256": "b7a9ed687893fc4f3d4da99bbd8819b10216b7b42d2b8acbda0bc015b6a41cbf",
   "auto_execute_enabled": true,
@@ -39,9 +39,9 @@
     "ui.lua": "44da2de2ff05ec187ede63b2bc41cbb8f64ed93505ebb3db805a9b40b4d27b6d",
     "webhook.lua": "ae46beb1938a3e513cc8bee9feb3d85ce1110b32f96602f8760079b656eedf4e"
   },
-  "main_loader_entry_commit": "b58b5dfc7295a4a9f503a98166618c9290085435",
-  "main_loader_sha256": "3110deb870d72dd4cc525ea59f9d8c5bff60a13a3ef9b0d3f3210a4edb87d067",
-  "branding_release": "devil-brand-v2-20261022-1",
-  "branding_shared_commit": "fc25e68723a99cf9fc18f1f424a6e949862ac2e2",
-  "branding_entry_commit": "b58b5dfc7295a4a9f503a98166618c9290085435"
+  "main_loader_entry_commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b",
+  "main_loader_sha256": "dd8924f91cb2fd47ea21307a29616e96a1666a959ce4bbe0b5760456826ac878",
+  "branding_release": "devil-brand-v2-20261022-2",
+  "branding_shared_commit": "8029f5c344eadba1f6fe5831364f5165426850a3",
+  "branding_entry_commit": "a277ff7c15f78636d8d43c5a628539d6f751de0b"
 }

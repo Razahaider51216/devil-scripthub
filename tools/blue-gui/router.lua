@@ -2,11 +2,11 @@
 do
     local env=type(getgenv)=="function"and getgenv()or _G
     local current=env.DevilHubBlueGui
-    if not(current and not current.Stopped and current.BrandingVersion=="devil-brand-v2-20261022-1")then
-        local source=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/fc25e68723a99cf9fc18f1f424a6e949862ac2e2/devil-blue-gui.lua")
-        assert(type(source)=="string"and #source==309177,"DEVIL branding download size mismatch")
+    if not(current and not current.Stopped and current.BrandingVersion=="devil-brand-v2-20261022-2")then
+        local source=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/8029f5c344eadba1f6fe5831364f5165426850a3/devil-blue-gui.lua")
+        assert(type(source)=="string"and #source==310584,"DEVIL branding download size mismatch")
         local sum=0;for i=1,#source do sum=(sum*33+source:byte(i))%4294967296;if i%32768==0 and task and task.wait then task.wait()end end
-        assert(sum==3443852624,"DEVIL branding checksum mismatch")
+        assert(sum==3600384609,"DEVIL branding checksum mismatch")
         local run,err=loadstring(source,"DEVIL HUB / brand v2");assert(run,err);run()
     end
 end
@@ -34,18 +34,18 @@ end
 local env=type(getgenv)=="function"and getgenv()or _G
 if env.DevilHubRouterLoading then return end
 local games={
-    {Name="Dig For Eggs",Universe=10765013362,Place=121831322352666,File="devilv4-test.lua",Commit="b58b5dfc7295a4a9f503a98166618c9290085435",Version="devilv4-test-20261021-1"},
-    {Name="Anime Dice",Universe=10708913337,Place=113290951185459,File="anime-dice-test.lua",Commit="b58b5dfc7295a4a9f503a98166618c9290085435",Version="anime-dice-webhook-20261022-2"},
-    {Name="Mine / Dump23",Universe=10740316645,Place=79389059854988,File="mine-auto-test.lua",Commit="b58b5dfc7295a4a9f503a98166618c9290085435",Version="mine-auto-test-4"},
-    {Name="Tap Simulator 2",Universe=10629695169,Place=72858262610964,File="tapping-auto-test.lua",Commit="b58b5dfc7295a4a9f503a98166618c9290085435",Version="tapping-auto-test-10"},
-    {Name="Climb for Eggs",Universe=10765490774,Place=85738654635245,File="climb-for-eggs.lua",Commit="b58b5dfc7295a4a9f503a98166618c9290085435",Version="climb-training-bonus-20261021-13"},
-    {Name="Lift Rock for Eggs",Universe=10768316438,Place=76731343328034,File="lift-rock-for-eggs.lua",Commit="b58b5dfc7295a4a9f503a98166618c9290085435",Version="lift-rock-fly-23"},
-    {Name="Ride A Fish",Universe=10766691148,Place=104050046639813,File="aqua-auto-egg.lua",Commit="b58b5dfc7295a4a9f503a98166618c9290085435",Version="aqua-auto-egg-18"},
-    {Name="Steal an Egg",Universe=10563114921,Place=107778070777162,File="devil-steal-an-egg.lua",Commit="b58b5dfc7295a4a9f503a98166618c9290085435",Version="chilli-rejoin-clipboard-20261021-2"},
-    {Name="Ride a Pet",Universe=10035204815,Place=124216119978534,File="ride-a-pet.lua",Commit="b58b5dfc7295a4a9f503a98166618c9290085435"},
-    {Name="Break and Steal an Egg",Universe=10765288803,Place=114326934417838,File="break-and-steal-an-egg.lua",Commit="b58b5dfc7295a4a9f503a98166618c9290085435",Version="break-language-sync-20261020-1"},
-    {Name="Loot to Forge",Universe=10684750879,Place=118805555015549,File="loot-to-forge.lua",Commit="b58b5dfc7295a4a9f503a98166618c9290085435",Version="silver-native-1"},
-    {Name="Build An Ant Empire",Universe=10436530264,Place=78490532994307,File="build-an-ant-empire.lua",Commit="b58b5dfc7295a4a9f503a98166618c9290085435"},
+    {Name="Dig For Eggs",Universe=10765013362,Place=121831322352666,File="devilv4-test.lua",Commit="a277ff7c15f78636d8d43c5a628539d6f751de0b",Version="devilv4-test-20261021-1"},
+    {Name="Anime Dice",Universe=10708913337,Place=113290951185459,File="anime-dice-test.lua",Commit="a277ff7c15f78636d8d43c5a628539d6f751de0b",Version="anime-dice-webhook-20261022-2"},
+    {Name="Mine / Dump23",Universe=10740316645,Place=79389059854988,File="mine-auto-test.lua",Commit="a277ff7c15f78636d8d43c5a628539d6f751de0b",Version="mine-auto-test-4"},
+    {Name="Tap Simulator 2",Universe=10629695169,Place=72858262610964,File="tapping-auto-test.lua",Commit="a277ff7c15f78636d8d43c5a628539d6f751de0b",Version="tapping-auto-test-10"},
+    {Name="Climb for Eggs",Universe=10765490774,Place=85738654635245,File="climb-for-eggs.lua",Commit="a277ff7c15f78636d8d43c5a628539d6f751de0b",Version="climb-training-bonus-20261021-13"},
+    {Name="Lift Rock for Eggs",Universe=10768316438,Place=76731343328034,File="lift-rock-for-eggs.lua",Commit="a277ff7c15f78636d8d43c5a628539d6f751de0b",Version="lift-rock-fly-23"},
+    {Name="Ride A Fish",Universe=10766691148,Place=104050046639813,File="aqua-auto-egg.lua",Commit="a277ff7c15f78636d8d43c5a628539d6f751de0b",Version="aqua-auto-egg-18"},
+    {Name="Steal an Egg",Universe=10563114921,Place=107778070777162,File="devil-steal-an-egg.lua",Commit="a277ff7c15f78636d8d43c5a628539d6f751de0b",Version="chilli-rejoin-clipboard-20261021-2"},
+    {Name="Ride a Pet",Universe=10035204815,Place=124216119978534,File="ride-a-pet.lua",Commit="a277ff7c15f78636d8d43c5a628539d6f751de0b"},
+    {Name="Break and Steal an Egg",Universe=10765288803,Place=114326934417838,File="break-and-steal-an-egg.lua",Commit="a277ff7c15f78636d8d43c5a628539d6f751de0b",Version="break-language-sync-20261020-1"},
+    {Name="Loot to Forge",Universe=10684750879,Place=118805555015549,File="loot-to-forge.lua",Commit="a277ff7c15f78636d8d43c5a628539d6f751de0b",Version="silver-native-1"},
+    {Name="Build An Ant Empire",Universe=10436530264,Place=78490532994307,File="build-an-ant-empire.lua",Commit="a277ff7c15f78636d8d43c5a628539d6f751de0b"},
 }
 for _,entry in ipairs(games)do entry.Version=entry.File=="devil-steal-an-egg.lua"and"chilli-rejoin-clipboard-20261021-2"or entry.File=="mine-auto-test.lua"and"mine-auto-test-4"or entry.File=="tapping-auto-test.lua"and"tapping-auto-test-10"or entry.File=="climb-for-eggs.lua"and"climb-training-bonus-20261021-13"or entry.File=="lift-rock-for-eggs.lua"and"lift-rock-fly-23"or entry.File=="aqua-auto-egg.lua"and"aqua-auto-egg-18"or entry.File=="break-and-steal-an-egg.lua"and"break-language-sync-20261020-1"or(entry.File=="ride-a-pet.lua"and"ride-native-obf-18"or"shared-loading-3")end
 -- Anime Dice keeps its own release without changing legacy route versions.
