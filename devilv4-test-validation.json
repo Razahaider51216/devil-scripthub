@@ -9,8 +9,11 @@
   "production_loader_unchanged": false,
   "published_v2_stall_reproduced": true,
   "published_v3_shop_failure_reproduced": true,
-  "entry_sha256": "d89b40586e74f6d3e41b073947e98c8eafdbfd053b71805bb01027092fe2938c",
+  "entry_sha256": "354e06ff15849b78d410d0febfd29c501bb49d0dbd3eb5114fd6bec3c06a4306",
   "production_loader_sha256": "10daf765ff85a68d739de328d0f0b172dc9e20ea6bc62a2463faa7c0bfd952b0",
   "protection_release": "devil-all-games-obf-20261021-1",
-  "protection_validation": "vm-protection-validation.json"
+  "protection_validation": "vm-protection-validation.json",
+  "branding_release": "devil-brand-v2-20261022-1",
+  "branding_validation": "devil-branding-v2-validation.json",
+  "unchanged_payload_validation_preserved": true
 }

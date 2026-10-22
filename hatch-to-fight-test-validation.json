@@ -8,5 +8,9 @@
     "PASS actual floor entry/height/direction, bounded stream loading and recovery: 14 checks",
     "PASS HatchToFight entry/GUI/language/profile/lifecycle: 45 checks",
     "PASS exact artifact hash, no game require/global hooks/fabricated HP or stage unlocks"
-  ]
+  ],
+  "branding_release": "devil-brand-v2-20261022-1",
+  "branding_validation": "devil-branding-v2-validation.json",
+  "unchanged_payload_validation_preserved": true,
+  "entry_sha256": "377e832dd5a970a77a2daf42584d089bb5568ba8f188ff61f644e39180d4d47d"
 }

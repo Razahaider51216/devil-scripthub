@@ -118,6 +118,9 @@ def router():
     for stem,file in [('anime_dice','anime-dice-test.lua'),('climb','climb-for-eggs.lua'),('steal','devil-steal-an-egg.lua')]:
         audit[stem+'_entry_commit']=m['entries_commit'];audit[stem+'_entry_sha256']=m['entries'][file]['after_sha256']
     save('devil-blue-gui-router-audit.json',audit)
+    module_meta=json.loads((ROOT/'devil-blue-gui-release.json').read_text())
+    module_meta.update(module_commit=m['shared_commit'],module_sha256=m['shared_sha256'],branding_release=RELEASE)
+    save('devil-blue-gui-release.json',module_meta)
     m.update(loader_sha256=sha(data),loader_native_sha256=sha(source.encode()),routes=audit['routes'])
     for filename,file in [('anime-dice-test-release.json','anime-dice-test.lua'),('climb-eggs-release.json','climb-for-eggs.lua'),('devilv4-test-release.json','devilv4-test.lua'),('devil-steal-update-release.json','devil-steal-an-egg.lua'),('hatch-to-fight-test-release.json','hatch-to-fight-test.lua')]:
         meta=json.loads((ROOT/filename).read_text(encoding='utf-8'))
@@ -126,6 +129,13 @@ def router():
         if 'main_loader_entry_commit'in meta:meta['main_loader_entry_commit']=m['entries_commit']
         if filename=='devil-steal-update-release.json':meta.update(delegate_commit=m['entries_commit'],delegate_sha256=m['entries'][file]['after_sha256'])
         save(filename,meta)
+        validation_path=ROOT/filename.replace('-release.json','-validation.json')
+        if validation_path.exists():
+            validation=json.loads(validation_path.read_text())
+            validation.update(branding_release=RELEASE,branding_validation='devil-branding-v2-validation.json',unchanged_payload_validation_preserved=True,
+                entry_sha256=m['entries'][file]['after_sha256'])
+            if 'main_loader_sha256'in validation:validation['main_loader_sha256']=sha(data)
+            save(validation_path.name,validation)
     save('devil-branding-v2-release.json',m)
     print('PASS router: same game IDs/versions, v2 branding before all 12 routes')
 

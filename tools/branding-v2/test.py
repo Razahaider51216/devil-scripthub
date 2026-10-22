@@ -31,6 +31,38 @@ for x,y,w,h,c in build.vector_rects():draw.rectangle((x*5,y*5,(x+w)*5-1,(y+h)*5-
 im.save(WORK/'custom-d-preview.png')
 m=build.state()
 if 'entries_commit'in m:
+    data=(ROOT/'devil-blue-gui.lua').read_text(encoding='utf-8')
+    prelude=(ROOT/'anime-dice-test.lua').read_text(encoding='utf-8').split('-- END DEVIL BRAND V2\n',1)[0]+'-- END DEVIL BRAND V2\n'
+    boot='''local checks=0
+local function check(v,message)assert(v,message);checks+=1 end
+local source=SOURCE
+local scope={DevilHubBlueGui={Version="devil-blue-20261019-10"}}
+local getgenv=function()return scope end
+local downloads,compiles=0,0
+local response=source
+local game={HttpGet=function(_,url)
+ check(url=="URL","wrong shared module pin")
+ downloads+=1;return response
+end}
+local loadstring=function(text,label)
+ check(text==source and label=="DEVIL HUB / brand v2","wrong compilation boundary")
+ compiles+=1
+ return function()scope.DevilHubBlueGui={BrandingVersion="devil-brand-v2-20261022-1",Stopped=false}end
+end
+local function start()
+PRELUDE
+end
+start();check(downloads==1 and compiles==1,"old theme skipped branding upgrade")
+start();check(downloads==1 and compiles==1,"direct entries duplicated shared startup")
+scope.DevilHubBlueGui.Stopped=true;start();check(downloads==2 and compiles==2,"stopped theme was reused")
+scope.DevilHubBlueGui=nil;response=source:sub(1,-2)
+check(not pcall(start)and compiles==2,"truncated module compiled")
+response=source:sub(1,-2)..(source:sub(-1)=="x"and"y"or"x")
+check(not pcall(start)and compiles==2,"corrupted module compiled")
+response=source;start();check(compiles==3,"valid startup did not recover")
+print("PASS branding bootstrap pin, integrity, old-theme upgrade, deduplication and recovery: "..checks.." checks")
+'''.replace('URL','https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/'+m['shared_commit']+'/devil-blue-gui.lua').replace('PRELUDE',prelude).replace('SOURCE',build.pack.literal(data))
+    run('bootstrap',boot)
     for name,row in m['entries'].items():
         data=(ROOT/name).read_bytes();marker=b'-- END DEVIL BRAND V2\n';assert data.count(marker)==1,name
         original=data.split(marker,1)[1]
@@ -41,6 +73,7 @@ if 'entries_commit'in m:
     loader=build.pack.native((ROOT/'loader').read_text(),'loader')
     assert hashlib.sha256(loader.encode()).hexdigest()==m['loader_native_sha256']
     print('PASS 17 direct entries preserve original payload bytes; 12 route IDs and versions unchanged')
+assert (ROOT/'assets/devilhubv2.png').read_bytes()==(ROOT.parent/'devilhubv2.png').read_bytes()
 validation={'release':build.RELEASE,'live_verified':False,'results':results,'shared_native_sha256':hashlib.sha256(module.encode()).hexdigest(),
     'vector_rectangles':len(build.vector_rects()),'checks':sum(int(n)for result in results for n in re.findall(r'(\d+) checks',result))}
 (ROOT/'devil-branding-v2-validation.json').write_text(json.dumps(validation,indent=2)+'\n',encoding='utf-8',newline='\n')

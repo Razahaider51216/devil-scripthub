@@ -1,7 +1,7 @@
 {
   "release": "devil-blue-20261019-10",
-  "module_commit": "17c1787803bf5db3e40bc0ace26de00fccd1841d",
-  "module_sha256": "966b62772451c447d202754f6ef13f79443b60080e0a72dffa6316c544fdac8a",
+  "module_commit": "fc25e68723a99cf9fc18f1f424a6e949862ac2e2",
+  "module_sha256": "39d29673012b4b3b4d0b4919899981e57b84b2b73d780ae44120ac83fc918495",
   "gameplay_bodies_unchanged": true,
   "live_verified": false,
   "entries": {
@@ -76,5 +76,6 @@
       "native_source_sha256": "6dd1b4e0f0216040d7e8fda1ef216fa0efb7826acf98c2c1716444c336f3c71b"
     }
   },
-  "protection_release": "devil-all-games-obf-20261021-1"
+  "protection_release": "devil-all-games-obf-20261021-1",
+  "branding_release": "devil-brand-v2-20261022-1"
 }

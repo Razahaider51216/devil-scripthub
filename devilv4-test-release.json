@@ -7,7 +7,7 @@
   "damage_bypass": false,
   "automation_defaults_off": true,
   "saved_profile_restores_explicitly_saved_jobs": true,
-  "entry_sha256": "d89b40586e74f6d3e41b073947e98c8eafdbfd053b71805bb01027092fe2938c",
+  "entry_sha256": "354e06ff15849b78d410d0febfd29c501bb49d0dbd3eb5114fd6bec3c06a4306",
   "theme_module_commit": "9a9812469df7b5dad2848abb33c5206f7d57e685",
   "ouroflow_sha256": "0c30762d3c9c3aa7c25ca3aeceab960a771c96b5af290a3b67aed627161385f5",
   "assets": 31,
@@ -24,10 +24,13 @@
     "presentation.lua": "d1b7c08e71efd80b325d90e124ca2d141f0800c94180bfb4c7ee9daf058b0f9e",
     "ui.lua": "b7ce7af81cf9c0a07f1b108efce062e66caef99e90429e9532e8cd916e34f23d"
   },
-  "main_loader_entry_commit": "44e6fa00f0a341d61b550ead0680b26e0a1a043b",
+  "main_loader_entry_commit": "b58b5dfc7295a4a9f503a98166618c9290085435",
   "main_loader_entry_sha256": "724f9638e70b0218e09e5b027d9f5cca01ed2916f57e6c544de24dca9a5f768e",
-  "main_loader_sha256": "d9454fa80bd452ac1f580c1cbc6eb0445814a3d3a5ea162088380f8fabc6cbee",
+  "main_loader_sha256": "3110deb870d72dd4cc525ea59f9d8c5bff60a13a3ef9b0d3f3210a4edb87d067",
   "existing_routes_unchanged": true,
   "protection_release": "devil-all-games-obf-20261021-1",
-  "native_entry_sha256": "a9f279c38dfacba6e745db4411b382116c341d413a3625400be58764a79fe19e"
+  "native_entry_sha256": "a9f279c38dfacba6e745db4411b382116c341d413a3625400be58764a79fe19e",
+  "branding_release": "devil-brand-v2-20261022-1",
+  "branding_shared_commit": "fc25e68723a99cf9fc18f1f424a6e949862ac2e2",
+  "branding_entry_commit": "b58b5dfc7295a4a9f503a98166618c9290085435"
 }

@@ -20,11 +20,17 @@ def checksum(data):
 def prefix(ref):
     assert re.fullmatch('[0-9a-f]{40}', ref)
     module = subprocess.check_output(['git', 'show', ref + ':devil-blue-gui.lua'], cwd=root)
+    branding_condition = ''
+    branding_path = root / 'devil-branding-v2-release.json'
+    if branding_path.exists():
+        branding = json.loads(branding_path.read_text())
+        if branding.get('shared_commit') == ref:
+            branding_condition = ' and current.BrandingVersion==' + json.dumps(branding['release'])
     return f'''-- BEGIN SHARED DEVIL BLUE GUI
 do
     local shared=type(getgenv)=="function"and getgenv()or _G
     local current=shared.DevilHubBlueGui
-    if not(current and current.Version=="{RELEASE}"and not current.Stopped)then
+    if not(current and current.Version=="{RELEASE}"and not current.Stopped{branding_condition})then
         local ok,problem=pcall(function()
             local source=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/{ref}/devil-blue-gui.lua")
             assert(type(source)=="string"and #source=={len(module)},"DEVIL blue GUI download size mismatch")
