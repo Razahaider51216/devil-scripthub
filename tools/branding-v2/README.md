@@ -1,6 +1,6 @@
 # DEVIL HUB v2 branding
 
-`assets/devilhubv2.png` is an exact copy of the supplied logo. The asset is pinned
+`assets/devilhubv3.png` is an exact copy of the supplied logo. The asset is pinned
 to its Git commit; cached PNG bytes are checked before reuse. Executors with
 custom asset support display this PNG on brand logos. Without an asset API the
 custom vector D remains visible as a fallback.

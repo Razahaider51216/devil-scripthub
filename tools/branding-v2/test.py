@@ -47,7 +47,7 @@ end}
 local loadstring=function(text,label)
  check(text==source and label=="DEVIL HUB / brand v2","wrong compilation boundary")
  compiles+=1
- return function()scope.DevilHubBlueGui={BrandingVersion="devil-brand-v2-20261022-2",Stopped=false}end
+ return function()scope.DevilHubBlueGui={BrandingVersion="devil-brand-v3-20261022-1",Stopped=false}end
 end
 local function start()
 PRELUDE
@@ -73,7 +73,7 @@ print("PASS branding bootstrap pin, integrity, old-theme upgrade, deduplication 
     loader=build.pack.native((ROOT/'loader').read_text(),'loader')
     assert hashlib.sha256(loader.encode()).hexdigest()==m['loader_native_sha256']
     print('PASS 17 direct entries preserve original payload bytes; 12 route IDs and versions unchanged')
-assert (ROOT/'assets/devilhubv2.png').read_bytes()==(ROOT.parent/'devilhubv2.png').read_bytes()
+assert (ROOT/'assets/devilhubv3.png').read_bytes()==(ROOT.parent/'devilhubv3.png').read_bytes()
 validation={'release':build.RELEASE,'live_verified':False,'results':results,'shared_native_sha256':hashlib.sha256(module.encode()).hexdigest(),
     'vector_rectangles':len(build.vector_rects()),'checks':sum(int(n)for result in results for n in re.findall(r'(\d+) checks',result))}
 (ROOT/'devil-branding-v2-validation.json').write_text(json.dumps(validation,indent=2)+'\n',encoding='utf-8',newline='\n')

@@ -1,7 +1,7 @@
 -- PNG branding and a vector D compiled from assets/devil-d-toggle.svg.
 -- Only owned brand ImageLabels/ImageButtons are changed; native input stays intact.
 return function(scope,links)
-    local B={Version="devil-brand-v2-20261022-2",Image=nil,Status="Not loaded"}
+    local B={Version="devil-brand-v3-20261022-1",Image=nil,Status="Not loaded"}
     local records=setmetatable({},{__mode="k"})
     local rectangles=__D_RECTS__
     local colors={Color3.fromRGB(245,251,255),Color3.fromRGB(97,212,255),Color3.fromRGB(255,255,255)}
@@ -9,8 +9,8 @@ return function(scope,links)
         local link=signal:Connect(fn);links[#links+1]=link;return link
     end
     function B.Matches(image)
-        return type(image)=="string"and(image==B.Image or image:find("devilhubv2",1,true)~=nil
-            or image:find("DevilHub_LogoV2",1,true)~=nil)
+        return type(image)=="string"and(image==B.Image or image:find("devilhubv3",1,true)~=nil
+            or image:find("DevilHub_LogoV3",1,true)~=nil)
     end
     function B.TopSlot(node)
         local current=node
@@ -70,13 +70,13 @@ return function(scope,links)
         update()
     end
     function B.Resolve()
-        if scope.DevilHubLogoV2Version==B.Version and type(scope.DevilHubLogoV2)=="string"then
-            B.Image=scope.DevilHubLogoV2;B.Status="Cached";return B.Image
+        if scope.DevilHubLogoV3Version==B.Version and type(scope.DevilHubLogoV3)=="string"then
+            B.Image=scope.DevilHubLogoV3;B.Status="Cached";return B.Image
         end
         local ok,result=pcall(function()
             local custom=getcustomasset or getsynasset
             assert(type(custom)=="function"and type(writefile)=="function","Asset API unavailable")
-            local file="DevilHub_LogoV2_20261022.png"
+            local file="DevilHub_LogoV3_20261022.png"
             local bytes
             if type(readfile)=="function"and type(isfile)=="function"and isfile(file)then local read,value=pcall(readfile,file);if read then bytes=value end end
             local function valid(value)
@@ -89,7 +89,7 @@ return function(scope,links)
             return image
         end)
         B.Status=ok and"Ready"or"Vector fallback"
-        if ok then B.Image=result;scope.DevilHubLogoV2=result;scope.DevilHubLogoV2Version=B.Version
+        if ok then B.Image=result;scope.DevilHubLogoV3=result;scope.DevilHubLogoV3Version=B.Version
             scope.DevilHubSilverLogo=result;scope.DevilHubSilverLogoVersion=B.Version
         end
         for _,record in pairs(records)do record.Update()end

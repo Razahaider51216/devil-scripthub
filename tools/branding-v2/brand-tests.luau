@@ -1,4 +1,4 @@
-local scope={DevilHubLogoV2Version="devil-brand-v2-20261022-2",DevilHubLogoV2="local-v2.png"}
+local scope={DevilHubLogoV3Version="devil-brand-v3-20261022-1",DevilHubLogoV3="local-v2.png"}
 local links={};local b=makeBrand(scope,links)
 check(b.Resolve()=="local-v2.png","cached PNG not reused")
 local screen=Instance.new("ScreenGui")
@@ -24,7 +24,7 @@ local pet=Instance.new("ImageLabel");pet.Name="PetImage";pet.Image="pet.png";pet
 b.Apply(pet,classify);check(pet.Image=="pet.png"and #pet:GetChildren()==0,"pet artwork changed")
 local item=Instance.new("ImageLabel");item.Name="ItemIcon";item.Image="item.png";item.Parent=root
 b.Apply(item,classify);check(item.Image=="item.png","item icon changed")
-check(b.Matches("DevilHub_LogoV2_20261022.png")and b.Matches("local-v2.png")and not b.Matches("pet.png"),"brand classifier wrong")
+check(b.Matches("DevilHub_LogoV3_20261022.png")and b.Matches("local-v2.png")and not b.Matches("pet.png"),"brand classifier wrong")
 icon:Destroy();check(glyph.destroyed,"destroy leaked vector nodes")
 for _,link in ipairs(links)do link:Disconnect()end
 b.Destroy();check(header.Image=="old.png"and header.ImageTransparency==.2,"unload failed to restore logo")

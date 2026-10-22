@@ -6,9 +6,9 @@ ROOT=Path(__file__).resolve().parents[2]
 HERE=Path(__file__).resolve().parent
 WORK=ROOT.parent/'devil-branding-v2-build'
 WORK.mkdir(exist_ok=True)
-RELEASE='devil-brand-v2-20261022-2'
+RELEASE='devil-brand-v3-20261022-1'
 BASELINE='0a2bdfc'
-ASSETS='de20eac'
+ASSETS='81dde3ce91120f48445f9f9b9606ee4a3f61e9d9'
 spec=importlib.util.spec_from_file_location('brand_pack',ROOT/'tools/protection/pack.py')
 pack=importlib.util.module_from_spec(spec);spec.loader.exec_module(pack)
 pack.RELEASE=RELEASE
@@ -42,10 +42,10 @@ def vector_rects():
         rects.extend(active.values())
     return rects
 def runtime():
-    data=(ROOT/'assets/devilhubv2.png').read_bytes()
+    data=(ROOT/'assets/devilhubv3.png').read_bytes()
     ref=subprocess.check_output(['git','rev-parse',ASSETS],cwd=ROOT,text=True).strip()
     source=(HERE/'brand.lua').read_text(encoding='utf-8')
-    return source.replace('__D_RECTS__','{'+','.join('{'+','.join(map(str,r))+'}'for r in vector_rects())+'}').replace('__LOGO_LEN__',str(len(data))).replace('__LOGO_CHECKSUM__',str(pack.checksum(data))).replace('__LOGO_URL__','https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/'+ref+'/assets/devilhubv2.png')
+    return source.replace('__D_RECTS__','{'+','.join('{'+','.join(map(str,r))+'}'for r in vector_rects())+'}').replace('__LOGO_LEN__',str(len(data))).replace('__LOGO_CHECKSUM__',str(pack.checksum(data))).replace('__LOGO_URL__','https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/'+ref+'/assets/devilhubv3.png')
 def prefix(ref):
     data=subprocess.check_output(['git','show',ref+':devil-blue-gui.lua'],cwd=ROOT)
     return '''-- BEGIN DEVIL BRAND V2
@@ -81,7 +81,7 @@ def shared():
     (WORK/'shared.native.lua').write_text(source,encoding='utf-8',newline='\n')
     data=pack.pack(source,'devil-blue-gui.lua');(ROOT/'devil-blue-gui.lua').write_bytes(data)
     manifest={'release':RELEASE,'baseline_commit':BASELINE,'asset_commit':subprocess.check_output(['git','rev-parse',ASSETS],cwd=ROOT,text=True).strip(),
-        'logo_sha256':sha((ROOT/'assets/devilhubv2.png').read_bytes()),'svg_sha256':sha((ROOT/'assets/devil-d-toggle.svg').read_bytes()),
+        'logo_sha256':sha((ROOT/'assets/devilhubv3.png').read_bytes()),'svg_sha256':sha((ROOT/'assets/devil-d-toggle.svg').read_bytes()),
         'shared_sha256':sha(data),'shared_native_sha256':sha(source.encode()),'vector_rectangles':len(vector_rects()),'live_verified':False,'entries':{}}
     save('devil-branding-v2-release.json',manifest)
     print('PASS built protected shared branding module; SVG rectangles:',manifest['vector_rectangles'])
@@ -109,7 +109,7 @@ def router():
         row['Commit']=m['entries_commit']
     marker='local function logo()\n'
     assert source.count(marker)==1
-    source=source.replace(marker,marker+'    if env.DevilHubLogoV2 then return env.DevilHubLogoV2 end\n',1)
+    source=source.replace(marker,marker+'    if env.DevilHubLogoV3 then return env.DevilHubLogoV3 end\n',1)
     source=prefix(m['shared_commit'])+source
     (ROOT/'tools/blue-gui/router.lua').write_text(source,encoding='utf-8',newline='\n')
     data=pack.pack(source,'loader');(ROOT/'loader').write_bytes(data)
