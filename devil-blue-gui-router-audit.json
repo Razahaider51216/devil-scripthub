@@ -61,8 +61,8 @@
       "Universe": 10765288803,
       "Place": 114326934417838,
       "File": "break-and-steal-an-egg.lua",
-      "Commit": "59344d4e7fa77f01f7cb41a83a284136fbdf7a35",
-      "Version": "break-large-eggs-income-20261022"
+      "Commit": "077eca18998e5ef17ee2db2152c4052e7789eb83",
+      "Version": "break-income-ui-20261022-2"
     },
     {
       "Name": "Loot to Forge",

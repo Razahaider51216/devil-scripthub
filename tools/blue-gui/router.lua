@@ -43,11 +43,11 @@ local games={
     {Name="Ride A Fish",Universe=10766691148,Place=104050046639813,File="aqua-auto-egg.lua",Commit="d15c8cf4eb1b612b321ee40f27b9135ce13057da",Version="aqua-auto-egg-18"},
     {Name="Steal an Egg",Universe=10563114921,Place=107778070777162,File="devil-steal-an-egg.lua",Commit="d15c8cf4eb1b612b321ee40f27b9135ce13057da",Version="chilli-rejoin-clipboard-20261021-2"},
     {Name="Ride a Pet",Universe=10035204815,Place=124216119978534,File="ride-a-pet.lua",Commit="d15c8cf4eb1b612b321ee40f27b9135ce13057da"},
-    {Name="Break and Steal an Egg",Universe=10765288803,Place=114326934417838,File="break-and-steal-an-egg.lua",Commit="59344d4e7fa77f01f7cb41a83a284136fbdf7a35",Version="break-large-eggs-income-20261022"},
+    {Name="Break and Steal an Egg",Universe=10765288803,Place=114326934417838,File="break-and-steal-an-egg.lua",Commit="077eca18998e5ef17ee2db2152c4052e7789eb83",Version="break-income-ui-20261022-2"},
     {Name="Loot to Forge",Universe=10684750879,Place=118805555015549,File="loot-to-forge.lua",Commit="d15c8cf4eb1b612b321ee40f27b9135ce13057da",Version="silver-native-1"},
     {Name="Build An Ant Empire",Universe=10436530264,Place=78490532994307,File="build-an-ant-empire.lua",Commit="d15c8cf4eb1b612b321ee40f27b9135ce13057da"},
 }
-for _,entry in ipairs(games)do entry.Version=entry.File=="devil-steal-an-egg.lua"and"chilli-rejoin-clipboard-20261021-2"or entry.File=="mine-auto-test.lua"and"mine-auto-test-4"or entry.File=="tapping-auto-test.lua"and"tapping-auto-test-10"or entry.File=="climb-for-eggs.lua"and"climb-training-bonus-20261021-13"or entry.File=="lift-rock-for-eggs.lua"and"lift-rock-fly-23"or entry.File=="aqua-auto-egg.lua"and"aqua-auto-egg-18"or entry.File=="break-and-steal-an-egg.lua"and"break-large-eggs-income-20261022"or(entry.File=="ride-a-pet.lua"and"ride-native-obf-18"or"shared-loading-3")end
+for _,entry in ipairs(games)do entry.Version=entry.File=="devil-steal-an-egg.lua"and"chilli-rejoin-clipboard-20261021-2"or entry.File=="mine-auto-test.lua"and"mine-auto-test-4"or entry.File=="tapping-auto-test.lua"and"tapping-auto-test-10"or entry.File=="climb-for-eggs.lua"and"climb-training-bonus-20261021-13"or entry.File=="lift-rock-for-eggs.lua"and"lift-rock-fly-23"or entry.File=="aqua-auto-egg.lua"and"aqua-auto-egg-18"or entry.File=="break-and-steal-an-egg.lua"and"break-income-ui-20261022-2"or(entry.File=="ride-a-pet.lua"and"ride-native-obf-18"or"shared-loading-3")end
 -- Anime Dice keeps its own release without changing legacy route versions.
 for _,entry in ipairs(games)do if entry.File=="anime-dice-test.lua"then entry.Version="anime-dice-server-controls-20261022-1"end end
 -- Dig For Eggs keeps its own release after the legacy version normalizer.
@@ -122,7 +122,15 @@ end
 end
 -- END DEVIL AUTO EXECUTE
 if selected.File=="ride-a-pet.lua"and(env.DevilRideLucyRunning or env.DevilRideLucyLoading or env.DevilRideLucyRequiresRejoin or env.DevilRideUnpacking or env.DevilRideDeltaLoading or(env.DevilRideLoading and env.DevilRideLoading.Busy))then return end
-if selected.File=="break-and-steal-an-egg.lua"and(env.DevilBreakActive or env.DevilBreakUnpacking)then return end
+if selected.File=="break-and-steal-an-egg.lua"then
+    if env.DevilBreakUnpacking then return end
+    if env.DevilBreakActive then
+        if env.DevilBreakRelease==selected.Version then return end
+        assert(type(env.DevilBreakCleanup)=="function","Close the previous Break Egg session before updating")
+        env.DevilBreakCleanup()
+        assert(not env.DevilBreakActive,"Previous Break Egg cleanup did not finish")
+    end
+end
 if selected.File=="loot-to-forge.lua"and(env.DevilLootStarting or env.DevilLootRunning)then return end
 if selected.File=="build-an-ant-empire.lua"and(env.DevilAntStarting or env.DevilAntRunning)then return end
 -- BEGIN DEVIL STEAL REJOIN MIGRATION
@@ -537,6 +545,11 @@ return function(map)
 end
 
 end)()(selected.Name)
+    if selected.File=="break-and-steal-an-egg.lua"then
+        local results=table.pack(run(table.unpack(args,1,args.n)))
+        env.DevilBreakRelease=selected.Version
+        return table.unpack(results,1,results.n)
+    end
     return run(table.unpack(args,1,args.n))
 end,function(err)return debug.traceback(tostring(err),2)end))
 local ok,result=outcome[1],outcome[2]
