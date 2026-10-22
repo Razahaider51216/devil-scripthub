@@ -1,4 +1,4 @@
-﻿"""Rebuild the Break runtime from the recorded baseline, preserving its compiler bridge."""
+"""Rebuild the Break runtime from the recorded baseline, preserving its compiler bridge."""
 from pathlib import Path
 import ast,base64,json,re,secrets,subprocess,sys
 ROOT=Path(__file__).resolve().parents[2]
@@ -26,10 +26,18 @@ def edits(gameplay):
       ('CurrentValue="0",\n                            Callback=function(value)', 'CurrentValue="0",Placeholder="1k / 10T / 100T",Numeric=false,\n                            Callback=function(value)'),
       ('''                                if movement and not movement.Set("PickupMinimumIncome",value)and incomeInput then
                                     incomeInput:Set(tostring(movement.MinimumIncome),true)
-                                end''','''                                if movement then
-                                    movement.Set("PickupMinimumIncome",value)
-                                    if incomeInput then incomeInput:Set(movement.FormatIncome(movement.MinimumIncome),true)end
-                                end''')]
+                                end''','''                                if incomeInput then incomeInput:Set(value,true)end'''),
+      ('                        raw:CreateParagraph({Name="เลือกตามรายได้สัตว์",','''                        local incomeStatus=raw:CreateLabel({Text="เงินขั้นต่ำที่ใช้จริง: 0/s (ปิดตัวกรองเงิน)"})
+                        local originalIncomeSet=incomeInput.Set
+                        incomeInput.Set=function(self,value)
+                            if not movement then return originalIncomeSet(self,value,true)end
+                            movement.Set("PickupMinimumIncome",value)
+                            local text=movement.FormatIncome(movement.MinimumIncome)
+                            originalIncomeSet(self,text,true)
+                            incomeStatus:Set("เงินขั้นต่ำที่ใช้จริง: "..text.."/s"..(movement.MinimumIncome==0 and " (ปิดตัวกรองเงิน)"or ""))
+                        end
+                        raw:CreateParagraph({Name="เลือกตามรายได้สัตว์",''')]
+
     changes.append(('ใส่ 1000000 หรือ 1M เพื่อ Steal รายได้ 1M/s ขึ้นไป','ใส่ 1k, 10T หรือ 100T เพื่อ Steal ตามรายได้ต่อวินาทีขั้นต่ำ'))
     return changes
 
@@ -69,7 +77,7 @@ def main():
     native=once(native,'    local patched=false\n',bridge+'    local patched=false\n')
     native=once(native,'            patched=true\n','            source=patchReachAndIncome(source)\n            patched=true\n')
     (WORK/'runtime.patched.lua').write_text(native,encoding='utf-8')
-    pack.RELEASE='break-large-eggs-income-20261022'
+    pack.RELEASE='break-income-ui-20261022-2'
     artifact=pack.pack(native,NAME)
     (ROOT/NAME).write_bytes(artifact)
     # Extract the exact injected patch for executable regression checks.

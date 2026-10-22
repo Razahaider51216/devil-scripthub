@@ -9,6 +9,44 @@ functions+=(r/'tools/break-egg/approach.lua').read_text(encoding='utf-8-sig')
 f=(r/'tests/break-large-eggs-income.luau').read_text(encoding='utf-8-sig').replace('-- FUNCTIONS',functions)
 p=w/'regression.generated.luau';p.write_text(f,encoding='utf-8')
 subprocess.run([str(r.parent/'luau-tools/luau.exe'),str(p)],check=True)
+# Exercise the shipped field callback and programmatic settings restoration.
+ui=between('                        local incomeInput\n','                        local previous=movement.Changed')
+fixture='''local api={}
+FUNCTIONS
+local movement={MinimumIncome=0,FormatIncome=formatIncome}
+function movement.Set(key,value)
+    assert(key=="PickupMinimumIncome")
+    local amount=parseIncome(value)
+    if amount==nil then return false end
+    movement.MinimumIncome=amount;return true
+end
+local field,config,status
+local raw={}
+function raw:CreateInput(info)
+    config=info;field={text=info.CurrentValue}
+    function field:Set(value)self.text=tostring(value)end
+    return field
+end
+function raw:CreateLabel(info)
+    status={text=info.Text}
+    function status:Set(value)self.text=value end
+    return status
+end
+function raw:CreateParagraph()end
+UI
+for _,case in ipairs({{"10M",1e7,"10M"},{"10000",1e4,"10k"},{"100T",1e14,"100T"}})do
+    config.Callback(case[1])
+    assert(movement.MinimumIncome==case[2]and field.text==case[3],"focus commit failed")
+    assert(status.text:find(case[3].."/s",1,true),"visible threshold is stale")
+end
+field:Set("10000000",true)
+assert(movement.MinimumIncome==1e7 and field.text=="10M","saved numeric setting must restore compactly")
+config.Callback("invalid")
+assert(movement.MinimumIncome==1e7 and field.text=="10M","invalid input must retain previous threshold")
+print("PASS production income field: 10M, 10000 to 10k, 100T, restored settings and invalid edits")
+'''.replace('FUNCTIONS',between('    local incomeMultipliers=','    local function petIncome(')).replace('UI',ui)
+p=w/'income-ui.generated.luau';p.write_text(fixture,encoding='utf-8')
+subprocess.run([str(r.parent/'luau-tools/luau.exe'),str(p)],check=True)
 # Execute the existing production compiler bridge, including Halloween edits.
 native=(w/'runtime.patched.lua').read_text(encoding='utf-8')
 a=native.index('local function installResumeSettingsBridge(');b=native.index('local function mountAutoExecute(',a)
