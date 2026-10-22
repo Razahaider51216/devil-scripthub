@@ -1,0 +1,12 @@
+{
+  "release": "devil-brand-v2-20261022-1",
+  "baseline_commit": "0a2bdfc",
+  "asset_commit": "de20eacf354dfbe67d4b610fe2b0c7791f1042f2",
+  "logo_sha256": "48ca1dcee7aff27c34ccc7f02c00345e9db373f6322102f37578a72f185f478b",
+  "svg_sha256": "5eb088b7709f2a9c189a02c2880186148ff114ec9d5da69240a679433667d148",
+  "shared_sha256": "39d29673012b4b3b4d0b4919899981e57b84b2b73d780ae44120ac83fc918495",
+  "shared_native_sha256": "f8c4dbceee1f229a0ca4a1fc1704cf71a4cc7e51212a29c1155d608d3f8f02cd",
+  "vector_rectangles": 104,
+  "live_verified": false,
+  "entries": {}
+}
