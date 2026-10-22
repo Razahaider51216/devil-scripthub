@@ -1,27 +1,26 @@
 {
-  "release": "anime-dice-webhook-20261022-2",
+  "release": "anime-dice-server-controls-20261022-1",
   "live_game_verified": false,
-  "entry_sha256": "ea6c9f7a3dfa6832e49eaa98101235069fe93b3148fe363a6d603052c23c0bdc",
-  "checks": 1078,
+  "entry_sha256": "978faedc0fc7debdf808149983841c73bc1cbddb236b521891689c11c233ff97",
+  "checks": 1054,
   "literal_remote_contract_checks": 24,
   "results": [
+    "PASS Anime Dice navigation: rejoin, filtered/paginated hop, concurrency, failures, timeout and unload: 20 checks",
     "PASS Anime Dice webhook: opt-in, baseline, money, filters, art, retries, cancellation, bounded queue and secret redaction: 37 checks",
     "PASS Anime Dice planning, network contracts, confirmation, stop and event behavior: 216 checks",
     "PASS saved settings: schema, identity, validation, ordering, lists, false values, reset, API failures and readiness: 41 checks",
     "PASS Halloween teleport: roof rejection, door sill, elevation, streaming, death and cancellation: 32 checks",
-    "PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: 752 checks"
+    "PASS complete public test entry: GUI callbacks, icon dropdowns, dice ownership, Tower reward cards, language and unload: 708 checks"
   ],
-  "main_loader_sha256": "329f4b2559a5d7e45aedae35ca95f02415ae7e641d5f95b92ee95753c43851f4",
-  "main_loader_integration_verified": true,
+  "main_loader_sha256": null,
+  "main_loader_integration_verified": false,
   "pinned_gui_sha256": "0c30762d3c9c3aa7c25ca3aeceab960a771c96b5af290a3b67aed627161385f5",
   "fixtures": {
     "anime-dice-core.luau": "c9cbecb236d62ce08d1886ce7858cb5078a1da4e68b66884b9c730aa63f3ab2f",
-    "anime-dice-entry.luau": "f2a6db92005b405d3955218dc1e7843f399ae9e6dbe53317403305128dfcb23a",
+    "anime-dice-entry.luau": "ff1990c89a4286facb90e7a59d2ac7cf7d30404a9757d34eb61533c1c6fde45d",
     "anime-dice-movement.luau": "cabb717a38ad1509e24b357434d1071d36797002b2b4eeac8dcbeaee4d9b3e41",
+    "anime-dice-navigation.luau": "7d19f685b1cf3aa2252071e4191f313c74b51bf1d2c8e58ef481e592c70b41b0",
     "anime-dice-settings.luau": "f1a603a3dbb9f14b1d78c877d9a4ad4196f87bb930f5a25fba2108126dff2789",
     "anime-dice-webhook.luau": "a32cd0a0906ccb24c7ce57a9de9773e6fd3e475e709c4278f0e902d940a0d762"
-  },
-  "branding_release": "devil-brand-v3-20261022-1",
-  "branding_validation": "devil-branding-v2-validation.json",
-  "unchanged_payload_validation_preserved": true
+  }
 }

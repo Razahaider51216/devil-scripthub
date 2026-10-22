@@ -1,5 +1,16 @@
 # DEVIL HUB / Anime Dice
 
+**Settings → Server** adds manual **Rejoin** and **Server Hop** buttons.
+Rejoin targets the current instance when other players remain or the session is
+private; a solo public session uses place matchmaking. Server Hop searches up to
+five public-server pages, skips the current/full/previously attempted servers,
+and reports failures in the same panel. Repeated clicks do not start concurrent
+searches. Existing Auto Execute handles the subsequent teleport when supported;
+use Save Settings beforehand to retain your chosen automation profile.
+
+Teleport behavior uses Roblox's [TeleportService](https://create.roblox.com/docs/reference/engine/classes/TeleportService).
+Server navigation is tested with mocks; no live server transfer was performed.
+
 Update `anime-dice-webhook-20261022-2` adds a **Webhook** tab:
 
 - Enter your Discord incoming webhook URL and enable **Enable Webhook**.

@@ -1,5 +1,6 @@
 -- Reuse the single language menu provided by the shared DEVIL HUB presentation.
 local translations={
+    ["Server"]="เซิร์ฟเวอร์",["Rejoin"]="เข้าเซิร์ฟเวอร์เดิมใหม่",["Server Hop"]="ย้ายเซิร์ฟเวอร์",["Ready"]="พร้อม",
     ["Webhook"]="เว็บฮุก",["DEVIL HUB Webhook"]="เว็บฮุก DEVIL HUB",["Enable Webhook"]="เปิดเว็บฮุก",
     ["Discord webhook URL"]="ลิงก์เว็บฮุก Discord",["Embed information"]="ข้อมูลที่แสดงใน Embed",
     ["Notify rarities (empty = all)"]="ระดับที่แจ้งเตือน (ว่าง = ทั้งหมด)",["Earnings interval (seconds)"]="รอบแจ้งเงิน (วินาที)",

@@ -14,6 +14,10 @@ def execute(path):
         result.check_returncode()
     results.append(result.stdout.strip())
 checks = (root / 'tests/anime-dice-core.luau').read_text(encoding='utf-8')
+navigation=(root/'tests/anime-dice-navigation.luau').read_text(encoding='utf-8').replace('-- TEST_NAVIGATION',(here/'navigation.lua').read_text(encoding='utf-8'))
+navigation_path=here/'navigation-test.generated.luau'
+navigation_path.write_text(navigation,encoding='utf-8',newline='\n')
+execute(navigation_path)
 webhook=(root/'tests/anime-dice-webhook.luau').read_text(encoding='utf-8')
 webhook=webhook.replace('-- TEST_PLANNER',(here/'planner.lua').read_text(encoding='utf-8')).replace('-- TEST_WEBHOOK',(here/'webhook.lua').read_text(encoding='utf-8'))
 webhook_path=here/'webhook-test.generated.luau'

@@ -2,7 +2,7 @@
 assert(game.GameId==10708913337 or game.PlaceId==113290951185459,"Open Anime Dice before running this test")
 local scope=type(getgenv)=="function"and getgenv()or _G
 -- AUTO_EXECUTE_BOOTSTRAP
-local release="anime-dice-webhook-20261022-2"
+local release="anime-dice-server-controls-20261022-1"
 local previous=scope.DevilAnimeDiceTest
 if previous and not previous.Stopped then
     if previous.Version==release then return previous end
@@ -29,6 +29,9 @@ end)()
 local makeWebhook=(function()
 -- ANIME_WEBHOOK
 end)()
+local makeNavigation=(function()
+-- ANIME_NAVIGATION
+end)()
 local ctx=makeAdapter(scope)
 local core=makeCore(ctx,planner)
 local cfg=core.Config
@@ -50,6 +53,34 @@ local webhook=makeWebhook(ctx,planner,cfg,core.Report,{
         if item and item.state=="Completed"and type(item.imageUrl)=="string"and item.imageUrl:match("^https://")then thumbnails[id]=item.imageUrl;return item.imageUrl end
     end})
 app.Webhook=webhook
+local navigation=makeNavigation({
+    JobId=game.JobId or"",Now=os.clock,Spawn=ctx.Spawn,
+    RejoinTarget=function()
+        local players=game:GetService("Players")
+        if game.JobId~=""and((game.PrivateServerId or"")~=""or #players:GetPlayers()>1)then return game.JobId end
+    end,
+    List=function(cursor)
+        local url="https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100&excludeFullGames=true"
+        if cursor then url..="&cursor="..http:UrlEncode(cursor)end
+        local text
+        if type(transport)=="function"then
+            local response=transport({Url=url,Method="GET"})
+            assert(type(response)=="table"and tonumber(response.StatusCode or response.Status)==200,"Server list request failed")
+            text=response.Body
+        else text=game:HttpGet(url)end
+        return http:JSONDecode(text)
+    end,
+    Teleport=function(id)
+        local service=game:GetService("TeleportService");local player=game:GetService("Players").LocalPlayer
+        if id then service:TeleportToPlaceInstance(game.PlaceId,id,player)else service:Teleport(game.PlaceId,player)end
+    end,
+    OnFailure=function(fn)
+        local service=game:GetService("TeleportService")
+        return service.TeleportInitFailed:Connect(function(player,result,message,place)
+            if player==game:GetService("Players").LocalPlayer and place==game.PlaceId then fn(message or tostring(result))end
+        end)
+    end},core.Report)
+app.Navigation=navigation
 local window,library,presentation
 local links,widgets,optionWidgets,valueWidgets={}, {}, {}, {}
 local autoLoadPending=true
@@ -57,7 +88,7 @@ local controlsReady=false
 local function changed()if controlsReady then autoLoadPending=false end end
 local function destroy()
     if app.Stopped then return end
-    app.Stopped=true;webhook.Destroy();core.Destroy()
+    app.Stopped=true;navigation.Destroy();webhook.Destroy();core.Destroy()
     if presentation then presentation.Destroy()end
     for _,link in ipairs(links)do link:Disconnect()end
     if window then window:Destroy()end
@@ -276,6 +307,10 @@ local ok,problem=xpcall(function()
     input(shop,"CandyReserve","Candy reserve")
     toggle(shop,"CandyShop","Auto Buy Candy Shop Item")
     local settings=tab("Settings","settings")
+    local servers=group(settings,"Server","Right")
+    button(servers,"Rejoin",navigation.Rejoin)
+    button(servers,"Server Hop",navigation.Hop)
+    local serverStatus=servers:CreateLabel({Text="Ready"})
     local savedGroup=group(settings,"Saved settings")
     local savedStatus=savedGroup:CreateLabel({Text="No saved settings loaded yet."})
     savedGroup:CreateParagraph({Name="Restore settings",Content="Save filters, item choices and enabled automation. Saved settings load automatically next run."})
@@ -445,10 +480,11 @@ local ok,problem=xpcall(function()
     ctx.Spawn(function()
         local refreshAt=0
         while not app.Stopped do
-            local worked,err=xpcall(function()autoLoad();core.Tick();webhook.Tick(ctx.Ready and ctx.Snapshot()or nil)end,debug.traceback)
+            local worked,err=xpcall(function()autoLoad();core.Tick();navigation.Tick();webhook.Tick(ctx.Ready and ctx.Snapshot()or nil)end,debug.traceback)
             if not worked then core.Report.LastTickError=tostring(err)end
             local rendered,renderError=xpcall(function()
                 local r=core.Report.Summary
+                serverStatus:Set(navigation.Status)
                 hookStatus:Set(webhook.Status.." | queued: "..#webhook.Queue.." | dropped: "..webhook.Dropped..(webhook.ImageStatus and"\n"..webhook.ImageStatus or""))
                 if r then
                     summary:Set(string.format("Money: %.4g | Units: %d / %d\nRolls: %s | Rebirth: %s\nCandy: %.4g | Pumpkins: %.4g",r.Money,r.Units,r.Storage,tostring(r.Rolls),tostring(r.Rebirth),r.Candy,r.Pumpkins))
