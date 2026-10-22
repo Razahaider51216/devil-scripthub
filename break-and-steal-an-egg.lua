@@ -2,11 +2,11 @@
 do
     local env=type(getgenv)=="function"and getgenv()or _G
     local current=env.DevilHubBlueGui
-    if not(current and not current.Stopped and current.BrandingVersion=="devil-brand-v2-20261022-1")then
-        local source=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/fc25e68723a99cf9fc18f1f424a6e949862ac2e2/devil-blue-gui.lua")
-        assert(type(source)=="string"and #source==309177,"DEVIL branding download size mismatch")
+    if not(current and not current.Stopped and current.BrandingVersion=="devil-brand-v2-20261022-2")then
+        local source=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/8029f5c344eadba1f6fe5831364f5165426850a3/devil-blue-gui.lua")
+        assert(type(source)=="string"and #source==310584,"DEVIL branding download size mismatch")
         local sum=0;for i=1,#source do sum=(sum*33+source:byte(i))%4294967296;if i%32768==0 and task and task.wait then task.wait()end end
-        assert(sum==3443852624,"DEVIL branding checksum mismatch")
+        assert(sum==3600384609,"DEVIL branding checksum mismatch")
         local run,err=loadstring(source,"DEVIL HUB / brand v2");assert(run,err);run()
     end
 end
