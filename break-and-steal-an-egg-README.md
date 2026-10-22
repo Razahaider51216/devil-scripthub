@@ -625,3 +625,27 @@ The shared RobuxShopConfig.SwingMultiplierFor export is wrapped only while Auto 
 Disabling Auto Break or unloading restores the original export when it still belongs to this script. A later replacement made by another script is preserved. The movement report includes swingSpeed.requested, effective, mode, confirmed, rejected and lastServerHealth. Confirmation/rejection counts are native responses for the currently locked egg, separate from local Swing acceptance; they do not establish a measured x2 server throughput ratio by themselves.
 
 Validation: scoped native-controller simulation checks x2 scheduling, unchanged per-hit damage, preserved potion effects, no x4 for existing owners, unmodified ownership, Event/manual isolation, error cleanup, rejection reporting and unload. Existing walking/carry recovery, control hooks, saved settings, runtime loading and protected startup boundary tests pass. The public runtime retains two startup VM layers with native gameplay callbacks. Live server acceptance of faster hits has not been established; the supplied dump does not include the EggHitRequest server handler.
+
+
+## Large egg reach and abbreviated income (2026-10-22)
+
+Auto Break now computes its walking destination using the same EggTargeting
+surface distance used by its hit gate. Large meshes no longer stop at an
+oversized bounding box outside swing range. Recovery approaches closer;
+walking stays at the character's current height.
+
+Minimum Auto Pickup income accepts `1k`, `10T`, `100T`, decimals and existing
+K/M/B/T/Qa/Qi and higher units, without case sensitivity. The input preserves
+a compact threshold after valid edits and restores the previous threshold on
+invalid edits. This threshold is income per second; `0` disables it.
+
+Build: `python tools/break-egg/build.py`
+Test: `python tools/break-egg/test.py`
+
+Validation covers giant mesh bounds versus the actual surface metric, raised
+eggs, closer recovery, already-reachable targets, part/model fallback, unit
+parsing, invalid input and exact threshold display roundtrips. The actual
+production compiler bridge is executed with retained Halloween edits, and
+the packed runtime is checked against the exact native source. Live Roblox
+validation remains pending. Existing public entry/router URLs retain their
+pinned versions until a release updates those pins.
