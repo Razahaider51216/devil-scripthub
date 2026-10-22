@@ -1,3 +1,16 @@
+-- BEGIN DEVIL BRAND V2
+do
+    local env=type(getgenv)=="function"and getgenv()or _G
+    local current=env.DevilHubBlueGui
+    if not(current and not current.Stopped and current.BrandingVersion=="devil-brand-v2-20261022-1")then
+        local source=game:HttpGet("https://raw.githubusercontent.com/Razahaider51216/devil-scripthub/fc25e68723a99cf9fc18f1f424a6e949862ac2e2/devil-blue-gui.lua")
+        assert(type(source)=="string"and #source==309177,"DEVIL branding download size mismatch")
+        local sum=0;for i=1,#source do sum=(sum*33+source:byte(i))%4294967296;if i%32768==0 and task and task.wait then task.wait()end end
+        assert(sum==3443852624,"DEVIL branding checksum mismatch")
+        local run,err=loadstring(source,"DEVIL HUB / brand v2");assert(run,err);run()
+    end
+end
+-- END DEVIL BRAND V2
 assert(game.PlaceId==127231827405683 or game.GameId==10768001644,"Open the HatchToFight map recorded in Devilv10")
 local scope=type(getgenv)=="function"and getgenv()or _G
 local release="hatch-to-fight-stage-farm-20261022-2"
